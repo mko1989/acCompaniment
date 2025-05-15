@@ -88,9 +88,9 @@ function renderCues() {
             }
         } else if (isCurrentlyCued) {
             const nextItemName = audioController.getNextPlaylistItemName(cue.id);
-            statusIndicator.textContent = nextItemName ? `Next: ${nextItemName}` : 'Cued';
+            statusIndicator.textContent = 'Cued';
             button.classList.add('cued');
-            if (cue.type === 'playlist' && nextItemName) { // Also add to nameHTML for cued state
+            if (cue.type === 'playlist' && nextItemName) {
                  nameHTML += `<br><span class="next-playlist-item">(Next: ${nextItemName})</span>`;
             }
         } else if (isCurrentlyPaused) {
@@ -175,14 +175,14 @@ function updateButtonPlayingState(cueId, isPlaying, statusTextArg = null, isCued
         }
     } else if (isCuedOverride) {
         button.classList.add('cued');
-        if (statusIndicator && statusTextArg) statusIndicator.textContent = statusTextArg; // Should be "Next: ..."
-        else if (statusIndicator) statusIndicator.textContent = 'Cued'; 
-        // For nameContainer, renderCues will handle the (Next: ...) part upon full render,
-        // but we can update it here too for immediate feedback if statusTextArg is "Next: ..."
+        if (statusIndicator) statusIndicator.textContent = 'Cued';
+        
         if (nameContainer && statusTextArg && statusTextArg.startsWith('Next:')) {
             let nameHTML = cue.name || 'Cue';
             nameHTML += `<br><span class="next-playlist-item">(${statusTextArg})</span>`;
             nameContainer.innerHTML = nameHTML;
+        } else if (nameContainer) {
+            nameContainer.innerHTML = cue.name || 'Cue';
         }
         // No renderCues() call here to preserve this specific update.
     } else { // Not playing and not a cued override - means stopped or paused from external call
@@ -268,5 +268,4 @@ export {
     updateButtonPlayingState, // Keep this exported if audioController calls it directly
     // updateCueButtonTime is mostly internal to renderCues now, but export if needed elsewhere
     updateCueButtonTime 
-}; 
 }; 
