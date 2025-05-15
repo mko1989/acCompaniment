@@ -1,0 +1,593 @@
+body {
+    font-family: sans-serif;
+    margin: 0; /* Remove default margin */
+    color: #333;
+    display: flex; /* Ensure appContainer takes full height if needed */
+    min-height: 100vh;
+    flex-direction: column;
+}
+
+#appContainer {
+    display: flex;
+    flex-grow: 1;
+    width: 100%;
+    transition: background-color 0.3s ease;
+}
+
+#appContainer.edit-mode {
+    background-color: #cccccc; /* Gray for edit mode */
+}
+
+#appContainer.show-mode {
+    background-color: #800000; /* Maroon for show mode */
+}
+
+/* Left Config Sidebar */
+#configSidebar {
+    width: 280px;
+    background-color: #e9e9e9;
+    padding: 15px;
+    border-right: 1px solid #ccc;
+    transition: width 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden; /* Hide content when collapsed */
+}
+
+#configSidebar.collapsed {
+    width: 50px; /* Width of the cog icon + padding */
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+#configSidebar.collapsed .sidebar-content {
+    display: none; /* Hide content when collapsed */
+}
+
+#configToggleBtn {
+    background: none;
+    border: none;
+    font-size: 1.8em;
+    cursor: pointer;
+    padding: 5px;
+    margin-bottom: 10px;
+    align-self: flex-start; /* Keep it to the left */
+}
+
+#configSidebar .sidebar-content {
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+/* Main Content Area */
+#mainContent {
+    flex-grow: 1; /* Takes up remaining space */
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto; /* Allow scrolling for cue grid if needed */
+}
+
+#topBar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+#topBar h1 {
+    margin: 0;
+    font-size: 1.8em;
+}
+
+#globalControls button {
+    padding: 10px 15px;
+    background-color: #5DADE2;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+    margin-left: 10px;
+}
+
+#globalControls button:hover {
+    background-color: #3498DB;
+}
+
+#modeToggleBtn.show-mode-active {
+    background-color: #E74C3C; /* Red when in show mode */
+}
+#modeToggleBtn.show-mode-active:hover {
+    background-color: #C0392B;
+}
+
+/* Right Properties Sidebar */
+#propertiesSidebar {
+    width: 320px;
+    background-color: #f0f0f0;
+    border-left: 1px solid #ccc;
+    padding: 15px;
+    transition: width 0.3s ease, padding 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+}
+
+#propertiesSidebar.hidden {
+    width: 0;
+    padding: 0;
+    border-left: none;
+    overflow: hidden;
+}
+
+#propertiesSidebar .sidebar-content {
+    flex-grow: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+#propertiesSidebar h2 {
+    margin-top: 0;
+    text-align: center;
+}
+
+#closePropertiesSidebarBtn {
+    position: absolute; /* Relative to sidebar-content if that's positioned */
+    top: 10px;
+    right: 15px;
+    font-size: 1.5em;
+    cursor: pointer;
+}
+
+/* Shared form group styling for sidebars */
+.sidebar-content .form-group {
+    margin-bottom: 10px;
+}
+
+.sidebar-content label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    font-size: 0.9em;
+}
+
+.sidebar-content input[type="text"],
+.sidebar-content input[type="number"],
+.sidebar-content select {
+    width: calc(100% - 20px); /* Account for padding */
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.sidebar-content input[type="range"] {
+    width: calc(70% - 10px); /* Adjust as needed */
+    vertical-align: middle;
+}
+.sidebar-content .volume-display {
+    display: inline-block;
+    width: 25%;
+    text-align: right;
+    vertical-align: middle;
+    font-size: 0.9em;
+}
+
+.sidebar-content button {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 5px;
+}
+
+#saveCuePropertiesButton {
+    background-color: #2ECC71; /* Green */
+    color: white;
+}
+#saveCuePropertiesButton:hover {
+    background-color: #27AE60;
+}
+
+#deleteCuePropertiesButton {
+    background-color: #E74C3C; /* Red */
+    color: white;
+}
+#deleteCuePropertiesButton:hover {
+    background-color: #C0392B;
+}
+
+/* Ensure existing modal and cue button styles don't conflict badly */
+/* Might need adjustments later */
+h1 { /* from old h1 */
+    text-align: center;
+    color: #2c3e50;
+}
+
+/* #controls no longer exists, merged into #topBar/#globalControls */
+
+#addCueButton { /* Style for add cue button in globalControls, if different needed */
+    background-color: #3498db; /* Original blue */
+}
+#addCueButton:hover {
+    background-color: #2980b9;
+}
+
+#cueGridContainer {
+    display: grid;
+    /* grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); */ /* Old version */
+    grid-template-columns: repeat(auto-fill, 150px); /* Solution A: Fixed width */
+    gap: 15px; /* Should set both row and column gap */
+    /* row-gap: 15px; */ /* Explicit, if needed */
+    /* column-gap: 15px; */ /* Explicit, if needed */
+    align-content: start; /* Pack rows to the top */
+    margin-top: 0; /* Was 20px, now mainContent has padding */
+    flex-grow: 1; /* Allow grid to take available space in mainContent */
+}
+
+.cue-button {
+    padding: 10px; /* Reduced padding for potentially smaller buttons */
+    background-color: #ecf0f1;
+    border: 1px solid #bdc3c7;
+    border-radius: 5px;
+    text-align: center;
+    cursor: pointer;
+    /* min-height: 80px; */ /* Removed fixed min-height */
+    aspect-ratio: 1 / 1; /* Make it square */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* Adjust for status, name, time */
+    align-items: center;
+    min-height: 80px; /* May need more height for status indicator */
+    padding: 5px;
+    word-break: break-word;
+    position: relative;
+}
+
+.cue-status-indicator {
+    font-size: 0.75em;
+    color: #777;
+    width: 100%;
+    text-align: center;
+    margin-bottom: 3px;
+    height: 1.2em; /* Give it a defined height */
+    line-height: 1.2em;
+    font-style: italic;
+}
+
+.cue-button.playing .cue-status-indicator {
+    color: #e6ffe6; /* Lighter green for text on dark green */
+}
+
+.cue-button.paused .cue-status-indicator {
+    color: #ffe9cc; /* Lighter orange for text on dark orange */
+}
+
+.cue-button-name-container {
+    font-weight: bold;
+    /* margin-bottom: 4px; /* Adjusted by flex */
+    word-break: break-word;
+    flex-grow: 1; /* Allow name to take up more space if needed */
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Center name and now-playing within its container */
+    align-items: center;
+    width: 100%; /* Ensure it takes full width for centering */
+}
+
+.cue-button .now-playing-item {
+    display: block; /* Make it take its own line if present */
+    font-size: 0.8em;
+    font-weight: normal;
+    color: #ccc; /* Lighter color for secondary info */
+    margin-top: 2px;
+}
+
+.cue-time-display-container {
+    font-size: 0.85em;
+    color: #555; /* Darker gray for better contrast on default button */
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 3px;
+    /* margin-bottom: 2px; /* Give it a bit of space at the bottom */
+}
+
+.cue-time-separator {
+    margin: 0 3px;
+}
+
+.cue-time-remaining {
+    margin-left: 5px;
+    font-size: 0.9em; /* Slightly smaller for remaining */
+    color: #777; /* Darker gray, slightly lighter than main time display */
+}
+
+/* Style for when a cue is paused (distinct from playing) */
+.cue-button.paused {
+    background-color: #ff8c00; /* DarkOrange for paused */
+    color: white;
+}
+
+/* Fix for paused button hover */
+.cue-button.paused:hover {
+    background-color: #e67e00; /* Darker orange on hover */
+    /* Ensure other properties like text color are maintained if necessary */
+}
+
+.cue-button.paused .now-playing-item,
+.cue-button.paused .cue-time-display-container {
+    color: #ffe0b3; /* Lighter orange for text on dark orange background */
+}
+
+.cue-button.paused .cue-time-remaining {
+    color: #ffe0b3; /* Explicitly make remaining time match other time elements in paused state */
+}
+
+.cue-button:hover {
+    background-color: #dde4e6;
+    border-color: #a7abb0;
+}
+
+.cue-button.playing {
+    background-color: #2ecc71; /* Green when playing */
+    color: white;
+}
+.cue-button.playing .cue-time-display-container {
+    color: white; /* Ensure time text is white on green playing button */
+}
+.cue-button.playing .cue-time-remaining {
+    color: white; /* Explicitly make remaining time white when playing */
+}
+.cue-button.playing:hover {
+    background-color: #27ae60; /* Darker green on hover */
+}
+
+/* Style for when a cue is cued (e.g. playlist next item ready) */
+.cue-button.cued {
+    background-color: #3498db; /* Blue for cued */
+    color: white;
+}
+
+.cue-button.cued:hover {
+    background-color: #2980b9; /* Darker blue on hover */
+}
+
+.cue-button.cued .cue-status-indicator,
+.cue-button.cued .now-playing-item, /* Though now-playing-item might not be used for cued */
+.cue-button.cued .next-playlist-item, /* Specifically for (Next: ...) text */
+.cue-button.cued .cue-time-display-container {
+    color: #eaf2f8; /* Lighter blue/white for text on blue background */
+}
+
+.cue-button.cued .cue-time-remaining {
+    color: #eaf2f8; /* Match other time elements in cued state */
+}
+
+.cue-button.drop-target {
+    border: 2px dashed #3498db;
+    background-color: #e0eaf0;
+}
+
+/* Modal styles (mostly unchanged, ensure they still work) */
+.modal {
+    position: fixed;
+    z-index: 100; /* Ensure modal is above sidebars if used */
+    left: 0;
+    top: 0;
+    width: 100%; 
+    height: 100%; 
+    overflow: auto; 
+    background-color: rgba(0,0,0,0.6);
+    padding-top: 60px;
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 500px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 80vh; /* Ensure modal content doesn't exceed viewport height */
+    overflow-y: auto;   /* Allow vertical scrolling for content */
+}
+
+.modal-content label {
+    font-weight: bold;
+}
+
+.modal-content input[type="text"],
+.modal-content input[type="number"],
+.modal-content select {
+    width: calc(100% - 22px);
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.modal-content input[type="range"] {
+    width: calc(100% - 90px); 
+    vertical-align: middle;
+}
+
+.modal-content #volumeValue {
+    display: inline-block;
+    width: 50px;
+    text-align: right;
+}
+
+.modal-content button {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#saveCueButton {
+    background-color: #2ecc71; 
+    color: white;
+}
+#saveCueButton:hover {
+    background-color: #27ae60;
+}
+
+.close-button {
+    color: #aaa;
+    /* float: right; */ /* Replaced by align-self or absolute positioning in sidebars */
+    font-size: 28px;
+    font-weight: bold;
+    align-self: flex-end; /* For modal's close button */
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+#playlistConfig ul, #propPlaylistConfig ul {
+    list-style-type: none;
+    padding: 0;
+    max-height: 200px; /* Increased height */
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin-bottom: 5px;
+    background-color: white;
+}
+
+#playlistConfig ul li, #propPlaylistConfig ul li {
+    padding: 6px;
+    font-size: 0.9em;
+    border-bottom: 1px solid #eee;
+}
+#playlistConfig ul li:last-child, #propPlaylistConfig ul li:last-child {
+    border-bottom: none;
+}
+
+/* Make sure the properties sidebar close button is positioned correctly */
+#propertiesSidebar .sidebar-content {
+    position: relative; /* Needed for absolute positioning of close button */
+}
+
+/* Properties Sidebar Playlist Item Styling */
+#propPlaylistItems li {
+    display: flex;
+    align-items: center;
+    padding: 5px;
+    margin-bottom: 3px;
+    border: 1px solid #444;
+    border-radius: 3px;
+    background-color: #333;
+}
+
+.playlist-item-drag-handle {
+    cursor: grab;
+    padding: 0 8px 0 4px; /* Add some padding around the handle icon */
+    margin-right: 5px;
+    color: #ccc; /* Handle icon color */
+    font-size: 1.2em; /* Adjust icon size as needed */
+    line-height: 1; /* Ensure consistent vertical alignment */
+}
+
+.playlist-item-drag-handle:hover {
+    color: #fff;
+}
+
+#propPlaylistItems li .playlist-item-name {
+    flex-grow: 1;
+    margin-left: 5px;
+    margin-right: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #ccc; /* Default color for visibility on dark background */
+}
+
+/* Default style for playlist item duration */
+#propPlaylistItems li .playlist-item-duration {
+    color: #555; /* A visible default color, adjust as needed */
+    font-size: 0.9em;
+    margin-left: 8px; /* Add some spacing */
+    white-space: nowrap; /* Prevent wrapping if too close to button */
+}
+
+#propPlaylistItems li .remove-playlist-item-btn {
+    width: 24px;  /* Fixed width */
+    height: 24px; /* Fixed height */
+    padding: 0;   /* Remove padding, rely on width/height and flex centering */
+    font-size: 1.2em; /* Adjust for '✕' size */
+    line-height: 1; /* For better centering of the text character */
+    background-color: #555;
+    border: 1px solid #666;
+    color: #eee;
+    cursor: pointer;
+    flex-shrink: 0;
+    border-radius: 3px;
+    margin-left: 5px;
+    display: flex; /* For centering the '✕' */
+    align-items: center; /* For centering the '✕' */
+    justify-content: center; /* For centering the '✕' */
+}
+
+/* Visual feedback for playlist item drag-and-drop */
+#propPlaylistItems li.dragging-playlist-item {
+    opacity: 0.5;
+    background-color: #4a4a4a;
+    border-style: dashed;
+}
+
+#propPlaylistItems li.drag-over-playlist-item {
+    border-color: #2980b9; /* Highlight potential drop target */
+    background-color: #2c3e50; 
+}
+
+/* Highlight for currently playing item in properties sidebar playlist */
+#propPlaylistItems li.playing-in-sidebar {
+    background-color: #27ae60; /* A green, similar to playing cue buttons */
+    border-color: #2ecc71;
+}
+
+#propPlaylistItems li.playing-in-sidebar .playlist-item-name,
+#propPlaylistItems li.playing-in-sidebar .playlist-item-drag-handle {
+    color: #ffffff; /* White text for better contrast on green */
+}
+
+.stop-all-btn {
+    background-color: #e74c3c; /* Red */
+}
+
+.stop-all-btn:hover {
+    background-color: #c0392b; /* Darker red on hover */
+}
+
+/* Specific styling for the multiple files drop modal content */
+#multipleFilesDropModalContent {
+    width: auto; /* Let content define width */
+    min-width: 300px; /* Ensure it's not too narrow */
+    max-width: 400px; /* Reduce max width */
+    margin: 10% auto; /* Adjust top margin if needed */
+}
+
+#multipleFilesDropModalContent .modal-actions {
+    display: flex;
+    flex-direction: column; /* Stack buttons vertically */
+    gap: 10px; /* Add space between buttons */
+    margin-top: 15px;
+}
+
+#multipleFilesDropModalContent .modal-actions button {
+    width: 100%; /* Make buttons take full width of their container */
+} 

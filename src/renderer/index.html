@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>acCompaniment</title>
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
+</head>
+<body>
+    <div id="appContainer" class="edit-mode">
+        <div id="configSidebar" class="collapsed">
+            <button id="configToggleBtn" aria-label="Toggle Configuration Panel">⚙️</button>
+            <div class="sidebar-content">
+                <h2>App Configuration</h2>
+                <div class="form-group">
+                    <label for="audioOutput">Audio Output:</label>
+                    <select id="audioOutput" name="audioOutput">
+                        <option value="default">Default Device</option>
+                    </select>
+                </div>
+                <h3>Default Cue Settings</h3>
+                <div class="form-group">
+                    <label for="defaultFadeIn">Fade In (ms):</label>
+                    <input type="number" id="defaultFadeIn" name="defaultFadeIn" value="0" min="0" step="50">
+                </div>
+                <div class="form-group">
+                    <label for="defaultFadeOut">Fade Out (ms):</label>
+                    <input type="number" id="defaultFadeOut" name="defaultFadeOut" value="0" min="0" step="50">
+                </div>
+                <div class="form-group">
+                    <label for="defaultLoop">Loop:</label>
+                    <input type="checkbox" id="defaultLoop" name="defaultLoop">
+                </div>
+                <div class="form-group">
+                    <label for="defaultVolume">Default Volume (0-1):</label>
+                    <input type="range" id="defaultVolume" name="defaultVolume" min="0" max="1" step="0.01" value="1">
+                    <span id="defaultVolumeValueDisplay">1.00</span>
+                </div>
+                <div class="form-group">
+                    <label for="retriggerBehavior">Retrigger Behavior:</label>
+                    <select id="retriggerBehavior" name="retriggerBehavior">
+                        <option value="restart">Restart</option>
+                        <option value="fade_stop_restart">Fade Out, Stop, then Restart</option>
+                        <option value="fade_out_and_stop">Fade Out and Stop</option>
+                        <option value="pause">Pause/Resume</option>
+                        <option value="stop">Stop (Immediate)</option>
+                        <option value="do_nothing">Do Nothing</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="defaultStopAllBehavior">Default Stop All Behavior:</label>
+                    <select id="defaultStopAllBehavior" name="defaultStopAllBehavior">
+                        <option value="stop">Immediate Stop</option>
+                        <option value="fade_out_and_stop">Fade Out then Stop</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div id="mainContent">
+            <div id="topBar">
+                <h1>acCompaniment</h1>
+                <div id="globalControls">
+                    <button id="addCueButton">Add New Cue</button>
+                    <button id="stopAllButton" class="stop-all-btn">Stop All</button>
+                    <button id="modeToggleBtn">Enter Show Mode</button>
+                </div>
+            </div>
+            <div id="cueGridContainer">
+            </div>
+        </div>
+
+        <div id="propertiesSidebar" class="hidden">
+            <div class="sidebar-content">
+                <h2>Cue Properties</h2>
+                <span id="closePropertiesSidebarBtn" class="close-button">&times;</span>
+                <input type="hidden" id="propCueId">
+                <div class="form-group">
+                    <label for="propCueName">Name:</label>
+                    <input type="text" id="propCueName" name="propCueName">
+                </div>
+                <div class="form-group">
+                    <label for="propCueType">Type:</label>
+                    <select id="propCueType" name="propCueType">
+                        <option value="single_file">Single File</option>
+                        <option value="playlist">Playlist</option>
+                    </select>
+                </div>
+                
+                <div id="propSingleFileConfig" class="form-group">
+                    <label for="propFilePath">Audio File:</label>
+                    <input type="text" id="propFilePath" name="propFilePath" readonly placeholder="Drag & drop file">
+                </div>
+
+                <div id="propPlaylistConfig" style="display: none;">
+                    <p>Playlist Items:</p>
+                    <ul id="propPlaylistItems">
+                        <!-- Playlist items will be rendered here by ui.js -->
+                    </ul>
+                    <!-- New Button and Hidden File Input -->
+                    <div class="form-group">
+                        <button type="button" id="propAddFilesToPlaylistBtn" class="btn">Add Files...</button>
+                        <input type="file" id="propPlaylistFileInput" multiple accept="audio/*" style="display: none;">
+                    </div>
+                    <div class="form-group">
+                        <label for="propShufflePlaylist">Shuffle Playlist:</label>
+                        <input type="checkbox" id="propShufflePlaylist" name="propShufflePlaylist">
+                    </div>
+                    <div class="form-group">
+                        <label for="propRepeatOnePlaylistItem">Repeat Current Item:</label>
+                        <input type="checkbox" id="propRepeatOnePlaylistItem" name="propRepeatOnePlaylistItem">
+                    </div>
+                    <div class="form-group">
+                        <label for="propPlaylistPlayModeSelect">Playlist End Behavior:</label>
+                        <select id="propPlaylistPlayModeSelect" name="propPlaylistPlayModeSelect">
+                            <option value="continue">Continue to next item</option>
+                            <option value="stop_and_cue_next">Stop after item, cue next</option>
+                        </select>
+                    </div>
+                    <p id="propPlaylistFilePathDisplay" class="file-path-display"></p> <!-- This might be repurposed or removed if the list above is sufficient -->
+                </div>
+
+                <div class="form-group">
+                    <label for="propFadeInTime">Fade In (ms):</label>
+                    <input type="number" id="propFadeInTime" name="propFadeInTime" value="0" min="0" step="50">
+                </div>
+                <div class="form-group">
+                    <label for="propFadeOutTime">Fade Out (ms):</label>
+                    <input type="number" id="propFadeOutTime" name="propFadeOutTime" value="0" min="0" step="50">
+                </div>
+                <div class="form-group">
+                    <label for="propLoop">Loop:</label>
+                    <input type="checkbox" id="propLoop" name="propLoop">
+                </div>
+                <div class="form-group">
+                    <label for="propRetriggerBehavior">Retrigger Behavior:</label>
+                    <select id="propRetriggerBehavior" name="propRetriggerBehavior">
+                        <option value="restart">Restart</option>
+                        <option value="fade_stop_restart">Fade Out, Stop, then Restart</option>
+                        <option value="fade_out_and_stop">Fade Out and Stop</option>
+                        <option value="pause">Pause/Resume</option>
+                        <option value="stop">Stop (Immediate)</option>
+                        <option value="do_nothing">Do Nothing</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="propTrimStartTime">Trim Start (s):</label>
+                    <input type="number" id="propTrimStartTime" name="propTrimStartTime" value="0" min="0" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label for="propTrimEndTime">Trim End (s, 0 for full):</label>
+                    <input type="number" id="propTrimEndTime" name="propTrimEndTime" value="0" min="0" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label for="propVolume">Volume (0-1):</label>
+                    <input type="range" id="propVolume" name="propVolume" min="0" max="1" step="0.01" value="1">
+                    <span id="propVolumeValue">1.00</span>
+                </div>
+                <button id="saveCuePropertiesButton">Save Changes</button>
+                <button id="deleteCuePropertiesButton" style="background-color: #f44336;">Delete Cue</button>
+            </div>
+        </div>
+
+        <div id="cueConfigModal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <h2>Configure New Sound Cue</h2>
+                <input type="hidden" id="cueId">
+                <div>
+                    <label for="cueName">Name:</label>
+                    <input type="text" id="cueName" name="cueName" value="New Cue">
+                </div>
+                <div>
+                    <label for="cueType">Type:</label>
+                    <select id="cueType" name="cueType">
+                        <option value="single_file">Single File</option>
+                        <option value="playlist">Playlist</option>
+                    </select>
+                </div>
+                
+                <div id="singleFileConfig">
+                    <label for="filePath">Audio File:</label>
+                    <input type="text" id="filePath" name="filePath" readonly placeholder="Drag & drop file or click to select">
+                </div>
+
+                <div id="playlistConfig" style="display:none;">
+                    <label>Playlist:</label>
+                    <ul id="playlistItems"></ul>
+                    <input type="text" id="playlistFilePathDisplay" readonly placeholder="Drag & drop file(s) here to add">
+                </div>
+
+                <div>
+                    <label for="fadeInTime">Fade In (ms):</label>
+                    <input type="number" id="fadeInTime" name="fadeInTime" value="0" min="0" step="50">
+                </div>
+                <div>
+                    <label for="fadeOutTime">Fade Out (ms):</label>
+                    <input type="number" id="fadeOutTime" name="fadeOutTime" value="0" min="0" step="50">
+                </div>
+                <div>
+                    <label for="loop">Loop:</label>
+                    <input type="checkbox" id="loop" name="loop">
+                </div>
+                <div>
+                    <label for="trimStartTime">Trim Start (s):</label>
+                    <input type="number" id="trimStartTime" name="trimStartTime" value="0" min="0" step="0.1">
+                </div>
+                <div>
+                    <label for="trimEndTime">Trim End (s, 0 for full):</label>
+                    <input type="number" id="trimEndTime" name="trimEndTime" value="0" min="0" step="0.1">
+                </div>
+                <div>
+                    <label for="volume">Volume (0-1):</label>
+                    <input type="range" id="volume" name="volume" min="0" max="1" step="0.01" value="1">
+                    <span id="volumeValue">1.00</span>
+                </div>
+                <div class="form-group">
+                    <label for="cue-retrigger-behavior">Retrigger Behavior:</label>
+                    <select id="cue-retrigger-behavior" class="form-control">
+                        <option value="restart">Restart</option>
+                        <option value="fade_stop_restart">Fade Out, Stop, then Restart</option>
+                        <option value="fade_out_and_stop">Fade Out and Stop</option>
+                        <option value="pause">Pause/Resume</option>
+                        <option value="stop">Stop (Immediate)</option>
+                        <option value="do_nothing">Do Nothing</option>
+                    </select>
+                </div>
+                <button id="saveCueButton">Save Cue</button>
+                <button id="modalCancelNewCue">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Multiple File Drop -->
+    <div id="multipleFilesDropModal" class="modal" style="display: none;">
+        <div id="multipleFilesDropModalContent" class="modal-content">
+            <span class="close-button" id="closeMultipleFilesDropModal">&times;</span>
+            <h2>Multiple Files Dropped</h2>
+            <p>How would you like to add these files?</p>
+            <div class="modal-actions">
+                <button id="modalAddAsSeparateCues">Create Separate Cues</button>
+                <button id="modalAddAsPlaylistCue">Create Playlist Cue</button>
+                <button id="modalCancelMultipleFilesDrop">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="renderer.js"></script>
+</body>
+</html> 
