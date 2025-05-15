@@ -225,7 +225,7 @@ function updateCueButtonTime(cueId, elements = null) {
     }
 
     const formattedCurrent = formatTime(times.currentTime);
-    const formattedTotal = formatTime(times.totalPlaylistDuration); 
+    const formattedTotal = formatTime(times.currentItemDuration); 
     const formattedRemaining = formatTime(times.currentItemRemainingTime);
 
     const DURATION_THRESHOLD_SECONDS = 0.05; // Only show total/remaining if duration is meaningful
@@ -234,22 +234,24 @@ function updateCueButtonTime(cueId, elements = null) {
     const isCurrentlyPaused = audioController.isPaused(cueId);
 
     if (!isCurrentlyPlaying && !isCurrentlyPaused) { // Idle state
-        if (times.totalPlaylistDuration > DURATION_THRESHOLD_SECONDS) {
+        if (times.totalPlaylistDuration > DURATION_THRESHOLD_SECONDS) { // Keep this check for visibility based on overall playlist having content
             currentElem.textContent = ''; 
             separatorElem.textContent = ''; 
+            // Display the item's duration (which is now in formattedTotal)
             totalElem.textContent = formattedTotal;
-            // In idle, remaining is the total duration
-            remainingElem.textContent = times.totalPlaylistDuration > 0 ? `(-${formattedTotal})` : ''; 
+            // In idle, remaining is the item's duration
+            remainingElem.textContent = times.currentItemDuration > 0 ? `(-${formattedTotal})` : ''; 
         } else {
             currentElem.textContent = '';
             separatorElem.textContent = '';
-            // For idle, use totalPlaylistDuration for the main display. rawDuration is just for the 00:00 check.
-            totalElem.textContent = (formatTime(times.totalPlaylistDuration) === '00:00' && times.rawDuration <= DURATION_THRESHOLD_SECONDS) ? '' : formattedTotal;
+            // For idle, use currentItemDuration for the main display. rawDuration is just for the 00:00 check.
+            totalElem.textContent = (formatTime(times.currentItemDuration) === '00:00' && times.rawDuration <= DURATION_THRESHOLD_SECONDS) ? '' : formattedTotal;
             remainingElem.textContent = '';
         }
     } else { // Playing or Paused state
         currentElem.textContent = formattedCurrent;
-        if (formattedTotal === '--:--' || times.totalPlaylistDuration <= DURATION_THRESHOLD_SECONDS) { // Handles streams or very short files, check totalPlaylistDuration
+        // Use currentItemDuration to decide if the total part is shown
+        if (formattedTotal === '--:--' || times.currentItemDuration <= DURATION_THRESHOLD_SECONDS) { 
             totalElem.textContent = '';
             separatorElem.textContent = '';
             remainingElem.textContent = ''; 
