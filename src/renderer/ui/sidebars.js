@@ -1,4 +1,8 @@
-import { getGlobalCueById, formatTime } from './utils.js'; // Assuming utils.js is in the same directory
+import * as waveformControls from './waveformControls.js'; // Import the new module
+import { formatWaveformTime } from './waveformControls.js';
+import { debounce } from './utils.js'; // Import debounce
+// import * as path from 'path'; // Import path module - REMOVED as it causes renderer error and seems unused
+// const nodePath = window.require('path'); // This was causing issues
 
 let cueStore;
 let audioController;
@@ -16,16 +20,32 @@ let closePropertiesSidebarBtn;
 let propCueIdInput, propCueNameInput, propCueTypeSelect, propSingleFileConfigDiv,
     propFilePathInput, propPlaylistConfigDiv, propPlaylistItemsUl,
     propPlaylistFilePathDisplay, propFadeInTimeInput, propFadeOutTimeInput,
-    propLoopCheckbox, propTrimStartTimeInput, propTrimEndTimeInput,
+    propLoopCheckbox, propTrimStartTimeInput, propTrimEndTimeInput, propTrimConfig,
     propVolumeRangeInput, propVolumeValueSpan, saveCuePropertiesButton, deleteCuePropertiesButton;
 let propShufflePlaylistCheckbox, propRepeatOnePlaylistItemCheckbox, propRetriggerBehaviorSelect;
 let propAddFilesToPlaylistBtn, propPlaylistFileInput;
 let propPlaylistPlayModeSelect; // Added for playlist play mode
+let propVolumeSlider, propVolumeValueDisplay;
+
+// OSC Trigger Elements
+let propOscTriggerEnabledCheckbox;
+let propOscTriggerPathInput;
+let propOscLearnBtn;
+
+// WING Mixer Trigger Elements
+let wingTriggerSettingsDiv;
+let propWingMixerTriggerEnabledCheckbox;
+let wingUserButtonSubGroupDiv;
+let propWingUserButtonInput;
 
 // --- State for Properties Sidebar ---
 let activePropertiesCueId = null;
 let stagedPlaylistItems = [];
 let draggedPlaylistItemIndex = null;
+let currentEditCueId = null;
+
+// Debounced version of handleSaveCueProperties
+let debouncedSaveCueProperties;
 
 function initSidebars(cs, ac, ipc, core) {
     cueStore = cs;
@@ -34,8 +54,37 @@ function initSidebars(cs, ac, ipc, core) {
     uiCore = core;
 
     cacheSidebarDOMElements();
+    // Initialize debounced save function after cacheSidebarDOMElements has run
+    // and handleSaveCueProperties is defined.
+    debouncedSaveCueProperties = debounce(handleSaveCueProperties, 500); 
     bindSidebarEventListeners();
-    console.log('Sidebars Module Initialized');
+
+    // Listen for learned OSC messages
+    if (ipcRendererBindingsModule && typeof ipcRendererBindingsModule.onOscMessageLearned === 'function') {
+        ipcRendererBindingsModule.onOscMessageLearned((learnedPath) => {
+            if (propOscTriggerPathInput && activePropertiesCueId) {
+                propOscTriggerPathInput.value = learnedPath;
+                console.log(`Sidebar: Received learned OSC path: ${learnedPath} for cue ${activePropertiesCueId}`);
+                // Potentially trigger a save or indicate change
+            }
+            if (propOscLearnBtn) {
+                propOscLearnBtn.textContent = 'Learn';
+                propOscLearnBtn.disabled = false;
+            }
+        });
+    }
+    if (ipcRendererBindingsModule && typeof ipcRendererBindingsModule.onOscLearnFailed === 'function') {
+        ipcRendererBindingsModule.onOscLearnFailed((errorMsg) => {
+            console.error(`Sidebar: OSC Learn mode failed or timed out: ${errorMsg}`);
+            alert(`OSC Learn Failed: ${errorMsg}`);
+            if (propOscLearnBtn) {
+                propOscLearnBtn.textContent = 'Learn';
+                propOscLearnBtn.disabled = false;
+            }
+        });
+    }
+
+    console.log('Sidebars Module Initialized (now SidebarManager)');
 }
 
 function cacheSidebarDOMElements() {
@@ -59,22 +108,46 @@ function cacheSidebarDOMElements() {
     propLoopCheckbox = document.getElementById('propLoop');
     propTrimStartTimeInput = document.getElementById('propTrimStartTime');
     propTrimEndTimeInput = document.getElementById('propTrimEndTime');
+    propTrimConfig = document.getElementById('propTrimConfig');
     propVolumeRangeInput = document.getElementById('propVolume');
     propVolumeValueSpan = document.getElementById('propVolumeValue');
     saveCuePropertiesButton = document.getElementById('saveCuePropertiesButton');
     deleteCuePropertiesButton = document.getElementById('deleteCuePropertiesButton');
     propShufflePlaylistCheckbox = document.getElementById('propShufflePlaylist');
-    propRepeatOnePlaylistItemCheckbox = document.getElementById('propRepeatOnePlaylistItem');
+    propRepeatOnePlaylistItemCheckbox = document.getElementById('propRepeatOnePlaylistItemCheckbox');
     propRetriggerBehaviorSelect = document.getElementById('propRetriggerBehavior');
     propAddFilesToPlaylistBtn = document.getElementById('propAddFilesToPlaylistBtn');
     propPlaylistFileInput = document.getElementById('propPlaylistFileInput');
-    propPlaylistPlayModeSelect = document.getElementById('propPlaylistPlayModeSelect'); // Added
+    propPlaylistPlayModeSelect = document.getElementById('propPlaylistPlayModeSelect');
+    propVolumeSlider = document.getElementById('propVolume');
+    propVolumeValueDisplay = document.getElementById('propVolumeValue');
+
+    // Cache OSC Trigger Elements
+    propOscTriggerEnabledCheckbox = document.getElementById('propOscTriggerEnabled');
+    propOscTriggerPathInput = document.getElementById('propOscTriggerPath');
+    propOscLearnBtn = document.getElementById('propOscLearnBtn');
+
+    // Cache WING Mixer Trigger Elements
+    wingTriggerSettingsDiv = document.getElementById('wingTriggerSettings');
+    propWingMixerTriggerEnabledCheckbox = document.getElementById('propWingTriggerEnabled');
+    wingUserButtonSubGroupDiv = document.getElementById('wingUserButtonSubGroup');
+    propWingUserButtonInput = document.getElementById('propWingUserButton');
+
+    if (propVolumeSlider && propVolumeValueDisplay) {
+        propVolumeSlider.addEventListener('input', (e) => {
+            propVolumeValueDisplay.textContent = parseFloat(e.target.value).toFixed(2);
+        });
+        // The 'change' event for saving will be handled by handleSaveCueProperties reading its value directly.
+    }
 }
 
 function bindSidebarEventListeners() {
     if (configToggleBtn) configToggleBtn.addEventListener('click', toggleConfigSidebar);
     if (closePropertiesSidebarBtn) closePropertiesSidebarBtn.addEventListener('click', hidePropertiesSidebar);
-    if (saveCuePropertiesButton) saveCuePropertiesButton.addEventListener('click', handleSaveCueProperties);
+    if (saveCuePropertiesButton) {
+        // saveCuePropertiesButton.addEventListener('click', handleSaveCueProperties); // REMOVE THIS
+        saveCuePropertiesButton.style.display = 'none'; // Hide the save button
+    }
     if (deleteCuePropertiesButton) deleteCuePropertiesButton.addEventListener('click', handleDeleteCueProperties);
 
     if (propCueTypeSelect) propCueTypeSelect.addEventListener('change', (e) => {
@@ -84,6 +157,31 @@ function bindSidebarEventListeners() {
         const playlistSpecificControls = document.getElementById('playlistSpecificControls');
         if (playlistSpecificControls) {
             playlistSpecificControls.style.display = isPlaylist ? 'block' : 'none';
+        }
+
+        const propTrimConfigDiv = document.getElementById('propTrimConfig');
+        if (propTrimConfigDiv) {
+            propTrimConfigDiv.style.display = isPlaylist ? 'none' : 'block';
+        }
+
+        const waveformDisplayContainer = document.getElementById('waveformDisplay');
+        if (waveformDisplayContainer) { 
+            waveformDisplayContainer.style.display = isPlaylist ? 'none' : 'block';
+        }
+
+        if (isPlaylist) {
+            waveformControls.hideAndDestroyWaveform();
+        } else {
+            const cue = activePropertiesCueId ? cueStore.getCueById(activePropertiesCueId) : null;
+            const currentFilePath = propFilePathInput ? propFilePathInput.value : null;
+
+            if (cue && cue.filePath) {
+                waveformControls.showWaveformForCue(cue);
+            } else if (currentFilePath) { 
+                waveformControls.showWaveformForCue({filePath: currentFilePath });
+            } else {
+                waveformControls.hideAndDestroyWaveform(); 
+            }
         }
     });
     if (propVolumeRangeInput && propVolumeValueSpan) propVolumeRangeInput.addEventListener('input', (e) => {
@@ -98,6 +196,84 @@ function bindSidebarEventListeners() {
     if (propPlaylistFileInput) {
         propPlaylistFileInput.addEventListener('change', handlePropPlaylistFileSelect);
     }
+
+    if (propOscLearnBtn) {
+        propOscLearnBtn.addEventListener('click', () => {
+            if (activePropertiesCueId) {
+                console.log(`Sidebar: OSC Learn button clicked for cue ID: ${activePropertiesCueId}. Requesting learn mode.`);
+                if (ipcRendererBindingsModule && typeof ipcRendererBindingsModule.sendStartOscLearn === 'function') {
+                    ipcRendererBindingsModule.sendStartOscLearn(activePropertiesCueId);
+                    propOscLearnBtn.textContent = 'Learning...';
+                    propOscLearnBtn.disabled = true;
+                } else {
+                    alert('Error: Could not initiate OSC Learn mode (ipc).');
+                    console.error('Error: ipcRendererBindingsModule.sendStartOscLearn is not a function or module not available.');
+                }
+            } else {
+                console.warn('Sidebar: OSC Learn button clicked but no cue is being edited.');
+            }
+        });
+    }
+
+    // WING Mixer Trigger Event Listeners
+    if (propWingMixerTriggerEnabledCheckbox) {
+        propWingMixerTriggerEnabledCheckbox.addEventListener('change', () => {
+            if (wingUserButtonSubGroupDiv) {
+                wingUserButtonSubGroupDiv.style.display = propWingMixerTriggerEnabledCheckbox.checked ? 'block' : 'none';
+            }
+            // handleSaveCueProperties(); // Auto-save on change - REPLACE
+            debouncedSaveCueProperties();
+        });
+    }
+    if (propWingUserButtonInput) {
+        // propWingUserButtonInput.addEventListener('change', handleSaveCueProperties); // Auto-save on change - REMOVE (covered by generic input listener)
+        // propWingUserButtonInput.addEventListener('blur', handleSaveCueProperties); // Auto-save on blur - REMOVE (covered by generic input listener)
+        // The generic 'input' listener added above will cover this.
+        // If specific 'change' or 'blur' is needed, they can be added, but 'input' should catch most cases.
+        // For number input, 'change' fires when focus is lost or enter is pressed. 'input' fires on each keystroke.
+        // We already added 'input' listener to propWingUserButtonInput in the loop.
+    }
+
+    // --- Attach debounced save to all relevant input fields ---
+    const inputsToAutoSave = [
+        propCueNameInput, 
+        propFilePathInput, // Though readonly, might be set programmatically
+        propFadeInTimeInput, 
+        propFadeOutTimeInput,
+        propVolumeRangeInput, // Also propVolumeSlider - they are the same element
+        propRetriggerBehaviorSelect,
+        propOscTriggerPathInput,
+        propWingUserButtonInput,
+        propPlaylistPlayModeSelect, // Added
+        // propTrimStartTimeInput, // These are handled by waveformControls now
+        // propTrimEndTimeInput,   // These are handled by waveformControls now
+    ];
+
+    inputsToAutoSave.forEach(input => {
+        if (input) {
+            input.addEventListener('input', debouncedSaveCueProperties);
+            // For select elements, 'change' is often more appropriate than 'input'
+            if (input.tagName === 'SELECT') {
+                input.removeEventListener('input', debouncedSaveCueProperties); // Remove 'input' if added
+                input.addEventListener('change', debouncedSaveCueProperties);
+            }
+        }
+    });
+
+    const checkboxesToAutoSave = [
+        propLoopCheckbox,
+        propShufflePlaylistCheckbox,
+        propRepeatOnePlaylistItemCheckbox,
+        propOscTriggerEnabledCheckbox,
+        propWingMixerTriggerEnabledCheckbox,
+    ];
+
+    checkboxesToAutoSave.forEach(checkbox => {
+        if (checkbox) {
+            checkbox.addEventListener('change', debouncedSaveCueProperties);
+        }
+    });
+    // --- End of new event listener attachments ---
 }
 
 function toggleConfigSidebar() {
@@ -107,19 +283,26 @@ function toggleConfigSidebar() {
 function openPropertiesSidebar(cue) {
     if (!cue || !propertiesSidebar || !uiCore) return;
     activePropertiesCueId = cue.id;
-    const currentAppConfig = uiCore.getCurrentAppConfig(); // Get app config from core UI
+    const currentAppConfig = uiCore.getCurrentAppConfig();
+
+    waveformControls.hideAndDestroyWaveform(); 
 
     if(propCueIdInput) propCueIdInput.value = cue.id;
     if(propCueNameInput) propCueNameInput.value = cue.name || '';
     if(propCueTypeSelect) propCueTypeSelect.value = cue.type || 'single'; 
     
-    const isPlaylist = propCueTypeSelect.value === 'playlist';
+    const isPlaylist = cue.type === 'playlist';
     if(propPlaylistConfigDiv) propPlaylistConfigDiv.style.display = isPlaylist ? 'block' : 'none';
     if(propSingleFileConfigDiv) propSingleFileConfigDiv.style.display = isPlaylist ? 'none' : 'block';
 
     const playlistSpecificControls = document.getElementById('playlistSpecificControls');
     if (playlistSpecificControls) {
         playlistSpecificControls.style.display = isPlaylist ? 'block' : 'none';
+    }
+
+    const waveformDisplayContainer = document.getElementById('waveformDisplay'); 
+    if (waveformDisplayContainer) { 
+        waveformDisplayContainer.style.display = isPlaylist ? 'none' : 'block';
     }
 
     if (isPlaylist) {
@@ -129,32 +312,77 @@ function openPropertiesSidebar(cue) {
         if(propPlaylistFilePathDisplay) propPlaylistFilePathDisplay.textContent = ''; 
         if(propShufflePlaylistCheckbox) propShufflePlaylistCheckbox.checked = cue.shuffle || false;
         if(propRepeatOnePlaylistItemCheckbox) propRepeatOnePlaylistItemCheckbox.checked = cue.repeatOne || false;
-        if(propPlaylistPlayModeSelect) propPlaylistPlayModeSelect.value = cue.playlistPlayMode || 'continue'; // Added
+        if(propPlaylistPlayModeSelect) propPlaylistPlayModeSelect.value = cue.playlistPlayMode || 'continue';
+        waveformControls.hideAndDestroyWaveform(); 
     } else {
         if(propFilePathInput) propFilePathInput.value = cue.filePath || '';
         if(propPlaylistItemsUl) propPlaylistItemsUl.innerHTML = ''; 
         stagedPlaylistItems = [];
+        if (cue.filePath) {
+            waveformControls.showWaveformForCue(cue);
+        } else {
+            waveformControls.hideAndDestroyWaveform(); 
+        }
     }
 
     if(propFadeInTimeInput) propFadeInTimeInput.value = cue.fadeInTime !== undefined ? cue.fadeInTime : (currentAppConfig.defaultFadeInTime || 0);
     if(propFadeOutTimeInput) propFadeOutTimeInput.value = cue.fadeOutTime !== undefined ? cue.fadeOutTime : (currentAppConfig.defaultFadeOutTime || 0);
     if(propLoopCheckbox) propLoopCheckbox.checked = cue.loop !== undefined ? cue.loop : (currentAppConfig.defaultLoop || false);
-    if(propTrimStartTimeInput) propTrimStartTimeInput.value = cue.trimStartTime !== undefined ? cue.trimStartTime : '';
-    if(propTrimEndTimeInput) propTrimEndTimeInput.value = cue.trimEndTime !== undefined ? cue.trimEndTime : '';
+    
     if(propVolumeRangeInput) propVolumeRangeInput.value = cue.volume !== undefined ? cue.volume : (currentAppConfig.defaultVolume !== undefined ? currentAppConfig.defaultVolume : 1);
     if(propVolumeValueSpan) propVolumeValueSpan.textContent = parseFloat(propVolumeRangeInput.value).toFixed(2);
+    
+    if(propVolumeSlider) propVolumeSlider.value = cue.volume !== undefined ? cue.volume : (currentAppConfig.defaultVolume !== undefined ? currentAppConfig.defaultVolume : 1);
+    if(propVolumeValueDisplay) propVolumeValueDisplay.textContent = parseFloat(propVolumeSlider.value).toFixed(2);
     
     if(propertiesSidebar) propertiesSidebar.classList.remove('hidden');
 
     if (propRetriggerBehaviorSelect) {
-        propRetriggerBehaviorSelect.value = cue.retriggerBehavior || currentAppConfig.defaultRetriggerBehavior || 'restart';
+        propRetriggerBehaviorSelect.value = cue.retriggerBehavior !== undefined ? cue.retriggerBehavior : (currentAppConfig.defaultRetriggerBehavior || 'restart');
     }
+
+    // Populate OSC Trigger fields
+    if (propOscTriggerEnabledCheckbox) {
+        propOscTriggerEnabledCheckbox.checked = cue.oscTrigger && cue.oscTrigger.enabled ? cue.oscTrigger.enabled : false;
+    }
+    if (propOscTriggerPathInput) {
+        propOscTriggerPathInput.value = cue.oscTrigger && cue.oscTrigger.path ? cue.oscTrigger.path : '';
+    }
+    
+    // Populate WING Mixer Trigger fields
+    if (wingTriggerSettingsDiv && currentAppConfig) {
+        const wingIntegrationActive = currentAppConfig.mixerIntegrationEnabled && currentAppConfig.mixerType === 'behringer_wing';
+        wingTriggerSettingsDiv.style.display = wingIntegrationActive ? 'block' : 'none';
+
+        if (wingIntegrationActive) {
+            const wingTrigger = cue.wingTrigger || {}; // Default to empty object if not present
+            if (propWingMixerTriggerEnabledCheckbox) {
+                propWingMixerTriggerEnabledCheckbox.checked = wingTrigger.enabled || false;
+            }
+            if (wingUserButtonSubGroupDiv) {
+                wingUserButtonSubGroupDiv.style.display = (wingTrigger.enabled || false) ? 'block' : 'none';
+            }
+            if (propWingUserButtonInput) {
+                propWingUserButtonInput.value = wingTrigger.userButton || '';
+            }
+        }
+    }
+    
+    // Reset Learn button state
+    if (propOscLearnBtn) {
+        propOscLearnBtn.textContent = 'Learn';
+        propOscLearnBtn.disabled = false;
+    }
+    
+    // Make sure event listeners are bound for dynamic elements like playlist items if not already done
+    bindPlaylistDragAndRemoveListenersIfNeeded();
 }
 
 function hidePropertiesSidebar() {
     if(propertiesSidebar) propertiesSidebar.classList.add('hidden');
     activePropertiesCueId = null;
     stagedPlaylistItems = [];
+    waveformControls.hideAndDestroyWaveform();
 }
 
 function renderPlaylistInProperties() {
@@ -166,10 +394,6 @@ function renderPlaylistInProperties() {
         li.dataset.index = index; 
         li.dataset.path = item.path || ''; 
         li.dataset.itemId = item.id || '';
-
-        // ---- START DEBUG LOG ----
-        console.log(`Sidebars/renderPlaylistInProperties loop: Item: ${item.name}, KnownDuration: ${item.knownDuration}`);
-        // ---- END DEBUG LOG ----
 
         li.addEventListener('dragover', handleDragOverPlaylistItem);
         li.addEventListener('drop', handleDropPlaylistItem);
@@ -188,19 +412,11 @@ function renderPlaylistInProperties() {
         itemNameSpan.classList.add('playlist-item-name'); 
         li.appendChild(itemNameSpan);
 
-        // Add item duration
         const itemDurationSpan = document.createElement('span');
         itemDurationSpan.classList.add('playlist-item-duration');
-        const formattedDuration = item.knownDuration ? formatTime(item.knownDuration) : '--:--';
-        // ---- START DEBUG LOG ----
-        console.log(`Sidebars/renderPlaylistInProperties loop: Item: ${item.name}, FormattedDuration: ${formattedDuration}`);
-        // ---- END DEBUG LOG ----
+        const formattedDuration = item.knownDuration ? formatWaveformTime(item.knownDuration) : '--:--';
         itemDurationSpan.textContent = ` (${formattedDuration})`
         li.appendChild(itemDurationSpan);
-
-        // ---- START DEBUG LOG ----
-        console.log(`Sidebars/renderPlaylistInProperties loop: Final li.innerHTML for ${item.name}:`, li.innerHTML);
-        // ---- END DEBUG LOG ----
 
         const removeButton = document.createElement('button');
         removeButton.textContent = '✕'; 
@@ -269,59 +485,87 @@ function handleRemovePlaylistItem(event) {
 }
 
 async function handleSaveCueProperties() {
-    if (!activePropertiesCueId || !ipcRendererBindingsModule) {
-        console.error('Cannot save cue properties: No active cue or IPC bindings.');
+    if (!activePropertiesCueId || !uiCore) {
+        console.warn('Sidebar: No active cue to save or uiCore not available.');
         return;
     }
-    const cueFromStore = cueStore.getCueById(activePropertiesCueId); // Get existing cue to preserve non-UI managed fields
-    if (!cueFromStore) {
-        console.error('Cannot save cue properties: Cue not found in store', activePropertiesCueId);
-        return;
-    }
-
     const currentAppConfig = uiCore.getCurrentAppConfig();
 
-    const updatedCueData = {
-        ...cueFromStore, // Preserve existing fields
-        id: activePropertiesCueId,
-        name: propCueNameInput.value || 'Unnamed Cue',
+    const cueDataToSave = {
+        ...cueStore.getCueById(activePropertiesCueId),
+        name: propCueNameInput.value,
         type: propCueTypeSelect.value,
-        fadeInTime: parseInt(propFadeInTimeInput.value, 10) || 0,
-        fadeOutTime: parseInt(propFadeOutTimeInput.value, 10) || 0,
+        filePath: propFilePathInput.value,
+        fadeInTime: parseFloat(propFadeInTimeInput.value) || 0,
+        fadeOutTime: parseFloat(propFadeOutTimeInput.value) || 0,
         loop: propLoopCheckbox.checked,
-        retriggerBehavior: propRetriggerBehaviorSelect.value || currentAppConfig.defaultRetriggerBehavior || 'restart',
-        trimStartTime: parseFloat(propTrimStartTimeInput.value) || 0,
-        trimEndTime: parseFloat(propTrimEndTimeInput.value) || 0,
-        volume: parseFloat(propVolumeRangeInput.value),
-        // Ensure playlist specific properties are handled correctly
-        shuffle: propCueTypeSelect.value === 'playlist' ? propShufflePlaylistCheckbox.checked : false,
-        repeatOne: propCueTypeSelect.value === 'playlist' ? propRepeatOnePlaylistItemCheckbox.checked : false,
-        playlistPlayMode: propCueTypeSelect.value === 'playlist' ? (propPlaylistPlayModeSelect.value || 'continue') : undefined, // Added
-        filePath: propCueTypeSelect.value === 'playlist' ? null : propFilePathInput.value,
-        playlistItems: propCueTypeSelect.value === 'playlist' ? stagedPlaylistItems : [],
+        retriggerBehavior: propRetriggerBehaviorSelect.value,
+        volume: parseFloat(propVolumeSlider.value),
+        shufflePlaylist: propShufflePlaylistCheckbox ? propShufflePlaylistCheckbox.checked : false,
+        repeatOnePlaylistItem: propRepeatOnePlaylistItemCheckbox ? propRepeatOnePlaylistItemCheckbox.checked : false,
+        playlistPlayMode: propPlaylistPlayModeSelect ? propPlaylistPlayModeSelect.value : 'continue',
     };
 
-    // Clean up conditional properties if type changed
-    if (updatedCueData.type !== 'playlist') {
-        delete updatedCueData.playlistItems;
-        delete updatedCueData.shuffle;
-        delete updatedCueData.repeatOne;
-        delete updatedCueData.playlistPlayMode; // Added
-    } else {
-        delete updatedCueData.filePath;
+    // If it's a single file cue and trim times were edited via waveform, get them
+    if (cueDataToSave.type === 'single_file' && waveformControls && typeof waveformControls.getCurrentTrimTimes === 'function') {
+        const trimTimes = waveformControls.getCurrentTrimTimes();
+        if (trimTimes) {
+            cueDataToSave.trimStartTime = trimTimes.trimStartTime;
+            cueDataToSave.trimEndTime = trimTimes.trimEndTime;
+            console.log(`Sidebars (DEBUG save): Applied trimTimes from waveformControls: Start=${cueDataToSave.trimStartTime}, End=${cueDataToSave.trimEndTime}`);
+        } else {
+            cueDataToSave.trimStartTime = parseFloat(propTrimStartTimeInput.value) || 0;
+            cueDataToSave.trimEndTime = parseFloat(propTrimEndTimeInput.value) || (cueDataToSave.totalDuration || 0);
+            console.log(`Sidebars (DEBUG save): trimTimes from waveformControls was null. Using input fields: Start=${cueDataToSave.trimStartTime}, End=${cueDataToSave.trimEndTime}`);
+        }
+    } else if (cueDataToSave.type !== 'single_file') {
+        cueDataToSave.trimStartTime = 0;
+        cueDataToSave.trimEndTime = 0;
+        console.log(`Sidebars (DEBUG save): Cue type is not single_file. Clearing trim times.`);
+    }
+    
+    // Preserve total duration for single file cues if already known, playlists get it from items
+    if (cueDataToSave.type === 'single_file' && cueDataToSave.totalDuration) {
+        cueDataToSave.totalDuration = cueDataToSave.totalDuration;
+    } else if (cueDataToSave.type === 'playlist') {
+        cueDataToSave.totalDuration = stagedPlaylistItems.reduce((acc, item) => acc + (item.duration || 0), 0);
     }
 
-    console.log('Sidebars: Saving Cue Properties:', updatedCueData);
+    // Add the values of the OSC trigger elements
+    if (propOscTriggerEnabledCheckbox || propOscTriggerPathInput) {
+        cueDataToSave.oscTrigger = {
+            enabled: propOscTriggerEnabledCheckbox ? propOscTriggerEnabledCheckbox.checked : false,
+            path: propOscTriggerPathInput ? propOscTriggerPathInput.value.trim() : ''
+        };
+    }
+
+    // Add WING Mixer Trigger values
+    // Only save if section is visible (i.e., WING integration is active for this app type)
+    if (wingTriggerSettingsDiv && wingTriggerSettingsDiv.style.display !== 'none') {
+        cueDataToSave.wingTrigger = {
+            enabled: propWingMixerTriggerEnabledCheckbox ? propWingMixerTriggerEnabledCheckbox.checked : false,
+            userButton: propWingUserButtonInput ? parseInt(propWingUserButtonInput.value, 10) || null : null
+        };
+        if (!cueDataToSave.wingTrigger.enabled) {
+            cueDataToSave.wingTrigger.userButton = null;
+        }
+    }
 
     try {
-        await ipcRendererBindingsModule.addOrUpdateCue(updatedCueData);
-        console.log('Cue properties saved for', activePropertiesCueId);
-        // Optionally, refresh the cue grid or specific button after saving
-        // if (uiCore && uiCore.refreshCueGrid) uiCore.refreshCueGrid(); 
-        // No, cueStore will get an update and trigger refresh via its own mechanism
+        console.log('Sidebar: Attempting to save cue with data:', cueDataToSave);
+        // Use the correct function name based on preload.js
+        if (!ipcRendererBindingsModule || typeof ipcRendererBindingsModule.addOrUpdateCue !== 'function') {
+            console.error('Sidebar: ipcRendererBindingsModule or addOrUpdateCue is not available. Cannot save cue.');
+            alert('Error: Could not communicate with the main process to save the cue.');
+            return;
+        }
+        await ipcRendererBindingsModule.addOrUpdateCue(cueDataToSave);
+        console.log(`Sidebar: Cue ${activePropertiesCueId} properties saved successfully.`);
+        // Optionally, provide user feedback (e.g., a temporary "Saved!" message)
+        // No, we decided against auto-closing: hidePropertiesSidebar(); 
     } catch (error) {
-        console.error('Error saving cue properties:', error);
-        // TODO: Show error to user
+        console.error('Sidebar: Error saving cue properties:', error);
+        alert(`Error saving cue: ${error.message || error}`);
     }
 }
 
@@ -345,7 +589,7 @@ function handlePropPlaylistFileSelect(event) {
         id: await ipcRendererBindingsModule.generateUUID(), // Generate UUID for each item
         path: file.path, 
         name: file.name,
-        // duration: null // Will be discovered by main process
+        knownDuration: await ipcRendererBindingsModule.getMediaDuration(file.path) // Get duration
     }));
 
     Promise.all(newItemsPromises).then(resolvedNewItems => {
@@ -361,83 +605,49 @@ function getActivePropertiesCueId() {
     return activePropertiesCueId;
 }
 
-// Function to add files to staged playlist if properties sidebar is open for a playlist cue
-async function addFilesToStagedPlaylist(files) {
-    if (!activePropertiesCueId || !ipcRendererBindingsModule) return false;
-    const activeCue = cueStore.getCueById(activePropertiesCueId);
-    if (!activeCue || activeCue.type !== 'playlist') return false;
-
-    const newItemsPromises = Array.from(files).map(async (file) => ({
-        id: await ipcRendererBindingsModule.generateUUID(),
-        path: file.path,
-        name: file.name,
-        // duration: null 
-    }));
-    const resolvedNewItems = await Promise.all(newItemsPromises);
-    stagedPlaylistItems.push(...resolvedNewItems);
-    renderPlaylistInProperties();
-    console.log(`Sidebars: Files added to staged playlist for cue ${activePropertiesCueId}.`);
-    return true;
-}
-
 // Function to set single file path if properties sidebar is open for a single cue
-function setFilePathInProperties(filePath) {
+async function setFilePathInProperties(filePath) {
     if (!activePropertiesCueId) return false;
     const activeCue = cueStore.getCueById(activePropertiesCueId);
     if (!activeCue || (activeCue.type !== 'single_file' && activeCue.type !== 'single')) return false;
 
     if (propFilePathInput) {
         propFilePathInput.value = filePath;
-        console.log(`Sidebars: File path updated in properties for cue ${activePropertiesCueId}.`);
+        if (activeCue.type === 'single_file' || activeCue.type === 'single') {
+            waveformControls.showWaveformForCue({ ...activeCue, filePath: filePath });
+        }
         return true;
     }
     return false;
 }
 
-/**
- * Highlights the currently playing item in the playlist view of the properties sidebar.
- * @param {string} cueId The ID of the cue (playlist)
- * @param {string | null} activePlaylistItemId The ID of the playlist item to highlight, or null to clear all highlights for this cue.
- */
-function highlightPlayingPlaylistItem(cueId, activePlaylistItemId) {
-    // ---- START DEBUG LOG ----
-    console.log(`Sidebars/highlightPlayingPlaylistItem: Received CueID: ${cueId}, ActiveItemID: ${activePlaylistItemId}, CurrentOpenPropertiesCueID: ${activePropertiesCueId}`);
-    // ---- END DEBUG LOG ----
+// Ensure this is called during initialization
+function bindPlaylistDragAndRemoveListenersIfNeeded() {
+    if (propPlaylistItemsUl) {
+        propPlaylistItemsUl.addEventListener('dragover', handleDragOverPlaylistItem);
+        propPlaylistItemsUl.addEventListener('drop', handleDropPlaylistItem);
+        propPlaylistItemsUl.addEventListener('dragend', handleDragEndPlaylistItem);
+    }
+}
 
-    if (!activePropertiesCueId || activePropertiesCueId !== cueId || !propPlaylistItemsUl) {
-        // Properties sidebar not open for this cue, or playlist UL not found
+// New function to be called from waveformControls
+function handleCuePropertyChangeFromWaveform(trimStart, trimEnd) {
+    console.log(`Sidebars (DEBUG): handleCuePropertyChangeFromWaveform received - Start: ${trimStart}, End: ${trimEnd}`);
+    if (!activePropertiesCueId) {
+        console.warn('Sidebars: Received trim change but no active cue ID.');
         return;
     }
 
-    const listItems = propPlaylistItemsUl.querySelectorAll('li[data-item-id]');
-    listItems.forEach(li => {
-        const itemIdFromDOM = li.dataset.itemId;
-        // ---- START DEBUG LOG ----
-        console.log(`Sidebars/highlightLoop: Checking item ${itemIdFromDOM}. ActiveItemID: ${activePlaylistItemId}. Match: ${activePlaylistItemId && itemIdFromDOM === activePlaylistItemId}`);
-        // ---- END DEBUG LOG ----
-        if (activePlaylistItemId && itemIdFromDOM === activePlaylistItemId) {
-            li.classList.add('playing-in-sidebar');
-        } else {
-            li.classList.remove('playing-in-sidebar');
-        }
-    });
-}
-
-// New function to be called when cue data (specifically playlist items) might have changed
-function refreshPlaylistPropertiesView(updatedCueId) {
-    if (activePropertiesCueId && activePropertiesCueId === updatedCueId && propPlaylistItemsUl) {
-        const cue = cueStore.getCueById(updatedCueId); // Get the latest cue data
-        if (cue && cue.type === 'playlist') {
-            console.log(`Sidebars: Refreshing playlist view for cue ${updatedCueId} due to potential update.`);
-            // ---- START DEBUG LOG ----
-            console.log('Sidebars/refreshPlaylistPropertiesView: Cue data received from cueStore:', JSON.parse(JSON.stringify(cue)));
-            // ---- END DEBUG LOG ----
-            stagedPlaylistItems = cue.playlistItems ? JSON.parse(JSON.stringify(cue.playlistItems)) : [];
-            renderPlaylistInProperties();
-        } else {
-            console.warn(`Sidebars: Tried to refresh playlist view for ${updatedCueId}, but it's not the active playlist or data is missing.`);
-        }
+    // Update the respective input fields if they exist
+    if (propTrimStartTimeInput) {
+        propTrimStartTimeInput.value = trimStart.toFixed(3); // Or however you want to format
     }
+    if (propTrimEndTimeInput) {
+        propTrimEndTimeInput.value = trimEnd.toFixed(3);
+    }
+
+    // Trigger the debounced save, which will gather all properties including these new trim times
+    debouncedSaveCueProperties();
 }
 
 export {
@@ -446,13 +656,6 @@ export {
     openPropertiesSidebar,
     hidePropertiesSidebar,
     getActivePropertiesCueId,
-    addFilesToStagedPlaylist,
     setFilePathInProperties,
-    highlightPlayingPlaylistItem,
-    refreshPlaylistPropertiesView,
-    // renderPlaylistInProperties, // Mostly internal, but export if needed
-    // handleSaveCueProperties, // Called by event listener
-    // handleDeleteCueProperties, // Called by event listener
-    // Expose stagedPlaylistItems directly or via a getter if other modules need to inspect it without modifying
-    // For now, keeping it internal. If dragDropHandler needs more complex interaction, can expose.
+    handleCuePropertyChangeFromWaveform,
 }; 

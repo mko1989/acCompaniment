@@ -39,6 +39,18 @@ function renderCues() {
         statusIndicator.id = `cue-status-${cue.id}`;
         button.appendChild(statusIndicator);
 
+        // ---- ADD WING LINK LABEL ----
+        const wingLinkLabel = document.createElement('div');
+        wingLinkLabel.className = 'wing-link-label';
+        wingLinkLabel.id = `cue-wing-link-${cue.id}`;
+        if (cue.wingTrigger && cue.wingTrigger.enabled && cue.wingTrigger.userButton) {
+            wingLinkLabel.textContent = `ACue${cue.wingTrigger.userButton}`;
+        } else {
+            wingLinkLabel.textContent = ''; // Clear if not linked
+        }
+        button.appendChild(wingLinkLabel);
+        // ---- END WING LINK LABEL ----
+
         const nameContainer = document.createElement('div');
         nameContainer.className = 'cue-button-name-container';
         button.appendChild(nameContainer);
@@ -186,82 +198,90 @@ function updateButtonPlayingState(cueId, isPlaying, statusTextArg = null, isCued
         }
         // No renderCues() call here to preserve this specific update.
     } else { // Not playing and not a cued override - means stopped or paused from external call
-        // Re-render all cues to ensure consistent state based on audioController.isPaused()
-        // This handles cases like pause button press, or stop from companion etc.
-        console.log(`updateButtonPlayingState: isPlaying=false, isCuedOverride=false for ${cueId}. Calling renderCues.`);
-        renderCues(); 
+        // This path is hit by audioController when a sound stops or is paused NOT via direct UI interaction on THIS button.
+        // It needs to accurately reflect the current state (could be paused, could be stopped and cued, could be fully stopped).
+        button.classList.remove('playing', 'paused', 'cued'); // Clear all state classes first
+
+        const isPaused = audioController.isPaused(cueId);
+        const isCued = audioController.isCued(cueId);
+        let nameHTML = cue.name || 'Unnamed Cue';
+
+        if (isCued) {
+            const nextItemName = audioController.getNextPlaylistItemName(cueId);
+            if (statusIndicator) statusIndicator.textContent = 'Cued';
+            button.classList.add('cued');
+            if (nameContainer && cue.type === 'playlist' && nextItemName) {
+                 nameHTML += `<br><span class="next-playlist-item">(Next: ${nextItemName})</span>`;
+            }
+        } else if (isPaused) {
+            if (statusIndicator) statusIndicator.textContent = 'Paused';
+            button.classList.add('paused');
+            if (nameContainer && cue.type === 'playlist') { 
+                const playlistItemName = audioController.getCurrentlyPlayingPlaylistItemName(cueId);
+                if (playlistItemName) {
+                    nameHTML += `<br><span class="now-playing-item">(Paused: ${playlistItemName})</span>`;
+                }
+            }
+        } else { // Stopped / Idle
+            if (statusIndicator) statusIndicator.textContent = 'Stopped';
+            // classes already removed
+            if (nameContainer && cue.type === 'playlist') {
+                const nextPlaylistItemName = audioController.getNextPlaylistItemName(cueId);
+                if (nextPlaylistItemName) {
+                    nameHTML += `<br><span class="next-playlist-item">(Next: ${nextPlaylistItemName})</span>`;
+                }
+            }
+        }
+        if (nameContainer) nameContainer.innerHTML = nameHTML;
+        updateCueButtonTime(cueId); // Update time display for this button
     }
 }
 
 function updateCueButtonTime(cueId, elements = null) {
-    if (!audioController) {
+    if (!audioController || !cueStore) { // Added cueStore check for safety
+        console.warn(`updateCueButtonTime: audioController or cueStore not ready for cue ${cueId}`);
+        return;
+    }
+    const cueFromStore = cueStore.getCueById(cueId);
+    if (!cueFromStore) {
+        console.warn(`updateCueButtonTime: Cue ${cueId} not found in cueStore.`);
         return;
     }
 
-    const times = audioController.getPlaybackTimes(cueId);
-    if (!times) {
-        // If times are null (e.g. cue not found or error), clear the display or set to default.
-        // This depends on how we want to handle missing time information.
-        // For now, just ensuring elements are found before trying to update.
-        const currentElem = elements ? elements.current : document.getElementById(`cue-time-current-${cueId}`);
-        const totalElem = elements ? elements.total : document.getElementById(`cue-time-total-${cueId}`);
-        const remainingElem = elements ? elements.remaining : document.getElementById(`cue-time-remaining-${cueId}`);
-        const separatorElem = elements ? elements.separator : document.getElementById(`cue-time-separator-${cueId}`);
-        if (currentElem) currentElem.textContent = '';
-        if (totalElem) totalElem.textContent = '--:--';
-        if (remainingElem) remainingElem.textContent = '';
-        if (separatorElem) separatorElem.textContent = '';
-        return; 
-    }
-
-    const currentElem = elements ? elements.current : document.getElementById(`cue-time-current-${cueId}`);
-    const totalElem = elements ? elements.total : document.getElementById(`cue-time-total-${cueId}`);
-    const remainingElem = elements ? elements.remaining : document.getElementById(`cue-time-remaining-${cueId}`);
-    const separatorElem = elements ? elements.separator : document.getElementById(`cue-time-separator-${cueId}`);
-
-    if (!currentElem || !totalElem || !remainingElem || !separatorElem) {
-        // This case should ideally not be hit if elements are always present or handled above.
-        return;
-    }
-
-    const formattedCurrent = formatTime(times.currentTime);
-    const formattedTotal = formatTime(times.currentItemDuration); 
-    const formattedRemaining = formatTime(times.currentItemRemainingTime);
-
-    const DURATION_THRESHOLD_SECONDS = 0.05; // Only show total/remaining if duration is meaningful
-
-    const isCurrentlyPlaying = audioController.isPlaying(cueId);
-    const isCurrentlyPaused = audioController.isPaused(cueId);
-
-    if (!isCurrentlyPlaying && !isCurrentlyPaused) { // Idle state
-        if (times.totalPlaylistDuration > DURATION_THRESHOLD_SECONDS) { // Keep this check for visibility based on overall playlist having content
-            currentElem.textContent = ''; 
-            separatorElem.textContent = ''; 
-            // Display the item's duration (which is now in formattedTotal)
-            totalElem.textContent = formattedTotal;
-            // In idle, remaining is the item's duration
-            remainingElem.textContent = times.currentItemDuration > 0 ? `(-${formattedTotal})` : ''; 
-        } else {
-            currentElem.textContent = '';
-            separatorElem.textContent = '';
-            // For idle, use currentItemDuration for the main display. rawDuration is just for the 00:00 check.
-            totalElem.textContent = (formatTime(times.currentItemDuration) === '00:00' && times.rawDuration <= DURATION_THRESHOLD_SECONDS) ? '' : formattedTotal;
-            remainingElem.textContent = '';
+    let localElements = elements;
+    if (!localElements) {
+        const button = document.getElementById(`cue-btn-${cueId}`);
+        if (!button) {
+            // console.warn(`updateCueButtonTime: Button not found for cue ${cueId}`);
+            return;
         }
-    } else { // Playing or Paused state
-        currentElem.textContent = formattedCurrent;
-        // Use currentItemDuration to decide if the total part is shown
-        if (formattedTotal === '--:--' || times.currentItemDuration <= DURATION_THRESHOLD_SECONDS) { 
-            totalElem.textContent = '';
-            separatorElem.textContent = '';
-            remainingElem.textContent = ''; 
-        } else {
-            totalElem.textContent = formattedTotal;
-            separatorElem.textContent = ' / ';
-            // Add minus sign to remaining time in playing/paused state
-            remainingElem.textContent = `(-${formattedRemaining})`;
-        }
+        localElements = {
+            current: button.querySelector(`#cue-time-current-${cueId}`),
+            total: button.querySelector(`#cue-time-total-${cueId}`),
+            remaining: button.querySelector(`#cue-time-remaining-${cueId}`),
+            separator: button.querySelector(`#cue-time-separator-${cueId}`)
+        };
     }
+
+    const times = audioController.getPlaybackTimes(cueFromStore);
+
+    console.log(`CueGrid: updateCueButtonTime for cue ${cueId}. Cue knownDuration: ${cueFromStore.knownDuration}. Fetched times object: ${JSON.stringify(times)}`);
+    console.log(`CueGrid: updateCueButtonTime for cue ${cueId}. Fetched times.currentItemDurationFormatted: ${times.currentItemDurationFormatted}`);
+
+    if (localElements.current) localElements.current.textContent = times.currentTimeFormatted;
+    if (localElements.separator) localElements.separator.textContent = (times.currentTime > 0 || times.currentItemDuration > 0) ? ' / ' : '';
+    if (localElements.total) {
+        localElements.total.textContent = times.currentItemDurationFormatted;
+        // console.log(`CueGrid (cue ${cueId}): elements.total.textContent AFTER SET: "${localElements.total.textContent}" (intended: "${times.currentItemDurationFormatted}")`);
+    }
+    if (localElements.remaining) {
+        localElements.remaining.textContent = (times.currentItemRemainingTime > 0 || times.currentTime > 0) ? `-${times.currentItemRemainingTimeFormatted}` : '';
+        localElements.remaining.style.display = (times.currentItemRemainingTime > 0 || times.currentTime > 0) ? 'inline' : 'none';
+    }
+}
+
+function updateAllCueButtonTimes() {
+    // ... existing code ...
 }
 
 export {

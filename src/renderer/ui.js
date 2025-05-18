@@ -7,12 +7,17 @@ import * as utils from './ui/utils.js';
 import * as sidebars from './ui/sidebars.js';
 import * as modals from './ui/modals.js';
 import * as appConfigUI from './ui/appConfigUI.js'; // Import new module
+import * as waveformControls from './ui/waveformControls.js'; // Ensure this is imported if used by init
 
 // Module references that will be initialized
-let cueStore;
-let audioController;
-let ipcRendererBindingsModule;
-let dragDropHandler;
+let cueStoreModule; // Renamed for clarity, will hold the passed cueStore module
+let audioControllerModule; // Renamed for clarity
+let ipcRendererBindingsModule; // This will be electronAPI
+let dragDropHandlerModule; // Renamed for clarity
+let appConfigUIModuleInternal; // To hold the passed appConfigUI module
+let modalsModule; // To be initialized
+let waveformControlsModule;
+let appConfigUIModule; // Reference to the appConfigUI module
 
 // Core DOM Elements (not managed by sub-modules yet)
 let appContainer;
@@ -51,47 +56,72 @@ let currentMode = 'edit'; // 'edit' or 'show'
 let shiftKeyPressed = false;
 
 // App Configuration State (MOVED to appConfigUI.js)
-/*
-let currentAppConfig = {
-    defaultFadeInTime: 0,
-    defaultFadeOutTime: 0,
-    defaultLoop: false,
-    defaultVolume: 1,
-    defaultRetriggerBehavior: 'restart',
-    defaultStopAllBehavior: 'stop',
-    audioOutputDevice: 'default'
-};
-*/
+// let currentAppConfig = {}; // Local cache of app config in ui.js - REMOVE, use appConfigUI.getCurrentAppConfig()
 
 // MOVED to modals.js: droppedFilesList
 
-async function init(cs, ac, ipc, ddh) {
-    cueStore = cs;
-    audioController = ac;
-    ipcRendererBindingsModule = ipc;
-    dragDropHandler = ddh;
+// Corrected init signature to match renderer.js
+async function init(rcvdCueStore, rcvdAudioController, rcvdElectronAPI, rcvdDragDropHandler, rcvdAppConfigUI, rcvdWaveformControls) {
+    console.log('UI Core: init function started.');
+    console.log('UI Core: Received rcvdElectronAPI. Type:', typeof rcvdElectronAPI, 'Keys:', rcvdElectronAPI ? Object.keys(rcvdElectronAPI) : 'undefined');
+    if (rcvdElectronAPI && typeof rcvdElectronAPI.whenMainReady === 'function') {
+        console.log('UI Core: rcvdElectronAPI.whenMainReady IS a function. Waiting for main process...');
+        await rcvdElectronAPI.whenMainReady();
+        console.log('UI Core: Main process is ready. Proceeding with UI initialization.');
+    } else {
+        console.error('UI Core: FATAL - rcvdElectronAPI.whenMainReady is NOT a function or rcvdElectronAPI is invalid. Halting UI init.', rcvdElectronAPI);
+        // Display error to user or throw
+        document.body.innerHTML = '<div style="color: red; padding: 20px;"><h1>Critical Error</h1><p>UI cannot initialize because of an internal problem (electronAPI not ready). Please restart.</p></div>';
+        return; // Stop further execution
+    }
 
-    utils.initUtils(cueStore);
+    // Assign passed modules to scoped variables
+    ipcRendererBindingsModule = rcvdElectronAPI;
+    cueStoreModule = rcvdCueStore;
+    audioControllerModule = rcvdAudioController;
+    dragDropHandlerModule = rcvdDragDropHandler; // Store if ui.js needs to interact with it later
+    appConfigUIModuleInternal = rcvdAppConfigUI;
+    waveformControlsModule = rcvdWaveformControls;
+
+    let uiModules = {}; // Declare uiModules as an object
+
+    // Populate uiModules for sub-module initialization
+    modalsModule = modals;
+    uiModules.cueGrid = cueGrid; // These are the imported modules
+    uiModules.sidebars = sidebars;
+    uiModules.waveformControls = waveformControlsModule; // Use the imported waveformControls
+    uiModules.appConfigUI = appConfigUIModuleInternal; // Use the imported appConfigUI for its functions
+
+    // Initialize App Config UI first as other modules might depend on config values
+    // Use the *imported* appConfigUI module for initialization, not the one passed as a parameter
+    // if we intend to call appConfigUI.init() which is part of the imported module.
+    if (appConfigUIModuleInternal && typeof appConfigUIModuleInternal.init === 'function') {
+        appConfigUIModuleInternal.init(ipcRendererBindingsModule); // Initialize the imported appConfigUI
+    } else {
+        console.error('UI Init: Imported appConfigUI module or its init function is not available.');
+    }
+
+    // Pass the *assigned* cueStoreModule to utils
+    utils.initUtils(cueStoreModule); 
     
-    await appConfigUI.initAppConfigUI(ipcRendererBindingsModule, audioController);
-
     cacheCoreDOMElements();
     bindCoreEventListeners();
 
     const uiCoreInterface = {
         isEditMode,
         openPropertiesSidebar: sidebars.openPropertiesSidebar,
-        getCurrentAppConfig: appConfigUI.getCurrentAppConfig,
-        openNewCueModal: modals.openNewCueModal, 
-        showMultipleFilesDropModal: modals.showMultipleFilesDropModal
+        getCurrentAppConfig: appConfigUIModuleInternal.getCurrentAppConfig, // Use imported appConfigUI
+        openNewCueModal: modalsModule.openNewCueModal, 
+        showMultipleFilesDropModal: modalsModule.showMultipleFilesDropModal
     };
 
-    cueGrid.initCueGrid(cueStore, audioController, dragDropHandler, uiCoreInterface);
-    sidebars.initSidebars(cueStore, audioController, ipcRendererBindingsModule, uiCoreInterface);
-    modals.initModals(cueStore, ipcRendererBindingsModule, uiCoreInterface);
+    // Pass the *assigned* modules to sub-module initializers
+    cueGrid.initCueGrid(cueStoreModule, audioControllerModule, dragDropHandlerModule, uiCoreInterface);
+    sidebars.initSidebars(cueStoreModule, audioControllerModule, ipcRendererBindingsModule, uiCoreInterface);
+    modalsModule.initModals(cueStoreModule, ipcRendererBindingsModule, uiCoreInterface);
     
-    updateModeUI();
-    console.log('UI Core Module Initialized');
+    // updateModeUI(); // Defer this call until after initial cues are loaded
+    console.log('UI Core Module Initialized (after main process ready). Mode UI update deferred until cues loaded.');
 
     // Return the actual module references (or specific functions if preferred)
     return {
@@ -118,14 +148,14 @@ function cacheCoreDOMElements() {
 
 function bindCoreEventListeners() {
     if (modeToggleBtn) modeToggleBtn.addEventListener('click', toggleMode);
-    if (addCueButton) addCueButton.addEventListener('click', modals.openNewCueModal); 
+    if (addCueButton) addCueButton.addEventListener('click', modalsModule.openNewCueModal); 
 
     if (stopAllButton) {
         stopAllButton.addEventListener('click', () => {
-            if (audioController && typeof audioController.stopAll === 'function') {
-                const config = appConfigUI.getCurrentAppConfig(); // Get from appConfigUI
+            if (audioControllerModule && typeof audioControllerModule.stopAll === 'function') {
+                const config = appConfigUIModuleInternal.getCurrentAppConfig(); // Get from appConfigUI
                 const behavior = config.defaultStopAllBehavior || 'stop';
-                audioController.stopAll({ behavior: behavior });
+                audioControllerModule.stopAll({ behavior: behavior });
             }
         });
     }
@@ -181,189 +211,78 @@ function updateModeUI() {
 
 async function loadAndRenderCues() {
     console.log('UI Core: Attempting to load cues...');
-    await cueStore.loadCuesFromServer();
-    console.log('UI Core: Cues loaded, rendering grid via cueGrid module.');
-    cueGrid.renderCues();
+    if (!cueStoreModule) {
+        console.error('UI Core (loadAndRenderCues): cueStoreModule is not initialized!');
+        return;
+    }
+    await cueStoreModule.loadCuesFromServer();
+    console.log('UI Core: Cues loaded, attempting to render grid via cueGrid module.');
+    
+    if (cueStoreModule && typeof cueStoreModule.getAllCues === 'function') {
+        const cuesForGrid = cueStoreModule.getAllCues();
+        console.log('UI Core (loadAndRenderCues): Cues retrieved from cueStoreModule just before calling cueGrid.renderCues():', cuesForGrid);
+    } else {
+        console.error('UI Core (loadAndRenderCues): cueStoreModule or cueStoreModule.getAllCues is not available!');
+    }
+
+    updateModeUI(); // Call updateModeUI here after cues are loaded, which will call cueGrid.renderCues()
+    // cueGrid.renderCues(); // No longer directly call this, let updateModeUI handle it.
 }
 
 function isEditMode() {
     return getCurrentAppMode() === 'edit';
 }
 
+// Function to apply a new app configuration received from the main process
+function applyAppConfiguration(newConfig) {
+    if (appConfigUIModuleInternal && typeof appConfigUIModuleInternal.populateConfigSidebar === 'function') {
+        console.log('UI Core: Applying new app configuration received from main:', newConfig);
+        appConfigUIModuleInternal.populateConfigSidebar(newConfig);
+        // After applying, other UI components might need to be notified or refresh if they depend on app config.
+        // For example, sidebars.js (for cue properties) gets current config when opening, so that should be fine.
+        // If any part of cueGrid depends directly on appConfig that is not passed through cue data, it might need a refresh call.
+    } else {
+        console.error('UI Core: appConfigUIModuleInternal.populateConfigSidebar is not available to apply new config.');
+    }
+}
+
 // getCurrentAppConfig MOVED (accessed via appConfigUI.getCurrentAppConfig through uiCoreInterface)
 
 // --- App Configuration Functions (MOVED to appConfigUI.js) ---
-/*
+/* Commenting out the moved functions as they are now in appConfigUI.js
 async function loadAndApplyAppConfiguration() { ... }
 function populateConfigSidebar() { ... }
 async function handleAppConfigChange() { ... }
 async function populateAudioOutputDevicesDropdown() { ... }
 */
 
-// --- Legacy Drag and Drop Target Assignment ---
-// This function's role needs to be re-evaluated.
-// dragDropHandler.js now directly calls handleSingleFileDrop/handleMultipleFileDrop.
-// Those handlers, in turn, can delegate to sidebars.js or modals.js if the drop target is specific.
-function assignFilesToRelevantTarget(filePaths, dropTargetElement) {
-    if (!filePaths || filePaths.length === 0) return;
-    console.log(`UI Core (assignFilesToRelevantTarget): Assigning files to target:`, filePaths, dropTargetElement);
-
-    const propertiesSidebarDOM = document.getElementById('propertiesSidebar'); // Direct DOM check
-    const cueConfigModalDOM = document.getElementById('cueConfigModal'); // Direct DOM check
-
-    // 1. Check Properties Sidebar (if open)
-    if (propertiesSidebarDOM && !propertiesSidebarDOM.classList.contains('hidden') && propertiesSidebarDOM.contains(dropTargetElement)) {
-        const activeCueId = sidebars.getActivePropertiesCueId(); // Get active cue ID from sidebars module
-        if (activeCueId) {
-            const cue = cueStore.getCueById(activeCueId);
-            if (cue) {
-                if (cue.type === 'playlist') {
-                    // Convert filePaths (simple array of paths) to the structure sidebars.addFilesToStagedPlaylist expects
-                    const filesForPlaylist = filePaths.map(fp => ({ path: fp, name: fp.split(/[\\\/]/).pop() }));
-                    sidebars.addFilesToStagedPlaylist(filesForPlaylist); // Call sidebars module
-                    return;
-                } else if ((cue.type === 'single_file' || cue.type === 'single') && filePaths.length === 1) {
-                    sidebars.setFilePathInProperties(filePaths[0]); // Call sidebars module
-                    return;
-                }
-            }
-        }
-    }
-
-    // 2. Check New Cue Modal (if open AND is the target)
-    if (cueConfigModalDOM && cueConfigModalDOM.style.display === 'flex' && cueConfigModalDOM.contains(dropTargetElement)) {
-        // Call the function in modals.js to actually handle the file assignment.
-        // modals.handleFileDropInNewCueModal will apply the files if the modal type is appropriate.
-        if (modals.handleFileDropInNewCueModal(filePaths)) {
-            console.log("UI Core (assignFilesToRelevantTarget): Drop successfully handled by New Cue Modal via modals.js.");
-            return; // Drop was handled
-        } else {
-            console.log("UI Core (assignFilesToRelevantTarget): Drop on New Cue Modal, but not handled by modals.js (e.g., wrong modal state or type).");
-            // Potentially still return if we consider the modal the definitive target, even if no action was taken.
-            // For now, let's return to prevent further processing if it was on the modal.
-            return;
-        }
-    }
-
-    // 3. Check Cue Button (Edit Mode)
-    const cueButtonTarget = dropTargetElement.closest('.cue-button');
-    if (cueButtonTarget && cueButtonTarget.dataset.cueId && isEditMode()) {
-        const cueId = cueButtonTarget.dataset.cueId;
-        const targetCue = cueStore.getCueById(cueId);
-        if (targetCue) {
-            sidebars.openPropertiesSidebar(targetCue); // Open sidebar for this cue
-            // File assignment to the now-open sidebar should ideally be handled by a subsequent drop event
-            // directly onto the sidebar, or by passing files to openPropertiesSidebar if that's desired.
-            // For now, just opening it.
-            console.log(`UI Core (assign): Files dropped on cue button ${cueId}. Opened properties.`);
-        }
-        return;
-    }
-    
-    console.warn("UI Core (assign): assignFilesToRelevantTarget did not find a specific target. Drop might be handled by newer global handlers or ignored.", dropTargetElement);
-}
-
-
-// --- App Configuration (To be moved to appConfigUI.js) ---
-async function loadAndApplyAppConfiguration() {
-    if (!ipcRendererBindingsModule) return;
-    try {
-        const loadedConfig = await ipcRendererBindingsModule.getAppConfig();
-        if (loadedConfig && typeof loadedConfig === 'object') {
-            currentAppConfig = { ...currentAppConfig, ...loadedConfig };
-        }
-    } catch (error) {
-        console.error('UI Core: Error loading app configuration:', error);
-    }
-    populateConfigSidebar();
-    await populateAudioOutputDevicesDropdown();
-    // Initial device set is now in init() after modules are ready
-}
-
-function populateConfigSidebar() {
-    if (defaultFadeInInput) defaultFadeInInput.value = currentAppConfig.defaultFadeInTime;
-    if (defaultFadeOutInput) defaultFadeOutInput.value = currentAppConfig.defaultFadeOutTime;
-    if (defaultLoopCheckbox) defaultLoopCheckbox.checked = currentAppConfig.defaultLoop;
-    if (defaultVolumeInput) defaultVolumeInput.value = currentAppConfig.defaultVolume;
-    if (defaultVolumeValueDisplay) defaultVolumeValueDisplay.textContent = parseFloat(currentAppConfig.defaultVolume).toFixed(2);
-    if (retriggerBehaviorSelect) retriggerBehaviorSelect.value = currentAppConfig.defaultRetriggerBehavior;
-    if (defaultStopAllBehaviorSelect) defaultStopAllBehaviorSelect.value = currentAppConfig.defaultStopAllBehavior;
-}
-
-async function handleAppConfigChange() {
-    if (!ipcRendererBindingsModule) return;
-    const newConfig = {
-        defaultFadeInTime: defaultFadeInInput ? parseFloat(defaultFadeInInput.value) || 0 : currentAppConfig.defaultFadeInTime,
-        defaultFadeOutTime: defaultFadeOutInput ? parseFloat(defaultFadeOutInput.value) || 0 : currentAppConfig.defaultFadeOutTime,
-        defaultLoop: defaultLoopCheckbox ? defaultLoopCheckbox.checked : currentAppConfig.defaultLoop,
-        defaultVolume: defaultVolumeInput ? parseFloat(defaultVolumeInput.value) : currentAppConfig.defaultVolume,
-        defaultRetriggerBehavior: retriggerBehaviorSelect ? retriggerBehaviorSelect.value : currentAppConfig.defaultRetriggerBehavior,
-        defaultStopAllBehavior: defaultStopAllBehaviorSelect ? defaultStopAllBehaviorSelect.value : currentAppConfig.defaultStopAllBehavior,
-        audioOutputDevice: audioOutputSelect ? audioOutputSelect.value : 'default'
-    };
-    const oldDeviceId = currentAppConfig.audioOutputDevice;
-    currentAppConfig = { ...currentAppConfig, ...newConfig };
-    
-    await ipcRendererBindingsModule.saveAppConfig(currentAppConfig);
-
-    if (audioController && typeof audioController.updateAppConfig === 'function') {
-        audioController.updateAppConfig(currentAppConfig);
-    }
-    if (audioController && typeof audioController.setAudioOutputDevice === 'function') {
-        if (oldDeviceId !== currentAppConfig.audioOutputDevice) {
-            audioController.setAudioOutputDevice(currentAppConfig.audioOutputDevice);
-        }
-    }
-    if (audioController && typeof audioController.setDefaultRetriggerBehavior === 'function') {
-        audioController.setDefaultRetriggerBehavior(currentAppConfig.defaultRetriggerBehavior);
-    }
-}
-
-async function populateAudioOutputDevicesDropdown() {
-    if (!audioOutputSelect || !ipcRendererBindingsModule) return;
-    audioOutputSelect.innerHTML = '';
-    const defaultOption = document.createElement('option');
-    defaultOption.value = 'default';
-    defaultOption.textContent = 'System Default Device';
-    audioOutputSelect.appendChild(defaultOption);
-
-    try {
-        const devices = await ipcRendererBindingsModule.getAudioOutputDevices();
-        devices.forEach(device => {
-            const option = document.createElement('option');
-            option.value = device.deviceId;
-            option.textContent = device.label || `Device ${device.deviceId.substring(0,8)}`;
-            audioOutputSelect.appendChild(option);
-        });
-        audioOutputSelect.value = currentAppConfig.audioOutputDevice || 'default';
-        if (audioOutputSelect.value !== currentAppConfig.audioOutputDevice && currentAppConfig.audioOutputDevice !== 'default') {
-            currentAppConfig.audioOutputDevice = 'default';
-        }
-    } catch (error) {
-        console.error('UI Core: Error populating audio output devices:', error);
-    }
-}
-
 // --- Workspace Change Handling ---
 async function handleWorkspaceChange() {
-    console.log('UI Core: Handling workspace change.');
-    if (audioController && typeof audioController.stopAll === 'function') {
-        audioController.stopAll({ behavior: 'stop', forceNoFade: true });
+    console.log('UI Core: Workspace did change. Reloading cues and app config.');
+    // Stop all audio before changing workspace context to prevent issues
+    if (audioControllerModule && typeof audioControllerModule.stopAll === 'function') {
+        // Get current stop behavior from the config that's *about to be replaced*
+        const currentEffectiveConfig = appConfigUIModuleInternal.getCurrentAppConfig(); 
+        audioControllerModule.stopAll({ 
+            behavior: currentEffectiveConfig.defaultStopAllBehavior || 'stop',
+            forceNoFade: true // Ensure immediate stop before context switch
+        });
     }
-    sidebars.hidePropertiesSidebar();
-    await loadAndApplyAppConfiguration(); // Reloads and reapplies config
-    await loadAndRenderCues(); // Reloads and re-renders cues
-    if (audioController && typeof audioController.updateAppConfig === 'function') { // Ensure audio controller gets new config
-        audioController.updateAppConfig(currentAppConfig);
-    }
-     if (audioController && typeof audioController.setAudioOutputDevice === 'function') { // And new audio device
-        audioController.setAudioOutputDevice(currentAppConfig.audioOutputDevice || 'default');
-    }
+    sidebars.hidePropertiesSidebar(); // Close properties sidebar as cue context is changing
+
+    // Reload application configuration from the new workspace via appConfigUI module
+    await appConfigUIModuleInternal.forceLoadAndApplyAppConfiguration(); 
+    
+    // Reload and render cues for the new workspace
+    await loadAndRenderCues(); 
+
+    // No need to explicitly update audioController with appConfig here,
+    // as forceLoadAndApplyAppConfiguration in appConfigUI should handle notifying audioController.
+    
     console.log('UI Core: Workspace change handling complete.');
 }
 
-// --- Global Drag and Drop Handlers (called by dragDropHandler.js) ---
-// These determine if a general drop creates new cues or opens the "multiple files" modal.
+// Exposed for dragDropHandler to add files to a specific cue if properties sidebar is open
 async function handleSingleFileDrop(filePath, dropTargetElement) {
     const mainDropArea = document.getElementById('cueGridContainer'); // Main grid
     const propertiesSidebarDOM = document.getElementById('propertiesSidebar');
@@ -384,22 +303,41 @@ async function handleSingleFileDrop(filePath, dropTargetElement) {
          (!propertiesSidebarDOM || !propertiesSidebarDOM.contains(dropTargetElement)) &&
          (!cueConfigModalDOM || !cueConfigModalDOM.contains(dropTargetElement)) &&
          (!multipleFilesDropModalDOM || !multipleFilesDropModalDOM.contains(dropTargetElement)))) {
+        console.log("UI Core (SingleDrop): Matched general drop area. Attempting to create cue..."); // New Log
         try {
+            const activeAppConfig = appConfigUIModuleInternal.getCurrentAppConfig(); // Correctly get app config
+            if (!activeAppConfig) {
+                console.error("UI Core (SingleDrop): App config not available!");
+                alert('Error: App configuration is not loaded. Cannot create cue.');
+                return;
+            }
+            console.log("UI Core (SingleDrop): App config loaded:", activeAppConfig); // New Log
+
             const cueId = await ipcRendererBindingsModule.generateUUID();
-            const fileName = filePath.split(/[\\\\\\/]/).pop();
+            console.log("UI Core (SingleDrop): Generated UUID:", cueId); // New Log
+
+            const fileName = filePath.split(/[\\\/]/).pop();
             const cueName = fileName.split('.').slice(0, -1).join('.') || 'New Cue';
             const newCueData = {
                 id: cueId, name: cueName, type: 'single_file', filePath: filePath,
-                volume: currentAppConfig.defaultVolume,
-                fadeInTime: currentAppConfig.defaultFadeInTime,
-                fadeOutTime: currentAppConfig.defaultFadeOutTime,
-                loop: currentAppConfig.defaultLoop,
-                retriggerBehavior: currentAppConfig.defaultRetriggerBehavior,
+                volume: activeAppConfig.defaultVolume,
+                fadeInTime: activeAppConfig.defaultFadeInTime,
+                fadeOutTime: activeAppConfig.defaultFadeOutTime,
+                loop: activeAppConfig.defaultLoop,
+                retriggerBehavior: activeAppConfig.defaultRetriggerBehavior,
                 shuffle: false, repeatOne: false, trimStartTime: null, trimEndTime: null,
             };
-            await cueStore.addOrUpdateCue(newCueData);
-            console.log("UI Core (SingleDrop): Created new cue from general drop.");
+            console.log("UI Core (SingleDrop): Prepared new cue data:", newCueData); // New Log
+
+            if (!cueStoreModule) {
+                console.error('UI Core (handleSingleFileDrop): cueStoreModule is not initialized!');
+                alert('Error: Cue store not available. Cannot create cue.');
+                return;
+            }
+            await cueStoreModule.addOrUpdateCue(newCueData);
+            console.log("UI Core (SingleDrop): Successfully called cueStoreModule.addOrUpdateCue. Cue should be created/updated.");
         } catch (error) {
+            console.error('UI Core (SingleDrop): Error creating cue from drop:', error); // More detailed log
             alert('Error creating cue from drop: ' + error.message);
         }
     } else {
@@ -427,7 +365,8 @@ async function handleMultipleFileDrop(files, dropTargetElement) {
             // or if addFilesToStagedPlaylist returns false for other reasons.
             // For now, let's assume if it's on sidebar, it tried to handle it.
             // If it failed, maybe let assignFilesToRelevantTarget try a more generic assignment.
-            assignFilesToRelevantTarget(Array.from(files).map(f => f.path), dropTargetElement);
+            // assignFilesToRelevantTarget(Array.from(files).map(f => f.path), dropTargetElement); // assignFilesToRelevantTarget is not defined here
+            console.warn("UI Core (MultiDrop): Properties sidebar did not handle multi-file drop. No fallback implemented yet for this specific case.");
             return;
         }
     }
@@ -438,13 +377,13 @@ async function handleMultipleFileDrop(files, dropTargetElement) {
          (!propertiesSidebarDOM || !propertiesSidebarDOM.contains(dropTargetElement)) &&
          (!cueConfigModalDOM || !cueConfigModalDOM.contains(dropTargetElement)) &&
          (!multipleFilesDropModalDOM || !multipleFilesDropModalDOM.contains(dropTargetElement)))) {
-        modals.showMultipleFilesDropModal(files); // Show modal for multiple files
+        modalsModule.showMultipleFilesDropModal(files); // Show modal for multiple files
         console.log("UI Core (MultiDrop): Showed multiple files modal for general drop.");
     } else {
          // If not a general area, and not properties sidebar, try assignFilesToRelevantTarget
          // This might be a drop on a cue button or the new cue modal itself.
-         assignFilesToRelevantTarget(Array.from(files).map(f => f.path), dropTargetElement);
-         console.log("UI Core (MultiDrop): Drop target not general area. Delegated to assignFilesToRelevantTarget.", dropTargetElement);
+         // assignFilesToRelevantTarget(Array.from(files).map(f => f.path), dropTargetElement); // assignFilesToRelevantTarget is not defined here
+         console.warn("UI Core (MultiDrop): Drop target not general area. No fallback implemented yet for this specific case.", dropTargetElement);
     }
 }
 
@@ -459,7 +398,6 @@ function refreshCueGrid() {
 export {
     init,
     loadAndRenderCues, // Called by renderer.js on init and workspace changes
-    assignFilesToRelevantTarget, // Legacy, review or remove
     handleWorkspaceChange, // Called by IPC via renderer.js
 
     // Core UI utility functions passed to sub-modules as part of uiCoreInterface
@@ -470,5 +408,6 @@ export {
     // New global drop handlers (called by dragDropHandler.js)
     handleSingleFileDrop,
     handleMultipleFileDrop,
-    refreshCueGrid // Export the new function
+    refreshCueGrid, // Export the new function
+    applyAppConfiguration // Export the new function
 };

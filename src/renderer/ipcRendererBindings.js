@@ -1,102 +1,127 @@
 // Companion_soundboard/src/renderer/ipcRendererBindings.js
 // Sets up renderer-side IPC listeners and sender functions.
 
-let audioControllerRef;
-let dragDropHandlerRef;
-let cueStoreRef; // Added cueStore reference
-let uiRef; // For getting retrigger behavior for Companion toggle - or decide on a default
+let electronAPIInstance;
 
-function initialize(audioCtrl, dragDropCtrl, cueStore, uiModule) {
-    audioControllerRef = audioCtrl;
-    dragDropHandlerRef = dragDropCtrl;
-    cueStoreRef = cueStore; 
-    uiRef = uiModule; // To potentially get default retrigger or pass it through
+let audioControllerRef = null;
+let dragDropHandlerRef = null;
+let cueStoreRef = null;
+let uiRef = null;
+let appConfigUIRef = null;
 
-    if (window.electronAPI && typeof window.electronAPI.on === 'function') {
+function initialize(electronAPI) {
+    console.log('IPC Binding: initialize() CALLED');
+    electronAPIInstance = electronAPI;
+
+    if (electronAPIInstance && typeof electronAPIInstance.on === 'function') {
         setupListeners();
     } else {
         console.error('electronAPI not found or `on` is not a function. IPC listeners will not work.');
     }
 }
 
+function setModuleRefs(modules) {
+    console.log('IPC Binding: setModuleRefs() CALLED with:', modules);
+    audioControllerRef = modules.audioCtrl;
+    dragDropHandlerRef = modules.dragDropCtrl;
+    cueStoreRef = modules.cueStoreMod;
+    uiRef = modules.uiMod;
+    appConfigUIRef = modules.appConfigUIMod;
+}
+
 // --- Senders to Main Process ---
 async function getCuesFromMain() {
-    if (!window.electronAPI) throw new Error("electronAPI not available for get-cues");
-    return window.electronAPI.invoke('get-cues');
+    if (!electronAPIInstance) throw new Error("electronAPIInstance not available for get-cues");
+    return electronAPIInstance.invoke('get-cues');
 }
 
 async function saveCuesToMain(cues) {
-    if (!window.electronAPI) throw new Error("electronAPI not available for save-cues");
-    return window.electronAPI.invoke('save-cues', cues);
+    if (!electronAPIInstance) throw new Error("electronAPIInstance not available for save-cues");
+    return electronAPIInstance.invoke('save-cues', cues);
 }
 
 async function generateUUID() {
-    if (!window.electronAPI) {
-        console.error("electronAPI not available for UUID generation, falling back.");
+    if (!electronAPIInstance) {
+        console.error("electronAPIInstance not available for UUID generation, falling back.");
         return 'cue_fallback_' + Date.now().toString(36) + Math.random().toString(36).substring(2);
     }
-    return window.electronAPI.invoke('generate-uuid');
+    return electronAPIInstance.invoke('generate-uuid');
 }
 
 // This function is now primarily called by audioController itself after init.
 // If other modules need to send status, they should go via audioController or a new shared service.
 function sendCueStatusUpdate(cueId, status, details = null) {
-    if (!window.electronAPI) {
-        console.error('electronAPI not available for cue-status-update-for-companion');
+    if (!electronAPIInstance) {
+        console.error('electronAPIInstance not available for cue-status-update-for-companion');
         return;
     }
     const payload = { cueId, status };
     if (details) payload.details = details; 
-    window.electronAPI.send('cue-status-update-for-companion', payload);
+    electronAPIInstance.send('cue-status-update-for-companion', payload);
 }
 
 // New functions for App Configuration
 async function getAppConfig() {
-    if (!window.electronAPI) throw new Error("electronAPI not available for get-app-config");
-    return window.electronAPI.invoke('get-app-config');
+    if (!electronAPIInstance) throw new Error("electronAPIInstance not available for get-initial-config");
+    return electronAPIInstance.invoke('get-initial-config');
 }
 
-function saveAppConfig(configData) {
-    if (!window.electronAPI) {
-        console.error("electronAPI not available for save-app-config");
-        return;
+async function saveAppConfig(configData) {
+    if (!electronAPIInstance) {
+        console.error("electronAPIInstance not available for save-app-config");
+        throw new Error("electronAPIInstance not available for save-app-config");
     }
-    window.electronAPI.send('save-app-config', configData);
+    return electronAPIInstance.invoke('save-app-config', configData);
 }
 
 // New function to get audio output devices
 async function getAudioOutputDevices() {
-    if (!window.electronAPI) throw new Error("electronAPI not available for get-audio-output-devices");
-    return window.electronAPI.invoke('get-audio-output-devices');
+    if (!electronAPIInstance) throw new Error("electronAPIInstance not available for get-audio-output-devices");
+    return electronAPIInstance.invoke('get-audio-output-devices');
 }
 
 async function addOrUpdateCue(cueData) {
-    if (!window.electronAPI) throw new Error("electronAPI not available for add-or-update-cue");
+    if (!electronAPIInstance) throw new Error("electronAPIInstance not available for add-or-update-cue");
     console.log(`IPC Binding: Sending add-or-update-cue for cue ID: ${cueData.id || 'new cue'}`);
-    return window.electronAPI.invoke('add-or-update-cue', cueData);
+    return electronAPIInstance.invoke('add-or-update-cue', cueData);
 }
 
 async function deleteCue(cueId) {
-    if (!window.electronAPI) throw new Error("electronAPI not available for delete-cue");
+    if (!electronAPIInstance) throw new Error("electronAPIInstance not available for delete-cue");
     console.log(`IPC Binding: Sending delete-cue for cue ID: ${cueId}`);
-    return window.electronAPI.invoke('delete-cue', cueId);
+    return electronAPIInstance.invoke('delete-cue', cueId);
 }
 
 // New function to send discovered duration to the main process
 function sendCueDurationUpdate(cueId, duration, playlistItemId = null) {
-    if (!window.electronAPI) {
-        console.error("electronAPI not available for cue-duration-update");
+    if (!electronAPIInstance) {
+        console.error("electronAPIInstance not available for cue-duration-update");
         return;
     }
     console.log(`IPC Binding: Sending cue-duration-update for cue: ${cueId}, item: ${playlistItemId || 'N/A'}, duration: ${duration}`);
-    window.electronAPI.send('cue-duration-update', { cueId, duration, playlistItemId });
+    electronAPIInstance.send('cue-duration-update', { cueId, duration, playlistItemId });
+}
+
+// New function to get audio file buffer
+async function getAudioFileBuffer(filePath) {
+    if (!electronAPIInstance) throw new Error("electronAPIInstance not available for get-audio-file-buffer");
+    console.log(`>>> IPC Binding: ENTERING getAudioFileBuffer with path: ${filePath}`);
+    return electronAPIInstance.invoke('get-audio-file-buffer', filePath);
+}
+
+// New function to get or generate waveform peaks
+async function getOrGenerateWaveformPeaks(filePath) {
+    if (!electronAPIInstance) throw new Error("electronAPIInstance not available for get-or-generate-waveform-peaks");
+    console.log(`IPC Binding: Requesting waveform peaks for path: ${filePath}`);
+    return electronAPIInstance.invoke('get-or-generate-waveform-peaks', filePath);
 }
 
 // --- Listeners for Main Process Events ---
 function setupListeners() {
+    console.log('IPC Binding: setupListeners() CALLED');
     // Listen for files dropped (forwarded from main process)
     /*
-    window.electronAPI.on('files-dropped-on-app', (filePaths) => {
+    electronAPIInstance.on('files-dropped-on-app', (filePaths) => {
         console.log('IPC Binding: Renderer received files-dropped-on-app:', filePaths);
         // The dragDropHandler module is now expected to set up its own global listeners 
         // or be called by ui.js when a general drop occurs.
@@ -109,26 +134,46 @@ function setupListeners() {
     });
     */
 
-    // Listener for when the main process sends updated cues (e.g., after a duration update)
-    window.electronAPI.on('cues-updated-from-main', (updatedCuesList) => {
-        console.log('IPC Binding: Received cues-updated-from-main.', updatedCuesList);
-        if (cueStoreRef && typeof cueStoreRef.setCuesFromMain === 'function') {
-            cueStoreRef.setCuesFromMain(updatedCuesList);
-            // After cueStore is updated, tell UI to re-render.
-            if (uiRef && typeof uiRef.renderCues === 'function') {
-                uiRef.renderCues();
-            }
+    // Listener for when the main process signals it's ready
+    electronAPIInstance.on('main-process-ready', () => {
+        console.log('IPC Binding: Received main-process-ready signal.');
+        if (uiRef && typeof uiRef.onMainProcessReady === 'function') {
+            uiRef.onMainProcessReady();
         } else {
-            console.warn('cueStoreRef or setCuesFromMain not available for cues-updated-from-main.');
+            console.warn('IPC Binding: uiRef.onMainProcessReady not available or uiRef not set yet for main-process-ready.');
         }
     });
 
-    window.electronAPI.on('play-audio-by-id', (cueId) => {
+    console.log(`IPC Binding: Attempting to set up listener for 'app-config-updated-from-main'.`);
+    electronAPIInstance.on('app-config-updated-from-main', (newConfig) => { 
+        console.log('IPC Binding: SUCCESS - Received app-config-updated-from-main with new config:', newConfig);
+        if (uiRef && typeof uiRef.applyAppConfiguration === 'function') {
+            console.log('IPC Binding: Calling uiRef.applyAppConfiguration for app-config-updated-from-main.');
+            uiRef.applyAppConfiguration(newConfig);
+        } else {
+            console.warn('IPC Binding: uiRef.applyAppConfiguration not available or uiRef not set yet for app-config-updated-from-main.');
+        }
+    });
+
+    console.log(`IPC Binding: Attempting to set up listener for 'cues-updated-from-main'.`);
+    electronAPIInstance.on('cues-updated-from-main', (cues) => {
+        console.log('IPC Binding: SUCCESS - Received cues-updated-from-main. Number of cues:', cues ? cues.length : 'N/A');
+        if (cueStoreRef && typeof cueStoreRef.handleCuesUpdated === 'function') {
+            console.log('IPC Binding: Calling cueStoreRef.handleCuesUpdated.');
+            cueStoreRef.handleCuesUpdated(cues);
+        } else {
+            console.warn('IPC Binding: cueStoreRef.handleCuesUpdated not available or cueStoreRef not set yet.');
+        }
+    });
+
+    electronAPIInstance.on('play-audio-by-id', (cueId) => {
+        console.log(`IPC Binding: Received 'play-audio-by-id' for cueId: ${cueId}`);
         if (!cueStoreRef || !audioControllerRef) {
-            console.warn('cueStore or audioController not initialized for play-audio-by-id');
+            console.warn('IPC Binding: cueStoreRef or audioControllerRef not set for play-audio-by-id');
             return;
         }
         const cue = cueStoreRef.getCueById(cueId);
+        console.log(`IPC Binding (play-audio-by-id): Cue found by ID ${cueId}?`, cue ? 'Yes' : 'No', cue);
         if (cue && typeof audioControllerRef.play === 'function') {
             // Play typically implies a fresh play or resume if paused.
             // If it's playing, retrigger logic is usually in toggle. 
@@ -138,70 +183,72 @@ function setupListeners() {
             console.log(`IPC: play-audio-by-id received for ${cueId}. Calling audioController.play.`);
             audioControllerRef.play(cue); 
         } else {
-            console.warn(`Cue ${cueId} not found or audioController.play not available.`);
+            console.warn(`Cue ${cueId} not found or audioControllerRef.play not available.`);
         }
     });
 
-    window.electronAPI.on('stop-audio-by-id', (cueId) => {
+    electronAPIInstance.on('stop-audio-by-id', (cueId) => {
+        console.log(`IPC Binding: Received 'stop-audio-by-id' for cueId: ${cueId}`);
         if (!cueStoreRef || !audioControllerRef) {
-            console.warn('cueStore or audioController not initialized for stop-audio-by-id');
+            console.warn('IPC Binding: cueStoreRef or audioControllerRef not set for stop-audio-by-id');
             return;
         }
         const cue = cueStoreRef.getCueById(cueId);
+        console.log(`IPC Binding (stop-audio-by-id): Cue found by ID ${cueId}?`, cue ? 'Yes' : 'No', cue);
         if (cue && typeof audioControllerRef.stop === 'function') {
             console.log(`IPC: stop-audio-by-id received for ${cueId}. Calling audioController.stop.`);
             audioControllerRef.stop(cueId, true, true); // fromCompanion = true, useFade = true
         } else {
-             console.warn(`Cue ${cueId} not found or audioController.stop not available.`);
+             console.warn(`Cue ${cueId} not found or audioControllerRef.stop not available.`);
         }
     });
 
-    window.electronAPI.on('stop-all-audio', () => {
+    electronAPIInstance.on('stop-all-audio', () => {
+        console.log("IPC Binding: Received 'stop-all-audio'");
         if (audioControllerRef && typeof audioControllerRef.stopAll === 'function') {
             audioControllerRef.stopAll(true); // fromCompanion = true
         } else {
-            console.warn('audioControllerRef or stopAll not available for stop-all-audio.');
+            console.warn('audioControllerRef.stopAll not available or audioControllerRef not set yet.');
         }
     });
 
-    window.electronAPI.on('toggle-audio-by-id', (cueId) => {
+    electronAPIInstance.on('toggle-audio-by-id', (cueId) => {
+        console.log(`IPC Binding: Received 'toggle-audio-by-id' for cueId: ${cueId}`);
         if (!cueStoreRef || !audioControllerRef) {
-            console.warn('cueStore or audioController not initialized for toggle-audio-by-id');
+            console.warn('IPC Binding: cueStoreRef or audioControllerRef not set for toggle-audio-by-id');
             return;
         }
         const cue = cueStoreRef.getCueById(cueId);
+        console.log(`IPC Binding (toggle-audio-by-id): Cue found by ID ${cueId}?`, cue ? 'Yes' : 'No', cue);
         if (cue && typeof audioControllerRef.toggle === 'function') {
             // Companion toggle will use the default retrigger behavior in audioController.toggle (which is 'restart')
             // unless Companion starts sending a specific behavior.
             console.log(`IPC: toggle-audio-by-id received for ${cueId}. Calling audioController.toggle.`);
             audioControllerRef.toggle(cue, true);
         } else {
-            console.warn(`Cue ${cueId} not found or audioController.toggle not available.`);
+            console.warn(`Cue ${cueId} not found or audioControllerRef.toggle not available.`);
         }
     });
 
     // Listener for workspace changes from the main process
-    window.electronAPI.on('workspace-did-change', async () => {
+    electronAPIInstance.on('workspace-did-change', async () => {
         console.log('IPC Binding: Received workspace-did-change signal.');
         try {
             if (uiRef && typeof uiRef.handleWorkspaceChange === 'function') {
-                // It might be better for ui.js to coordinate this
                 await uiRef.handleWorkspaceChange(); 
             } else {
-                // Fallback to direct calls if ui.handleWorkspaceChange is not implemented
-                console.warn('uiRef.handleWorkspaceChange not available, attempting direct reloads.');
+                console.warn('uiRef.handleWorkspaceChange not available or uiRef not set yet. Attempting fallbacks.');
                 if (cueStoreRef && typeof cueStoreRef.loadCuesFromServer === 'function') {
-                    await cueStoreRef.loadCuesFromServer(); // This should internally trigger UI update for cues
-                    console.log('IPC Binding: Requested cueStore to reload cues.');
+                    await cueStoreRef.loadCuesFromServer();
+                    console.log('IPC Binding: Fallback: Requested cueStore to reload cues.');
                 }
-                if (uiRef && typeof uiRef.loadAndApplyAppConfiguration === 'function') {
-                    await uiRef.loadAndApplyAppConfiguration(); // This reloads app config and updates UI
-                    console.log('IPC Binding: Requested ui to reload app configuration.');
+                if (uiRef && typeof uiRef.loadAndApplyAppConfiguration === 'function') { // Assuming uiRef could still have other useful methods
+                    await uiRef.loadAndApplyAppConfiguration();
+                    console.log('IPC Binding: Fallback: Requested ui to reload app configuration.');
                 }
             }
         } catch (error) {
             console.error('IPC Binding: Error handling workspace-did-change:', error);
-            // Optionally, inform the user that the workspace refresh failed.
         }
     });
 }
@@ -211,14 +258,17 @@ function setupListeners() {
 
 export {
     initialize,
+    setModuleRefs,
     getCuesFromMain,
     saveCuesToMain,
     generateUUID,
-    sendCueStatusUpdate, // Still exported if any other module *really* needs direct IPC send capability for this.
-    addOrUpdateCue,      // Export new function
-    deleteCue,           // Export new function
-    getAppConfig,      // Export new function
-    saveAppConfig,      // Export new function
-    getAudioOutputDevices, // Export new function
-    sendCueDurationUpdate, // Export new function
+    sendCueStatusUpdate,
+    getAppConfig,
+    saveAppConfig,
+    getAudioOutputDevices,
+    addOrUpdateCue,
+    deleteCue,
+    sendCueDurationUpdate,
+    getAudioFileBuffer,
+    getOrGenerateWaveformPeaks
 }; 

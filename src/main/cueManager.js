@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { app } = require('electron'); // Required for app.getPath('userData')
 const { v4: uuidv4 } = require('uuid');
+const mixerIntegrationManager = require('./mixerIntegrationManager'); // Added for WING integration
 // const mm = require('music-metadata'); // REMOVE this line
 
 const CUES_FILE_NAME = 'cues.json';
@@ -10,6 +11,7 @@ let currentCuesFilePath = path.join(app.getPath('userData'), CUES_FILE_NAME); //
 
 let cues = [];
 let websocketServerInstance; // To notify on updates
+let mainWindowRef; // To store mainWindow reference for IPC
 
 // Function to explicitly set the directory for the cues file.
 // If dirPath is null, resets to default userData path.
@@ -91,9 +93,61 @@ function generateUUID() {
 }
 
 // websocketServerInstance is injected to allow broadcasting updates
-function initialize(wssInstance) {
+// mainWindow is injected to allow sending IPC to renderer
+async function initialize(wssInstance, mainWin) {
   websocketServerInstance = wssInstance;
-  loadCuesFromFile(); // Load cues on initialization using the default path
+  mainWindowRef = mainWin; // Store mainWindow reference
+  loadCuesFromFile(); // Load cues synchronously first
+
+  // Post-load processing for durations
+  let durationsChanged = false;
+  const processedCues = [...cues]; // Work on a copy to modify
+
+  for (let i = 0; i < processedCues.length; i++) {
+    const cue = processedCues[i];
+    if (cue.type === 'single_file' && cue.filePath && (!cue.knownDuration || cue.knownDuration <= 0)) {
+      console.log(`CueManager Init: Processing duration for single file cue ${cue.id} - Path: ${cue.filePath}`);
+      const duration = await getAudioFileDuration(cue.filePath);
+      if (duration && duration > 0) {
+        processedCues[i] = { ...cue, knownDuration: duration };
+        durationsChanged = true;
+        console.log(`CueManager Init: Updated knownDuration to ${duration} for cue ${cue.id}`);
+      }
+    } else if (cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0) {
+      let playlistItemsChanged = false;
+      const updatedPlaylistItems = [...cue.playlistItems]; // Work on a copy
+
+      for (let j = 0; j < updatedPlaylistItems.length; j++) {
+        const item = updatedPlaylistItems[j];
+        if (item.path && (!item.knownDuration || item.knownDuration <= 0)) {
+          console.log(`CueManager Init: Processing duration for playlist item ${item.path} in cue ${cue.id}`);
+          const itemDuration = await getAudioFileDuration(item.path);
+          if (itemDuration && itemDuration > 0) {
+            updatedPlaylistItems[j] = { ...item, knownDuration: itemDuration };
+            playlistItemsChanged = true;
+            console.log(`CueManager Init: Updated knownDuration to ${itemDuration} for item ${item.path} in cue ${cue.id}`);
+          }
+        }
+      }
+      if (playlistItemsChanged) {
+        processedCues[i] = { ...cue, playlistItems: updatedPlaylistItems };
+        durationsChanged = true;
+      }
+    }
+  }
+
+  if (durationsChanged) {
+    cues = processedCues; // Assign the modified array back to the module-level 'cues'
+    console.log("CueManager Init: Durations updated for some cues during initialization. Saving and notifying renderer.");
+    saveCuesToFile(); // This will also broadcast to companion
+
+    if (mainWindowRef && mainWindowRef.webContents && !mainWindowRef.webContents.isDestroyed()) {
+        console.log("CueManager Init: Sending 'cues-updated-from-main' to renderer due to duration processing.");
+        mainWindowRef.webContents.send('cues-updated-from-main', getCues());
+    }
+  } else {
+    console.log("CueManager Init: No durations needed updating during initialization.");
+  }
 }
 
 function deleteCue(cueId) {
@@ -118,7 +172,12 @@ function updateCueKnownDuration(cueId, duration) {
     if (duration > 0 && cues[cueIndex].knownDuration !== duration) {
       cues[cueIndex].knownDuration = duration;
       console.log(`CueManager: Updated knownDuration for cue ${cueId} to ${duration}. Triggering save.`);
-      saveCuesToFile(); // This will save all cues and broadcast the updated list
+      if (saveCuesToFile()) { // Check if save was successful
+        if (mainWindowRef && mainWindowRef.webContents && !mainWindowRef.webContents.isDestroyed()) {
+            console.log(`CueManager (updateCueKnownDuration): Sending 'cues-updated-from-main' to renderer.`);
+            mainWindowRef.webContents.send('cues-updated-from-main', getCues());
+        }
+      }
       return true;
     } else {
       console.log(`CueManager: Did not update knownDuration for ${cueId}. Reason: duration not positive (${duration > 0}) or not different (${cues[cueIndex].knownDuration !== duration}).`);
@@ -243,6 +302,13 @@ async function addOrUpdateProcessedCue(cueData) {
         console.log(`CueManager: Cue added with ID: ${cueToProcess.id}`);
     }
     saveCuesToFile(); // This will also broadcast via websocketServerInstance
+
+    // After saving, if mixer integration is involved, update the mixer
+    if (mixerIntegrationManager && typeof mixerIntegrationManager.updateCueMixerTrigger === 'function') {
+        // Pass the fully processed cue data (which might include new ID, knownDurations etc.)
+        mixerIntegrationManager.updateCueMixerTrigger(cueToProcess);
+    }
+
     return cueToProcess; // Return the processed cue (potentially with new/updated id and durations)
 }
 
@@ -283,7 +349,12 @@ function updateCueItemDuration(cueId, duration, playlistItemId = null) {
         if (shouldUpdate) {
             cues[cueIndex].playlistItems[itemIndex].knownDuration = duration;
             console.log(`CueManager: Updated knownDuration for playlist item ${playlistItemId} in cue ${cueId} to ${duration}.`);
-            saveCuesToFile(); // Save and broadcast
+            if (saveCuesToFile()) { // Check if save was successful
+                if (mainWindowRef && mainWindowRef.webContents && !mainWindowRef.webContents.isDestroyed()) {
+                    console.log(`CueManager (updateCueItemDuration): Sending 'cues-updated-from-main' to renderer.`);
+                    mainWindowRef.webContents.send('cues-updated-from-main', getCues());
+                }
+            }
             return true;
         } else {
             console.log(`CueManager: Did not update knownDuration for playlist item ${playlistItemId}. New duration: ${duration}, Existing: ${currentItemKnownDuration}. Reason: New duration not valid, or not meaningfully different from existing.`);

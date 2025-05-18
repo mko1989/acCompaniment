@@ -11,16 +11,29 @@ let currentConfigFilePath = path.join(app.getPath('userData'), CONFIG_FILE_NAME)
 let appConfig = {};
 const MAX_RECENT_WORKSPACES = 5;
 
+let configChangeListeners = []; // New: Array for change listeners
+
 const DEFAULT_CONFIG = {
-  defaultFadeInTime: 0,    // seconds
-  defaultFadeOutTime: 0,   // seconds
-  defaultLoop: false,
-  defaultRetriggerBehavior: 'restart', // 'restart', 'fade_stop_restart', 'do_nothing', 'stop', 'pause_resume'
-  defaultStopAllBehavior: 'stop',    // 'stop' or 'fade_out_and_stop'
-  defaultVolume: 1, // Add default volume (0.0 to 1.0)
-  audioOutputDevice: 'default', // Default to system default audio output device ID
-  // audioOutputDevice: null, // Placeholder for future audio output device selection
-  recentWorkspaces: [], // New: Array to store paths of recent workspaces
+  cuesFilePath: '', // Path to the cues.json file
+  autoLoadLastWorkspace: true,
+  lastOpenedWorkspacePath: '',
+  defaultCueType: 'single_file', // 'single_file' or 'playlist'
+  defaultVolume: 1.0,
+  defaultFadeInTime: 0, // in milliseconds
+  defaultFadeOutTime: 0, // in milliseconds
+  defaultLoopSingleCue: false,
+  defaultRetriggerBehavior: 'restart', // 'restart', 'pause_resume', 'stop', 'do_nothing', 'fade_out_and_stop', 'fade_stop_restart'
+  defaultStopAllBehavior: 'stop', // 'stop' or 'fade_out_and_stop'
+  oscEnabled: false,
+  oscPort: 54321,
+  audioOutputDeviceId: 'default',
+  theme: 'system', // 'light', 'dark', or 'system'
+  // Mixer Integration Settings
+  mixerIntegrationEnabled: false,
+  mixerType: 'none', // e.g., 'none', 'behringer_wing', 'yamaha_dm3'
+  wingIpAddress: '', // Specific to Behringer WING
+  wingModelType: 'compact', // 'compact' or 'full_size' - New setting
+  recentWorkspaces: [], // Ensure recentWorkspaces is part of DEFAULT_CONFIG
 };
 
 /* // REMOVED
@@ -35,52 +48,77 @@ function initializePaths() {
 // Function to explicitly set the directory for the config file.
 // If dirPath is null, resets to default userData path.
 function setConfigDirectory(dirPath) {
+  const oldPath = currentConfigFilePath;
   if (dirPath) {
     currentConfigFilePath = path.join(dirPath, CONFIG_FILE_NAME);
   } else {
     currentConfigFilePath = path.join(app.getPath('userData'), CONFIG_FILE_NAME);
   }
-  console.log('App config path set to:', currentConfigFilePath);
+  console.log(`[AppConfig] setConfigDirectory: Path changed from "${oldPath}" to "${currentConfigFilePath}"`);
   // After changing path, existing appConfig might be stale.
   // Consider if a load should be forced or if it's up to the caller.
   // For now, changing path doesn't auto-load.
 }
 
+// Function to get a deep copy of the default configuration
+function getDefaultConfig() {
+    // DEFAULT_CONFIG already includes recentWorkspaces: []
+    return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+}
+
 function loadConfig() {
-  // initializePaths(); // REMOVED
+  console.log(`[AppConfig] loadConfig: Attempting to load from "${currentConfigFilePath}"`);
+  const defaultConfigForPath = getDefaultConfig();
   try {
     if (fs.existsSync(currentConfigFilePath)) {
       const rawData = fs.readFileSync(currentConfigFilePath, 'utf-8');
       const parsedConfig = JSON.parse(rawData);
-      // Ensure recentWorkspaces is an array and other defaults are applied
-      const loadedRecentWorkspaces = Array.isArray(parsedConfig.recentWorkspaces) ? parsedConfig.recentWorkspaces : [];
-      appConfig = { ...DEFAULT_CONFIG, ...parsedConfig, recentWorkspaces: loadedRecentWorkspaces };
+      // Merge: start with fresh defaults, overlay with loaded file, ensure recentWorkspaces is valid
+      appConfig = {
+        ...defaultConfigForPath,
+        ...parsedConfig,
+        recentWorkspaces: Array.isArray(parsedConfig.recentWorkspaces) ? parsedConfig.recentWorkspaces : []
+      };
+      // console.log(`[AppConfig] loadConfig: Successfully loaded and merged from "${currentConfigFilePath}". Loaded config:`, JSON.parse(JSON.stringify(appConfig)));
     } else {
-      appConfig = { ...DEFAULT_CONFIG };
-      // saveConfigInternal(); // Don't auto-save here, let it be explicit
-      console.log(`Config file not found at ${currentConfigFilePath}, loaded defaults. Save explicitly if needed.`);
+      appConfig = defaultConfigForPath;
+      console.log(`[AppConfig] loadConfig: File not found at "${currentConfigFilePath}", loaded defaults. Attempting to save initial default config.`);
+      // Try to save the defaults to the new path
+      try {
+          fs.mkdirSync(path.dirname(currentConfigFilePath), { recursive: true });
+          fs.writeFileSync(currentConfigFilePath, JSON.stringify(appConfig, null, 2), 'utf-8');
+          // console.log(`[AppConfig] loadConfig: Saved default config to "${currentConfigFilePath}". Config:`, JSON.parse(JSON.stringify(appConfig)));
+      } catch (saveError) {
+          console.error(`[AppConfig] loadConfig: Error saving new default config to "${currentConfigFilePath}":`, saveError);
+          // appConfig remains defaultConfigForPath
+      }
     }
   } catch (error) {
-    console.error(`Error loading app configuration from ${currentConfigFilePath}:`, error);
-    appConfig = { ...DEFAULT_CONFIG }; // Fallback to defaults on error
+    console.error(`[AppConfig] loadConfig: Error loading from "${currentConfigFilePath}": ${error.message}. Falling back to defaults.`);
+    appConfig = defaultConfigForPath;
   }
+  // console.log(`[AppConfig] loadConfig: Final appConfig (or copy of it) being returned for "${currentConfigFilePath}":`, JSON.parse(JSON.stringify(appConfig)));
   return { ...appConfig }; // Return a copy
 }
 
 function saveConfig() { // Renamed from saveConfigInternal
   // initializePaths(); // REMOVED
   if (!currentConfigFilePath) {
-    console.error('Config file path not set. Cannot save config.');
+    console.error('[AppConfig] saveConfig: Config file path not set. Cannot save config.');
     return false;
   }
+  // console.log(`[AppConfig] saveConfig: Attempting to save to "${currentConfigFilePath}". Current appConfig:`, JSON.parse(JSON.stringify(appConfig)));
   try {
     // Ensure recentWorkspaces is properly part of appConfig before saving
     const data = JSON.stringify(appConfig, null, 2);
+    fs.mkdirSync(path.dirname(currentConfigFilePath), { recursive: true }); // Ensure directory exists
     fs.writeFileSync(currentConfigFilePath, data, 'utf-8');
-    console.log('App configuration saved to:', currentConfigFilePath);
+    console.log(`[AppConfig] saveConfig: Successfully saved to "${currentConfigFilePath}".`);
+    // Notify listeners
+    configChangeListeners.forEach(listener => listener(appConfig));
     return true;
   } catch (error) {
-    console.error('Error saving app configuration to:', currentConfigFilePath, error);
+    console.error(`[AppConfig] saveConfig: Error saving to "${currentConfigFilePath}":`, error);
     return false;
   }
 }
@@ -95,24 +133,33 @@ function getConfig() {
 
 function updateConfig(newSettings) {
   // initializePaths(); // REMOVED
+  console.log(`[AppConfig] updateConfig: Called with newSettings for "${currentConfigFilePath}". newSettings:`, JSON.parse(JSON.stringify(newSettings)));
+  console.log(`[AppConfig] updateConfig: appConfig BEFORE update for "${currentConfigFilePath}":`, JSON.parse(JSON.stringify(appConfig)));
+
   // Ensure that when updating, we don't accidentally lose the recentWorkspaces array structure
   // if newSettings doesn't include it or has an invalid type for it.
   const currentRecent = appConfig.recentWorkspaces || [];
   appConfig = { ...appConfig, ...newSettings };
   if (newSettings.hasOwnProperty('recentWorkspaces') && !Array.isArray(newSettings.recentWorkspaces)) {
-      console.warn('updateConfig called with invalid recentWorkspaces, preserving old list.');
-      appConfig.recentWorkspaces = currentRecent; 
+      console.warn('[AppConfig] updateConfig: newSettings contained invalid recentWorkspaces, preserving old list.');
+      appConfig.recentWorkspaces = currentRecent;
   } else if (!newSettings.hasOwnProperty('recentWorkspaces')) {
       appConfig.recentWorkspaces = currentRecent; // Preserve if not in newSettings
   }
   // else, newSettings.recentWorkspaces is used if it's a valid array or undefined (which will be handled by spread)
+  console.log(`[AppConfig] updateConfig: appConfig AFTER update (before save) for "${currentConfigFilePath}":`, JSON.parse(JSON.stringify(appConfig)));
 
-  const success = saveConfig();
-  if (!success) {
-    console.error("Failed to save config after updateConfig.");
-    // Optionally, throw an error or handle it more gracefully
+  let errorMsg = null;
+  const saveSucceeded = saveConfig(); // saveConfig now returns true/false
+
+  if (!saveSucceeded) {
+    console.error(`[AppConfig] updateConfig: Failed to save config after update for "${currentConfigFilePath}".`);
+    // Attempt to get a generic error message, as saveConfig itself logs details
+    errorMsg = `Failed to write config to ${currentConfigFilePath}`;
   }
-  return { ...appConfig }; // Return a copy of the updated config
+  // Notify listeners if save was successful (saveConfig handles this internally now)
+  console.log(`[AppConfig] updateConfig: Returning for "${currentConfigFilePath}". Saved: ${saveSucceeded}, Config:`, JSON.parse(JSON.stringify(appConfig)));
+  return { config: { ...appConfig }, saved: saveSucceeded, error: errorMsg };
 }
 
 // Resets the in-memory config to defaults. Does NOT automatically save.
@@ -147,6 +194,18 @@ function addRecentWorkspace(workspacePath) {
     saveConfig(); // Persist the change
 }
 
+// New function to add a config change listener
+function addConfigChangeListener(listener) {
+    if (typeof listener === 'function' && !configChangeListeners.includes(listener)) {
+        configChangeListeners.push(listener);
+    }
+}
+
+// New function to remove a config change listener
+function removeConfigChangeListener(listener) {
+    configChangeListeners = configChangeListeners.filter(l => l !== listener);
+}
+
 // Ensure config is loaded when the module is required,
 // but paths are initialized lazily or explicitly.
 // loadConfig(); // Initial load can be done here or explicitly after app 'ready'.
@@ -160,6 +219,9 @@ module.exports = {
   saveConfig,         // Renamed
   resetToDefaults,    // New
   addRecentWorkspace, // New
+  addConfigChangeListener, // New
+  removeConfigChangeListener, // New
   DEFAULT_CONFIG,
+  getDefaultConfig, // Exporting the function to get a fresh copy
   MAX_RECENT_WORKSPACES // Export for main.js to know limit if needed elsewhere, though not strictly necessary
 }; 

@@ -247,12 +247,10 @@ async function handleAddFilesAsSeparateCues() {
                 volume: currentAppConfig.defaultVolume !== undefined ? currentAppConfig.defaultVolume : 1,
                 fadeInTime: currentAppConfig.defaultFadeInTime,
                 fadeOutTime: currentAppConfig.defaultFadeOutTime,
-                loop: currentAppConfig.defaultLoop,
+                loop: currentAppConfig.defaultLoopSingleCue,
+                retriggerBehavior: currentAppConfig.defaultRetriggerBehavior,
                 trimStartTime: null,
-                trimEndTime: null,
-                shuffle: false,
-                repeatOne: false,
-                retriggerBehavior: currentAppConfig.defaultRetriggerBehavior
+                trimEndTime: null
             };
             await cueStore.addOrUpdateCue(newCueData);
         }
@@ -269,30 +267,29 @@ async function handleAddFilesAsPlaylistCue() {
     console.log('Modals: Adding dropped files as a new playlist cue.');
     try {
         const cueId = await ipcRendererBindingsModule.generateUUID();
-        const playlistName = 'New Playlist'; // Or derive from first file name
-        
-        const playlistItemPromises = Array.from(droppedFilesList).map(async (file) => ({
-            id: await ipcRendererBindingsModule.generateUUID(),
-            path: file.path, // Electron File objects have a 'path' property
-            name: file.name,
-        }));
-        const playlistItems = await Promise.all(playlistItemPromises);
+        const cueName = `Playlist (${droppedFilesList[0].name.split('.').slice(0, -1).join('.')}...)`;
+
+        const playlistItemsPromises = Array.from(droppedFilesList).map(async (file) => {
+            const itemId = await ipcRendererBindingsModule.generateUUID();
+            return { id: itemId, path: file.path, name: file.name, knownDuration: 0 }; 
+        });
+        const playlistItems = await Promise.all(playlistItemsPromises);
 
         const newCueData = {
             id: cueId,
-            name: playlistName,
+            name: cueName,
             type: 'playlist',
             filePath: null,
             playlistItems: playlistItems,
             volume: currentAppConfig.defaultVolume !== undefined ? currentAppConfig.defaultVolume : 1,
             fadeInTime: currentAppConfig.defaultFadeInTime,
             fadeOutTime: currentAppConfig.defaultFadeOutTime,
-            loop: currentAppConfig.defaultLoop, 
+            retriggerBehavior: currentAppConfig.defaultRetriggerBehavior,
+            shuffle: currentAppConfig.defaultShufflePlaylists !== undefined ? currentAppConfig.defaultShufflePlaylists : false, 
+            repeatOne: currentAppConfig.defaultRepeatOnePlaylistItem !== undefined ? currentAppConfig.defaultRepeatOnePlaylistItem : false, 
+            playlistPlayMode: currentAppConfig.defaultPlaylistPlayMode !== undefined ? currentAppConfig.defaultPlaylistPlayMode : 'continue',
             trimStartTime: null, 
             trimEndTime: null,   
-            shuffle: false, 
-            repeatOne: false, 
-            retriggerBehavior: currentAppConfig.defaultRetriggerBehavior
         };
         await cueStore.addOrUpdateCue(newCueData);
     } catch (error) {

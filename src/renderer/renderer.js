@@ -7,60 +7,99 @@ import * as cueStore from './cueStore.js';
 import * as audioController from './audioController.js';
 import * as ui from './ui.js';
 import * as dragDropHandler from './dragDropHandler.js';
+import * as appConfigUI from './ui/appConfigUI.js';
+import * as waveformControls from './ui/waveformControls.js';
+import * as sidebars from './ui/sidebars.js'; // Import sidebars module
+
+// Function to wait for electronAPI and its methods to be ready
+async function ensureElectronApiReady() {
+  return new Promise(resolve => {
+    const checkInterval = setInterval(() => {
+      if (window.electronAPI && typeof window.electronAPI.whenMainReady === 'function') {
+        clearInterval(checkInterval);
+        console.log('Renderer: window.electronAPI.whenMainReady is available.');
+        resolve(window.electronAPI);
+      } else {
+        console.log('Renderer: Waiting for window.electronAPI.whenMainReady to become available...');
+      }
+    }, 50); // Check every 50ms
+  });
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Renderer process starting initialization...');
 
-    // Initialize modules in an order that respects dependencies for their init functions.
+    const electronAPI = await ensureElectronApiReady();
 
-    // Order note: ipcRendererBindings.initialize takes other modules as arguments.
-    // This implies it might register IPC handlers that call functions on these modules.
-    // Ideally, modules should be fully initialized *before* being passed to something that might call them.
-    // This is a potential area for future refactoring to ensure robustness.
-    // For now, we assume IPC handlers are not called *during* this initial setup sequence.
+    // 1. Initialize IPC Bindings (sets up listeners but refs are null initially)
+    ipcRendererBindings.initialize(electronAPI);
 
-    // 1. cueStore: Needs ipcRendererBindings (which is problematic if ipcRendererBindings isn't fully ready)
-    //    Let's assume ipcRendererBindings can be initialized first without its dependencies fully ready, 
-    //    and it stores them for later use by its event handlers.
-    //    A more robust pattern might be for ipcRendererBindings to provide an API that modules call to register themselves.
-    // cueStore.init(ipcRendererBindings); // Old call
+    // 2. Initialize AppConfigUI (loads config from main)
+    appConfigUI.init(electronAPI); // Assuming it needs electronAPI for getAppConfig etc.
 
-    // 2. dragDropHandler: Needs ui (main module for now) and cueStore.
-    //    This is also problematic if 'ui' isn't fully initted. 
-    //    Let's assume dragDropHandler.init only sets up its internal state and listeners,
-    //    and calls on 'ui' happen later.
-    dragDropHandler.init(ui, cueStore); 
+    // 3. Initialize CueStore (needs electronAPI for initial cue load)
+    //    Pass `ui` module later if needed for specific refresh calls after ui.init
+    cueStore.init(electronAPI, null /* sidebarsAPI placeholder for now */, ui /* main ui module for refreshCueGrid */);
 
-    // 3. ui: Initialize UI and its sub-modules. This returns handles to specific sub-modules.
-    // It needs cueStore, audioController (the module object itself for now), ipcRendererBindings, dragDropHandler.
-    // Passing audioController (module object) here before audioController.init is called might be an issue if ui.init
-    // immediately calls functions on audioController that require it to be initialized. Let's assume not for now.
-    const uiHandles = await ui.init(cueStore, audioController, ipcRendererBindings, dragDropHandler);
+    // 4. Initialize AudioController (needs cueStore and electronAPI)
+    //    UI handles (cueGridAPI, sidebarsAPI) will be passed later if needed, or init signature adapted.
+    //    For now, its init signature is: init(cs, ipcRendererBindings, cgAPI, sbAPI)
+    //    Let's pass electronAPI for ipcRendererBindings arg, and null for cgAPI, sbAPI for now.
+    audioController.init(cueStore, electronAPI, null /* cueGridAPI placeholder */, null /* sidebarsAPI placeholder */);
 
-    // Update cueStore init to include sidebarsAPI from uiHandles
-    // This needs to happen after ui.init() but before cueStore is heavily used by others or loads data that might trigger updates.
-    // Given ipcRendererBindings.initialize uses cueStore, and cueStore might get updates from IPC soon after,
-    // initializing cueStore fully here is important.
-    cueStore.init(ipcRendererBindings, uiHandles.sidebarsModule, ui);
+    // 5. Initialize WaveformControls (needs electronAPI for IPC, audioController for playback)
+    console.log('Renderer (DEBUG): Inspecting sidebars module before waveformControls.init:', sidebars);
+    console.log('Renderer (DEBUG): typeof sidebars.handleCuePropertyChangeFromWaveform:', typeof sidebars.handleCuePropertyChangeFromWaveform);
+    waveformControls.init({
+        ipcRendererBindings: electronAPI, // Pass electronAPI as ipcRendererBindings
+        onTrimChange: sidebars.handleCuePropertyChangeFromWaveform // ADDED new way
+    });
 
-    // 4. audioController: Needs ipcRendererBindings and specific UI handles from ui.init().
-    audioController.init(ipcRendererBindings, uiHandles.cueGridModule, uiHandles.sidebarsModule);
-    
-    // 5. ipcRendererBindings: Initialize with references to other modules.
-    //    This is deferred to last to ensure other modules are as ready as possible.
-    //    However, modules initialized earlier (cueStore) already received ipcRendererBindings.
-    //    This circular dependency in initialization is tricky.
-    //    A more robust DI or event-based system would be better long-term.
-    ipcRendererBindings.initialize(
-        audioController, // Now audioController is more initialized
-        dragDropHandler, 
-        cueStore,
-        ui // Main ui module (might still be needed by some generic IPC handlers)
+    // 6. Initialize Main UI module, which also initializes its sub-modules (cueGrid, sidebars, modals)
+    //    It needs references to the already created module *instances* or *module objects*.
+    const uiHandles = await ui.init(
+        cueStore,         // Initialized module
+        audioController,  // Initialized module
+        electronAPI,      // electronAPI instance from preload
+        dragDropHandler,  // Module object (init called later)
+        appConfigUI,      // Initialized module
+        waveformControls  // Initialized module
     );
 
-    // After all modules are initialized, load initial data and render the UI.
+    // 7. Initialize DragDropHandler (now with a more initialized ui module and cueStore)
+    dragDropHandler.init(ui, cueStore, appConfigUI, uiHandles.modals);
+
+    // 8. NOW, set the module references in ipcRendererBindings so its listeners can act fully.
+    ipcRendererBindings.setModuleRefs({
+        audioCtrl: audioController,
+        dragDropCtrl: dragDropHandler,
+        cueStoreMod: cueStore,
+        uiMod: ui, // Main ui module
+        appConfigUIMod: appConfigUI,
+        cueGridAPI: uiHandles.cueGridModule,
+        sidebarsAPI: uiHandles.sidebarsModule,
+        modals: uiHandles.modals
+    });
+
+    // 9. Update modules that might need specific UI handles from ui.init
+    //    Example: If audioController's init was partial due to missing UI handles.
+    //    The current audioController.init expects cgAPI and sbAPI.
+    //    Let's refine its init or add setters. For now, re-calling or using setters if they exist.
+    //    If audioController.init can be called again or has setters for these:
+    if (uiHandles.cueGridModule && uiHandles.sidebarsModule) {
+         // This is a bit awkward. Ideally, audioController.init takes what it needs upfront,
+         // or ui.init doesn't need a fully initialized audioController if audioController needs ui sub-modules.
+         // For now, let's assume audioController can handle nulls for cgAPI/sbAPI or we call a setter.
+         // Call the new setter function in audioController
+         console.log('Renderer: Calling audioController.setUIRefs with uiHandles.');
+         audioController.setUIRefs(uiHandles.cueGridModule, uiHandles.sidebarsModule);
+    }
+    if (uiHandles.sidebarsModule && typeof cueStore.setSidebarsModule === 'function') {
+        cueStore.setSidebarsModule(uiHandles.sidebarsModule);
+    }
+
+    // 10. Load initial data and render UI
     try {
-        // loadAndRenderCues is part of the main ui module
         await ui.loadAndRenderCues(); 
         console.log('Cues loaded and UI rendered.');
     } catch (error) {
@@ -71,5 +110,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    console.log('All renderer modules initialized.');
+    console.log('Renderer: All renderer modules initialized.');
+
+    // Listen for user activity to reset inactivity timer for Easter Egg
+    const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+    let activityTimeout = null;
+    const debounceActivityReset = () => {
+        clearTimeout(activityTimeout);
+        activityTimeout = setTimeout(() => {
+            if (window.electronAPI && typeof window.electronAPI.resetInactivityTimer === 'function') {
+                console.log('Renderer: User activity detected, resetting inactivity timer via IPC.');
+                window.electronAPI.resetInactivityTimer();
+            }
+        }, 300); // Debounce for 300ms
+    };
+
+    activityEvents.forEach(eventType => {
+        document.addEventListener(eventType, debounceActivityReset, true); // Use capture phase
+    });
+
+    // Add listener for the Dev Easter Egg Button
+    const devEasterEggButton = document.getElementById('devEasterEggButton');
+    if (devEasterEggButton && electronAPI && typeof electronAPI.openEasterEggGame === 'function') {
+        devEasterEggButton.addEventListener('click', () => {
+            console.log('Dev Easter Egg Button clicked. Sending IPC to open game.');
+            electronAPI.openEasterEggGame();
+        });
+    } else {
+        if (!devEasterEggButton) console.warn('Dev Easter Egg Button not found.');
+        if (!electronAPI || typeof electronAPI.openEasterEggGame !== 'function') console.warn('electronAPI.openEasterEggGame not available.');
+    }
 }); 

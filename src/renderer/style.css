@@ -164,6 +164,13 @@ body {
     box-sizing: border-box;
 }
 
+/* Specific style for OSC Path input to allow it to grow in its flex container */
+#propOscTriggerPath {
+    width: auto; /* Override the general sidebar input width */
+    min-width: 50px; /* Prevent it from becoming too small, adjust as needed */
+    /* flex-grow: 1; is already an inline style, but ensuring it's not overridden */
+}
+
 .sidebar-content input[type="range"] {
     width: calc(70% - 10px); /* Adjust as needed */
     vertical-align: middle;
@@ -241,23 +248,39 @@ h1 { /* from old h1 */
     display: flex;
     flex-direction: column;
     justify-content: space-between; /* Adjust for status, name, time */
-    align-items: center;
-    min-height: 80px; /* May need more height for status indicator */
-    padding: 5px;
-    word-break: break-word;
-    position: relative;
+    align-items: center; /* Center items horizontally like name */
+    position: relative; /* Important for absolute positioning of children like status indicator */
+    overflow: hidden; /* Prevent content from spilling out, e.g. long names */
 }
 
 .cue-status-indicator {
-    font-size: 0.75em;
-    color: #777;
-    width: 100%;
-    text-align: center;
-    margin-bottom: 3px;
-    height: 1.2em; /* Give it a defined height */
-    line-height: 1.2em;
-    font-style: italic;
+    position: absolute; /* Position at the top left, or span top */
+    top: 2px;
+    left: 2px;
+    font-size: 0.6em;
+    background-color: rgba(0,0,0,0.1);
+    padding: 1px 3px;
+    border-radius: 3px;
+    line-height: 1;
 }
+
+/* ---- NEW WING LINK LABEL STYLE ---- */
+.wing-link-label {
+    font-size: 0.6em; /* Even smaller text for the link */
+    color: #007bff;   /* Blue to indicate a link/special status */
+    position: absolute;
+    top: 2px;      /* Align with status indicator */
+    right: 2px;     /* Position to the top right */
+    padding: 1px 3px;
+    background-color: rgba(0,0,0,0.05);
+    border-radius: 3px;
+    line-height: 1;
+    max-width: 50%; /* Prevent it from overlapping status too much */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+/* ---- END WING LINK LABEL STYLE ---- */
 
 .cue-button.playing .cue-status-indicator {
     color: #e6ffe6; /* Lighter green for text on dark green */

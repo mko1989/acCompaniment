@@ -5,12 +5,39 @@ let cues = [];
 let ipcBindings; // To interact with main process for loading/saving
 let sidebarsAPI; // To notify sidebars to refresh
 let uiAPI; // To notify UI to refresh grid
+let uiModule; // Store the ui.js module reference
 
 // Call this function to initialize the module with dependencies
 function init(ipcRendererBindings, sbAPI, mainUIApi) {
     ipcBindings = ipcRendererBindings;
     sidebarsAPI = sbAPI; // Store reference to sidebars module API
     uiAPI = mainUIApi; // Store reference to UI module API (or specific functions)
+    uiModule = mainUIApi; // Store the ui.js module reference
+
+    if (ipcBindings && typeof ipcBindings.onCueListUpdated === 'function') {
+        ipcBindings.onCueListUpdated((updatedCues) => {
+            console.log('CueStore: Received cues-updated-from-main from main process with', updatedCues.length, 'cues.');
+            cues = updatedCues; // Update local cache
+            console.log('CueStore: Local cues cache updated. Cues:', cues);
+            
+            console.log('CueStore: Inspecting uiModule before calling refreshCueGrid:', uiModule);
+
+            // Notify sidebars to refresh if an updated cue is a playlist and is open
+            if (sidebarsAPI && typeof sidebarsAPI.refreshPlaylistPropertiesView === 'function') {
+                cues.forEach(cue => {
+                    if (cue.type === 'playlist') {
+                        sidebarsAPI.refreshPlaylistPropertiesView(cue.id);
+                    }
+                });
+            }
+
+            // After all individual cue checks, refresh the main cue grid
+            if (uiAPI && typeof uiAPI.refreshCueGrid === 'function') {
+                console.log("CueStore: Calling ui.refreshCueGrid().");
+                uiAPI.refreshCueGrid();
+            }
+        });
+    }
 }
 
 async function loadCuesFromServer() {
@@ -124,10 +151,11 @@ async function deleteCue(id) {
 }
 
 // New function to update the local cues cache from an authoritative main process update
-function setCuesFromMain(updatedCuesList) {
+// RENAMED from setCuesFromMain
+function handleCuesUpdated(updatedCuesList) {
     if (Array.isArray(updatedCuesList)) {
         cues = updatedCuesList;
-        console.log('CueStore: Internal cue cache updated from main process data.');
+        console.log('CueStore: Internal cue cache updated from main process data (handleCuesUpdated).');
 
         // Notify sidebars to refresh if an updated cue is a playlist and is open
         if (sidebarsAPI && typeof sidebarsAPI.refreshPlaylistPropertiesView === 'function') {
@@ -140,13 +168,15 @@ function setCuesFromMain(updatedCuesList) {
 
         // After all individual cue checks, refresh the main cue grid
         if (uiAPI && typeof uiAPI.refreshCueGrid === 'function') {
+            console.log("CueStore (handleCuesUpdated): Calling uiAPI.refreshCueGrid()."); // Added log for clarity
             uiAPI.refreshCueGrid();
         }
 
     } else {
-        console.error('CueStore: Invalid data received for setCuesFromMain. Expected array.', updatedCuesList);
+        console.error('CueStore: Invalid data received for handleCuesUpdated. Expected array.', updatedCuesList);
     }
 }
 
 // Removed saveCuesToServer from exports as it's likely obsolete.
-export { init, loadCuesFromServer, getCueById, getAllCues, addOrUpdateCue, deleteCue, setCuesFromMain }; 
+// UPDATED EXPORT
+export { init, loadCuesFromServer, getCueById, getAllCues, addOrUpdateCue, deleteCue, handleCuesUpdated }; 

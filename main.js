@@ -1,278 +1,448 @@
-const { app, BrowserWindow, ipcMain, Menu, dialog } = require('electron');
-const path = require('path');
+const { app, BrowserWindow, ipcMain, Menu, dialog, screen, nativeTheme } = require('electron');
+const path = require('node:path');
+const fs = require('fs-extra'); // For file system operations
 
 // Import main process modules
+console.log('MAIN_JS: Importing cueManager...');
 const cueManager = require('./src/main/cueManager');
-const { initialize: initializeIpcHandlers } = require('./src/main/ipcHandlers');
+console.log('MAIN_JS: Importing ipcHandlers...');
+const { initialize: initializeIpcHandlers, handleThemeChange } = require('./src/main/ipcHandlers');
+console.log('MAIN_JS: Importing websocketServer...');
 const websocketServer = require('./src/main/websocketServer');
+console.log('MAIN_JS: Importing appConfigManager...');
 const appConfigManager = require('./src/main/appConfig');
+console.log('MAIN_JS: Importing workspaceManager...');
 const workspaceManager = require('./src/main/workspaceManager');
+console.log('MAIN_JS: Importing oscListener...');
+const oscListener = require('./src/main/oscListener');
+console.log('MAIN_JS: Importing mixerIntegrationManager...');
+const mixerIntegrationManager = require('./src/main/mixerIntegrationManager');
+console.log('MAIN_JS: All main modules imported.');
 
 let mainWindow;
+let easterEggWindow = null; // Keep track of the game window
+let inactivityTimer = null;
+let lastUserActivityTimestamp = Date.now();
+const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+// const INACTIVITY_TIMEOUT_MS = 15 * 1000; // FOR TESTING: 15 seconds
 
-function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false
-    }
-  });
+let isDev = process.env.NODE_ENV !== 'production';
 
-  mainWindow.loadFile(path.join(__dirname, 'src/renderer/index.html'));
-  mainWindow.setTitle('acCompaniment - Untitled Workspace');
-
-  // Prompt before closing if workspace is edited
-  mainWindow.on('close', (event) => {
-    if (mainWindow.isDocumentEdited()) {
-      const choice = dialog.showMessageBoxSync(mainWindow, {
-        type: 'question',
-        buttons: ['Save', "Don't Save", 'Cancel'],
-        title: 'Confirm',
-        message: 'You have unsaved changes. Do you want to save them before closing?',
-        defaultId: 0, // Default to Save
-        cancelId: 2 // Corresponds to Cancel
-      });
-
-      if (choice === 0) { // Save
-        event.preventDefault(); // Prevent closing immediately
-        (async () => {
-          const success = await workspaceManager.saveWorkspace();
-          if (success) {
-            mainWindow.destroy(); // Close if save was successful
-          } else {
-            // Save was cancelled (e.g. user cancelled "Save As" dialog)
-            // Do not close the window, allow user to continue editing or try saving again.
-          }
-        })();
-      } else if (choice === 1) { // Don't Save
-        // Proceed to close, do nothing here
-      } else { // Cancel (choice === 2)
-        event.preventDefault(); // Prevent closing
-      }
-    }
-  });
-
-  mainWindow.on('closed', () => {
-    mainWindow = null;
-  });
+// Function to reset the inactivity timer
+function resetInactivityTimestamp() {
+    lastUserActivityTimestamp = Date.now();
+    console.log('MAIN_JS: User activity detected, timestamp reset.');
 }
 
-function createMenu() {
-    const isMac = process.platform === 'darwin';
-
-    // Get recent workspaces from appConfigManager
-    const currentConfig = appConfigManager.getConfig();
-    const recentWorkspaces = (currentConfig && Array.isArray(currentConfig.recentWorkspaces)) ? currentConfig.recentWorkspaces : [];
-
-    const recentWorkspacesSubmenu = recentWorkspaces.map(wsPath => ({
-        label: path.basename(wsPath), // Show only the folder name for brevity
-        click: async () => {
-            await workspaceManager.openWorkspace(wsPath);
-            createMenu(); // Rebuild menu to reflect potential changes (e.g. recent list, window title)
-        }
-    })); 
-
-    const fileSubmenu = [
-        {
-            label: 'New Workspace',
-            accelerator: 'CmdOrCtrl+N',
-            click: async () => {
-                await workspaceManager.newWorkspace();
-                createMenu(); // Rebuild menu
-            }
-        },
-        {
-            label: 'Open Workspace...',
-            accelerator: 'CmdOrCtrl+O',
-            click: async () => {
-                await workspaceManager.openWorkspace(); // No path, so dialog will show
-                createMenu(); // Rebuild menu after open potentially adds to recent
-            }
-        },
-    ];
-
-    if (recentWorkspacesSubmenu.length > 0) {
-        fileSubmenu.push({ type: 'separator' });
-        fileSubmenu.push(...recentWorkspacesSubmenu);
+// Function to check for inactivity and potentially trigger Easter Egg
+function checkForInactivity() {
+    if (easterEggWindow && !easterEggWindow.isDestroyed()) {
+        // Game is already open, don't do anything
+        return;
     }
 
-    fileSubmenu.push(
-        {
-            label: 'Save Workspace',
-            accelerator: 'CmdOrCtrl+S',
-            click: async () => {
-                await workspaceManager.saveWorkspace();
-                // Save doesn't change recent list unless it's a new workspace (handled by Save As)
-                // but it does change the window title if it was untitled and document edited status.
-                createMenu(); // Rebuild menu for consistency (e.g., update window title if shown in menu)
-            }
-        },
-        {
-            label: 'Save Workspace As...',
-            accelerator: 'CmdOrCtrl+Shift+S',
-            click: async () => {
-                await workspaceManager.saveWorkspaceAs();
-                createMenu(); // Rebuild menu after Save As adds to recent
-            }
-        },
-        { type: 'separator' },
-        isMac ? { role: 'close' } : { role: 'quit' }
-    );
-
-    const template = [
-        // { role: 'appMenu' } // on macOS
-        ...(isMac ? [{
-            label: app.name,
-            submenu: [
-                { role: 'about' },
-                { type: 'separator' },
-                { role: 'services' },
-                { type: 'separator' },
-                { role: 'hide' },
-                { role: 'hideOthers' },
-                { role: 'unhide' },
-                { type: 'separator' },
-                { role: 'quit' }
-            ]
-        }] : []),
-        // { role: 'fileMenu' }
-        {
-            label: 'File',
-            submenu: fileSubmenu // Use the dynamically built submenu
-        },
-        // { role: 'editMenu' }
-        {
-            label: 'Edit',
-            submenu: [
-                { role: 'undo' },
-                { role: 'redo' },
-                { type: 'separator' },
-                { role: 'cut' },
-                { role: 'copy' },
-                { role: 'paste' },
-                ...(isMac ? [
-                    { role: 'pasteAndMatchStyle' },
-                    { role: 'delete' },
-                    { role: 'selectAll' },
-                    { type: 'separator' },
-                    {
-                        label: 'Speech',
-                        submenu: [
-                            { role: 'startSpeaking' },
-                            { role: 'stopSpeaking' }
-                        ]
-                    }
-                ] : [
-                    { role: 'delete' },
-                    { type: 'separator' },
-                    { role: 'selectAll' }
-                ])
-            ]
-        },
-        // { role: 'viewMenu' }
-        {
-            label: 'View',
-            submenu: [
-                { role: 'reload' },
-                { role: 'forceReload' },
-                { role: 'toggleDevTools' },
-                { type: 'separator' },
-                { role: 'resetZoom' },
-                { role: 'zoomIn' },
-                { role: 'zoomOut' },
-                { type: 'separator' },
-                { role: 'togglefullscreen' }
-            ]
-        },
-        // { role: 'windowMenu' }
-        {
-            label: 'Window',
-            submenu: [
-                { role: 'minimize' },
-                { role: 'zoom' },
-                ...(isMac ? [
-                    { type: 'separator' },
-                    { role: 'front' },
-                    { type: 'separator' },
-                    { role: 'window' }
-                ] : [
-                    { role: 'close' }
-                ])
-            ]
-        },
-        {
-            role: 'help',
-            submenu: [
-                {
-                    label: 'Learn More',
-                    click: async () => {
-                        const { shell } = require('electron');
-                        await shell.openExternal('https://electronjs.org');
-                    }
+    if (Date.now() - lastUserActivityTimestamp > INACTIVITY_TIMEOUT_MS) {
+        console.log('MAIN_JS: Inactivity detected.');
+        const allCues = cueManager.getAllCues(); // Assuming cueManager is initialized
+        if (allCues && allCues.length === 0) {
+            console.log('MAIN_JS: Workspace is blank. Showing Easter Egg prompt.');
+            dialog.showMessageBox(mainWindow, {
+                type: 'question',
+                buttons: ['No jasne!', 'Będę Brzostkował'], // Yes please!, I'll be Brzostking
+                defaultId: 0,
+                cancelId: 1,
+                title: 'Nuda?', // Boredom?
+                message: 'Chcesz poganiać świnie?', // Want to herd some pigs?
+            }).then(result => {
+                if (result.response === 0) {
+                    openEasterEggGameWindow(); 
                 }
-            ]
+                resetInactivityTimestamp(); // Reset regardless of choice to avoid immediate re-trigger
+            });
+        } else {
+            console.log('MAIN_JS: Workspace not blank, or cueManager not ready. Cues count:', allCues ? allCues.length : 'N/A');
+            resetInactivityTimestamp(); // Reset even if not blank to avoid constant checks
         }
-    ];
-
-    const menu = Menu.buildFromTemplate(template);
-    Menu.setApplicationMenu(menu);
+    } else {
+        // console.log('MAIN_JS: Still active.') // For debugging frequent checks
+    }
 }
 
-app.whenReady().then(() => {
-  appConfigManager.loadConfig();
-
-  createWindow();
-  createMenu();
-
-  cueManager.initialize(websocketServer);
-  websocketServer.initialize(mainWindow, cueManager);
-  initializeIpcHandlers(mainWindow, cueManager, websocketServer, workspaceManager);
-  workspaceManager.initialize(appConfigManager, cueManager, mainWindow);
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+function openEasterEggGameWindow() {
+    if (easterEggWindow && !easterEggWindow.isDestroyed()) {
+        easterEggWindow.focus();
+        return;
     }
-  });
-});
-
-// Handle before-quit for app-wide quit attempts (Cmd+Q, etc.)
-app.on('before-quit', (event) => {
-  if (mainWindow && mainWindow.isDocumentEdited()) {
-    const choice = dialog.showMessageBoxSync(mainWindow, {
-      type: 'question',
-      buttons: ['Save', "Don't Save", 'Cancel'],
-      title: 'Confirm Quit',
-      message: 'You have unsaved changes. Do you want to save them before quitting?',
-      defaultId: 0,
-      cancelId: 2
+    console.log('[MainProcess] Opening Easter Egg game window (production trigger or dev button).');
+    easterEggWindow = new BrowserWindow({
+        width: 640,
+        height: 480,
+        useContentSize: true,
+        webPreferences: {
+            preload: path.join(__dirname, 'preload.js'),
+            nodeIntegration: false,
+            contextIsolation: true,
+        },
+        show: false,
+        parent: mainWindow, // Optional, makes it a child of the main window
+        modal: false, 
+        title: 'Pig Roundup!'
     });
 
-    if (choice === 0) { // Save
-      event.preventDefault(); // Prevent quitting immediately
-      (async () => {
-        const success = await workspaceManager.saveWorkspace();
-        if (success) {
-          app.quit(); // Quit if save was successful
-        } else {
-          // Save was cancelled, do not quit
-        }
-      })();
-    } else if (choice === 1) { // Don't Save
-      // Proceed to quit, do nothing here to prevent default
-    } else { // Cancel (choice === 2)
-      event.preventDefault(); // Prevent quitting
+    easterEggWindow.loadFile(path.join(__dirname, 'src/renderer/easter_egg_game/game.html'));
+
+    easterEggWindow.once('ready-to-show', () => {
+        easterEggWindow.show();
+    });
+
+    easterEggWindow.on('closed', () => {
+        console.log('[MainProcess] Easter Egg game window closed.');
+        easterEggWindow = null;
+    });
+}
+
+async function createWindow() {
+  console.log('MAIN_JS: createWindow START'); // LOG 1
+  try {
+    console.log('[MainCreateWindow] Config BEFORE initial appConfigManager.loadConfig():', JSON.parse(JSON.stringify(appConfigManager.getConfig())) ); // Config Log PRE-LOAD
+    console.log('MAIN_JS: createWindow - In try block, before appConfigManager.loadConfig()'); // LOG 2
+    appConfigManager.loadConfig();
+    console.log('[MainCreateWindow] Initial global config loaded (directly after loadConfig call):', JSON.parse(JSON.stringify(appConfigManager.getConfig())) ); // Config Log 1
+    console.log('MAIN_JS: createWindow - After appConfigManager.loadConfig()'); // LOG 3
+    const currentConfig = appConfigManager.getConfig(); // getConfig returns a copy
+    console.log('[MainCreateWindow] currentConfig variable after initial load and getConfig():', JSON.parse(JSON.stringify(currentConfig)) ); // Config Log 1.1
+    console.log('MAIN_JS: createWindow - After appConfigManager.getConfig()'); // LOG 4
+
+    mainWindow = new BrowserWindow({
+      width: currentConfig.windowWidth || 1200, 
+      height: currentConfig.windowHeight || 800, 
+      x: currentConfig.windowX, 
+      y: currentConfig.windowY, 
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        contextIsolation: true,
+        enableRemoteModule: false,
+        nodeIntegration: false, 
+      },
+      icon: path.join(__dirname, 'assets', 'icons', 'icon.png'),
+      title: "acCompaniment Soundboard"
+    });
+    console.log('MAIN_JS: createWindow - BrowserWindow created'); // LOG 5
+
+    mainWindow.on('resize', saveWindowBounds);
+    mainWindow.on('move', saveWindowBounds);
+    mainWindow.on('close', saveWindowBounds); 
+    console.log('MAIN_JS: createWindow - Window event listeners set'); // LOG 6
+
+    await mainWindow.loadFile(path.join(__dirname, 'src', 'renderer', 'index.html'));
+    console.log('MAIN_JS: createWindow - mainWindow.loadFile complete'); // LOG 7
+
+    if (isDev) {
+      mainWindow.webContents.openDevTools();
+      console.log('MAIN_JS: createWindow - DevTools opened'); // LOG 8
     }
+
+    console.log('MAIN_JS: createWindow - Before cueManager.setCuesDirectory'); // LOG 9
+    cueManager.setCuesDirectory(currentConfig.cuesFilePath);
+    console.log('MAIN_JS: createWindow - After cueManager.setCuesDirectory'); // LOG 10
+    await cueManager.initialize(websocketServer, mainWindow);
+    console.log('MAIN_JS: createWindow - After cueManager.initialize'); // LOG 11
+
+    console.log('[MainCreateWindow] Config BEFORE workspaceManager.initialize:', JSON.parse(JSON.stringify(appConfigManager.getConfig())) ); // Config Log PRE-WS_INIT
+    console.log('MAIN_JS: createWindow - Before workspaceManager.initialize'); // LOG 12
+    workspaceManager.initialize(appConfigManager, cueManager, mainWindow);
+    console.log('[MainCreateWindow] Config AFTER workspaceManager.initialize (from appConfigManager.getConfig()):', JSON.parse(JSON.stringify(appConfigManager.getConfig())) ); // Config Log 2
+    console.log('MAIN_JS: createWindow - After workspaceManager.initialize'); // LOG 13
+
+    console.log('MAIN_JS: createWindow - Before websocketServer.setContext'); // LOG 14
+    websocketServer.setContext(mainWindow, cueManager);
+    console.log('MAIN_JS: createWindow - After websocketServer.setContext'); // LOG 15
+    await websocketServer.startServer(currentConfig.websocketPort, currentConfig.websocketEnabled);
+    console.log('MAIN_JS: createWindow - After websocketServer.startServer'); // LOG 16
+
+    console.log('MAIN_JS: createWindow - Before oscListener.setContext'); // LOG 17
+    oscListener.setContext(mainWindow, cueManager);
+    console.log('MAIN_JS: createWindow - After oscListener.setContext'); // LOG 18
+    oscListener.initializeOscListener(currentConfig.oscPort, currentConfig.oscEnabled);
+    console.log('MAIN_JS: createWindow - After oscListener.initializeOscListener'); // LOG 19
+
+    console.log('MAIN_JS: createWindow - Before mixerIntegrationManager.initialize'); // LOG 20
+    mixerIntegrationManager.initialize(currentConfig, mainWindow, cueManager);
+    console.log('MAIN_JS: createWindow - After mixerIntegrationManager.initialize'); // LOG 21
+
+    console.log('MAIN_JS: About to initialize IPC Handlers. cueManager type:', typeof cueManager, 'cueManager keys:', cueManager ? Object.keys(cueManager) : 'undefined'); // LOG 22
+    initializeIpcHandlers(app, mainWindow, cueManager, appConfigManager, workspaceManager, websocketServer, oscListener, resetInactivityTimestamp);
+    console.log('MAIN_JS: createWindow - After initializeIpcHandlers'); // LOG 23
+
+    // Send a signal to the renderer that the main process is ready
+    if (mainWindow && mainWindow.webContents && !mainWindow.isDestroyed()) {
+      console.log("MAIN_JS: Sending 'main-process-ready' to renderer.");
+      mainWindow.webContents.send('main-process-ready');
+    }
+
+    appConfigManager.addConfigChangeListener(async (newConfig) => {
+      console.log('MAIN_JS: Config change listener - START');
+      await websocketServer.startServer(newConfig.websocketPort, newConfig.websocketEnabled);
+      console.log('MAIN_JS: Config change listener - WebSocket server restarted (or started)');
+      oscListener.updateOscSettings(newConfig.oscPort, newConfig.oscEnabled);
+      console.log('MAIN_JS: Config change listener - OSC settings updated');
+      mixerIntegrationManager.updateSettings(newConfig); 
+      console.log('MAIN_JS: Config change listener - Mixer settings updated');
+      
+      if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
+        mainWindow.webContents.send('app-config-updated-from-main', newConfig);
+        console.log('MAIN_JS: Config change listener - Sent app-config-updated-from-main to renderer');
+      }
+      console.log('MAIN_JS: Config change listener - END');
+    });
+    console.log('MAIN_JS: createWindow - After addConfigChangeListener setup'); // LOG 24
+
+    mainWindow.on('closed', () => {
+      console.log('MAIN_JS: mainWindow closed event');
+      oscListener.stopOscListener(); 
+      websocketServer.stopServer(); 
+      mainWindow = null;
+    });
+    console.log('MAIN_JS: createWindow - After closed event listener setup'); // LOG 25
+
+    const menu = Menu.buildFromTemplate(getMenuTemplate(mainWindow, cueManager, workspaceManager, appConfigManager));
+    Menu.setApplicationMenu(menu);
+    console.log('MAIN_JS: createWindow - Menu created and set'); // LOG 26
+
+    // The theme should be applied based on the config potentially updated by workspaceManager.initialize
+    const finalConfigForTheme = appConfigManager.getConfig();
+    const themeToApply = finalConfigForTheme.theme || 'system'; 
+    console.log('Main: Applying theme from config on startup:', themeToApply);
+    handleThemeChange(themeToApply, mainWindow, nativeTheme);
+    console.log('MAIN_JS: createWindow - After handleThemeChange'); // LOG 28
+    console.log('MAIN_JS: createWindow END - Successfully reached end of try block'); // LOG 29
+
+    // Start inactivity check interval
+    if (inactivityTimer) clearInterval(inactivityTimer);
+    inactivityTimer = setInterval(checkForInactivity, 30000); // Check every 30 seconds
+
+  } catch (error) {
+    console.error('MAIN_JS: CRITICAL ERROR in createWindow:', error);
   }
+}
+
+// Function to save window bounds
+function saveWindowBounds() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    const bounds = mainWindow.getBounds();
+    appConfigManager.updateConfig({
+      windowWidth: bounds.width,
+      windowHeight: bounds.height,
+      windowX: bounds.x,
+      windowY: bounds.y
+    });
+  }
+}
+
+// --- Application Menu Template ---
+function getMenuTemplate(mainWindow, cueManager, workspaceManager, appConfigManagerInstance) {
+  const template = [
+    // Standard App Menu (macOS)
+    ...(process.platform === 'darwin' ? [{
+      label: app.name,
+      submenu: [
+        { role: 'about' },
+        { type: 'separator' },
+        { 
+          label: 'Preferences',
+          accelerator: 'CmdOrCtrl+,',
+          click: () => {
+            if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
+              mainWindow.webContents.send('open-preferences');
+            }
+          }
+        },
+        { type: 'separator' },
+        { role: 'services' },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideothers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' }
+      ]
+    }] : []),
+    // File Menu
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'New Workspace',
+          accelerator: 'CmdOrCtrl+N',
+          click: () => workspaceManager.newWorkspace()
+        },
+        {
+          label: 'Open Workspace...',
+          accelerator: 'CmdOrCtrl+O',
+          click: () => workspaceManager.openWorkspace()
+        },
+        {
+          label: 'Save Workspace',
+          accelerator: 'CmdOrCtrl+S',
+          click: () => workspaceManager.saveWorkspace()
+        },
+        {
+          label: 'Save Workspace As...',
+          accelerator: 'CmdOrCtrl+Shift+S',
+          click: () => workspaceManager.saveWorkspaceAs()
+        },
+        {
+          label: 'Reveal Cues File',
+          click: () => {
+            const currentConfig = appConfigManagerInstance.getConfig();
+            const cuesPath = currentConfig.cuesFilePath || cueManager.getDefaultCuesPath();
+            if (fs.existsSync(cuesPath)) {
+              require('electron').shell.showItemInFolder(cuesPath);
+            } else {
+              dialog.showErrorBox('File Not Found', `The cues file was not found at: ${cuesPath}`);
+            }
+          }
+        },
+        {
+          label: 'Reveal Config File',
+          click: () => {
+            const configPath = appConfigManagerInstance.getConfigPath();
+            if (fs.existsSync(configPath)) {
+              require('electron').shell.showItemInFolder(configPath);
+            } else {
+              dialog.showErrorBox('File Not Found', `The config file was not found at: ${configPath}`);
+            }
+          }
+        },
+        { type: 'separator' },
+        process.platform === 'darwin' ? { role: 'close' } : { role: 'quit' }
+      ]
+    },
+    // Edit Menu
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        ...(process.platform === 'darwin' ? [
+          { role: 'pasteAndMatchStyle' },
+          { role: 'delete' },
+          { role: 'selectAll' },
+          { type: 'separator' },
+          {
+            label: 'Speech',
+            submenu: [
+              { role: 'startSpeaking' },
+              { role: 'stopSpeaking' }
+            ]
+          }
+        ] : [
+          { role: 'delete' },
+          { type: 'separator' },
+          { role: 'selectAll' }
+        ])
+      ]
+    },
+    // View Menu
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' }
+      ]
+    },
+    // Window Menu
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'zoom' },
+        ...(process.platform === 'darwin' ? [
+          { type: 'separator' },
+          { role: 'front' },
+          { type: 'separator' },
+          { role: 'window' }
+        ] : [
+          { role: 'close' }
+        ])
+      ]
+    },
+    // Help Menu (Optional)
+    {
+      role: 'help',
+      submenu: [
+        {
+          label: 'Learn More',
+          click: async () => {
+            const { shell } = require('electron');
+            await shell.openExternal('https://github.com/YourRepo/acCompaniment'); 
+          }
+        }
+      ]
+    }
+  ];
+  return template;
+}
+
+// --- Electron App Lifecycle Events ---
+app.whenReady().then(async () => {
+  console.log('MAIN_JS: app.whenReady() - START'); // LOG A
+  await createWindow();
+  console.log('MAIN_JS: app.whenReady() - createWindow() awaited'); // LOG B
+
+  app.on('activate', async () => {
+    console.log('MAIN_JS: app.on(activate) - START'); // LOG C
+    if (BrowserWindow.getAllWindows().length === 0) {
+      console.log('MAIN_JS: app.on(activate) - No windows open, calling createWindow()'); // LOG D
+      await createWindow();
+      console.log('MAIN_JS: app.on(activate) - createWindow() awaited'); // LOG E
+    }
+    console.log('MAIN_JS: app.on(activate) - END'); // LOG F
+  });
+  console.log('MAIN_JS: app.whenReady() - activate listener attached'); // LOG G
 });
+console.log('MAIN_JS: app.whenReady() listener attached'); // LOG H
 
 app.on('window-all-closed', () => {
+  console.log('MAIN_JS: window-all-closed event');
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
+console.log('MAIN_JS: window-all-closed listener attached'); // LOG I
 
-// No specific logic here anymore, all moved to modules. 
+app.on('will-quit', () => {
+  console.log('MAIN_JS: will-quit event. Ensuring config is saved.');
+  if (mainWindow && !mainWindow.isDestroyed()) { 
+    saveWindowBounds();
+  }
+  appConfigManager.saveConfig(); 
+});
+console.log('MAIN_JS: will-quit listener attached'); // LOG J
+
+if (process.platform === 'darwin') {
+  app.setName('acCompaniment Soundboard');
+}
+console.log('MAIN_JS: Script end'); // LOG K
+
+// Example: Listen for a message from renderer to open a new window
+ipcMain.on('open-new-window-example', () => {
+    // ... existing new window example code ...
+});
+
+// Handle request to open Easter Egg game window (this is for the dev button)
+ipcMain.on('open-easter-egg-game', () => {
+    resetInactivityTimestamp(); // Also reset if opened via dev button
+    openEasterEggGameWindow();
+}); 
