@@ -4,7 +4,8 @@
 // Import UI sub-modules
 import * as cueGrid from './ui/cueGrid.js';
 import * as utils from './ui/utils.js';
-import * as sidebars from './ui/sidebars.js';
+import * as configSidebar from './ui/configSidebar.js';
+import * as propertiesSidebar from './ui/propertiesSidebar.js';
 import * as modals from './ui/modals.js';
 import * as appConfigUI from './ui/appConfigUI.js'; // Import new module
 import * as waveformControls from './ui/waveformControls.js'; // Ensure this is imported if used by init
@@ -12,12 +13,13 @@ import * as waveformControls from './ui/waveformControls.js'; // Ensure this is 
 // Module references that will be initialized
 let cueStoreModule; // Renamed for clarity, will hold the passed cueStore module
 let audioControllerModule; // Renamed for clarity
-let ipcRendererBindingsModule; // This will be electronAPI
+let electronAPIForPreload; // Renamed to be specific: this is the electronAPI from preload
+let actualIpcBindingsModule; // To store the actual ipcRendererBindings.js module
 let dragDropHandlerModule; // Renamed for clarity
 let appConfigUIModuleInternal; // To hold the passed appConfigUI module
 let modalsModule; // To be initialized
 let waveformControlsModule;
-let appConfigUIModule; // Reference to the appConfigUI module
+let isUIModuleFullyInitialized = false; // NEW FLAG
 
 // Core DOM Elements (not managed by sub-modules yet)
 let appContainer;
@@ -61,22 +63,25 @@ let shiftKeyPressed = false;
 // MOVED to modals.js: droppedFilesList
 
 // Corrected init signature to match renderer.js
-async function init(rcvdCueStore, rcvdAudioController, rcvdElectronAPI, rcvdDragDropHandler, rcvdAppConfigUI, rcvdWaveformControls) {
+async function init(rcvdCueStore, rcvdAudioController, rcvdElectronAPI, rcvdDragDropHandler, rcvdAppConfigUI, rcvdWaveformControls, rcvdActualIpcBindings) {
     console.log('UI Core: init function started.');
     console.log('UI Core: Received rcvdElectronAPI. Type:', typeof rcvdElectronAPI, 'Keys:', rcvdElectronAPI ? Object.keys(rcvdElectronAPI) : 'undefined');
+    console.log('UI Core: Received rcvdActualIpcBindings. Type:', typeof rcvdActualIpcBindings, 'Keys:', rcvdActualIpcBindings ? Object.keys(rcvdActualIpcBindings) : 'undefined');
+
+    // Directly await electronAPI.whenMainReady()
     if (rcvdElectronAPI && typeof rcvdElectronAPI.whenMainReady === 'function') {
         console.log('UI Core: rcvdElectronAPI.whenMainReady IS a function. Waiting for main process...');
         await rcvdElectronAPI.whenMainReady();
         console.log('UI Core: Main process is ready. Proceeding with UI initialization.');
     } else {
         console.error('UI Core: FATAL - rcvdElectronAPI.whenMainReady is NOT a function or rcvdElectronAPI is invalid. Halting UI init.', rcvdElectronAPI);
-        // Display error to user or throw
         document.body.innerHTML = '<div style="color: red; padding: 20px;"><h1>Critical Error</h1><p>UI cannot initialize because of an internal problem (electronAPI not ready). Please restart.</p></div>';
         return; // Stop further execution
     }
 
     // Assign passed modules to scoped variables
-    ipcRendererBindingsModule = rcvdElectronAPI;
+    electronAPIForPreload = rcvdElectronAPI; // This is window.electronAPI from preload
+    actualIpcBindingsModule = rcvdActualIpcBindings; // This is the full ipcRendererBindings.js module
     cueStoreModule = rcvdCueStore;
     audioControllerModule = rcvdAudioController;
     dragDropHandlerModule = rcvdDragDropHandler; // Store if ui.js needs to interact with it later
@@ -88,7 +93,8 @@ async function init(rcvdCueStore, rcvdAudioController, rcvdElectronAPI, rcvdDrag
     // Populate uiModules for sub-module initialization
     modalsModule = modals;
     uiModules.cueGrid = cueGrid; // These are the imported modules
-    uiModules.sidebars = sidebars;
+    uiModules.configSidebar = configSidebar;
+    uiModules.propertiesSidebar = propertiesSidebar;
     uiModules.waveformControls = waveformControlsModule; // Use the imported waveformControls
     uiModules.appConfigUI = appConfigUIModuleInternal; // Use the imported appConfigUI for its functions
 
@@ -96,7 +102,7 @@ async function init(rcvdCueStore, rcvdAudioController, rcvdElectronAPI, rcvdDrag
     // Use the *imported* appConfigUI module for initialization, not the one passed as a parameter
     // if we intend to call appConfigUI.init() which is part of the imported module.
     if (appConfigUIModuleInternal && typeof appConfigUIModuleInternal.init === 'function') {
-        appConfigUIModuleInternal.init(ipcRendererBindingsModule); // Initialize the imported appConfigUI
+        appConfigUIModuleInternal.init(electronAPIForPreload); // Initialize the imported appConfigUI
     } else {
         console.error('UI Init: Imported appConfigUI module or its init function is not available.');
     }
@@ -109,34 +115,59 @@ async function init(rcvdCueStore, rcvdAudioController, rcvdElectronAPI, rcvdDrag
 
     const uiCoreInterface = {
         isEditMode,
-        openPropertiesSidebar: sidebars.openPropertiesSidebar,
-        getCurrentAppConfig: appConfigUIModuleInternal.getCurrentAppConfig, // Use imported appConfigUI
+        openPropertiesSidebar: propertiesSidebar.openPropertiesSidebar,
+        getCurrentAppConfig: appConfigUIModuleInternal.getCurrentAppConfig,
         openNewCueModal: modalsModule.openNewCueModal, 
-        showMultipleFilesDropModal: modalsModule.showMultipleFilesDropModal
+        showMultipleFilesDropModal: modalsModule.showMultipleFilesDropModal,
+        getAudioFileBuffer: electronAPIForPreload.getAudioFileBuffer,
+        getOrGenerateWaveformPeaks: electronAPIForPreload.getOrGenerateWaveformPeaks,
+        getMidiDevices: actualIpcBindingsModule.getMidiDevices,
+        sendMidiLearnModeToggle: actualIpcBindingsModule.sendMidiLearnModeToggle,
+        getOscConfig: actualIpcBindingsModule.getOscConfig,
+        sendOscConfig: actualIpcBindingsModule.sendOscConfig,
+        sendOscMessage: actualIpcBindingsModule.sendOscMessage,
+        highlightPlayingPlaylistItem: propertiesSidebar.highlightPlayingPlaylistItemInSidebar,
+        handleMidiMessageLearned,
+        handleMidiLearnStatusUpdate,
+        toggleConfigSidebar: configSidebar.toggleConfigSidebar
     };
 
     // Pass the *assigned* modules to sub-module initializers
     cueGrid.initCueGrid(cueStoreModule, audioControllerModule, dragDropHandlerModule, uiCoreInterface);
-    sidebars.initSidebars(cueStoreModule, audioControllerModule, ipcRendererBindingsModule, uiCoreInterface);
-    modalsModule.initModals(cueStoreModule, ipcRendererBindingsModule, uiCoreInterface);
+    configSidebar.initConfigSidebar();
+
+    // Log before initializing propertiesSidebar
+    console.log('[UI.js Init] Attempting to initialize propertiesSidebar. Module:', propertiesSidebar);
+    console.log('[UI.js Init] cueStoreModule type:', typeof cueStoreModule);
+    console.log('[UI.js Init] audioControllerModule type:', typeof audioControllerModule);
+    console.log('[UI.js Init] actualIpcBindingsModule type:', typeof actualIpcBindingsModule);
+    console.log('[UI.js Init] uiCoreInterface keys:', uiCoreInterface ? Object.keys(uiCoreInterface) : 'null');
+
+    propertiesSidebar.initPropertiesSidebar(cueStoreModule, audioControllerModule, actualIpcBindingsModule, uiCoreInterface);
+    modalsModule.initModals(cueStoreModule, electronAPIForPreload, uiCoreInterface);
     
     // updateModeUI(); // Defer this call until after initial cues are loaded
     console.log('UI Core Module Initialized (after main process ready). Mode UI update deferred until cues loaded.');
 
     // Return the actual module references (or specific functions if preferred)
-    return {
+    const initializedModules = {
         cueGridModule: cueGrid,
-        sidebarsModule: sidebars
+        configSidebarModule: configSidebar,
+        propertiesSidebarModule: propertiesSidebar,
+        modalsModule: modals
         // We can also expose specific functions directly here if that's cleaner for audioController
         // e.g., updateButtonPlayingState: cueGrid.updateButtonPlayingState,
         //       updateCueButtonTime: cueGrid.updateCueButtonTime,
         //       highlightPlayingPlaylistItem: sidebars.highlightPlayingPlaylistItem 
     };
+
+    isUIModuleFullyInitialized = true; // SET FLAG HERE
+    console.log('UI Core: isUIModuleFullyInitialized set to true.');
+    return initializedModules;
 }
 
 function cacheCoreDOMElements() {
     appContainer = document.getElementById('appContainer');
-    addCueButton = document.getElementById('addCueButton');
     modeToggleBtn = document.getElementById('modeToggleBtn');
     stopAllButton = document.getElementById('stopAllButton');
 
@@ -148,14 +179,19 @@ function cacheCoreDOMElements() {
 
 function bindCoreEventListeners() {
     if (modeToggleBtn) modeToggleBtn.addEventListener('click', toggleMode);
-    if (addCueButton) addCueButton.addEventListener('click', modalsModule.openNewCueModal); 
 
     if (stopAllButton) {
         stopAllButton.addEventListener('click', () => {
             if (audioControllerModule && typeof audioControllerModule.stopAll === 'function') {
                 const config = appConfigUIModuleInternal.getCurrentAppConfig(); // Get from appConfigUI
                 const behavior = config.defaultStopAllBehavior || 'stop';
-                audioControllerModule.stopAll({ behavior: behavior });
+                
+                // Determine useFade based on behavior
+                const useFadeForStopAll = behavior === 'fade_out_and_stop'; 
+                
+                // Pass useFade directly in the options
+                // Also, preserve exceptCueId if it were ever to be used, though not currently by this button.
+                audioControllerModule.stopAll({ useFade: useFadeForStopAll }); 
             }
         });
     }
@@ -181,32 +217,35 @@ function bindCoreEventListeners() {
 }
 
 function getCurrentAppMode() {
-    return shiftKeyPressed ? 'show' : currentMode;
+    // If shift is pressed, temporarily toggle the mode.
+    // Otherwise, use the persistent currentMode.
+    if (shiftKeyPressed) {
+        return currentMode === 'edit' ? 'show' : 'edit';
+    }
+    return currentMode;
 }
 
 function toggleMode() {
     currentMode = (currentMode === 'edit') ? 'show' : 'edit';
     shiftKeyPressed = false; // Reset shift key on manual toggle
     updateModeUI();
-    if (currentMode === 'show') {
-        sidebars.hidePropertiesSidebar(); 
-    }
 }
 
 function updateModeUI() {
-    const actualMode = getCurrentAppMode();
-    if (actualMode === 'show') {
+    const effectiveMode = getCurrentAppMode();
+    // const modeToggleBtnTextSpan = document.getElementById('modeToggleBtnText'); // Span is removed
+
+    if (effectiveMode === 'show') {
         appContainer.classList.remove('edit-mode');
         appContainer.classList.add('show-mode');
-        modeToggleBtn.textContent = 'Enter Edit Mode';
-        modeToggleBtn.classList.add('show-mode-active');
-    } else { // edit mode
+        // if (modeToggleBtnTextSpan) modeToggleBtnTextSpan.textContent = 'Enter Edit Mode'; // Text update removed
+    } else { // 'edit'
         appContainer.classList.remove('show-mode');
         appContainer.classList.add('edit-mode');
-        modeToggleBtn.textContent = 'Enter Show Mode';
-        modeToggleBtn.classList.remove('show-mode-active');
+        // if (modeToggleBtnTextSpan) modeToggleBtnTextSpan.textContent = 'Enter Show Mode'; // Text update removed
     }
-    cueGrid.renderCues(); 
+    
+    console.log(`UI Mode Updated: Effective mode is now ${effectiveMode}`);
 }
 
 async function loadAndRenderCues() {
@@ -216,17 +255,23 @@ async function loadAndRenderCues() {
         return;
     }
     await cueStoreModule.loadCuesFromServer();
-    console.log('UI Core: Cues loaded, attempting to render grid via cueGrid module.');
+    console.log('UI Core: Cues loaded.');
     
     if (cueStoreModule && typeof cueStoreModule.getAllCues === 'function') {
         const cuesForGrid = cueStoreModule.getAllCues();
-        console.log('UI Core (loadAndRenderCues): Cues retrieved from cueStoreModule just before calling cueGrid.renderCues():', cuesForGrid);
+        console.log('UI Core (loadAndRenderCues): Cues retrieved from cueStoreModule for logging:', cuesForGrid);
     } else {
-        console.error('UI Core (loadAndRenderCues): cueStoreModule or cueStoreModule.getAllCues is not available!');
+        console.error('UI Core (loadAndRenderCues): cueStoreModule or cueStoreModule.getAllCues is not available for logging!');
     }
 
-    updateModeUI(); // Call updateModeUI here after cues are loaded, which will call cueGrid.renderCues()
-    // cueGrid.renderCues(); // No longer directly call this, let updateModeUI handle it.
+    updateModeUI(); // Ensure mode is set before rendering grid
+    
+    if (cueGrid && typeof cueGrid.renderCues === 'function') {
+        console.log('UI Core: Calling cueGrid.renderCues() after loading cues and updating mode.');
+        cueGrid.renderCues(); // Explicitly call renderCues here
+    } else {
+        console.error('UI Core (loadAndRenderCues): cueGrid.renderCues is not available!');
+    }
 }
 
 function isEditMode() {
@@ -236,7 +281,7 @@ function isEditMode() {
 // Function to apply a new app configuration received from the main process
 function applyAppConfiguration(newConfig) {
     if (appConfigUIModuleInternal && typeof appConfigUIModuleInternal.populateConfigSidebar === 'function') {
-        console.log('UI Core: Applying new app configuration received from main:', newConfig);
+        console.log('UI Core: Applying new app configuration received from main by calling populateConfigSidebar:', newConfig);
         appConfigUIModuleInternal.populateConfigSidebar(newConfig);
         // After applying, other UI components might need to be notified or refresh if they depend on app config.
         // For example, sidebars.js (for cue properties) gets current config when opening, so that should be fine.
@@ -268,16 +313,16 @@ async function handleWorkspaceChange() {
             forceNoFade: true // Ensure immediate stop before context switch
         });
     }
-    sidebars.hidePropertiesSidebar(); // Close properties sidebar as cue context is changing
+    propertiesSidebar.hidePropertiesSidebar(); // Close properties sidebar as cue context is changing
 
     // Reload application configuration from the new workspace via appConfigUI module
-    await appConfigUIModuleInternal.forceLoadAndApplyAppConfiguration(); 
+    await appConfigUIModuleInternal.loadAndApplyAppConfig(); 
     
     // Reload and render cues for the new workspace
     await loadAndRenderCues(); 
 
     // No need to explicitly update audioController with appConfig here,
-    // as forceLoadAndApplyAppConfiguration in appConfigUI should handle notifying audioController.
+    // as loadAndApplyAppConfig in appConfigUI should handle notifying audioController.
     
     console.log('UI Core: Workspace change handling complete.');
 }
@@ -291,7 +336,7 @@ async function handleSingleFileDrop(filePath, dropTargetElement) {
 
     // 1. Try to delegate to properties sidebar if it's the target
     if (propertiesSidebarDOM && !propertiesSidebarDOM.classList.contains('hidden') && propertiesSidebarDOM.contains(dropTargetElement)) {
-        if (await sidebars.setFilePathInProperties(filePath)) {
+        if (await propertiesSidebar.setFilePathInProperties(filePath)) {
             console.log("UI Core (SingleDrop): Handled by open Properties Sidebar.");
             return;
         }
@@ -313,7 +358,7 @@ async function handleSingleFileDrop(filePath, dropTargetElement) {
             }
             console.log("UI Core (SingleDrop): App config loaded:", activeAppConfig); // New Log
 
-            const cueId = await ipcRendererBindingsModule.generateUUID();
+            const cueId = await electronAPIForPreload.generateUUID();
             console.log("UI Core (SingleDrop): Generated UUID:", cueId); // New Log
 
             const fileName = filePath.split(/[\\\/]/).pop();
@@ -357,7 +402,7 @@ async function handleMultipleFileDrop(files, dropTargetElement) {
         const fileArray = Array.from(files).map(file => ({ path: file.path, name: file.name }));
         // Assuming addFilesToStagedPlaylist handles playlist cues. 
         // If it needs to open properties sidebar for a single file cue, that logic would be in sidebars.js
-        if (await sidebars.addFilesToStagedPlaylist(fileArray)) { // This was from your previous suggestion, ensure it's correct for multi-file to playlist
+        if (await propertiesSidebar.addFilesToStagedPlaylist(fileArray)) { // This was from your previous suggestion, ensure it's correct for multi-file to playlist
             console.log("UI Core (MultiDrop): Handled by open Properties Sidebar (playlist).");
             return;
         } else {
@@ -395,6 +440,53 @@ function refreshCueGrid() {
     }
 }
 
+// Added: Handler for learned MIDI message from main process
+function handleMidiMessageLearned(cueId, messageDetails) {
+    if (propertiesSidebar && typeof propertiesSidebar.updateLearnedMidiMessage === 'function') {
+        propertiesSidebar.updateLearnedMidiMessage(cueId, messageDetails);
+    } else {
+        console.warn('UI Core: propertiesSidebar.updateLearnedMidiMessage not available.');
+    }
+}
+
+// Added: Handler for MIDI learn status updates from main process
+function handleMidiLearnStatusUpdate(cueId, learning) {
+    if (propertiesSidebar && typeof propertiesSidebar.updateMidiLearnButtonUI === 'function') {
+        propertiesSidebar.updateMidiLearnButtonUI(cueId, learning);
+    } else {
+        console.warn('UI Core: propertiesSidebar.updateMidiLearnButtonUI not available.');
+    }
+}
+
+// Function called by ipcRendererBindings when playback time updates are received from main
+function updateCueButtonTimeDisplay(data) {
+    if (!cueGrid || typeof cueGrid.updateCueButtonTime !== 'function') {
+        // console.warn('[UI_CORE_DEBUG] cueGrid.updateCueButtonTime is not available.');
+        return;
+    }
+    // console.log('[UI_CORE_DEBUG] updateCueButtonTimeDisplay called with:', data);
+
+    // Ensure data contains necessary fields. Defaulting fade states to false if not present.
+    const cueId = data.cueId;
+    const isFadingIn = data.isFadingIn || false;
+    const isFadingOut = data.isFadingOut || false;
+    const fadeTimeRemainingMs = data.fadeTimeRemainingMs || 0;
+
+    if (cueId) {
+        // We pass null for 'elements' because updateCueButtonTime can fetch them by cueId.
+        // The primary purpose here is to update times and fading status.
+        // The actual time values (currentTimeFormatted, etc.) will be fetched by updateCueButtonTime itself
+        // using audioController.getPlaybackTimes(). This IPC is more of a trigger with fading state.
+        cueGrid.updateCueButtonTime(cueId, null, isFadingIn, isFadingOut, fadeTimeRemainingMs);
+    } else {
+        // console.warn('[UI_CORE_DEBUG] updateCueButtonTimeDisplay: cueId missing in data', data);
+    }
+}
+
+function isUIFullyInitialized() { // NEW GETTER
+    return isUIModuleFullyInitialized;
+}
+
 export {
     init,
     loadAndRenderCues, // Called by renderer.js on init and workspace changes
@@ -409,5 +501,19 @@ export {
     handleSingleFileDrop,
     handleMultipleFileDrop,
     refreshCueGrid, // Export the new function
-    applyAppConfiguration // Export the new function
+    applyAppConfiguration, // Export the new function
+
+    // MIDI related functions for sidebars
+    // getMidiDevices: electronAPIForPreload.getMidiDevices, // REMOVED
+    // sendMidiLearnModeToggle: electronAPIForPreload.sendMidiLearnModeToggle, // REMOVED
+    // OSC related for sidebars
+    // getOscConfig: electronAPIForPreload.getOscConfig, // REMOVED
+    // sendOscConfig: electronAPIForPreload.sendOscConfig, // REMOVED
+    // sendOscMessage: electronAPIForPreload.sendOscMessage, // REMOVED
+    // UI Functions to route MIDI IPC messages to sidebars
+    handleMidiMessageLearned, // Exposed for ipcRendererBindings
+    handleMidiLearnStatusUpdate, // Exposed for ipcRendererBindings
+    updateCueButtonTimeDisplay, // Export the new function
+    getCurrentAppMode, // Export for other modules if they need to know mode without shift key override
+    isUIFullyInitialized // EXPORT NEW GETTER
 };

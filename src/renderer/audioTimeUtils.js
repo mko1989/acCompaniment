@@ -13,6 +13,34 @@ function formatTimeMMSS(totalSeconds) {
 }
 
 /**
+ * Calculates the effective trimmed duration of a single file cue in seconds.
+ * @param {object} cue - The cue object.
+ * @returns {number} The effective duration in seconds after trimming.
+ */
+function calculateEffectiveTrimmedDurationSec(cue) {
+    if (!cue || cue.type === 'playlist' || typeof cue.knownDuration !== 'number' || cue.knownDuration <= 0) {
+        // For playlists, return known duration or 0, as trimming applies per item or not at all at this level.
+        // Or if knownDuration is invalid for a single cue.
+        return cue && typeof cue.knownDuration === 'number' ? Math.max(0, cue.knownDuration) : 0;
+    }
+
+    let effectiveDuration = cue.knownDuration;
+    const trimStartTime = cue.trimStartTime || 0;
+    const trimEndTime = cue.trimEndTime; // Can be null/undefined
+
+    if (trimStartTime > 0) {
+        effectiveDuration = Math.max(0, cue.knownDuration - trimStartTime);
+        if (trimEndTime && trimEndTime > trimStartTime) {
+            effectiveDuration = Math.min(effectiveDuration, trimEndTime - trimStartTime);
+        }
+    } else if (trimEndTime && trimEndTime > 0 && trimEndTime < cue.knownDuration) {
+        effectiveDuration = Math.min(cue.knownDuration, trimEndTime);
+    }
+    
+    return Math.max(0, effectiveDuration);
+}
+
+/**
  * Gets current playback times for a cue.
  * This function is now the "Util" version, designed to be called by audioController.
  * @param {Howl | null} sound - The active Howler sound instance, or null if idle/no sound.
@@ -38,6 +66,16 @@ function getPlaybackTimesUtil(
     let displayCurrentItemDuration = 0; // What the UI shows for the current item
     let displayItemRemainingTime = 0;
     let rawSoundDuration = 0; // Actual Howler sound.duration() if available
+
+    // ---- START DETAILED LOGGING ----
+    console.log(`audioTimeUtils (getPlaybackTimesUtil): Received mainCue:`, mainCue ? JSON.parse(JSON.stringify(mainCue)) : mainCue);
+    const mainCueIdForLog = mainCue && typeof mainCue.id !== 'undefined' ? mainCue.id : 'mainCue.id is undefined';
+    if (sound && typeof sound.seek === 'function') {
+        console.log(`audioTimeUtils (getPlaybackTimesUtil for ${mainCueIdForLog}): Sound object present. sound.playing(): ${sound.playing()}, sound.state(): ${sound.state()}, sound.seek(): ${sound.seek()}`);
+    } else {
+        console.log(`audioTimeUtils (getPlaybackTimesUtil for ${mainCueIdForLog}): Sound object NOT present or not a Howl instance.`);
+    }
+    // ---- END DETAILED LOGGING ----
 
     if (!mainCue) {
         // console.warn('getPlaybackTimesUtil: mainCue is null or undefined.');
@@ -154,5 +192,6 @@ function getPlaybackTimesUtil(
 
 export {
     formatTimeMMSS,
-    getPlaybackTimesUtil // Exported as getPlaybackTimesUtil
+    getPlaybackTimesUtil, // Exported as getPlaybackTimesUtil
+    calculateEffectiveTrimmedDurationSec // Export the new function
 }; 

@@ -28,7 +28,8 @@ export function createPlaybackInstance(
         sidebarsAPI,
         sendPlaybackTimeUpdate,
         _handlePlaylistEnd,
-        _playTargetItem // For error recovery
+        _playTargetItem, // For error recovery
+        _applyDucking
     } = audioControllerContext;
 
     const sound = new Howl({
@@ -39,6 +40,7 @@ export function createPlaybackInstance(
         onload: () => {
             console.log(`PlaybackInstanceHandler: Audio loaded: ${filePath} for cue: ${cueId} (item: ${currentItemNameForEvents})`);
             const soundDuration = sound.duration();
+            console.log(`PlaybackInstanceHandler: For filePath: "${filePath}", Howler sound.duration() returned: ${soundDuration} (type: ${typeof soundDuration})`);
             playingState.duration = soundDuration; // Store duration on the playingState
 
             // Inform UI/CueStore about the discovered duration for persistence
@@ -98,9 +100,76 @@ export function createPlaybackInstance(
             }
         },
         onplay: () => {
-            console.log(`PlaybackInstanceHandler: Playing: ${cueId} (item: ${filePath}), isResume: ${isResumeForSeekAndFade}`);
+            console.log(`[TIME_UPDATE_DEBUG ${cueId}] onplay: Fired for ${filePath}. isResumeForSeekAndFade: ${isResumeForSeekAndFade}`);
+            
+            // === Additions for retrigger race condition START ===
+            // If this sound instance was told to stop with fade as part of a 'fade_out_and_stop' retrigger,
+            // then its 'onplay' event should be a no-op or ensure it truly stops.
+            if (sound.acIsStoppingWithFade && sound.acStopSource === 'fade_out_and_stop') {
+                console.log(`[RETRIGGER_DEBUG ${cueId}] onplay: Suppressed for ${filePath}. Reason: acIsStoppingWithFade is true and acStopSource is 'fade_out_and_stop'.`);
+                if (sound.playing()) { // If Howler somehow still considers it playing via this event
+                    sound.stop();     // Stop it immediately to prevent unwanted playback or further events.
+                }
+                // It's crucial to not proceed with setting up intervals or updating UI as playing
+                // because this sound instance is on its way out due to the retrigger.
+                return; 
+            }
+            // === Additions for retrigger race condition END ===
+
             playingState.sound = sound; // IMPORTANT: Update the sound reference in the shared playingState
             playingState.isPaused = false;
+
+            // Ducking logic: Called on play
+            const fullCueData = audioControllerContext.getGlobalCueById(cueId);
+            if (fullCueData) {
+                if (fullCueData.isDuckingTrigger) {
+                    console.log(`PlaybackInstanceHandler: Cue ${cueId} is a ducking trigger. Applying ducking.`);
+                    audioControllerContext._applyDucking(cueId);
+                } else if (fullCueData.enableDucking) {
+                    // Check if any other trigger cue is currently active
+                    let activeTriggerCueDetails = null;
+                    for (const otherCueId in audioControllerContext.currentlyPlaying) {
+                        if (otherCueId === cueId) continue; // Skip self
+                        const otherPlayingState = audioControllerContext.currentlyPlaying[otherCueId];
+                        if (otherPlayingState && otherPlayingState.sound && otherPlayingState.sound.playing()) {
+                            const otherFullCue = audioControllerContext.getGlobalCueById(otherCueId);
+                            if (otherFullCue && otherFullCue.isDuckingTrigger) {
+                                activeTriggerCueDetails = otherFullCue;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (activeTriggerCueDetails) {
+                        console.log(`PlaybackInstanceHandler: Cue ${cueId} should start ducked due to active trigger ${activeTriggerCueDetails.id}.`);
+                        // Use the cue's configured volume as the base for ducking if starting ducked
+                        playingState.originalVolumeBeforeDuck = fullCueData.volume !== undefined ? fullCueData.volume : 1.0;
+                        const duckToVolume = playingState.originalVolumeBeforeDuck * (activeTriggerCueDetails.duckingLevel / 100.0);
+                        
+                        sound.volume(duckToVolume); // Set Howler's volume directly
+                        playingState.isDucked = true;
+                        playingState.activeDuckingTriggerId = activeTriggerCueDetails.id;
+                        console.log(`PlaybackInstanceHandler: Cue ${cueId} initial volume set to ${duckToVolume} (ducked).`);
+                    } else {
+                        // Ensure if it was previously ducked by a now-gone trigger, its volume is correct.
+                        // This path is less likely if _revertDucking works, but good for safety.
+                        if (playingState.isDucked) {
+                             console.warn(`PlaybackInstanceHandler: Cue ${cueId} was marked isDucked but no active trigger. Resetting volume if needed.`);
+                             // This implies a state inconsistency or a trigger stopped without proper reversion.
+                             // Resetting to its own configured volume if different.
+                             const configuredVolume = fullCueData.volume !== undefined ? fullCueData.volume : 1.0;
+                             if (sound.volume() !== configuredVolume) {
+                                 sound.volume(configuredVolume);
+                             }
+                             playingState.isDucked = false;
+                             playingState.activeDuckingTriggerId = null;
+                             playingState.originalVolumeBeforeDuck = null; // Should have been cleared by _revertDucking
+                        }
+                    }
+                }
+            } else {
+                console.warn(`PlaybackInstanceHandler: Could not get fullCueData for ${cueId} in onplay for ducking logic.`);
+            }
 
             if (playingState.timeUpdateInterval) {
                 clearInterval(playingState.timeUpdateInterval);
@@ -111,47 +180,124 @@ export function createPlaybackInstance(
                 delete playbackIntervals[cueId];
             }
 
+            // Initial time update immediately on play
+            console.log(`[TIME_UPDATE_DEBUG ${cueId}] onplay: Sending initial time update.`);
             sendPlaybackTimeUpdate(cueId, sound, playingState, currentItemNameForEvents, 'playing');
 
             if (cueGridAPI) {
                 cueGridAPI.updateButtonPlayingState(cueId, true, playingState.isPlaylist ? currentItemNameForEvents : null);
-                if (playingState.isPlaylist && sidebarsAPI && typeof sidebarsAPI.highlightPlayingPlaylistItem === 'function') {
+                
+                // Log conditions BEFORE the if statement for highlighting
+                console.log(`PlaybackInstanceHandler (DEBUG HIGHLIGHT): CueID: ${cueId}, isPlaylist: ${playingState.isPlaylist}, sidebarsAPI exists: ${!!sidebarsAPI}, highlightFn exists: ${typeof sidebarsAPI?.highlightPlayingPlaylistItemInSidebar === 'function'}`);
+
+                if (playingState.isPlaylist && sidebarsAPI && typeof sidebarsAPI.highlightPlayingPlaylistItemInSidebar === 'function') {
                     const currentItemForHighlight = playingState.originalPlaylistItems[actualItemIndexInOriginalList];
+                    console.log(`PlaybackInstanceHandler: Attempting to highlight. CueID: ${cueId}, ItemID: ${currentItemForHighlight?.id}, SidebarsAPI available: ${!!sidebarsAPI}`);
                     if (currentItemForHighlight && currentItemForHighlight.id) {
-                         sidebarsAPI.highlightPlayingPlaylistItem(cueId, currentItemForHighlight.id);
+                         sidebarsAPI.highlightPlayingPlaylistItemInSidebar(cueId, currentItemForHighlight.id);
                     } else {
-                         sidebarsAPI.highlightPlayingPlaylistItem(cueId, null); // Clear if no valid item
+                         console.log(`PlaybackInstanceHandler: No currentItemForHighlight.id, attempting to clear highlight for cue ${cueId}`);
+                         sidebarsAPI.highlightPlayingPlaylistItemInSidebar(cueId, null); // Clear if no valid item
                     }
                 }
             }
 
+            console.log(`[TIME_UPDATE_DEBUG ${cueId}] onplay: About to set up setInterval.`);
             const newInterval = setInterval(() => {
-                // Check against the sound instance in playingState, which should be this one.
-                if (playingState.sound && playingState.sound.playing() && 
-                    currentlyPlaying[cueId] && currentlyPlaying[cueId].sound === playingState.sound &&
-                    !currentlyPlaying[cueId].isPaused) { 
-                    
-                    const currentSeek = typeof playingState.sound.seek === 'function' ? playingState.sound.seek() : -1; // Defensively check seek
-                    const currentDuration = playingState.duration; // Duration set on onload
-                    console.log(`PlaybackInterval (${cueId} - ${currentItemNameForEvents}): seek=${currentSeek}, state.duration=${currentDuration}`);
+                // playingState is from closure, was audioControllerContext.currentlyPlaying[cueId] at creation.
+                // sound is from closure, the Howl instance.
 
-                    // --- DEBUG LOGGING FOR playingState --- 
-                    console.log(`PlaybackInterval (${cueId}): Inspecting playingState before sendPlaybackTimeUpdate. Keys: ${Object.keys(playingState || {}).join(', ')}`);
-                    if (playingState) {
-                        console.log(`PlaybackInterval (${cueId}): playingState.cue defined? ${!!playingState.cue}. Cue Keys: ${Object.keys(playingState.cue || {}).join(', ')}`);
-                        if (playingState.cue) {
-                            console.log(`PlaybackInterval (${cueId}): playingState.cue.id: ${playingState.cue.id}, playingState.cue.name: ${playingState.cue.name}`);
+                const latestGlobalState = currentlyPlaying[cueId]; // Freshly get from audioControllerContext.currentlyPlaying
+                let intervalStopReason = "";
+
+                if (!latestGlobalState) {
+                    // If global state is gone, and we're not in a state where we expect it to be gone soon (like fading to stop/restart)
+                    if (!playingState.isFadingOutToStop && !playingState.isFadingOutToRestart) {
+                        intervalStopReason = "Global state for cueId is MISSING and not actively fading to stop/restart.";
+                    } else if (!sound.playing() && (playingState.isFadingOutToStop || playingState.isFadingOutToRestart)) {
+                        // If it's meant to be fading out but is no longer 'playing' according to Howler, it's effectively stopped or will stop imminently.
+                        // This can happen if stop() was called directly after fade initiated.
+                        intervalStopReason = "Global state present, sound not playing during an intended fade out. Assuming stop.";
+                    }
+                } else if (latestGlobalState !== playingState) {
+                    intervalStopReason = `Global state object for cueId CHANGED. This interval is for a stale state.`;
+                    console.log(`[TIME_UPDATE_DEBUG ${cueId}] setInterval: Old state sound ID (from closure): ${playingState.sound ? (playingState.sound._sounds && playingState.sound._sounds[0] ? playingState.sound._sounds[0]._id : 'N/A') : 'N/A'}, New state sound ID (latestGlobalState): ${latestGlobalState.sound ? (latestGlobalState.sound._sounds && latestGlobalState.sound._sounds[0] ? latestGlobalState.sound._sounds[0]._id : 'N/A') : 'N/A'}`);
+                } else if (latestGlobalState.sound !== sound) {
+                    intervalStopReason = `Sound instance in state (ID: ${latestGlobalState.sound ? (latestGlobalState.sound._sounds && latestGlobalState.sound._sounds[0] ? latestGlobalState.sound._sounds[0]._id : 'N/A') : 'N/A'}) does not match interval's sound (ID: ${sound ? (sound._sounds && sound._sounds[0] ? sound._sounds[0]._id : 'N/A') : 'N/A'}).`;
+                } else if (!sound.playing() && !latestGlobalState.isFadingOutToStop && !latestGlobalState.isFadingOutToRestart) {
+                    // If sound.playing() is false, and we are not in a controlled fade-out, then stop the interval.
+                    intervalStopReason = "Sound not playing (sound.playing() is false) and not in a fade-out process.";
+                } else if (latestGlobalState.isPaused) {
+                    intervalStopReason = "State is marked as paused";
+                }
+
+                if (intervalStopReason) {
+                    console.log(`[TIME_UPDATE_DEBUG ${cueId}] setInterval: Stopping. Reason: ${intervalStopReason}. Cue: ${currentItemNameForEvents}, Path: ${filePath}`);
+                    clearInterval(newInterval);
+                    if (playbackIntervals[cueId] === newInterval) {
+                        delete playbackIntervals[cueId];
+                    }
+                    if (playingState.timeUpdateInterval === newInterval) {
+                        playingState.timeUpdateInterval = null;
+                    }
+                    if (latestGlobalState && latestGlobalState.timeUpdateInterval === newInterval) {
+                        latestGlobalState.timeUpdateInterval = null;
+                    }
+                    return;
+                }
+
+                // If all checks pass, or we are in a fade out, proceed to update time
+                const currentSeek = typeof sound.seek === 'function' ? sound.seek() : -1;
+                const expectedDuration = latestGlobalState.duration; // Use duration from the latest state
+
+                // console.log(`[TIME_UPDATE_DEBUG ${cueId}] setInterval: Conditions met. CurrentSeek: ${currentSeek}, Expected Duration: ${expectedDuration}. Calling sendPlaybackTimeUpdate.`);
+                
+                let statusForUpdate = 'playing';
+                if (latestGlobalState && latestGlobalState.isFadingOut) {
+                    statusForUpdate = 'fading_out';
+                }
+
+                sendPlaybackTimeUpdate(cueId, sound, latestGlobalState, currentItemNameForEvents, statusForUpdate);
+
+                // Update UI time directly for smoother updates
+                let isFadingIn = false;
+                let isFadingOut = false;
+                let fadeTimeRemainingMs = 0;
+
+                if (latestGlobalState) {
+                    if (latestGlobalState.isFadingIn && latestGlobalState.fadeStartTime && latestGlobalState.fadeTotalDurationMs > 0) {
+                        const elapsedFadeMs = Date.now() - latestGlobalState.fadeStartTime;
+                        if (elapsedFadeMs < latestGlobalState.fadeTotalDurationMs) {
+                            isFadingIn = true;
+                            fadeTimeRemainingMs = latestGlobalState.fadeTotalDurationMs - elapsedFadeMs;
                         }
                     }
-                    // --- END DEBUG LOGGING --- 
-
-                    sendPlaybackTimeUpdate(cueId, playingState.sound, playingState, currentItemNameForEvents, 'playing');
-                    if (cueGridAPI && typeof cueGridAPI.updateCueButtonTime === 'function') {
-                        console.log(`PlaybackInterval: About to call cueGridAPI.updateCueButtonTime for ${cueId}`); // DEBUG LOG
-                        cueGridAPI.updateCueButtonTime(cueId);
-                    } else {
-                        console.warn(`PlaybackInterval: cueGridAPI or updateCueButtonTime not available for ${cueId}. API: ${!!cueGridAPI}, Fn: ${typeof cueGridAPI?.updateCueButtonTime}`);
+                    if (!isFadingIn && latestGlobalState.isFadingOut && latestGlobalState.fadeStartTime && latestGlobalState.fadeTotalDurationMs > 0) {
+                        const elapsedFadeMs = Date.now() - latestGlobalState.fadeStartTime;
+                        if (elapsedFadeMs < latestGlobalState.fadeTotalDurationMs) {
+                            isFadingOut = true;
+                            fadeTimeRemainingMs = latestGlobalState.fadeTotalDurationMs - elapsedFadeMs;
+                        }
                     }
+                }
+
+                // --- START EXTENDED DIAGNOSTIC LOG FOR FADING UI --- 
+                const shouldLogFadeDetails = isFadingIn || isFadingOut; // Log if either flag is true
+                if (shouldLogFadeDetails) { 
+                    console.log(`[FADE_DETAILS_LOG ${cueId}] Interval Update. Calculated: isFadingIn=${isFadingIn}, isFadingOut=${isFadingOut}, fadeTimeRemainingMs=${fadeTimeRemainingMs}. From State: state.isFadingIn=${latestGlobalState?.isFadingIn}, state.isFadingOut=${latestGlobalState?.isFadingOut}, state.totalMs=${latestGlobalState?.fadeTotalDurationMs}, state.startTime=${latestGlobalState?.fadeStartTime}. SoundVolume: ${sound.volume()}`);
+                }
+                // --- END EXTENDED DIAGNOSTIC LOG FOR FADING UI --- 
+
+                if (cueGridAPI && typeof cueGridAPI.updateCueButtonTime === 'function') {
+                    // Call with null for elements, so it fetches times internally using audioController.
+                    // Pass fading parameters correctly.
+                    cueGridAPI.updateCueButtonTime(
+                        cueId, 
+                        null, // elements = null
+                        isFadingIn, 
+                        isFadingOut, 
+                        fadeTimeRemainingMs
+                    );
                 }
             }, 250);
             playbackIntervals[cueId] = newInterval; // Store globally by cueId
@@ -165,6 +311,7 @@ export function createPlaybackInstance(
                         playlistItemName: currentItemNameForEvents
                     };
                 }
+                console.log(`[TIME_UPDATE_DEBUG ${cueId}] onplay: Sending cue-status-update (playing).`);
                 ipcBindings.send('cue-status-update', { cueId: cueId, status: 'playing', details: statusDetails });
             }
 
@@ -188,7 +335,7 @@ export function createPlaybackInstance(
             }
         },
         onpause: () => {
-            console.log(`PlaybackInstanceHandler: Paused: ${cueId}`);
+            console.log(`[TIME_UPDATE_DEBUG ${cueId}] onpause: Fired for ${filePath}.`);
             
             if (playbackIntervals[cueId]) { // Clear global interval if this sound instance was managing it
                 clearInterval(playbackIntervals[cueId]);
@@ -201,6 +348,7 @@ export function createPlaybackInstance(
             playingState.isPaused = true;
             if (playingState.sound) { // Sound is this instance
                 playingState.lastSeekPosition = sound.seek() || 0;
+                console.log(`[TIME_UPDATE_DEBUG ${cueId}] onpause: lastSeekPosition set to ${playingState.lastSeekPosition}`);
             }
 
             sendPlaybackTimeUpdate(cueId, sound, playingState, currentItemNameForEvents, 'paused');
@@ -215,7 +363,7 @@ export function createPlaybackInstance(
             }
         },
         onend: () => {
-            console.log(`PlaybackInstanceHandler: Cue item finished (onend event): ${filePath} for cue ${cueId}`);
+            console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Fired for ${filePath}.`);
             const playingState = currentlyPlaying[cueId];
 
             if (playingState && playingState.isRestarting) {
@@ -242,14 +390,20 @@ export function createPlaybackInstance(
                 playingState.timeUpdateInterval = null;
             }
             
+            // Clear Fading Flags
+            playingState.isFadingIn = false;
+            playingState.isFadingOut = false;
+            playingState.fadeTotalDurationMs = 0;
+            playingState.fadeStartTime = 0;
+
             sendPlaybackTimeUpdate(cueId, null, playingState, currentItemNameForEvents, 'stopped');
             
             let handledByLoopOrPlaylist = false;
             playingState.isPaused = false; // Ensure not stuck in paused state
 
             if (playingState.isPlaylist) {
-                if (sidebarsAPI && typeof sidebarsAPI.highlightPlayingPlaylistItem === 'function') {
-                    sidebarsAPI.highlightPlayingPlaylistItem(cueId, null);
+                if (sidebarsAPI && typeof sidebarsAPI.highlightPlayingPlaylistItemInSidebar === 'function') {
+                    sidebarsAPI.highlightPlayingPlaylistItemInSidebar(cueId, null);
                 }
                 _handlePlaylistEnd(cueId, false); // Call audioController's playlist handler
                 handledByLoopOrPlaylist = true;
@@ -280,109 +434,176 @@ export function createPlaybackInstance(
                     ipcBindings.send('cue-status-update', { cueId: cueId, status: 'stopped', details: {} });
                 }
             }
-        },
-        onstop: () => {
-            console.log(`PlaybackInstanceHandler: Cue item stopped (onstop event): ${filePath} for cue ${cueId}`);
 
-            if (playbackIntervals[cueId]) {
-                clearInterval(playbackIntervals[cueId]);
-                delete playbackIntervals[cueId];
+            if (ipcBindings && typeof ipcBindings.send === 'function') {
+                // console.log("onend: Sending cue-status-update to main process for cue: ", cueId);
+                ipcBindings.send('cue-status-update', { cueId: cueId, status: 'stopped', details: { reason: 'ended' } });
             }
-            if (playingState.timeUpdateInterval) {
-                clearInterval(playingState.timeUpdateInterval);
-                playingState.timeUpdateInterval = null;
-            }
-
-            sendPlaybackTimeUpdate(cueId, null, playingState, currentItemNameForEvents, 'stopped');
             
-            // If this stop was part of playlist progression or error, _handlePlaylistEnd or error handlers might have already cleaned up.
-            // This is a general cleanup for explicit stops or end of non-looping single cues.
-            if (currentlyPlaying[cueId] && currentlyPlaying[cueId].sound === sound) {
-                 // If it's a playlist and not explicitly stopping, onend should handle it.
-                 // If it is stopping, or a single cue, then clear it.
-                if (playingState.isStopping || !playingState.isPlaylist) {
-                    delete currentlyPlaying[cueId];
-                    console.log(`PlaybackInstanceHandler: Cleared currentlyPlaying state for ${cueId} in onstop.`);
+            console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Cue item processing complete.`);
+        },
+        onstop: (soundId) => {
+            console.log(`[TIME_UPDATE_DEBUG ${cueId}] onstop: Fired for ${filePath}. Sound ID: ${soundId}`);
+            // Ensure this specific sound instance is the one we expect to stop.
+            // This helps prevent a stale onstop from an old sound instance (e.g., after a quick restart)
+            // from incorrectly clearing the state of a NEW sound instance.
+
+            const globalPlayingStateForCue = audioControllerContext.currentlyPlaying[cueId];
+
+            if (globalPlayingStateForCue && globalPlayingStateForCue.sound === sound) {
+                // This 'onstop' pertains to the currently active sound instance for this cueId.
+                console.log(`[TIME_UPDATE_DEBUG ${cueId}] onstop: Matched current sound instance. Processing stop for ${filePath}.`);
+
+                // Clear Fading Flags
+                globalPlayingStateForCue.isFadingIn = false;
+                globalPlayingStateForCue.isFadingOut = false;
+                globalPlayingStateForCue.fadeTotalDurationMs = 0;
+                globalPlayingStateForCue.fadeStartTime = 0;
+
+                // Send final 'stopped' update BEFORE fully deleting state
+                // Use globalPlayingStateForCue as it's the definitive state object here.
+                // Ensure currentItemNameForEvents is available or fallback if necessary
+                const itemName = globalPlayingStateForCue.isPlaylist ? (globalPlayingStateForCue.originalPlaylistItems[globalPlayingStateForCue.currentItemIndex]?.name || currentItemNameForEvents || 'N/A') : (mainCue.name || 'N/A');
+                audioControllerContext.sendPlaybackTimeUpdate(cueId, sound, globalPlayingStateForCue, itemName, 'stopped');
+
+                // Now clear intervals and state
+                if (audioControllerContext.playbackIntervals[cueId]) {
+                    clearInterval(audioControllerContext.playbackIntervals[cueId]);
+                    delete audioControllerContext.playbackIntervals[cueId];
+                    console.log(`[TIME_UPDATE_DEBUG ${cueId}] onstop: Cleared global playbackIntervals.`);
+                }
+                if (globalPlayingStateForCue.timeUpdateInterval) { // Also clear the interval stored on the state object itself
+                    clearInterval(globalPlayingStateForCue.timeUpdateInterval);
+                    globalPlayingStateForCue.timeUpdateInterval = null;
+                }
+                if (globalPlayingStateForCue.trimEndTimer) {
+                    clearTimeout(globalPlayingStateForCue.trimEndTimer);
+                    globalPlayingStateForCue.trimEndTimer = null;
+                    console.log(`[TIME_UPDATE_DEBUG ${cueId}] onstop: Cleared trimEndTimer.`);
+                }
+                delete audioControllerContext.currentlyPlaying[cueId];
+                console.log(`[TIME_UPDATE_DEBUG ${cueId}] onstop: Deleted currentlyPlaying[${cueId}].`);
+            } else if (globalPlayingStateForCue) {
+                // An onstop event fired, but the sound instance (this 'sound') is not the one
+                // currently tracked in currentlyPlaying[cueId].sound. This might be an old instance.
+                console.warn(`[TIME_UPDATE_DEBUG ${cueId}] onstop: Event for a sound instance that is NOT the active one in currentlyPlaying. Global state NOT deleted by this event. Global sound: ${globalPlayingStateForCue.sound_id}, This sound: ${soundId}`);
+            } else {
+                // An onstop event fired, but there's NO entry in currentlyPlaying for this cueId.
+                // This implies it was already cleaned up, possibly by stopAll or another process.
+                console.log(`[TIME_UPDATE_DEBUG ${cueId}] onstop: currentlyPlaying[${cueId}] was already deleted or never existed for this stop event.`);
+            }
+
+            // Always try to update UI and send status if the sound object itself was valid,
+            // as it did stop.
+            if (sound) { // Check if 'sound' (the Howl instance for this onstop) is valid
+                if (audioControllerContext.cueGridAPI && typeof audioControllerContext.cueGridAPI.updateButtonPlayingState === 'function') {
+                    audioControllerContext.cueGridAPI.updateButtonPlayingState(cueId, false, null, false, false);
+                }
+                // The 'cue-status-update' IPC is still useful for non-remote listeners or specific main process logic
+                if (audioControllerContext.ipcBindings && typeof audioControllerContext.ipcBindings.send === 'function') {
+                    audioControllerContext.ipcBindings.send('cue-status-update', {
+                        cueId: cueId,
+                        status: 'stopped',
+                        details: { reason: 'onstop_event', itemName: currentItemNameForEvents } // currentItemNameForEvents is from createPlaybackInstance closure
+                    });
                 }
             }
-
-
-            if (cueGridAPI && cueGridAPI.updateButtonPlayingState) {
-                cueGridAPI.updateButtonPlayingState(cueId, false, null);
-            }
-            if (sidebarsAPI && typeof sidebarsAPI.highlightPlayingPlaylistItem === 'function' && playingState.isPlaylist) {
-                sidebarsAPI.highlightPlayingPlaylistItem(cueId, null); // Clear highlight on stop for playlist
-            }
-            if (ipcBindings && typeof ipcBindings.send === 'function') {
-                ipcBindings.send('cue-status-update', { cueId: cueId, status: 'stopped', details: {} });
-            }
+            console.log(`[TIME_UPDATE_DEBUG ${cueId}] onstop: Processing complete.`);
         },
-        onfade: () => {
-            // Check against playingState.sound as it should be this instance
-            if (playingState && playingState.sound === sound && sound.volume() === 0) {
-                console.log(`PlaybackInstanceHandler: Fade out complete for cue: ${cueId} (item: ${filePath})`);
-                if (playingState.isStopping) {
+        onfade: (soundId) => {
+            console.log(`[TIME_UPDATE_DEBUG ${cueId}] onfade: Event for ${filePath}. Current volume: ${sound.volume()}`);
+            const playingState = audioControllerContext.currentlyPlaying[cueId]; 
+            const currentVolume = sound.volume();
+
+            if (!playingState) { 
+                console.log(`[TIME_UPDATE_DEBUG ${cueId}] onfade: playingState for ${cueId} not found. Sound ID: ${soundId}. Aborting onfade logic.`);
+                if (audioControllerContext.playbackIntervals[cueId] && audioControllerContext.playbackIntervals[cueId] === playingState?.timeUpdateInterval) { 
+                    clearInterval(audioControllerContext.playbackIntervals[cueId]);
+                    delete audioControllerContext.playbackIntervals[cueId];
+                }
+                return;
+            }
+
+            // --- START DIAGNOSTIC LOGGING ---
+            console.log(`[FADE_STOP_DEBUG ${cueId}] onfade entered. acIsStoppingWithFade: ${playingState.acIsStoppingWithFade}, currentVolume: ${currentVolume}`);
+            // --- END DIAGNOSTIC LOGGING ---
+            
+            if (playingState.acIsStoppingWithFade && currentVolume < 0.001) { 
+                console.log(`PlaybackInstanceHandler: Fade OUT to 0 complete for ${mainCue.name} (ID: ${cueId}), stopping sound.`);
+        
+                if (playingState.sound === sound) {
                     sound.stop(); 
                 } else {
-                    console.warn(`PlaybackInstanceHandler: onfade to 0 for ${cueId} but isStopping is false.`);
+                    console.warn(`[TIME_UPDATE_DEBUG ${cueId}] onfade: Fade to 0 complete, but sound instance in playingState is different or null. This sound ID: ${soundId}. State sound: ${playingState.sound_id || 'N/A'}`);
+                }
+                return; 
+            } else if (playingState.acIsStoppingWithFade) {
+                // --- START DIAGNOSTIC LOGGING ---
+                console.log(`[FADE_STOP_DEBUG ${cueId}] onfade: acIsStoppingWithFade is TRUE, but currentVolume (${currentVolume}) is NOT < 0.001.`);
+                // --- END DIAGNOSTIC LOGGING ---
+            }
+            
+            if (playingState.isFadingIn) {
+                const elapsedTime = Date.now() - playingState.fadeStartTime;
+                const targetVolume = playingState.originalVolumeBeforeFadeIn !== undefined ? playingState.originalVolumeBeforeFadeIn : (mainCue.volume !== undefined ? mainCue.volume : 1);
+                if (elapsedTime >= playingState.fadeTotalDurationMs || Math.abs(currentVolume - targetVolume) < 0.01) {
+                    console.log(`PlaybackInstanceHandler: Fade IN complete for ${mainCue.name}.`);
+                    playingState.isFadingIn = false;
+                    // Send an update so the UI knows fading-in is done.
+                    audioControllerContext.sendPlaybackTimeUpdate(cueId, sound, playingState, currentItemNameForEvents, 'playing'); 
                 }
             }
         },
-        onloaderror: (loadErrSoundId, error) => {
-            console.error(`PlaybackInstanceHandler: Error loading audio: ${filePath} for cue ${cueId}:`, error);
-            // Ensure playingState.sound is this sound if it was set, or if it's the one we are attempting to load
-            if ( (playingState.sound === sound) || (playingState.sound === null && currentlyPlaying[cueId] === playingState) ) {
-                if (playingState.trimEndTimer) clearTimeout(playingState.trimEndTimer);
-                
+        onloaderror: (id, err) => {
+            console.error(`[TIME_UPDATE_DEBUG ${cueId}] onloaderror: Error loading ${filePath}:`, err, `(Sound ID: ${id})`);
+            const playingState = audioControllerContext.currentlyPlaying[cueId];
+            if (playingState) {
+                if (playingState.timeUpdateInterval) {
+                    clearInterval(playingState.timeUpdateInterval);
+                    playingState.timeUpdateInterval = null;
+                }
+                if (audioControllerContext.playbackIntervals[cueId]) {
+                    clearInterval(audioControllerContext.playbackIntervals[cueId]);
+                    delete audioControllerContext.playbackIntervals[cueId];
+                }
                 if (playingState.isPlaylist) {
-                    console.log(`PlaybackInstanceHandler: Error loading playlist item ${filePath}, trying next via _playTargetItem.`);
-                    // _playTargetItem will advance index and call itself.
-                    // It needs to be called from audioController's scope.
-                    // We can pass _playTargetItem in the context.
-                     const nextItemIndex = playingState.currentPlaylistItemIndex + 1;
-                     const listLength = mainCue.shuffle ? playingState.shufflePlaybackOrder.length : playingState.originalPlaylistItems.length;
-                    if (nextItemIndex < listLength) {
-                         _playTargetItem(cueId, nextItemIndex, false); // Call audioController's function
-                    } else {
-                        _handlePlaylistEnd(cueId, true); // Error, end of playlist
-                    }
+                    console.warn(`[TIME_UPDATE_DEBUG ${cueId}] onloaderror: Attempting to play next item in playlist due to load error.`);
+                    audioControllerContext._handlePlaylistEnd(cueId, true); // true indicates an error, try next
                 } else {
-                    delete currentlyPlaying[cueId];
-                    if (cueGridAPI) cueGridAPI.updateButtonPlayingState(cueId, false);
+                    delete audioControllerContext.currentlyPlaying[cueId];
                 }
             }
-            if (ipcBindings && typeof ipcBindings.send === 'function') {
-                ipcBindings.send('cue-status-update', { cueId: cueId, status: 'error', details: { details: `load_error: ${String(error)} on ${filePath}` } });
+            if (audioControllerContext.cueGridAPI && audioControllerContext.cueGridAPI.updateButtonPlayingState) {
+                audioControllerContext.cueGridAPI.updateButtonPlayingState(cueId, false);
             }
-            sound.unload();
-            if (sidebarsAPI && typeof sidebarsAPI.highlightPlayingPlaylistItem === 'function' && playingState.isPlaylist) {
-                sidebarsAPI.highlightPlayingPlaylistItem(cueId, null);
+            if (audioControllerContext.ipcBindings && typeof audioControllerContext.ipcBindings.send === 'function') {
+                audioControllerContext.ipcBindings.send('cue-status-update', { cueId: cueId, status: 'error', details: { error: 'loaderror', message: err ? (typeof err === 'string' ? err : JSON.stringify(err)) : 'Unknown load error'} });
             }
         },
-        onplayerror: (playErrSoundId, error) => {
-            console.error(`PlaybackInstanceHandler: Error playing audio: ${filePath} for cue ${cueId}:`, error);
-            if (playingState.sound === sound) { // Only if this sound instance caused the error
-                if (playingState.trimEndTimer) clearTimeout(playingState.trimEndTimer);
+        onplayerror: (id, err) => {
+            console.error(`[TIME_UPDATE_DEBUG ${cueId}] onplayerror: Error playing ${filePath}:`, err, `(Sound ID: ${id})`);
+            const playingState = audioControllerContext.currentlyPlaying[cueId];
+            if (playingState) {
+                if (playingState.timeUpdateInterval) {
+                    clearInterval(playingState.timeUpdateInterval);
+                    playingState.timeUpdateInterval = null;
+                }
+                if (audioControllerContext.playbackIntervals[cueId]) {
+                    clearInterval(audioControllerContext.playbackIntervals[cueId]);
+                    delete audioControllerContext.playbackIntervals[cueId];
+                }
                 if (playingState.isPlaylist) {
-                    console.log(`PlaybackInstanceHandler: Error playing playlist item ${filePath}, trying next via _playTargetItem.`);
-                    const nextItemIndex = playingState.currentPlaylistItemIndex + 1;
-                    const listLength = mainCue.shuffle ? playingState.shufflePlaybackOrder.length : playingState.originalPlaylistItems.length;
-                    if (nextItemIndex < listLength) {
-                         _playTargetItem(cueId, nextItemIndex, false);
-                    } else {
-                        _handlePlaylistEnd(cueId, true);
-                    }
+                    console.warn(`[TIME_UPDATE_DEBUG ${cueId}] onplayerror: Attempting to play next item in playlist due to play error.`);
+                    audioControllerContext._handlePlaylistEnd(cueId, true); // true indicates an error, try next
                 } else {
-                    delete currentlyPlaying[cueId];
-                    if (cueGridAPI) cueGridAPI.updateButtonPlayingState(cueId, false);
+                    delete audioControllerContext.currentlyPlaying[cueId];
                 }
             }
-            if (ipcBindings && typeof ipcBindings.send === 'function') {
-                ipcBindings.send('cue-status-update', { cueId: cueId, status: 'error', details: { details: `play_error: ${String(error)} on ${filePath}` } });
+            if (audioControllerContext.cueGridAPI && audioControllerContext.cueGridAPI.updateButtonPlayingState) {
+                audioControllerContext.cueGridAPI.updateButtonPlayingState(cueId, false);
             }
-            sound.unload();
-            if (sidebarsAPI && typeof sidebarsAPI.highlightPlayingPlaylistItem === 'function' && playingState.isPlaylist) {
-                sidebarsAPI.highlightPlayingPlaylistItem(cueId, null);
+            if (audioControllerContext.ipcBindings && typeof audioControllerContext.ipcBindings.send === 'function') {
+                audioControllerContext.ipcBindings.send('cue-status-update', { cueId: cueId, status: 'error', details: { error: 'playerror', message: err ? (typeof err === 'string' ? err : JSON.stringify(err)) : 'Unknown play error' } });
             }
         }
     });

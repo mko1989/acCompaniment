@@ -1,0 +1,59 @@
+#waveformDisplay {
+    width: 99%; 
+    height: 128px; 
+    border: 1px solid var(--button-secondary-border);
+    margin-top: 10px; 
+    background-color: #2c2c2c;
+}
+
+#waveformControls {
+    margin-top: 8px;
+}
+
+.waveform-controls-row {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-bottom: 8px;
+}
+
+/* Individual Waveform Control Buttons */
+.wf-control-btn {
+    /* padding: 0 !important; */ /* Use general button padding or specific if needed */
+    width: 32px;
+    height: 32px;
+    /* border: 1px solid #666; */ /* From general button */
+    /* border-radius: 3px; */ /* From general button */
+    /* display: flex; align-items: center; justify-content: center; */ /* From general button */
+    background-color: #4f4f4f;
+    /* color: var(--text-color); */ /* From general button */
+    margin: 2px; /* Spacing around buttons */
+}
+
+.wf-control-btn:hover {
+    background-color: #5a5a5a;
+}
+
+.btn-icon-wf {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+}
+
+.btn-icon-wf-playpause {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+}
+
+#wfSoloBtn { 
+    font-weight: bold; 
+    /* Potentially different styling if it's just text 'S' */
+}
+
+#waveformTimeDisplay {
+    margin-top: 10px; 
+    text-align: center; 
+    font-size: 0.9em; 
+    color: #cccccc;
+} 

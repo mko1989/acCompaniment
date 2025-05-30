@@ -150,7 +150,7 @@ function clearCueConfigModalFields(appConfig) {
     
     if(modalTrimStartTimeInput) modalTrimStartTimeInput.value = '';
     if(modalTrimEndTimeInput) modalTrimEndTimeInput.value = '';
-    if(modalVolumeRangeInput) modalVolumeRangeInput.value = appConfig.defaultVolume !== undefined ? appConfig.defaultVolume : 1;
+    if(modalVolumeRangeInput) modalVolumeRangeInput.value = 1;
     if(modalVolumeValueSpan) modalVolumeValueSpan.textContent = parseFloat(modalVolumeRangeInput.value).toFixed(2);
 }
 
@@ -180,7 +180,7 @@ async function handleSaveNewCueFromModal() {
         type: cueType,
         filePath: (cueType === 'single_file' && modalFilePathInput) ? modalFilePathInput.value : null,
         playlistItems: [], 
-        volume: modalVolumeRangeInput ? parseFloat(modalVolumeRangeInput.value) : (currentAppConfig.defaultVolume !== undefined ? currentAppConfig.defaultVolume : 1),
+        volume: modalVolumeRangeInput ? parseFloat(modalVolumeRangeInput.value) : 1,
         fadeInTime: modalFadeInTimeInput ? parseFloat(modalFadeInTimeInput.value) || 0 : currentAppConfig.defaultFadeInTime,
         fadeOutTime: modalFadeOutTimeInput ? parseFloat(modalFadeOutTimeInput.value) || 0 : currentAppConfig.defaultFadeOutTime,
         loop: modalLoopCheckbox ? modalLoopCheckbox.checked : currentAppConfig.defaultLoop,
@@ -244,7 +244,7 @@ async function handleAddFilesAsSeparateCues() {
                 name: cueName,
                 type: 'single_file',
                 filePath: file.path, // Electron File objects have a 'path' property
-                volume: currentAppConfig.defaultVolume !== undefined ? currentAppConfig.defaultVolume : 1,
+                volume: 1,
                 fadeInTime: currentAppConfig.defaultFadeInTime,
                 fadeOutTime: currentAppConfig.defaultFadeOutTime,
                 loop: currentAppConfig.defaultLoopSingleCue,
@@ -266,37 +266,39 @@ async function handleAddFilesAsPlaylistCue() {
     const currentAppConfig = uiCore.getCurrentAppConfig();
     console.log('Modals: Adding dropped files as a new playlist cue.');
     try {
-        const cueId = await ipcRendererBindingsModule.generateUUID();
-        const cueName = `Playlist (${droppedFilesList[0].name.split('.').slice(0, -1).join('.')}...)`;
+        const playlistCueId = await ipcRendererBindingsModule.generateUUID();
+        const defaultPlaylistName = 'New Playlist Cue'; 
 
         const playlistItemsPromises = Array.from(droppedFilesList).map(async (file) => {
             const itemId = await ipcRendererBindingsModule.generateUUID();
-            return { id: itemId, path: file.path, name: file.name, knownDuration: 0 }; 
+            return {
+                id: itemId,
+                path: file.path,
+                name: file.name.split('.').slice(0, -1).join('.') || 'Playlist Item',
+            };
         });
         const playlistItems = await Promise.all(playlistItemsPromises);
 
         const newCueData = {
-            id: cueId,
-            name: cueName,
+            id: playlistCueId,
+            name: defaultPlaylistName,
             type: 'playlist',
-            filePath: null,
             playlistItems: playlistItems,
-            volume: currentAppConfig.defaultVolume !== undefined ? currentAppConfig.defaultVolume : 1,
+            volume: 1,
             fadeInTime: currentAppConfig.defaultFadeInTime,
             fadeOutTime: currentAppConfig.defaultFadeOutTime,
-            retriggerBehavior: currentAppConfig.defaultRetriggerBehavior,
-            shuffle: currentAppConfig.defaultShufflePlaylists !== undefined ? currentAppConfig.defaultShufflePlaylists : false, 
-            repeatOne: currentAppConfig.defaultRepeatOnePlaylistItem !== undefined ? currentAppConfig.defaultRepeatOnePlaylistItem : false, 
-            playlistPlayMode: currentAppConfig.defaultPlaylistPlayMode !== undefined ? currentAppConfig.defaultPlaylistPlayMode : 'continue',
-            trimStartTime: null, 
-            trimEndTime: null,   
+            loop: false,
+            shuffle: false,
+            repeatOne: false,
+            retriggerBehavior: currentAppConfig.defaultRetriggerBehavior
         };
+
         await cueStore.addOrUpdateCue(newCueData);
+        hideMultipleFilesDropModal();
     } catch (error) {
-        console.error('Modals: Error creating playlist cue from drop:', error);
-        alert('Error creating playlist cue: ' + error.message);
+        console.error('Modals: Error adding files as playlist cue:', error);
+        alert(`Error creating playlist cue: ${error.message}`);
     }
-    hideMultipleFilesDropModal();
 }
 
 // Function to handle file drops on the new cue modal (if it's open)

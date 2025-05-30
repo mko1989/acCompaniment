@@ -9,7 +9,7 @@ import * as ui from './ui.js';
 import * as dragDropHandler from './dragDropHandler.js';
 import * as appConfigUI from './ui/appConfigUI.js';
 import * as waveformControls from './ui/waveformControls.js';
-import * as sidebars from './ui/sidebars.js'; // Import sidebars module
+import * as sidebars from './ui/propertiesSidebar.js'; // Import and alias propertiesSidebar as sidebars
 
 // Function to wait for electronAPI and its methods to be ready
 async function ensureElectronApiReady() {
@@ -35,75 +35,86 @@ document.addEventListener('DOMContentLoaded', async () => {
     ipcRendererBindings.initialize(electronAPI);
 
     // 2. Initialize AppConfigUI (loads config from main)
-    appConfigUI.init(electronAPI); // Assuming it needs electronAPI for getAppConfig etc.
+    appConfigUI.init(electronAPI);
+
+    // After AppConfigUI is initialized, get the config and provide it to AudioController
+    const currentAppConfig = appConfigUI.getCurrentAppConfig();
+    if (currentAppConfig && Object.keys(currentAppConfig).length > 0) {
+        if (typeof audioController.updateAppConfig === 'function') {
+            audioController.updateAppConfig(currentAppConfig);
+            console.log('Renderer: App config passed to AudioController.');
+        } else {
+            console.error('Renderer: audioController.updateAppConfig is not a function.');
+        }
+    } else {
+        console.warn('Renderer: AppConfigUI did not return a valid config to pass to AudioController.');
+    }
 
     // 3. Initialize CueStore (needs electronAPI for initial cue load)
-    //    Pass `ui` module later if needed for specific refresh calls after ui.init
-    cueStore.init(electronAPI, null /* sidebarsAPI placeholder for now */, ui /* main ui module for refreshCueGrid */);
+    // Pass ui module directly for refreshCueGrid. Sidebars placeholder remains for now.
+    cueStore.init(electronAPI, null /* sidebarsAPI placeholder */, ui /* main ui module for refreshCueGrid */);
 
     // 4. Initialize AudioController (needs cueStore and electronAPI)
-    //    UI handles (cueGridAPI, sidebarsAPI) will be passed later if needed, or init signature adapted.
-    //    For now, its init signature is: init(cs, ipcRendererBindings, cgAPI, sbAPI)
-    //    Let's pass electronAPI for ipcRendererBindings arg, and null for cgAPI, sbAPI for now.
-    audioController.init(cueStore, electronAPI, null /* cueGridAPI placeholder */, null /* sidebarsAPI placeholder */);
+    // No direct UI handles passed here initially; they'll be set later via setUIRefs.
+    await audioController.init(cueStore, electronAPI, null /* cueGridAPI placeholder */, null /* sidebarsAPI placeholder */);
 
     // 5. Initialize WaveformControls (needs electronAPI for IPC, audioController for playback)
-    console.log('Renderer (DEBUG): Inspecting sidebars module before waveformControls.init:', sidebars);
-    console.log('Renderer (DEBUG): typeof sidebars.handleCuePropertyChangeFromWaveform:', typeof sidebars.handleCuePropertyChangeFromWaveform);
-    waveformControls.init({
-        ipcRendererBindings: electronAPI, // Pass electronAPI as ipcRendererBindings
-        onTrimChange: sidebars.handleCuePropertyChangeFromWaveform // ADDED new way
-    });
+    // 'sidebars' here is the imported propertiesSidebar.js aliased as sidebars.
+    // Ensure propertiesSidebar.js exports handleCuePropertyChangeFromWaveform correctly.
+    if (sidebars && typeof sidebars.handleCuePropertyChangeFromWaveform === 'function') {
+        waveformControls.init({
+            ipcRendererBindings: electronAPI, // Pass electronAPI as ipcRendererBindings
+            onTrimChange: sidebars.handleCuePropertyChangeFromWaveform
+        });
+    } else {
+        console.error('Renderer: sidebars.handleCuePropertyChangeFromWaveform is not available for WaveformControls init.');
+        // Fallback initialization for waveformControls if the callback is missing, or handle error appropriately
+        waveformControls.init({ ipcRendererBindings: electronAPI, onTrimChange: () => {} });
+    }
 
     // 6. Initialize Main UI module, which also initializes its sub-modules (cueGrid, sidebars, modals)
-    //    It needs references to the already created module *instances* or *module objects*.
     const uiHandles = await ui.init(
         cueStore,         // Initialized module
         audioController,  // Initialized module
         electronAPI,      // electronAPI instance from preload
         dragDropHandler,  // Module object (init called later)
         appConfigUI,      // Initialized module
-        waveformControls  // Initialized module
+        waveformControls, // Initialized module
+        ipcRendererBindings // Pass the actual imported module (for uiCoreInterface)
     );
 
-    // 7. Initialize DragDropHandler (now with a more initialized ui module and cueStore)
-    dragDropHandler.init(ui, cueStore, appConfigUI, uiHandles.modals);
-
-    // 8. NOW, set the module references in ipcRendererBindings so its listeners can act fully.
+    // 7. Set Module References for IPC Bindings AFTER core modules and UI are initialized
+    // This allows IPC messages to be correctly routed to initialized modules.
     ipcRendererBindings.setModuleRefs({
         audioCtrl: audioController,
-        dragDropCtrl: dragDropHandler,
+        dragDropCtrl: dragDropHandler, // dragDropHandler is not fully initialized yet, but its module object can be passed
         cueStoreMod: cueStore,
-        uiMod: ui, // Main ui module
+        uiMod: ui, // The main ui module, now initialized
         appConfigUIMod: appConfigUI,
-        cueGridAPI: uiHandles.cueGridModule,
-        sidebarsAPI: uiHandles.sidebarsModule,
-        modals: uiHandles.modals
+        cueGridAPI: uiHandles.cueGridModule, // API/module from ui.init
+        sidebarsAPI: uiHandles.propertiesSidebarModule, // API/module from ui.init (this is propertiesSidebar)
+        modals: uiHandles.modalsModule // API/module from ui.init
     });
 
+    // 8. Initialize DragDropHandler (now with ui and cueStore fully initialized)
+    // Pass uiHandles.modalsModule, which is the modals module itself from ui.init return.
+    dragDropHandler.init(ui, cueStore, appConfigUI, uiHandles.modalsModule);
+
     // 9. Update modules that might need specific UI handles from ui.init
-    //    Example: If audioController's init was partial due to missing UI handles.
-    //    The current audioController.init expects cgAPI and sbAPI.
-    //    Let's refine its init or add setters. For now, re-calling or using setters if they exist.
-    //    If audioController.init can be called again or has setters for these:
-    if (uiHandles.cueGridModule && uiHandles.sidebarsModule) {
-         // This is a bit awkward. Ideally, audioController.init takes what it needs upfront,
-         // or ui.init doesn't need a fully initialized audioController if audioController needs ui sub-modules.
-         // For now, let's assume audioController can handle nulls for cgAPI/sbAPI or we call a setter.
-         // Call the new setter function in audioController
-         console.log('Renderer: Calling audioController.setUIRefs with uiHandles.');
-         audioController.setUIRefs(uiHandles.cueGridModule, uiHandles.sidebarsModule);
+    if (uiHandles.cueGridModule && uiHandles.propertiesSidebarModule) {
+         audioController.setUIRefs(uiHandles.cueGridModule, uiHandles.propertiesSidebarModule);
     }
-    if (uiHandles.sidebarsModule && typeof cueStore.setSidebarsModule === 'function') {
-        cueStore.setSidebarsModule(uiHandles.sidebarsModule);
+    // Pass the propertiesSidebar module to cueStore if it has a setter for it.
+    if (uiHandles.propertiesSidebarModule && typeof cueStore.setSidebarsModule === 'function') {
+        cueStore.setSidebarsModule(uiHandles.propertiesSidebarModule);
     }
 
-    // 10. Load initial data and render UI
+    // 10. Load initial data and render UI (triggers cueGrid.renderCues via ui.js)
     try {
         await ui.loadAndRenderCues(); 
-        console.log('Cues loaded and UI rendered.');
+        console.log('Renderer: Cues loaded and UI rendered after all initializations.');
     } catch (error) {
-        console.error('Error during initial cue load and render:', error);
+        console.error('Renderer: Error during final cue load and render:', error);
         const body = document.querySelector('body');
         if (body) {
             body.innerHTML = '<div style="color: red; padding: 20px;"><h1>Error initializing application</h1><p>Could not load cue data. Please check console for details and try restarting.</p></div>';
@@ -112,32 +123,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     console.log('Renderer: All renderer modules initialized.');
 
-    // Listen for user activity to reset inactivity timer for Easter Egg
-    const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
-    let activityTimeout = null;
-    const debounceActivityReset = () => {
-        clearTimeout(activityTimeout);
-        activityTimeout = setTimeout(() => {
-            if (window.electronAPI && typeof window.electronAPI.resetInactivityTimer === 'function') {
-                console.log('Renderer: User activity detected, resetting inactivity timer via IPC.');
-                window.electronAPI.resetInactivityTimer();
+    // Remove listener for the Dev Easter Egg Button
+    // const devEasterEggButton = document.getElementById('devEasterEggButton');
+    // if (devEasterEggButton && electronAPI && typeof electronAPI.openEasterEggGame === 'function') {
+    //     devEasterEggButton.addEventListener('click', () => {
+    //         console.log('Dev Easter Egg Button clicked. Sending IPC to open game.');
+    //         electronAPI.openEasterEggGame();
+    //     });
+    // } else {
+    //     if (!devEasterEggButton) console.warn('Renderer: Dev Easter Egg Button not found.');
+    //     if (!electronAPI || typeof electronAPI.openEasterEggGame !== 'function') console.warn('Renderer: electronAPI.openEasterEggGame not available.');
+    // }
+
+    // Add keyboard shortcut for Easter Egg Game (Control+Alt+P)
+    window.addEventListener('keydown', (event) => {
+        // console.log(`Keydown: Ctrl: ${event.ctrlKey}, Alt: ${event.altKey}, Shift: ${event.shiftKey}, Meta: ${event.metaKey}, Key: ${event.key}, Code: ${event.code}`); // Debug log
+        if (event.ctrlKey && event.altKey && (event.key === 'P' || event.key === 'p' || event.code === 'KeyP')) {
+            event.preventDefault(); 
+            console.log('Ctrl+Alt+P shortcut triggered. Sending IPC to open Easter Egg game.');
+            if (electronAPI && typeof electronAPI.openEasterEggGame === 'function') {
+                electronAPI.openEasterEggGame();
+            } else {
+                console.warn('Renderer: electronAPI.openEasterEggGame not available for shortcut.');
             }
-        }, 300); // Debounce for 300ms
-    };
-
-    activityEvents.forEach(eventType => {
-        document.addEventListener(eventType, debounceActivityReset, true); // Use capture phase
+        }
     });
-
-    // Add listener for the Dev Easter Egg Button
-    const devEasterEggButton = document.getElementById('devEasterEggButton');
-    if (devEasterEggButton && electronAPI && typeof electronAPI.openEasterEggGame === 'function') {
-        devEasterEggButton.addEventListener('click', () => {
-            console.log('Dev Easter Egg Button clicked. Sending IPC to open game.');
-            electronAPI.openEasterEggGame();
-        });
-    } else {
-        if (!devEasterEggButton) console.warn('Dev Easter Egg Button not found.');
-        if (!electronAPI || typeof electronAPI.openEasterEggGame !== 'function') console.warn('electronAPI.openEasterEggGame not available.');
-    }
 }); 

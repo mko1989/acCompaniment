@@ -2,7 +2,7 @@ const { workerData, parentPort } = require('worker_threads');
 const { audioFilePath } = workerData;
 const fs = require('fs');
 // const WaveformData = require('waveform-data'); // No longer using waveform-data
-const { AudioContext } = require('web-audio-api');
+const { AudioContext } = require('node-web-audio-api');
 
 async function processAudio() {
   try {

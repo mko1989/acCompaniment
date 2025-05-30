@@ -27,8 +27,6 @@ let configLastOpenedWorkspacePathDiv;
 
 // Default Cue Settings
 let configDefaultCueTypeSelect;
-let configDefaultVolumeInput;
-let configDefaultVolumeValue;
 let configDefaultFadeInInput; // in seconds in UI, converted to ms for config
 let configDefaultFadeOutInput; // in seconds in UI, converted to ms for config
 let configDefaultLoopSingleCueCheckbox;
@@ -55,6 +53,8 @@ let configWingIpAddressInput;
 let configWingModelTypeSelect; // New WING Model select
 let configWingModelTypeGroup; // New group for WING Model select
 
+
+
 // --- App Configuration State (local cache) ---
 let currentAppConfig = {};
 let isPopulatingSidebar = false;
@@ -65,7 +65,9 @@ function init(electronAPI) { // Renamed parameter to avoid confusion
     // No need to store electronAPI here if all IPC calls go through the module.
     cacheDOMElements();
     bindEventListeners();
-    // Initial load is important for dependent modules, ensure it happens.
+
+
+    // Directly load config now
     forceLoadAndApplyAppConfiguration().then(() => {
         console.log('AppConfigUI: Initial config loaded and populated after init.');
     }).catch(error => {
@@ -85,8 +87,6 @@ function cacheDOMElements() {
 
     // Default Cue Settings
     configDefaultCueTypeSelect = document.getElementById('configDefaultCueType');
-    configDefaultVolumeInput = document.getElementById('configDefaultVolume');
-    configDefaultVolumeValue = document.getElementById('configDefaultVolumeValue');
     configDefaultFadeInInput = document.getElementById('defaultFadeIn');
     configDefaultFadeOutInput = document.getElementById('defaultFadeOut');
     configDefaultLoopSingleCueCheckbox = document.getElementById('defaultLoop');
@@ -110,6 +110,8 @@ function cacheDOMElements() {
     configWingModelTypeSelect = document.getElementById('configWingModelType');
     configWingModelTypeGroup = document.getElementById('wingModelTypeGroup'); 
 
+
+
     if (configWingIpAddressInput) {
         console.log('AppConfigUI (cacheDOMElements): Found configWingIpAddressInput. ID:', configWingIpAddressInput.id, 'TagName:', configWingIpAddressInput.tagName, 'Type:', configWingIpAddressInput.type, 'Initial Value:', configWingIpAddressInput.value);
     } else {
@@ -128,12 +130,6 @@ function bindEventListeners() {
     if (configAutoLoadLastWorkspaceCheckbox) configAutoLoadLastWorkspaceCheckbox.addEventListener('change', handleAppConfigChange);
 
     if (configDefaultCueTypeSelect) configDefaultCueTypeSelect.addEventListener('change', handleAppConfigChange);
-    if (configDefaultVolumeInput) {
-        configDefaultVolumeInput.addEventListener('input', () => {
-            if (configDefaultVolumeValue) configDefaultVolumeValue.textContent = parseFloat(configDefaultVolumeInput.value).toFixed(2);
-            handleAppConfigChange(); 
-        });
-    }
     if (configDefaultFadeInInput) configDefaultFadeInInput.addEventListener('change', handleAppConfigChange);
     if (configDefaultFadeOutInput) {
         console.log('AppConfigUI (DEBUG): configDefaultFadeOutInput FOUND. Adding event listener.');
@@ -143,7 +139,10 @@ function bindEventListeners() {
     }
     if (configDefaultLoopSingleCueCheckbox) configDefaultLoopSingleCueCheckbox.addEventListener('change', handleAppConfigChange);
     if (configDefaultRetriggerBehaviorSelect) configDefaultRetriggerBehaviorSelect.addEventListener('change', handleAppConfigChange);
-    if (configDefaultStopAllBehaviorSelect) configDefaultStopAllBehaviorSelect.addEventListener('change', handleAppConfigChange);
+    if (configDefaultStopAllBehaviorSelect) {
+        configDefaultStopAllBehaviorSelect.value = currentAppConfig.defaultStopAllBehavior || 'stop';
+        configDefaultStopAllBehaviorSelect.addEventListener('change', handleAppConfigChange);
+    }
     
     if (configOscEnabledCheckbox) {
         configOscEnabledCheckbox.addEventListener('change', () => {
@@ -173,12 +172,10 @@ function bindEventListeners() {
             console.log('AppConfigUI (DEBUG): WING IP input BLUR event fired! Value:', event.target.value);
             handleAppConfigChange(); 
         });
-        configWingIpAddressInput.addEventListener('input', (event) => { 
-            console.log('AppConfigUI (DEBUG): WING IP input INPUT event fired! Value:', event.target.value);
-            handleAppConfigChange(); 
-        });
     }
     if (configWingModelTypeSelect) configWingModelTypeSelect.addEventListener('change', handleAppConfigChange);
+
+
 
     console.log('AppConfigUI: Event listeners bound.');
 }
@@ -209,15 +206,10 @@ function populateConfigSidebar(config) {
         // General
         if (configCuesFilePathInput) configCuesFilePathInput.value = currentAppConfig.cuesFilePath || '';
         if (configAutoLoadLastWorkspaceCheckbox) configAutoLoadLastWorkspaceCheckbox.checked = currentAppConfig.autoLoadLastWorkspace === undefined ? true : currentAppConfig.autoLoadLastWorkspace;
-        if (configLastOpenedWorkspacePathDiv) configLastOpenedWorkspacePathDiv.textContent = currentAppConfig.lastOpenedWorkspacePath || 'N/A';
+        if (configLastOpenedWorkspacePathDiv) configLastOpenedWorkspacePathDiv.textContent = currentAppConfig.lastOpenedWorkspacePath || 'None';
 
         // Default Cue Settings
         if (configDefaultCueTypeSelect) configDefaultCueTypeSelect.value = currentAppConfig.defaultCueType || 'single_file';
-        if (configDefaultVolumeInput) {
-            const vol = currentAppConfig.defaultVolume !== undefined ? currentAppConfig.defaultVolume : 1.0;
-            configDefaultVolumeInput.value = vol;
-            if (configDefaultVolumeValue) configDefaultVolumeValue.textContent = parseFloat(vol).toFixed(2);
-        }
         if (configDefaultFadeInInput) configDefaultFadeInInput.value = currentAppConfig.defaultFadeInTime !== undefined ? currentAppConfig.defaultFadeInTime : 0;
         if (configDefaultFadeOutInput) configDefaultFadeOutInput.value = currentAppConfig.defaultFadeOutTime !== undefined ? currentAppConfig.defaultFadeOutTime : 0;
         
@@ -239,13 +231,14 @@ function populateConfigSidebar(config) {
             configMixerIntegrationEnabledCheckbox.checked = currentAppConfig.mixerIntegrationEnabled || false;
         }
         if (configMixerTypeSelect) {
-            configMixerTypeSelect.value = currentAppConfig.mixerType || 'none';
+            configMixerTypeSelect.value = currentAppConfig.mixerType || 'wing';
         }
         if (currentAppConfig.mixerType === 'behringer_wing') {
             if (configWingIpAddressInput) {
                 configWingIpAddressInput.value = currentAppConfig.wingIpAddress || '';
             }
             if (configWingModelTypeSelect) {
+                console.log('[AppConfigUI populateConfigSidebar] Accessing WING Model. Element:', configWingModelTypeSelect, 'Selected Value:', configWingModelTypeSelect ? configWingModelTypeSelect.value : 'Element N/A');
                 configWingModelTypeSelect.value = currentAppConfig.wingModelType || 'compact';
             }
         } else {
@@ -259,6 +252,9 @@ function populateConfigSidebar(config) {
         
         handleOscEnabledChange(); 
         handleMixerIntegrationEnabledChange(); 
+        handleMixerTypeChange();
+
+
 
         console.log('AppConfigUI: Sidebar populated (end of try block).');
     } finally {
@@ -277,33 +273,38 @@ function handleOscEnabledChange() {
 function handleMixerIntegrationEnabledChange() {
     const isEnabled = configMixerIntegrationEnabledCheckbox ? configMixerIntegrationEnabledCheckbox.checked : false;
     console.log(`AppConfigUI: handleMixerIntegrationEnabledChange - Checkbox is checked: ${isEnabled}. Element:`, configMixerIntegrationEnabledCheckbox);
+    
     if (configMixerTypeGroup) {
         configMixerTypeGroup.style.display = isEnabled ? 'block' : 'none';
     }
+    
+    // Always hide all mixer-specific input fields when integration is disabled
     if (!isEnabled) {
         if (configWingIpAddressGroup) configWingIpAddressGroup.style.display = 'none';
         if (configWingModelTypeGroup) configWingModelTypeGroup.style.display = 'none';
     } else {
-        handleMixerTypeChange(); 
+        handleMixerTypeChange();
     }
+    
     console.log('AppConfigUI: Mixer Integration Enabled changed.');
 }
 
 function handleMixerTypeChange() {
-    if (!configMixerTypeSelect) return;
-    
-    const selectedType = configMixerTypeSelect.value;
-    const integrationEnabled = configMixerIntegrationEnabledCheckbox && configMixerIntegrationEnabledCheckbox.checked;
-    console.log(`AppConfigUI: handleMixerTypeChange - Selected type: ${selectedType}, Integration enabled: ${integrationEnabled}. TypeSelect Element:`, configMixerTypeSelect);
+    const selectedMixer = configMixerTypeSelect ? configMixerTypeSelect.value : 'none';
+    console.log('AppConfigUI (handleMixerTypeChange): Selected mixer type:', selectedMixer);
+
+    const isWingFamily = selectedMixer === 'behringer_wing' || selectedMixer === 'behringer_wing_compact';
 
     if (configWingIpAddressGroup) {
-        configWingIpAddressGroup.style.display = (integrationEnabled && selectedType === 'behringer_wing') ? 'block' : 'none';
+        configWingIpAddressGroup.style.display = isWingFamily ? 'block' : 'none';
     }
+    // Show model type selector only for the generic 'behringer_wing' type,
+    // as 'behringer_wing_compact' already specifies the model.
     if (configWingModelTypeGroup) {
-        configWingModelTypeGroup.style.display = (integrationEnabled && selectedType === 'behringer_wing') ? 'block' : 'none';
+        configWingModelTypeGroup.style.display = selectedMixer === 'behringer_wing' ? 'block' : 'none';
     }
-    console.log('AppConfigUI: Mixer Type changed.');
 }
+
 
 async function loadAudioOutputDevices() {
     if (!ipcRendererBindingsModule || !ipcRendererBindingsModule.getAudioOutputDevices) {
@@ -361,31 +362,59 @@ function setUiApi(api) {
 }
  
 function gatherConfigFromUI() {
-    const newConfig = {};
+    const mixerEnabled = configMixerIntegrationEnabledCheckbox ? configMixerIntegrationEnabledCheckbox.checked : false;
+    let mixerType = configMixerTypeSelect ? configMixerTypeSelect.value : 'none'; // Default to 'none' if not found
 
-    if (configCuesFilePathInput) newConfig.cuesFilePath = configCuesFilePathInput.value;
-    if (configAutoLoadLastWorkspaceCheckbox) newConfig.autoLoadLastWorkspace = configAutoLoadLastWorkspaceCheckbox.checked;
+    const config = {
+        cuesFilePath: configCuesFilePathInput ? configCuesFilePathInput.value : '',
+        autoLoadLastWorkspace: configAutoLoadLastWorkspaceCheckbox ? configAutoLoadLastWorkspaceCheckbox.checked : true,
+        lastOpenedWorkspacePath: currentAppConfig.lastOpenedWorkspacePath || '', // Preserve this from loaded config, not UI
+        recentWorkspaces: currentAppConfig.recentWorkspaces || [], // Preserve this from loaded config
 
-    if (configDefaultCueTypeSelect) newConfig.defaultCueType = configDefaultCueTypeSelect.value;
-    if (configDefaultVolumeInput) newConfig.defaultVolume = parseFloat(configDefaultVolumeInput.value);
-    if (configDefaultFadeInInput) newConfig.defaultFadeInTime = parseInt(configDefaultFadeInInput.value, 10) || 0;
-    if (configDefaultFadeOutInput) newConfig.defaultFadeOutTime = parseInt(configDefaultFadeOutInput.value, 10) || 0;
-    if (configDefaultLoopSingleCueCheckbox) newConfig.defaultLoopSingleCue = configDefaultLoopSingleCueCheckbox.checked;
-    if (configDefaultRetriggerBehaviorSelect) newConfig.defaultRetriggerBehavior = configDefaultRetriggerBehaviorSelect.value;
-    if (configDefaultStopAllBehaviorSelect) newConfig.defaultStopAllBehavior = configDefaultStopAllBehaviorSelect.value;
+        defaultCueType: configDefaultCueTypeSelect ? configDefaultCueTypeSelect.value : 'single_file',
+        defaultFadeInTime: configDefaultFadeInInput ? parseInt(configDefaultFadeInInput.value) : 0,
+        defaultFadeOutTime: configDefaultFadeOutInput ? parseInt(configDefaultFadeOutInput.value) : 0,
+        defaultLoopSingleCue: configDefaultLoopSingleCueCheckbox ? configDefaultLoopSingleCueCheckbox.checked : false,
+        defaultRetriggerBehavior: configDefaultRetriggerBehaviorSelect ? configDefaultRetriggerBehaviorSelect.value : 'restart',
+        defaultStopAllBehavior: configDefaultStopAllBehaviorSelect ? configDefaultStopAllBehaviorSelect.value : 'stop',
 
-    if (configOscEnabledCheckbox) newConfig.oscEnabled = configOscEnabledCheckbox.checked;
-    if (configOscPortInput) newConfig.oscPort = parseInt(configOscPortInput.value, 10) || 0;
+        oscEnabled: configOscEnabledCheckbox ? configOscEnabledCheckbox.checked : false,
+        oscPort: configOscPortInput ? parseInt(configOscPortInput.value) : 54321,
+        
+        audioOutputDeviceId: configAudioOutputDeviceSelect ? configAudioOutputDeviceSelect.value : 'default',
 
-    if (configAudioOutputDeviceSelect) newConfig.audioOutputDeviceId = configAudioOutputDeviceSelect.value;
+        mixerIntegrationEnabled: mixerEnabled,
+        // mixerType: mixerType, // mixerType will be set based on logic below
+        
+        // theme setting is not directly edited here, but preserved if it exists
+        theme: currentAppConfig.theme || 'system',
+    };
+    
+    // Logic for setting mixerType and relevant IP addresses / model types
+    if (mixerEnabled) {
+        config.mixerType = mixerType; // Set the selected mixer type
 
-    if (configMixerIntegrationEnabledCheckbox) newConfig.mixerIntegrationEnabled = configMixerIntegrationEnabledCheckbox.checked;
-    if (configMixerTypeSelect) newConfig.mixerType = configMixerTypeSelect.value;
-    if (configWingIpAddressInput) newConfig.wingIpAddress = configWingIpAddressInput.value.trim();
-    if (configWingModelTypeSelect) newConfig.wingModelType = configWingModelTypeSelect.value;
-
-    console.log('AppConfigUI: Gathered config from UI:', newConfig);
-    return newConfig;
+        if (mixerType === 'behringer_wing' || mixerType === 'behringer_wing_compact') {
+            config.wingIpAddress = configWingIpAddressInput ? configWingIpAddressInput.value.trim() : '';
+            if (mixerType === 'behringer_wing') { // Model type is only relevant for the generic wing
+                const modelSelectElement = document.getElementById('configWingModelType'); // Re-fetch the element
+                console.log('[AppConfigUI gatherConfigFromUI] Accessing WING Model. Re-fetched Element:', modelSelectElement, 'Selected Value:', modelSelectElement ? modelSelectElement.value : 'Element N/A');
+                config.wingModelType = modelSelectElement ? modelSelectElement.value : 'compact';
+            } else { // For 'behringer_wing_compact'
+                config.wingModelType = 'behringer_wing_compact'; // Explicitly set based on mixerType
+            }
+        } else {
+            config.wingIpAddress = ''; // Clear if not a WING type
+            config.wingModelType = 'compact'; // Default or clear
+        }
+    } else { // Mixer integration disabled
+        config.mixerType = 'none';
+        config.wingIpAddress = '';
+        config.wingModelType = 'compact';
+    }
+    
+    console.log('AppConfigUI (gatherConfigFromUI): Gathered config:', JSON.parse(JSON.stringify(config)));
+    return config;
 }
 
 async function saveAppConfiguration() {

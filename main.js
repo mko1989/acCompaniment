@@ -17,89 +17,48 @@ console.log('MAIN_JS: Importing oscListener...');
 const oscListener = require('./src/main/oscListener');
 console.log('MAIN_JS: Importing mixerIntegrationManager...');
 const mixerIntegrationManager = require('./src/main/mixerIntegrationManager');
+console.log('MAIN_JS: Importing httpServer...');
+const httpServer = require('./src/main/httpServer'); // Added: Import httpServer
 console.log('MAIN_JS: All main modules imported.');
 
 let mainWindow;
 let easterEggWindow = null; // Keep track of the game window
-let inactivityTimer = null;
-let lastUserActivityTimestamp = Date.now();
-const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
-// const INACTIVITY_TIMEOUT_MS = 15 * 1000; // FOR TESTING: 15 seconds
 
-let isDev = process.env.NODE_ENV !== 'production';
-
-// Function to reset the inactivity timer
-function resetInactivityTimestamp() {
-    lastUserActivityTimestamp = Date.now();
-    console.log('MAIN_JS: User activity detected, timestamp reset.');
-}
-
-// Function to check for inactivity and potentially trigger Easter Egg
-function checkForInactivity() {
-    if (easterEggWindow && !easterEggWindow.isDestroyed()) {
-        // Game is already open, don't do anything
-        return;
-    }
-
-    if (Date.now() - lastUserActivityTimestamp > INACTIVITY_TIMEOUT_MS) {
-        console.log('MAIN_JS: Inactivity detected.');
-        const allCues = cueManager.getAllCues(); // Assuming cueManager is initialized
-        if (allCues && allCues.length === 0) {
-            console.log('MAIN_JS: Workspace is blank. Showing Easter Egg prompt.');
-            dialog.showMessageBox(mainWindow, {
-                type: 'question',
-                buttons: ['No jasne!', 'Będę Brzostkował'], // Yes please!, I'll be Brzostking
-                defaultId: 0,
-                cancelId: 1,
-                title: 'Nuda?', // Boredom?
-                message: 'Chcesz poganiać świnie?', // Want to herd some pigs?
-            }).then(result => {
-                if (result.response === 0) {
-                    openEasterEggGameWindow(); 
-                }
-                resetInactivityTimestamp(); // Reset regardless of choice to avoid immediate re-trigger
-            });
-        } else {
-            console.log('MAIN_JS: Workspace not blank, or cueManager not ready. Cues count:', allCues ? allCues.length : 'N/A');
-            resetInactivityTimestamp(); // Reset even if not blank to avoid constant checks
-        }
-    } else {
-        // console.log('MAIN_JS: Still active.') // For debugging frequent checks
-    }
-}
-
+// --- START NEW FUNCTION ---
 function openEasterEggGameWindow() {
     if (easterEggWindow && !easterEggWindow.isDestroyed()) {
         easterEggWindow.focus();
         return;
     }
-    console.log('[MainProcess] Opening Easter Egg game window (production trigger or dev button).');
+
     easterEggWindow = new BrowserWindow({
-        width: 640,
-        height: 480,
-        useContentSize: true,
+        width: 700, // Adjust as needed
+        height: 540, // Adjust as needed
+        parent: mainWindow, // Optional: to make it a child window
+        modal: false,       // Optional: set to true to make it a modal dialog
+        resizable: false,
+        show: false, // Don't show until content is loaded
         webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
-            nodeIntegration: false,
-            contextIsolation: true,
-        },
-        show: false,
-        parent: mainWindow, // Optional, makes it a child of the main window
-        modal: false, 
-        title: 'Pig Roundup!'
+            nodeIntegration: false, // Important for security
+            contextIsolation: true, // Important for security
+            // preload: path.join(__dirname, 'preloadForGame.js'), // If you need a specific preload for the game
+        }
     });
 
-    easterEggWindow.loadFile(path.join(__dirname, 'src/renderer/easter_egg_game/game.html'));
+    easterEggWindow.loadFile(path.join(__dirname, 'src', 'renderer', 'easter_egg_game', 'game.html'));
 
     easterEggWindow.once('ready-to-show', () => {
         easterEggWindow.show();
+        // easterEggWindow.webContents.openDevTools(); // Optional: for debugging the game window
     });
 
     easterEggWindow.on('closed', () => {
-        console.log('[MainProcess] Easter Egg game window closed.');
         easterEggWindow = null;
     });
 }
+// --- END NEW FUNCTION ---
+
+let isDev = process.env.NODE_ENV !== 'production';
 
 async function createWindow() {
   console.log('MAIN_JS: createWindow START'); // LOG 1
@@ -145,7 +104,7 @@ async function createWindow() {
     console.log('MAIN_JS: createWindow - Before cueManager.setCuesDirectory'); // LOG 9
     cueManager.setCuesDirectory(currentConfig.cuesFilePath);
     console.log('MAIN_JS: createWindow - After cueManager.setCuesDirectory'); // LOG 10
-    await cueManager.initialize(websocketServer, mainWindow);
+    await cueManager.initialize(websocketServer, mainWindow, httpServer);
     console.log('MAIN_JS: createWindow - After cueManager.initialize'); // LOG 11
 
     console.log('[MainCreateWindow] Config BEFORE workspaceManager.initialize:', JSON.parse(JSON.stringify(appConfigManager.getConfig())) ); // Config Log PRE-WS_INIT
@@ -160,9 +119,9 @@ async function createWindow() {
     await websocketServer.startServer(currentConfig.websocketPort, currentConfig.websocketEnabled);
     console.log('MAIN_JS: createWindow - After websocketServer.startServer'); // LOG 16
 
-    console.log('MAIN_JS: createWindow - Before oscListener.setContext'); // LOG 17
-    oscListener.setContext(mainWindow, cueManager);
-    console.log('MAIN_JS: createWindow - After oscListener.setContext'); // LOG 18
+    // console.log('MAIN_JS: createWindow - Before oscListener.setContext'); // LOG 17
+    // oscListener.setContext(mainWindow, cueManager); // REMOVED - oscListener no longer uses direct context
+    // console.log('MAIN_JS: createWindow - After oscListener.setContext'); // LOG 18
     oscListener.initializeOscListener(currentConfig.oscPort, currentConfig.oscEnabled);
     console.log('MAIN_JS: createWindow - After oscListener.initializeOscListener'); // LOG 19
 
@@ -170,40 +129,18 @@ async function createWindow() {
     mixerIntegrationManager.initialize(currentConfig, mainWindow, cueManager);
     console.log('MAIN_JS: createWindow - After mixerIntegrationManager.initialize'); // LOG 21
 
+    // Added: Initialize httpServer
+    console.log('MAIN_JS: createWindow - Before httpServer.initialize');
+    httpServer.initialize(cueManager, mainWindow);
+    console.log('MAIN_JS: createWindow - After httpServer.initialize');
+
     console.log('MAIN_JS: About to initialize IPC Handlers. cueManager type:', typeof cueManager, 'cueManager keys:', cueManager ? Object.keys(cueManager) : 'undefined'); // LOG 22
-    initializeIpcHandlers(app, mainWindow, cueManager, appConfigManager, workspaceManager, websocketServer, oscListener, resetInactivityTimestamp);
+    initializeIpcHandlers(app, mainWindow, cueManager, appConfigManager, workspaceManager, websocketServer, oscListener, httpServer, mixerIntegrationManager, openEasterEggGameWindow);
     console.log('MAIN_JS: createWindow - After initializeIpcHandlers'); // LOG 23
 
-    // Send a signal to the renderer that the main process is ready
-    if (mainWindow && mainWindow.webContents && !mainWindow.isDestroyed()) {
-      console.log("MAIN_JS: Sending 'main-process-ready' to renderer.");
-      mainWindow.webContents.send('main-process-ready');
-    }
-
     appConfigManager.addConfigChangeListener(async (newConfig) => {
-      console.log('MAIN_JS: Config change listener - START');
-      await websocketServer.startServer(newConfig.websocketPort, newConfig.websocketEnabled);
-      console.log('MAIN_JS: Config change listener - WebSocket server restarted (or started)');
-      oscListener.updateOscSettings(newConfig.oscPort, newConfig.oscEnabled);
-      console.log('MAIN_JS: Config change listener - OSC settings updated');
-      mixerIntegrationManager.updateSettings(newConfig); 
-      console.log('MAIN_JS: Config change listener - Mixer settings updated');
-      
-      if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
-        mainWindow.webContents.send('app-config-updated-from-main', newConfig);
-        console.log('MAIN_JS: Config change listener - Sent app-config-updated-from-main to renderer');
-      }
-      console.log('MAIN_JS: Config change listener - END');
+      // ... existing code ...
     });
-    console.log('MAIN_JS: createWindow - After addConfigChangeListener setup'); // LOG 24
-
-    mainWindow.on('closed', () => {
-      console.log('MAIN_JS: mainWindow closed event');
-      oscListener.stopOscListener(); 
-      websocketServer.stopServer(); 
-      mainWindow = null;
-    });
-    console.log('MAIN_JS: createWindow - After closed event listener setup'); // LOG 25
 
     const menu = Menu.buildFromTemplate(getMenuTemplate(mainWindow, cueManager, workspaceManager, appConfigManager));
     Menu.setApplicationMenu(menu);
@@ -215,11 +152,15 @@ async function createWindow() {
     console.log('Main: Applying theme from config on startup:', themeToApply);
     handleThemeChange(themeToApply, mainWindow, nativeTheme);
     console.log('MAIN_JS: createWindow - After handleThemeChange'); // LOG 28
-    console.log('MAIN_JS: createWindow END - Successfully reached end of try block'); // LOG 29
 
-    // Start inactivity check interval
-    if (inactivityTimer) clearInterval(inactivityTimer);
-    inactivityTimer = setInterval(checkForInactivity, 30000); // Check every 30 seconds
+    if (mainWindow && mainWindow.webContents) {
+      console.log("MAIN_JS: createWindow - Attempting to send main-process-ready at the end of try block.");
+      mainWindow.webContents.send('main-process-ready');
+    } else {
+        console.error("MAIN_JS: DEBUG Cannot send main-process-ready, mainWindow or webContents is null at the end of try block.");
+    }
+
+    console.log('MAIN_JS: createWindow END - Successfully reached end of try block'); // LOG 29
 
   } catch (error) {
     console.error('MAIN_JS: CRITICAL ERROR in createWindow:', error);
@@ -397,16 +338,28 @@ function getMenuTemplate(mainWindow, cueManager, workspaceManager, appConfigMana
 
 // --- Electron App Lifecycle Events ---
 app.whenReady().then(async () => {
-  console.log('MAIN_JS: app.whenReady() - START'); // LOG A
+  console.log('MAIN_JS: App is ready, starting createWindow...');
   await createWindow();
-  console.log('MAIN_JS: app.whenReady() - createWindow() awaited'); // LOG B
+  console.log('MAIN_JS: createWindow has completed.');
 
-  app.on('activate', async () => {
+  // Register global shortcut for Easter Egg game
+  // const { globalShortcut } = require('electron');
+  // const ret = globalShortcut.register('Shift+CommandOrControl+P', () => {
+  //   console.log('MAIN_JS: Shift+CommandOrControl+P pressed, opening Easter Egg game.');
+  //   openEasterEggGameWindow();
+  // });
+
+  // if (!ret) {
+  //   console.error('MAIN_JS: globalShortcut registration failed for Shift+CommandOrControl+P');
+  // } else {
+  //   console.log('MAIN_JS: globalShortcut Shift+CommandOrControl+P registered successfully.');
+  // }
+
+  app.on('activate', () => {
     console.log('MAIN_JS: app.on(activate) - START'); // LOG C
     if (BrowserWindow.getAllWindows().length === 0) {
       console.log('MAIN_JS: app.on(activate) - No windows open, calling createWindow()'); // LOG D
-      await createWindow();
-      console.log('MAIN_JS: app.on(activate) - createWindow() awaited'); // LOG E
+      createWindow();
     }
     console.log('MAIN_JS: app.on(activate) - END'); // LOG F
   });
@@ -428,6 +381,11 @@ app.on('will-quit', () => {
     saveWindowBounds();
   }
   appConfigManager.saveConfig(); 
+  console.log('MAIN_JS: App is quitting.');
+  // Unregister all shortcuts.
+  // const { globalShortcut } = require('electron'); // Ensure it's in scope
+  // globalShortcut.unregisterAll();
+  // console.log('MAIN_JS: All global shortcuts unregistered.');
 });
 console.log('MAIN_JS: will-quit listener attached'); // LOG J
 
@@ -442,7 +400,6 @@ ipcMain.on('open-new-window-example', () => {
 });
 
 // Handle request to open Easter Egg game window (this is for the dev button)
-ipcMain.on('open-easter-egg-game', () => {
-    resetInactivityTimestamp(); // Also reset if opened via dev button
-    openEasterEggGameWindow();
-}); 
+// ipcMain.on('open-easter-egg-game', () => {
+//     openEasterEggGameWindow();
+// }); 

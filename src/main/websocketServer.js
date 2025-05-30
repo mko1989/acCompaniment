@@ -106,24 +106,33 @@ function handleCompanionMessage(message) {
         return;
     }
 
+    // All Companion actions that trigger a cue should go through the generic trigger mechanism
+    // which respects the cue's configured retrigger behavior.
+    const source = 'companion'; 
+
     switch (message.action) {
         case 'playCue':
+        case 'toggleCue': // Treat play and toggle from Companion the same way initially
             if (message.payload && message.payload.cueId) {
-                mainWindowRef.webContents.send('play-audio-by-id', message.payload.cueId);
+                console.log(`WebSocketServer: Routing Companion action '${message.action}' for cue ${message.payload.cueId} to 'trigger-cue-by-id-from-main'`);
+                mainWindowRef.webContents.send('trigger-cue-by-id-from-main', { cueId: message.payload.cueId, source });
             }
             break;
         case 'stopCue':
             if (message.payload && message.payload.cueId) {
+                // stop-audio-by-id directly calls audioPlaybackManager.stop with fade, which is fine.
                 mainWindowRef.webContents.send('stop-audio-by-id', message.payload.cueId);
             }
             break;
-        case 'toggleCue':
-            if (message.payload && message.payload.cueId) {
-                mainWindowRef.webContents.send('toggle-audio-by-id', message.payload.cueId);
-            }
-            break;
         case 'stopAllCues':
-            mainWindowRef.webContents.send('stop-all-audio');
+            // Pass behavior parameter if provided in the payload
+            if (message.payload && message.payload.behavior) {
+                console.log(`WebSocketServer: Routing 'stopAllCues' with behavior '${message.payload.behavior}' to 'stop-all-audio'`);
+                mainWindowRef.webContents.send('stop-all-audio', { behavior: message.payload.behavior });
+            } else {
+                console.log(`WebSocketServer: Routing 'stopAllCues' with no behavior to 'stop-all-audio'`);
+                mainWindowRef.webContents.send('stop-all-audio');
+            }
             break;
         default:
             console.log('Unknown action from Companion:', message.action);

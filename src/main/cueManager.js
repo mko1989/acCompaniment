@@ -9,8 +9,20 @@ const CUES_FILE_NAME = 'cues.json';
 // const CUES_CONFIG_FILE = path.join(app.getPath('userData'), 'cues.json'); // REMOVED
 let currentCuesFilePath = path.join(app.getPath('userData'), CUES_FILE_NAME); // Default path
 
+// REMOVED DEFAULT_MIDI_TRIGGER
+// const DEFAULT_MIDI_TRIGGER = {
+// enabled: false,
+// type: null,
+// channel: null,
+// note: null,
+// velocity: null,
+// controller: null,
+// value: null
+// };
+
 let cues = [];
 let websocketServerInstance; // To notify on updates
+let httpServerInstance; // Added: To notify remote HTTP clients
 let mainWindowRef; // To store mainWindow reference for IPC
 
 // Function to explicitly set the directory for the cues file.
@@ -30,8 +42,35 @@ function loadCuesFromFile() {
   try {
     if (fs.existsSync(currentCuesFilePath)) {
       const data = fs.readFileSync(currentCuesFilePath, 'utf-8');
-      cues = JSON.parse(data);
-      if (!Array.isArray(cues)) cues = [];
+      let loadedCues = JSON.parse(data);
+      if (Array.isArray(loadedCues)) {
+        cues = loadedCues.map(cue => ({
+          ...cue,
+          // Ensure wingTrigger exists with defaults
+          wingTrigger: cue.wingTrigger ? { enabled: false, userButton: null, mixerType: cue.wingTrigger.mixerType || 'behringer_wing', ...cue.wingTrigger } : { enabled: false, userButton: null, mixerType: 'behringer_wing' },
+          // Ensure ducking properties exist with defaults
+          enableDucking: cue.enableDucking !== undefined ? cue.enableDucking : false,
+          duckingLevel: cue.duckingLevel !== undefined ? cue.duckingLevel : 20,
+          isDuckingTrigger: cue.isDuckingTrigger !== undefined ? cue.isDuckingTrigger : false,
+        }));
+        // Clean up any lingering midiTrigger and oscTrigger properties from old files
+        cues.forEach(cue => {
+          if (cue.hasOwnProperty('midiTrigger')) {
+            console.log(`CueManager: Removing obsolete 'midiTrigger' from cue: ${cue.id}`);
+            delete cue.midiTrigger;
+          }
+          if (cue.hasOwnProperty('oscTrigger')) {
+            console.log(`CueManager: Removing obsolete 'oscTrigger' from cue: ${cue.id}`);
+            delete cue.oscTrigger;
+          }
+          if (cue.hasOwnProperty('x32Trigger')) {
+            console.log(`CueManager: Removing obsolete 'x32Trigger' from cue: ${cue.id}`);
+            delete cue.x32Trigger;
+          }
+        });
+      } else {
+        cues = [];
+      }
       console.log('Cues loaded from file:', currentCuesFilePath);
     } else {
       cues = [];
@@ -44,18 +83,32 @@ function loadCuesFromFile() {
   return cues;
 }
 
-function saveCuesToFile() {
+function saveCuesToFile(silent = false) {
   if (!currentCuesFilePath) {
     console.error('CueManager: Cues file path not set. Cannot save cues.');
     return false;
   }
   // --- DIAGNOSTIC LOG --- 
-  console.log('CueManager: Attempting to save cues to path:', currentCuesFilePath);
+  console.log('CueManager: Attempting to save cues to path:', currentCuesFilePath, 'Silent mode:', silent);
   try {
     fs.writeFileSync(currentCuesFilePath, JSON.stringify(cues, null, 2));
     console.log('Cues saved to file:', currentCuesFilePath);
-    if (websocketServerInstance) {
-      websocketServerInstance.broadcastCuesListUpdate(cues);
+
+    if (!silent) { // Only broadcast if not in silent mode
+      if (websocketServerInstance) {
+        websocketServerInstance.broadcastCuesListUpdate(cues);
+      }
+      // Added: Broadcast to HTTP remotes
+      if (httpServerInstance && typeof httpServerInstance.broadcastToRemotes === 'function') {
+          httpServerInstance.broadcastToRemotes({ type: 'all_cues', payload: cues });
+          console.log('CueManager: Broadcasted all_cues to HTTP remotes.');
+      }
+      // Also, if not silent and mainWindowRef exists, inform the renderer that cues were updated.
+      // This covers general saves. Specific handlers in ipcHandlers might also send this.
+      if (mainWindowRef && mainWindowRef.webContents && !mainWindowRef.webContents.isDestroyed()) {
+        console.log('CueManager (saveCuesToFile): Non-silent save, sending cues-updated-from-main to renderer.');
+        mainWindowRef.webContents.send('cues-updated-from-main', getCues());
+      }
     }
     return true;
   } catch (error) {
@@ -68,6 +121,17 @@ function getCues() {
   // --- DIAGNOSTIC LOG ---
   console.log(`CueManager: getCues() called. Returning ${cues.length} cues.`);
   return cues;
+}
+
+function getCueById(cueId) {
+  const cue = cues.find(c => c.id === cueId);
+  // Optional: Add logging here if needed, for example:
+  // if (cue) {
+  //   console.log(`CueManager: Found cue by ID ${cueId}:`, cue.name);
+  // } else {
+  //   console.warn(`CueManager: Cue with ID ${cueId} not found.`);
+  // }
+  return cue;
 }
 
 function setCues(updatedCues) {
@@ -94,9 +158,11 @@ function generateUUID() {
 
 // websocketServerInstance is injected to allow broadcasting updates
 // mainWindow is injected to allow sending IPC to renderer
-async function initialize(wssInstance, mainWin) {
+// httpServer is injected for remote control updates
+async function initialize(wssInstance, mainWin, httpServerRef) {
   websocketServerInstance = wssInstance;
   mainWindowRef = mainWin; // Store mainWindow reference
+  httpServerInstance = httpServerRef; // Added: Store httpServer reference
   loadCuesFromFile(); // Load cues synchronously first
 
   // Post-load processing for durations
@@ -189,6 +255,55 @@ function updateCueKnownDuration(cueId, duration) {
   }
 }
 
+// ***** NEW FUNCTION *****
+// Function to trigger a cue by its ID, typically called from an external source (MIDI, OSC)
+function triggerCueById(cueId, source = 'unknown') {
+  console.log(`CueManager: triggerCueById called for ID: ${cueId}, Source: ${source}`);
+  const cue = cues.find(c => c.id === cueId);
+
+  if (cue) {
+    console.log(`CueManager: Found cue "${cue.name}" to trigger.`);
+    if (mainWindowRef && mainWindowRef.webContents && !mainWindowRef.webContents.isDestroyed()) {
+      console.log(`CueManager: Sending 'trigger-cue-by-id-from-main' to renderer for cue ${cueId}`);
+      mainWindowRef.webContents.send('trigger-cue-by-id-from-main', { cueId, source });
+    } else {
+      console.error('CueManager: mainWindowRef not available or webContents destroyed. Cannot send trigger IPC message.');
+    }
+  } else {
+    console.warn(`CueManager: Cue with ID ${cueId} not found for triggering.`);
+  }
+}
+
+// Function to trigger a cue based on a mixer button ID
+function triggerCueByMixerButtonId(buttonId, mixerType, value) {
+  console.log(`CueManager: Received trigger by Mixer Button ID: ${buttonId}, Type: ${mixerType}, Value: ${value}`);
+  const cueToTrigger = cues.find(cue => 
+    cue.mixerTrigger && 
+    cue.mixerTrigger.enabled && 
+    cue.mixerTrigger.buttonId === buttonId &&
+    cue.mixerTrigger.mixerType === mixerType
+  );
+
+  if (cueToTrigger) {
+    console.log(`CueManager: Found cue "${cueToTrigger.name}" (ID: ${cueToTrigger.id}) linked to mixer button ${buttonId} (${mixerType}). Triggering.`);
+    // The 'value' from the mixer (e.g., button press/release, fader level) might be used by the renderer
+    // to decide on specific actions (e.g., play on press, stop on release, set volume).
+    if (mainWindowRef && mainWindowRef.webContents && !mainWindowRef.webContents.isDestroyed()) {
+      mainWindowRef.webContents.send('trigger-cue-by-id-from-main', { 
+        cueId: cueToTrigger.id, 
+        source: `mixer_${mixerType}_button`,
+        mixerButtonId: buttonId,
+        value: value // Pass the value along
+      });
+    } else {
+      console.error('CueManager: Cannot send trigger IPC for mixer button - mainWindowRef or webContents issue.');
+    }
+  } else {
+    // console.warn(`CueManager: No cue found linked to mixer button ID ${buttonId} of type ${mixerType} or trigger is disabled.`);
+  }
+}
+
+// Function to get audio file duration (used internally)
 async function getAudioFileDuration(filePath) {
     let mm;
     try {
@@ -222,94 +337,82 @@ async function getAudioFileDuration(filePath) {
     }
 }
 
-async function addOrUpdateProcessedCue(cueData) {
-    let cueToProcess = JSON.parse(JSON.stringify(cueData)); // Deep copy to avoid modifying original object if passed by reference
-
-    console.log(`CueManager: Processing cue ${cueToProcess.id || 'new cue'} - Type: ${cueToProcess.type}`);
-
-    // Ensure playlistPlayMode defaults if not present for playlists
-    if (cueToProcess.type === 'playlist') {
-        if (cueToProcess.playlistPlayMode === undefined) {
-            cueToProcess.playlistPlayMode = 'continue';
-            console.log(`CueManager: Defaulted playlistPlayMode to 'continue' for cue ${cueToProcess.id || 'new cue'}`);
-        }
-        // Remove playlistPlayMode if it's not a playlist (e.g., type changed from playlist to single)
-    } else if (cueToProcess.hasOwnProperty('playlistPlayMode')) {
-        delete cueToProcess.playlistPlayMode;
-    }
-
-    if (cueToProcess.type === 'single_file' && cueToProcess.filePath) {
-        if (cueToProcess.knownDuration === undefined || cueToProcess.knownDuration === null || cueToProcess.knownDuration <= 0) {
-            console.log(`CueManager: Fetching duration for single file cue ${cueToProcess.id || 'new cue'} - Path: ${cueToProcess.filePath}`);
-            const duration = await getAudioFileDuration(cueToProcess.filePath);
-            if (duration && duration > 0) {
-                cueToProcess.knownDuration = duration;
-                console.log(`CueManager: Set knownDuration to ${duration} for cue ${cueToProcess.id || 'new cue'}`);
-            } else {
-                console.log(`CueManager: No valid duration found for single file ${cueToProcess.filePath}, knownDuration not set.`);
-            }
-        } else {
-            console.log(`CueManager: Skipping duration fetch for single file cue ${cueToProcess.id || 'new cue'}, knownDuration already exists: ${cueToProcess.knownDuration}`);
-        }
-    } else if (cueToProcess.type === 'playlist' && cueToProcess.playlistItems && cueToProcess.playlistItems.length > 0) {
-        console.log(`CueManager: Processing playlist items for cue ${cueToProcess.id || 'new cue'}. Items count: ${cueToProcess.playlistItems.length}`);
-        for (let i = 0; i < cueToProcess.playlistItems.length; i++) {
-            let item = cueToProcess.playlistItems[i];
-            if (item.path && (item.knownDuration === undefined || item.knownDuration === null || item.knownDuration <= 0)) {
-                console.log(`CueManager: Fetching duration for playlist item (index ${i}): ${item.path}`);
-                const itemDuration = await getAudioFileDuration(item.path);
-                if (itemDuration && itemDuration > 0) {
-                    cueToProcess.playlistItems[i] = { ...item, knownDuration: itemDuration };
-                    console.log(`CueManager: Set knownDuration to ${itemDuration} for playlist item ${item.path}`);
-                } else {
-                    console.log(`CueManager: No valid duration found for playlist item ${item.path}, knownDuration not set.`);
-                    cueToProcess.playlistItems[i] = { ...item, knownDuration: null };
-                }
-            } else if (item.path && item.knownDuration && item.knownDuration > 0) {
-                 console.log(`CueManager: Skipping duration fetch for playlist item (index ${i}), knownDuration already exists: ${item.knownDuration}`);
-            } else if (!item.path) {
-                 console.log(`CueManager: Skipping duration fetch for playlist item (index ${i}), path is missing.`);
-            }
-        }
-    }
-
-    const existingCueIndex = cues.findIndex(c => c.id === cueToProcess.id);
+async function addOrUpdateProcessedCue(cueData, silentUpdate = false) {
+  console.log(`CueManager: addOrUpdateProcessedCue called for ID: ${cueData.id || 'new cue'}. Silent: ${silentUpdate}`);
+  const cueId = cueData.id || generateUUID();
+  let isNew = true;
+  let existingCueIndex = -1;
+  if (cueData.id) { // If an ID is provided, try to find an existing cue
+    existingCueIndex = cues.findIndex(c => c.id === cueData.id);
     if (existingCueIndex !== -1) {
-        // Preserve fields that might not be sent from renderer every time but should persist
-        const existingCue = cues[existingCueIndex];
-        cueToProcess = { ...existingCue, ...cueToProcess };
-
-        // If type changed from playlist to single_file, ensure playlist-specific fields are cleared
-        if (existingCue.type === 'playlist' && cueToProcess.type === 'single_file') {
-            delete cueToProcess.playlistItems;
-            delete cueToProcess.shuffle;
-            delete cueToProcess.repeatOne;
-            delete cueToProcess.playlistPlayMode;
-        }
-        // If type changed from single_file to playlist, ensure single-file specific fields are cleared (filePath is usually handled by renderer)
-        else if (existingCue.type === 'single_file' && cueToProcess.type === 'playlist') {
-            delete cueToProcess.filePath; // filePath should be null for playlists
-        }
-
-        cues[existingCueIndex] = cueToProcess; // Replace existing cue
-        console.log(`CueManager: Cue updated with ID: ${cueToProcess.id}`);
-    } else {
-        if (!cueToProcess.id) { // Should ideally always have an ID from renderer
-            cueToProcess.id = generateUUID();
-            console.warn(`CueManager: Generated new ID for cue as it was missing: ${cueToProcess.id}`);
-        }
-        cues.push(cueToProcess);
-        console.log(`CueManager: Cue added with ID: ${cueToProcess.id}`);
+      isNew = false;
     }
-    saveCuesToFile(); // This will also broadcast via websocketServerInstance
+  }
 
-    // After saving, if mixer integration is involved, update the mixer
-    if (mixerIntegrationManager && typeof mixerIntegrationManager.updateCueMixerTrigger === 'function') {
-        // Pass the fully processed cue data (which might include new ID, knownDurations etc.)
-        mixerIntegrationManager.updateCueMixerTrigger(cueToProcess);
-    }
+  const effectiveRetriggerBehavior = cueData.retriggerBehavior || 'restart';
 
-    return cueToProcess; // Return the processed cue (potentially with new/updated id and durations)
+  const baseCue = {
+    id: cueId,
+    name: cueData.name || 'Unnamed Cue',
+    type: cueData.type || 'single_file',
+    filePath: cueData.filePath || null,
+    volume: cueData.volume !== undefined ? cueData.volume : 1, // Default to 1 (100%)
+    fadeInTime: cueData.fadeInTime || 0,
+    fadeOutTime: cueData.fadeOutTime || 0,
+    loop: cueData.loop || false,
+    retriggerBehavior: effectiveRetriggerBehavior,
+    retriggerAction: effectiveRetriggerBehavior, // TODO: Consolidate retriggerAction & retriggerBehavior
+    retriggerActionCompanion: effectiveRetriggerBehavior, // TODO: Consolidate
+    knownDuration: cueData.knownDuration || 0,
+    // WING Trigger specific properties
+    wingTrigger: cueData.wingTrigger ? 
+                 { enabled: false, userButton: null, mixerType: cueData.wingTrigger.mixerType || 'behringer_wing', ...cueData.wingTrigger } : 
+                 { enabled: false, userButton: null, mixerType: 'behringer_wing' },
+    // OSC Trigger specific properties - REMOVED
+    // oscTrigger: cueData.oscTrigger ? 
+    //             { enabled: false, path: null, args: [], ...cueData.oscTrigger } : 
+    //             { enabled: false, path: null, args: [] },
+    // Playlist specific properties
+    playlistItems: cueData.playlistItems || [],
+    shuffle: cueData.shuffle || false, // for playlists
+    repeatOne: cueData.repeatOne || false, // for playlists
+    playlistPlayMode: cueData.playlistPlayMode || 'continue_to_next', // 'continue_to_next' or 'stop_and_cue_next'
+    // Trim specific properties
+    trimStartTime: cueData.trimStartTime || 0,
+    trimEndTime: cueData.trimEndTime || 0,
+    // X32/X-Air specific - REMOVED
+    // x32Trigger: cueData.x32Trigger ? 
+    //             { enabled: false, layer: 'A', button: '1', ...cueData.x32Trigger } :
+    //             { enabled: false, layer: 'A', button: '1' },
+    // Ducking Properties
+    enableDucking: cueData.enableDucking !== undefined ? cueData.enableDucking : false,
+    duckingLevel: cueData.duckingLevel !== undefined ? cueData.duckingLevel : 20,
+    isDuckingTrigger: cueData.isDuckingTrigger !== undefined ? cueData.isDuckingTrigger : false,
+  };
+
+  // Ensure playlist items have unique IDs and knownDurations if not present
+  if (baseCue.type === 'playlist' && baseCue.playlistItems) {
+    baseCue.playlistItems.forEach(item => {
+      if (!item.id) {
+        item.id = generateUUID();
+      }
+      if (!item.knownDuration || item.knownDuration <= 0) {
+        item.knownDuration = baseCue.knownDuration;
+      }
+    });
+  }
+
+  if (isNew) {
+    cues.push(baseCue);
+  } else {
+    cues[existingCueIndex] = baseCue;
+  }
+
+  // Save and notify (unless silentUpdate is true)
+  saveCuesToFile(silentUpdate);
+
+  // Return a copy of the processed cue from the array
+  return { ...cues[existingCueIndex !== -1 ? existingCueIndex : cues.length - 1] };
 }
 
 // New function to update duration for a single cue or a specific playlist item
@@ -366,17 +469,96 @@ function updateCueItemDuration(cueId, duration, playlistItemId = null) {
     }
 }
 
+function triggerCueByWingCC(assignedCC, value) {
+    if (mainWindowRef === null) { // Ensure mainWindowRef is available
+        console.error('CueManager: mainWindowRef not available to send IPC for WING CC trigger.');
+        return;
+    }
+    if (parseInt(String(value), 10) !== 127) {
+        console.log(`CueManager: Received WING CC ${assignedCC} with value ${value}, not triggering (value !== 127).`);
+        return; // Only trigger on "press" (value 127)
+    }
+
+    const cueToTrigger = cues.find(cue => 
+        cue.wingTrigger && 
+        cue.wingTrigger.enabled && 
+        cue.wingTrigger.assignedMidiCC === parseInt(String(assignedCC), 10) // Ensure CC is number for comparison
+    );
+
+    if (cueToTrigger) {
+        console.log(`CueManager: Triggering cue ${cueToTrigger.id} (${cueToTrigger.name}) via WING CC ${assignedCC}`);
+        // Send IPC to renderer to toggle this cue
+        if (mainWindowRef && mainWindowRef.webContents && !mainWindowRef.webContents.isDestroyed()) {
+            mainWindowRef.webContents.send('toggle-audio-by-id', { 
+                cueId: cueToTrigger.id, 
+                fromCompanion: false, // Or determine if this source needs differentiation
+                retriggerBehaviorOverride: null // Or use cue's default
+            });
+        } else {
+            console.error('CueManager: mainWindowRef.webContents not available for WING CC trigger IPC.');
+        }
+    } else {
+        console.warn(`CueManager: Received WING trigger for CC ${assignedCC} (value ${value}), but no enabled cue is assigned to this CC.`);
+    }
+}
+
+function triggerCueByWingPhysicalButton(physicalButtonId, mixerType, value) {
+    if (mainWindowRef === null) { // Ensure mainWindowRef is available
+        console.error('CueManager: mainWindowRef not available for WING physical button trigger IPC.');
+        return;
+    }
+    if (parseInt(String(value), 10) !== 127) {
+        console.log(`CueManager: Received WING physical button ${physicalButtonId} with value ${value}, not triggering.`);
+        return; // Assuming 127 is press
+    }
+
+    const cueToTrigger = cues.find(cue => {
+        if (cue.wingTrigger && cue.wingTrigger.enabled) {
+            // Reconstruct physicalButtonId from cue.wingTrigger data for comparison
+            const cueLayerNum = cue.wingTrigger.wingLayer ? parseInt(String(cue.wingTrigger.wingLayer).replace('layer', ''), 10) : -1;
+            const cueButtonNum = cue.wingTrigger.wingButton ? parseInt(String(cue.wingTrigger.wingButton).replace('button', ''), 10) : -1;
+            const cueRowId = cue.wingTrigger.wingRow;
+
+            if (cueLayerNum === -1 || cueButtonNum === -1 || !cueRowId) return false;
+
+            const cuePhysicalId = `layer${cueLayerNum}_button${cueButtonNum}_${cueRowId}`;
+            return cuePhysicalId === physicalButtonId;
+        }
+        return false;
+    });
+
+    if (cueToTrigger) {
+        console.log(`CueManager: Triggering cue ${cueToTrigger.id} (${cueToTrigger.name}) via WING physical button ${physicalButtonId}`);
+        if (mainWindowRef && mainWindowRef.webContents && !mainWindowRef.webContents.isDestroyed()) {
+            mainWindowRef.webContents.send('toggle-audio-by-id', { 
+                cueId: cueToTrigger.id, 
+                fromCompanion: false, 
+                retriggerBehaviorOverride: null 
+            });
+        } else {
+            console.error('CueManager: mainWindowRef.webContents not available for WING physical button trigger IPC.');
+        }
+    } else {
+        console.warn(`CueManager: Received WING physical button trigger for ${physicalButtonId} (value ${value}), but no enabled cue is assigned to this physical button.`);
+    }
+}
+
 module.exports = {
   initialize,
   setCuesDirectory, // New
   loadCuesFromFile,
   saveCuesToFile,
   getCues,
+  getCueById, // Added missing export
   setCues,
   addOrUpdateProcessedCue, // Export new function
   resetCues, // New
   generateUUID,
   deleteCue, // Added deleteCue
   updateCueKnownDuration, // Export new function
-  updateCueItemDuration // Export the new combined function
+  updateCueItemDuration, // Export the new combined function
+  triggerCueById, // Export the new function
+  triggerCueByMixerButtonId, // Export the new function
+  triggerCueByWingCC,                // Added
+  triggerCueByWingPhysicalButton     // Added
 }; 

@@ -1,10 +1,34 @@
 const { contextBridge, ipcRenderer } = require('electron');
 // const path = require('path'); // Temporarily commented out for diagnosis
 
-// Promise that resolves when the main process signals it's ready
-const mainProcessReadyPromise = new Promise((resolve) => {
+console.log("PRELOAD_DEBUG: Script start. Setting up mainProcessReadyPromise...");
+
+// ===== TEMPORARY DIAGNOSTIC LISTENER ======
+let mainReadySignalReceived = false;
+ipcRenderer.on('main-process-ready', () => {
+  mainReadySignalReceived = true;
+  console.log("PRELOAD_DEBUG_INFO: 'main-process-ready' RECEIVED BY DIRECT .on() LISTENER (this is for debug, normal operation uses .once() below).");
+  // Attempt to notify renderer in a very crude way if promise isn't working
+  if (window) { window._manualMainReadySignal = true; }
+});
+// ===== END TEMPORARY DIAGNOSTIC LISTENER ======
+
+// Original Promise that resolves when the main process signals it's ready
+const mainProcessReadyPromise = new Promise((resolve, reject) => {
+  console.log("PRELOAD_DEBUG: mainProcessReadyPromise - ipcRenderer.once for 'main-process-ready' is being set up NOW.");
+  const timeout = setTimeout(() => {
+    console.error("PRELOAD_DEBUG_CRITICAL: Timeout waiting for 'main-process-ready' via ipcRenderer.once. Manually received by .on():", mainReadySignalReceived);
+    if(mainReadySignalReceived) {
+        resolve(true); // If the .on() caught it, resolve the promise
+    } else {
+        reject(new Error('Timeout waiting for main-process-ready signal even with direct .on() check.'));
+    }
+  }, 30000); // 30 second timeout
+
   ipcRenderer.once('main-process-ready', () => {
-    console.log("PRELOAD: Received 'main-process-ready' signal.");
+    clearTimeout(timeout);
+    console.log("PRELOAD: Received 'main-process-ready' signal (via .once()).");
+    mainReadySignalReceived = true; // Ensure this is also set here
     resolve(true);
   });
 });
@@ -37,8 +61,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'play-audio-by-id',
       'stop-audio-by-id',
       'toggle-audio-by-id',
-      'stop-all-audio'
+      'stop-all-audio',
+      'trigger-cue-by-id-from-main',
       // Add other channels as needed
+      'mixer-subscription-feedback',
+      'playback-time-update-from-main',
+      'highlight-playing-item'
     ];
     if (validChannels.includes(channel)) {
       // Valid channel: register IPC listener
@@ -77,15 +105,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // CueStore related notifications from main
   onCueListUpdated: (callback) => ipcRenderer.on('cues-updated-from-main', (_event, cues) => callback(cues)),
   onClearCueSelection: (callback) => ipcRenderer.on('clear-cue-selection', () => callback()),
-  
-  // OSC Learn IPC
-  sendStartOscLearn: (cueId) => {
-    console.log(`PRELOAD: sendStartOscLearn called with cueId: ${cueId}. Sending IPC 'start-osc-learn'.`);
-    ipcRenderer.send('start-osc-learn', cueId);
-  },
-  onOscMessageLearned: (callback) => ipcRenderer.on('osc-message-learned', (_event, path) => callback(path)),
-  onOscLearnFailed: (callback) => ipcRenderer.on('osc-learn-failed', (_event, errorMsg) => callback(errorMsg)),
-  resetInactivityTimer: () => ipcRenderer.send('reset-inactivity-timer'),
 
   // Workspace related IPC calls
   newWorkspace: () => ipcRenderer.invoke('new-workspace'),

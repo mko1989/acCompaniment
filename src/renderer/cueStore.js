@@ -7,6 +7,23 @@ let sidebarsAPI; // To notify sidebars to refresh
 let uiAPI; // To notify UI to refresh grid
 let uiModule; // Store the ui.js module reference
 
+// DEFAULT_MIDI_TRIGGER REMOVED
+// const DEFAULT_MIDI_TRIGGER = {
+//     enabled: false,
+//     type: null,
+//     channel: null,
+//     note: null,
+//     velocity: null,
+//     controller: null,
+//     value: null
+// };
+
+const DEFAULT_WING_TRIGGER = { // Added for consistency with main process
+    enabled: false,
+    userButton: null,
+    mixerType: 'behringer_wing' // Default mixerType for WING trigger
+};
+
 // Call this function to initialize the module with dependencies
 function init(ipcRendererBindings, sbAPI, mainUIApi) {
     ipcBindings = ipcRendererBindings;
@@ -16,25 +33,37 @@ function init(ipcRendererBindings, sbAPI, mainUIApi) {
 
     if (ipcBindings && typeof ipcBindings.onCueListUpdated === 'function') {
         ipcBindings.onCueListUpdated((updatedCues) => {
-            console.log('CueStore: Received cues-updated-from-main from main process with', updatedCues.length, 'cues.');
-            cues = updatedCues; // Update local cache
-            console.log('CueStore: Local cues cache updated. Cues:', cues);
-            
-            console.log('CueStore: Inspecting uiModule before calling refreshCueGrid:', uiModule);
+            // This is the renamed handleCuesUpdated function, now inline or called directly by the listener
+            console.log('CueStore (onCueListUpdated): Received cues from main. Count:', updatedCues.length);
+            if (Array.isArray(updatedCues)) {
+                cues = updatedCues.map(cue => ({
+                    ...cue,
+                    wingTrigger: cue.wingTrigger ? { ...DEFAULT_WING_TRIGGER, mixerType: cue.wingTrigger.mixerType || 'behringer_wing', ...cue.wingTrigger } : { ...DEFAULT_WING_TRIGGER },
+                }));
 
-            // Notify sidebars to refresh if an updated cue is a playlist and is open
-            if (sidebarsAPI && typeof sidebarsAPI.refreshPlaylistPropertiesView === 'function') {
-                cues.forEach(cue => {
-                    if (cue.type === 'playlist') {
-                        sidebarsAPI.refreshPlaylistPropertiesView(cue.id);
+                console.log('CueStore (onCueListUpdated): Internal cache updated & sanitized.');
+
+                if (sidebarsAPI && typeof sidebarsAPI.refreshPlaylistPropertiesView === 'function') {
+                    cues.forEach(cue => {
+                        if (cue.type === 'playlist') {
+                            sidebarsAPI.refreshPlaylistPropertiesView(cue.id);
+                        }
+                    });
+                }
+
+                // Check if UI is fully initialized before refreshing the grid
+                if (uiModule && typeof uiModule.isUIFullyInitialized === 'function' && uiModule.isUIFullyInitialized()) {
+                    if (uiModule && typeof uiModule.refreshCueGrid === 'function') {
+                        console.log("CueStore (onCueListUpdated): UI is ready. Calling uiModule.refreshCueGrid().");
+                        uiModule.refreshCueGrid();
+                    } else {
+                        console.warn('CueStore (onCueListUpdated): uiModule.refreshCueGrid is not a function, though UI was reported ready.');
                     }
-                });
-            }
-
-            // After all individual cue checks, refresh the main cue grid
-            if (uiAPI && typeof uiAPI.refreshCueGrid === 'function') {
-                console.log("CueStore: Calling ui.refreshCueGrid().");
-                uiAPI.refreshCueGrid();
+                } else {
+                    console.log('CueStore (onCueListUpdated): UI not fully initialized yet. Grid refresh deferred.');
+                }
+            } else {
+                console.error('CueStore (onCueListUpdated): Invalid data. Expected array.', updatedCues);
             }
         });
     }
@@ -49,8 +78,16 @@ async function loadCuesFromServer() {
         console.log('CueStore: Requesting cues from main process...');
         const loadedCues = await ipcBindings.getCuesFromMain();
         if (Array.isArray(loadedCues)) {
-            cues = loadedCues;
-            console.log('CueStore: Cues loaded from server:', cues);
+            // Ensure all cues from server have default trigger structures
+            cues = loadedCues.map(cue => ({
+                ...cue,
+                // midiTrigger: cue.midiTrigger ? { ...DEFAULT_MIDI_TRIGGER, ...cue.midiTrigger } : { ...DEFAULT_MIDI_TRIGGER }, // REMOVED
+                wingTrigger: cue.wingTrigger ? { ...DEFAULT_WING_TRIGGER, mixerType: cue.wingTrigger.mixerType || 'behringer_wing', ...cue.wingTrigger } : { ...DEFAULT_WING_TRIGGER },
+                // oscTrigger: cue.oscTrigger || { enabled: false, path: '' } // REMOVED
+            }));
+            // Clean up any lingering properties that might have been missed or from very old files
+
+            console.log('CueStore: Cues loaded from server and sanitized:', cues);
             return true;
         } else {
             console.error('CueStore: Received invalid cue data from server:', loadedCues);
@@ -105,11 +142,18 @@ async function addOrUpdateCue(cueData) {
         return { success: false, error: 'Invalid or insufficient cue data provided.', cue: null };
     }
 
-    console.log(`CueStore: Sending cue (ID: ${cueData.id || 'new'}) to main process for add/update.`);
+    // Sanitize cueData before sending to main process
+
+    const sanitizedCueData = {
+        ...cueData,
+        wingTrigger: cueData.wingTrigger ? { ...DEFAULT_WING_TRIGGER, mixerType: cueData.wingTrigger.mixerType || 'behringer_wing', ...cueData.wingTrigger } : { ...DEFAULT_WING_TRIGGER },
+    };
+
+    console.log(`CueStore: Sending cue (ID: ${sanitizedCueData.id || 'new'}) to main process for add/update.`);
     try {
         // The main process will handle adding/updating, fetch durations, save, and then broadcast 'cues-updated-from-main'.
         // This store will then be updated by setCuesFromMain when that event is received.
-        const result = await ipcBindings.addOrUpdateCue(cueData); 
+        const result = await ipcBindings.addOrUpdateCue(sanitizedCueData); 
         if (result && result.success) {
             console.log(`CueStore: Cue (ID: ${result.cue.id}) processed successfully by main process.`);
             // No direct modification of 'this.cues' here. It will be updated via 'cues-updated-from-main' event.
@@ -152,31 +196,8 @@ async function deleteCue(id) {
 
 // New function to update the local cues cache from an authoritative main process update
 // RENAMED from setCuesFromMain
-function handleCuesUpdated(updatedCuesList) {
-    if (Array.isArray(updatedCuesList)) {
-        cues = updatedCuesList;
-        console.log('CueStore: Internal cue cache updated from main process data (handleCuesUpdated).');
+// THIS FUNCTION IS NOW EFFECTIVELY INLINED/HANDLED BY ipcBindings.onCueListUpdated above.
+// We keep it separate for clarity if we want to call it from elsewhere, but it duplicates logic now.
+// For now, let's assume the ipcBindings.onCueListUpdated is the primary handler.
 
-        // Notify sidebars to refresh if an updated cue is a playlist and is open
-        if (sidebarsAPI && typeof sidebarsAPI.refreshPlaylistPropertiesView === 'function') {
-            cues.forEach(cue => {
-                if (cue.type === 'playlist') {
-                    sidebarsAPI.refreshPlaylistPropertiesView(cue.id);
-                }
-            });
-        }
-
-        // After all individual cue checks, refresh the main cue grid
-        if (uiAPI && typeof uiAPI.refreshCueGrid === 'function') {
-            console.log("CueStore (handleCuesUpdated): Calling uiAPI.refreshCueGrid()."); // Added log for clarity
-            uiAPI.refreshCueGrid();
-        }
-
-    } else {
-        console.error('CueStore: Invalid data received for handleCuesUpdated. Expected array.', updatedCuesList);
-    }
-}
-
-// Removed saveCuesToServer from exports as it's likely obsolete.
-// UPDATED EXPORT
-export { init, loadCuesFromServer, getCueById, getAllCues, addOrUpdateCue, deleteCue, handleCuesUpdated }; 
+export { init, loadCuesFromServer, getCueById, getAllCues, addOrUpdateCue, deleteCue }; 

@@ -4,7 +4,14 @@
     <meta charset="UTF-8">
     <title>acCompaniment</title>
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="styles/_variables.css">
+    <link rel="stylesheet" href="styles/base.css">
+    <link rel="stylesheet" href="styles/layout.css">
+    <link rel="stylesheet" href="styles/buttons.css">
+    <link rel="stylesheet" href="styles/cue-grid.css">
+    <link rel="stylesheet" href="styles/sidebars_content.css">
+    <link rel="stylesheet" href="styles/modals.css">
+    <link rel="stylesheet" href="styles/waveform.css">
     <script src="vendor/howler/howler.min.js"></script>
     <script defer src="../../node_modules/wavesurfer.js/dist/wavesurfer.min.js"></script>
     <script defer src="../../node_modules/wavesurfer.js/dist/plugins/regions.min.js"></script>
@@ -13,7 +20,9 @@
 <body>
     <div id="appContainer" class="edit-mode">
         <div id="configSidebar" class="collapsed">
-            <button id="configToggleBtn" aria-label="Toggle Configuration Panel">⚙️</button>
+            <button id="configToggleBtn" class="btn btn-icon-text" title="Toggle Configuration Sidebar">
+                <img src="../../assets/icons/settings.png" alt="Settings" class="btn-icon">
+            </button>
             <div class="sidebar-content">
                 <h2>App Configuration</h2>
                 <div class="form-group">
@@ -21,20 +30,6 @@
                     <select id="configAudioOutputDevice" class="styled-select"></select>
                 </div>
 
-                <hr class="sidebar-hr">
-                <h3>OSC Settings</h3>
-                <div class="form-group">
-                    <label for="configOscEnabled" class="checkbox-label">
-                        <input type="checkbox" id="configOscEnabled">
-                        Enable OSC Server
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label for="configOscPort">OSC Listen Port:</label>
-                    <input type="number" id="configOscPort" min="1024" max="65535" step="1">
-                </div>
-
-                <hr class="sidebar-hr">
                 <h3>Default Cue Properties</h3>
                 <p class="small-text">These values are applied when new cues are created.</p>
                 <div class="form-group">
@@ -50,16 +45,11 @@
                     <input type="checkbox" id="defaultLoop" name="defaultLoop">
                 </div>
                 <div class="form-group">
-                    <label for="defaultVolume">Default Volume (0-1):</label>
-                    <input type="range" id="defaultVolume" name="defaultVolume" min="0" max="1" step="0.01" value="1">
-                    <span id="defaultVolumeValueDisplay">1.00</span>
-                </div>
-                <div class="form-group">
                     <label for="retriggerBehavior">Retrigger Behavior:</label>
                     <select id="retriggerBehavior" name="retriggerBehavior">
+                        <option value="fade_out_and_stop">Fade Out and Stop</option>                        
                         <option value="restart">Restart</option>
                         <option value="fade_stop_restart">Fade Out, Stop, then Restart</option>
-                        <option value="fade_out_and_stop">Fade Out and Stop</option>
                         <option value="pause">Pause/Resume</option>
                         <option value="stop">Stop (Immediate)</option>
                         <option value="do_nothing">Do Nothing</option>
@@ -68,8 +58,9 @@
                 <div class="form-group">
                     <label for="defaultStopAllBehavior">Default Stop All Behavior:</label>
                     <select id="defaultStopAllBehavior" name="defaultStopAllBehavior">
+                        <option value="fade_out_and_stop">Fade Out then Stop</option> 
                         <option value="stop">Immediate Stop</option>
-                        <option value="fade_out_and_stop">Fade Out then Stop</option>
+
                     </select>
                 </div>
 
@@ -85,34 +76,40 @@
                     <label for="configMixerType">Mixer Type:</label>
                     <select id="configMixerType">
                         <option value="none">None</option>
-                        <option value="behringer_wing">Behringer WING / WING Compact</option>
-                        <option value="yamaha_dm3">Yamaha DM3</option>
-                        <!-- Add other mixer types here -->
+                        <option value="behringer_wing">Behringer WING</option>
+                        <option value="behringer_wing_compact">Behringer WING Compact</option>
                     </select>
                 </div>
                 <div class="form-group" id="wingIpAddressGroup" style="display: none;">
                     <label for="configWingIpAddress">WING IP Address:</label>
                     <input type="text" id="configWingIpAddress" placeholder="e.g., 192.168.1.100">
                 </div>
-
                 <div class="form-group" id="wingModelTypeGroup" style="display: none;">
                     <label for="configWingModelType">WING Model Type:</label>
                     <select id="configWingModelType">
-                        <option value="compact" selected>WING Compact</option>
-                        <option value="full_size">WING Full Size</option>
+                        <option value="compact">Compact</option>
+                        <option value="full_size">Full-size</option>
                     </select>
                 </div>
-
+                <hr class="sidebar-hr">
             </div>
         </div>
 
         <div id="mainContent">
             <div id="topBar">
-                <h1>acCompaniment</h1>
-                <div id="globalControls">
-                    <button id="addCueButton">Add New Cue</button>
-                    <button id="stopAllButton" class="stop-all-btn">Stop All</button>
-                    <button id="modeToggleBtn">Enter Show Mode</button>
+                <div class="top-bar">
+                    <div class="title-container">
+                        <img src="../../assets/icons/icon.png" alt="App Icon" class="app-icon-title">
+                        <h1>acCompaniment</h1>
+                    </div>
+                    <div class="global-controls">
+                        <button id="stopAllButton" class="btn btn-icon-only stop-all-btn" title="Stop All Cues">
+                            <img src="../../assets/icons/dont panic.png" alt="Stop All" class="btn-icon">
+                        </button>
+                        <button id="modeToggleBtn" class="btn btn-icon-text" title="Toggle Mode (Shift for temporary)">
+                            <img src="../../assets/icons/show.png" alt="Mode" class="btn-icon">
+                        </button>
+                    </div>
                 </div>
             </div>
             <div id="cueGridContainer">
@@ -139,22 +136,22 @@
                 <div id="propSingleFileConfig" class="form-group">
                     <label for="propFilePath">Audio File:</label>
                     <input type="text" id="propFilePath" name="propFilePath" readonly placeholder="Drag & drop file">
-                    <div id="waveformDisplay" style="width: 100%; height: 128px; border: 1px solid #ddd; margin-top: 10px;"></div>
+                    <div id="waveformDisplay" style="width: 100%; height: 128px; border: 1px solid #555; margin-top: 10px; background-color: #2c2c2c;"></div>
                     <div id="waveformControls" style="margin-top: 8px;">
                         <div class="waveform-controls-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                            <button id="wfSetStartBtn" title="Set Start Point" style="font-size: 0.9em; padding: 4px 8px;">&lt;|S</button>
-                            <button id="wfSetEndBtn" title="Set End Point" style="font-size: 0.9em; padding: 4px 8px;">E|&gt;</button>
+                            <button id="wfSetStartBtn" title="Set Start Point" class="wf-control-btn"><img src="../../assets/icons/skip-start.png" alt="Set Start" class="btn-icon-wf"></button>
+                            <button id="wfSetEndBtn" title="Set End Point" class="wf-control-btn"><img src="../../assets/icons/skip-end.png" alt="Set End" class="btn-icon-wf"></button>
                         </div>
-                        <div class="waveform-controls-row" style="display: flex; justify-content: space-between; align-items: center;">
-                            <div style="flex-grow: 1;"></div> <!-- Spacer -->
-                            <button id="wfPlayPauseBtn" title="Play/Pause" style="font-size: 1.4em; margin-right: 8px; padding: 5px 10px;">▶️</button>
-                            <button id="wfStopBtn" title="Stop" style="font-size: 1.4em; padding: 5px 10px;">⏹️</button>
-                            <div style="flex-grow: 1; text-align: right;">
-                                 <button id="wfSoloBtn" title="Solo Cue (Monitor Output)" style="width: 28px; height: 28px; padding: 0; font-weight: bold; color: #FFA500; background-color: #FFFFE0; border: 1px solid #FFD700; font-size: 0.9em;">S</button> 
+                        <div class="waveform-controls-row" style="display: flex; align-items: center; margin-bottom: 8px;"> 
+                            <div style="flex-grow: 1;"></div> <!-- Spacer Left -->
+                            <button id="wfPlayPauseBtn" title="Play/Pause" class="wf-control-btn"><img src="../../assets/icons/play.png" alt="Play" class="btn-icon-wf-playpause"></button>
+                            <button id="wfStopBtn" title="Stop" class="wf-control-btn" style="margin-left: 5px; margin-right: 5px;"><img src="../../assets/icons/stop.png" alt="Stop" class="btn-icon-wf"></button>
+                            <div style="flex-grow: 1; display: flex; justify-content: flex-end;"> <!-- Spacer Right, containing Solo -->
+                                 <!-- <button id="wfSoloBtn" title="Solo Cue (Monitor Output)" class="wf-control-btn">S</button> --> 
                             </div>
                         </div>
                     </div>
-                    <div id="waveformTimeDisplay" style="margin-top: 10px; text-align: center; font-size: 0.9em; color: #ccc;">
+                    <div id="waveformTimeDisplay" style="margin-top: 10px; text-align: center; font-size: 0.9em; color: #cccccc;">
                         <span id="wfCurrentTime">0:00.0</span> / <span id="wfTotalDuration">0:00.0</span> (<span id="wfRemainingTime">-0:00.0</span>)
                     </div>
                 </div>
@@ -164,11 +161,6 @@
                     <ul id="propPlaylistItems">
                         <!-- Playlist items will be rendered here by ui.js -->
                     </ul>
-                    <!-- New Button and Hidden File Input -->
-                    <div class="form-group">
-                        <button type="button" id="propAddFilesToPlaylistBtn" class="btn">Add Files...</button>
-                        <input type="file" id="propPlaylistFileInput" multiple accept="audio/*" style="display: none;">
-                    </div>
                     <div class="form-group">
                         <label for="propShufflePlaylist">Shuffle Playlist:</label>
                         <input type="checkbox" id="propShufflePlaylist" name="propShufflePlaylist">
@@ -201,59 +193,97 @@
                 </div>
                 <div class="form-group">
                     <label for="propRetriggerBehavior">Retrigger Behavior:</label>
-                    <select id="propRetriggerBehavior" name="propRetriggerBehavior">
-                        <option value="restart">Restart</option>
-                        <option value="fade_stop_restart">Fade Out, Stop, then Restart</option>
+                    <select id="propRetriggerBehavior">
                         <option value="fade_out_and_stop">Fade Out and Stop</option>
-                        <option value="pause">Pause/Resume</option>
-                        <option value="stop">Stop (Immediate)</option>
-                        <option value="do_nothing">Do Nothing</option>
+                        <option value="restart">Restart</option>
+                        <option value="play_new_instance">Play New Instance (Caution)</option>
+                        <option value="do_nothing_if_playing">Do Nothing if Playing</option>
+                        <option value="stop">Stop</option>
+                        <option value="toggle_pause_play">Toggle Pause/Play</option>
                     </select>
-                </div>
-                <!-- <div id="propTrimConfig"> -->
-                <!--     <div class="form-group"> -->
-                <!--         <label for="propTrimStartTime">Trim Start (s):</label> -->
-                <!--         <input type="number" id="propTrimStartTime" name="propTrimStartTime" value="0" min="0" step="0.1"> -->
-                <!--     </div> -->
-                <!--     <div class="form-group"> -->
-                <!--         <label for="propTrimEndTime">Trim End (s, 0 for full):</label> -->
-                <!--         <input type="number" id="propTrimEndTime" name="propTrimEndTime" value="0" min="0" step="0.1"> -->
-                <!--     </div> -->
-                <!-- </div> -->
-                <div class="form-group">
-                    <label for="propOscTriggerEnabled" class="checkbox-label">
-                        <input type="checkbox" id="propOscTriggerEnabled">
-                        Enable OSC Trigger
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label for="propOscTriggerPath">OSC Address:</label>
-                    <input type="text" id="propOscTriggerPath" placeholder="/play/cue_name" style="width: 100%; margin-bottom: 5px;">
-                    <button id="propOscLearnBtn" class="btn-small" style="margin-top: 5px;">Learn</button>
                 </div>
                 <div class="form-group">
                     <label for="propVolume">Volume (0-1):</label>
                     <input type="range" id="propVolume" name="propVolume" min="0" max="1" step="0.01" value="1">
                     <span id="propVolumeValue">1.00</span>
                 </div>
-
-                <!-- New WING Mixer Trigger Section -->
-                <div id="wingTriggerSettings" class="form-group-collapsible" style="display: none;">
+                
+                <!-- Updated WING Mixer Trigger Section -->
+                <div id="wingTriggerSettingsContainer" class="form-group-collapsible" style="display: none;">
                     <hr class="sidebar-hr">
                     <h4>WING Mixer Trigger</h4>
                     <div class="form-group">
                         <label for="propWingTriggerEnabled" class="checkbox-label">
                             <input type="checkbox" id="propWingTriggerEnabled">
-                            Enable WING Trigger
+                            Enable WING Trigger for this Cue
                         </label>
                     </div>
-                    <div class="form-group" id="wingUserButtonSubGroup" style="display: none;">
-                        <label for="propWingUserButton">User Button ID (1-16):</label>
-                        <input type="number" id="propWingUserButton" min="1" max="16" placeholder="e.g., 1">
-                        <!-- We might add a "Fetch Buttons" or "Learn" later if the WING API supports it easily -->
+
+                    <!-- Configuration for Full-Size WING -->
+                    <div id="wingFullSizeConfig" style="display: none;">
+                        <p class="small-text wing-config-label">Model: Behringer WING (Full-size)</p>
+                        <div class="form-group">
+                            <label for="propWingFullLayer">Layer (1-16):</label>
+                            <select id="propWingFullLayer">
+                                <!-- Options 1-16 will be populated by JS -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="propWingFullButton">Button (1-4):</label>
+                            <select id="propWingFullButton">
+                                <!-- Options 1-4 will be populated by JS -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="propWingFullRow">Row:</label>
+                            <select id="propWingFullRow">
+                                <option value="bu">Upper (BU)</option>
+                                <option value="bd">Lower (BD)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Configuration for WING Compact -->
+                    <div id="wingCompactConfig" style="display: none;">
+                        <p class="small-text wing-config-label">Model: Behringer WING Compact</p>
+                        <div class="form-group">
+                            <label for="propWingCompactLayer">Layer (1-4):</label>
+                            <select id="propWingCompactLayer">
+                                <!-- Options 1-4 will be populated by JS -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="propWingCompactButton">Button (1-4):</label>
+                            <select id="propWingCompactButton">
+                                <!-- Options 1-4 will be populated by JS -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Fallback/Legacy input (should be hidden by JS once new controls are active) -->
+                    <div class="form-group" id="wingUserButtonSubGroup_Legacy" style="display: none;">
+                        <label for="propWingUserButton_Legacy">User Button ID (Legacy):</label>
+                        <input type="number" id="propWingUserButton_Legacy" min="1" max="128" placeholder="e.g., 1">
                     </div>
                 </div>
-                <!-- End of New WING Mixer Trigger Section -->
+                <!-- End of Updated WING Mixer Trigger Section -->
+
+                <!-- Ducking Trigger Settings -->
+                <div class="property-group">
+                    <label for="propIsDuckingTrigger">Is Ducking Trigger:</label>
+                    <input type="checkbox" id="propIsDuckingTrigger">
+                </div>
+
+                <div class="property-group" id="duckingLevelGroup" style="display: none;"> <!-- Initially hidden -->
+                    <label for="propDuckingLevel">Ducking Level (%):</label>
+                    <input type="range" id="propDuckingLevel" min="0" max="100" value="20">
+                    <span id="propDuckingLevelValue">20</span>%
+                </div>
+
+                <div class="property-group" id="enableDuckingGroup" style="display: block;"> <!-- Initially visible -->
+                    <label for="propEnableDucking">Enable Ducking for this Cue:</label>
+                    <input type="checkbox" id="propEnableDucking">
+                </div>
 
                 <button id="saveCuePropertiesButton">Save Changes</button>
                 <button id="deleteCuePropertiesButton" style="background-color: #f44336;">Delete Cue</button>
@@ -346,9 +376,20 @@
 
     <div id="dragOverlay">Drop files here to create cues...</div>
 
-    <!-- Easter Egg Game - Dev Button -->
-    <button id="devEasterEggButton" style="position: fixed; bottom: 5px; right: 5px; z-index: 9999; padding: 5px 10px;">Dev: Pig Game</button>
+  
 
+    <script defer src="dragDropHandler.js" type="module"></script>
+    <script defer src="audioPlaybackIPCEmitter.js" type="module"></script>
+    <script defer src="audioPlaybackManager.js" type="module"></script>
+    <script defer src="audioController.js" type="module"></script>
+    <script defer src="ui/utils.js" type="module"></script>
+    <script defer src="ui/cueGrid.js" type="module"></script>
+    <script defer src="ui/configSidebar.js" type="module"></script>
+    <script defer src="ui/propertiesSidebar.js" type="module"></script>
+    <script defer src="ui/modals.js" type="module"></script>
+    <script defer src="ui/appConfigUI.js" type="module"></script>
+    <script defer src="ui/waveformControls.js" type="module"></script>
+    <script defer src="ui.js" type="module"></script>
     <script type="module" src="renderer.js"></script>
 </body>
 </html> 

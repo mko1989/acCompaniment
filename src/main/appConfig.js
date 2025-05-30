@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { app } = require('electron');
+const os = require('os'); // Added for network interfaces
 
 const CONFIG_FILE_NAME = 'appConfig.json';
 // let userDataPath; // Will be set when app is ready // REMOVED
@@ -18,21 +19,19 @@ const DEFAULT_CONFIG = {
   autoLoadLastWorkspace: true,
   lastOpenedWorkspacePath: '',
   defaultCueType: 'single_file', // 'single_file' or 'playlist'
-  defaultVolume: 1.0,
   defaultFadeInTime: 0, // in milliseconds
   defaultFadeOutTime: 0, // in milliseconds
   defaultLoopSingleCue: false,
   defaultRetriggerBehavior: 'restart', // 'restart', 'pause_resume', 'stop', 'do_nothing', 'fade_out_and_stop', 'fade_stop_restart'
   defaultStopAllBehavior: 'stop', // 'stop' or 'fade_out_and_stop'
-  oscEnabled: false,
-  oscPort: 54321,
   audioOutputDeviceId: 'default',
   theme: 'system', // 'light', 'dark', or 'system'
   // Mixer Integration Settings
   mixerIntegrationEnabled: false,
-  mixerType: 'none', // e.g., 'none', 'behringer_wing', 'yamaha_dm3'
-  wingIpAddress: '', // Specific to Behringer WING
-  wingModelType: 'compact', // 'compact' or 'full_size' - New setting
+  mixerType: 'none', // e.g., 'none', 'behringer_wing', 'behringer_wing_compact'
+  wingIpAddress: '', // Specific to Behringer WING (both models)
+  localIpAddress: '', // IP address of this machine for the mixer to send to
+  wingModelType: 'behringer_wing_compact', // 'behringer_wing_compact' or 'behringer_wing' (full_size)
   recentWorkspaces: [], // Ensure recentWorkspaces is part of DEFAULT_CONFIG
 };
 
@@ -206,6 +205,21 @@ function removeConfigChangeListener(listener) {
     configChangeListeners = configChangeListeners.filter(l => l !== listener);
 }
 
+// New function to get local IPv4 addresses
+function getLocalIpAddresses() {
+    const interfaces = os.networkInterfaces();
+    const addresses = [];
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
+            if (iface.family === 'IPv4' && !iface.internal) {
+                addresses.push({ name: name, address: iface.address });
+            }
+        }
+    }
+    return addresses;
+}
+
 // Ensure config is loaded when the module is required,
 // but paths are initialized lazily or explicitly.
 // loadConfig(); // Initial load can be done here or explicitly after app 'ready'.
@@ -223,5 +237,6 @@ module.exports = {
   removeConfigChangeListener, // New
   DEFAULT_CONFIG,
   getDefaultConfig, // Exporting the function to get a fresh copy
-  MAX_RECENT_WORKSPACES // Export for main.js to know limit if needed elsewhere, though not strictly necessary
+  MAX_RECENT_WORKSPACES, // Export for main.js to know limit if needed elsewhere, though not strictly necessary
+  getLocalIpAddresses // Export the new function
 }; 
