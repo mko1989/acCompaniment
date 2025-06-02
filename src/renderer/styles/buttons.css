@@ -70,9 +70,10 @@ button:active, .btn:active {
 
 #modeToggleBtn {
     padding: 0 !important; 
-    width: 100px !important; 
+    width: 60px !important; 
     height: 60px !important;
     background-color: #555 !important;
+    background-size: contain;
     border: 1px solid #666 !important;
     /* Ensure flex properties from .btn are maintained or re-declared if necessary for icon centering */
     display: inline-flex !important; 
@@ -89,28 +90,13 @@ button:active, .btn:active {
     background-color: #C0392B !important;
 }
 #modeToggleBtn .btn-icon {
-    width: 85px !important; /* Increased width */
+    width: 55px !important; /* Increased width */
     height: 55px !important; /* Increased height */
     object-fit: contain !important;
     margin: 0 !important; /* Ensure no margin on icon itself */
 }
 
-/* Remove or comment out overly general .btn-icon rules if they conflict */
-/* .btn-icon { 
-    width: 30px; 
-    height: 40px; 
-    margin-right: 0;
-    object-fit: contain;
-    flex-shrink: 0;
-} */
 
-/* .btn-icon-mode { 
-    width: 50px;
-    height: 50px;
-    margin-right: 0;
-    object-fit: contain;
-    flex-shrink: 0;
-} */
 
 /* Sidebar action buttons */
 .sidebar-content button {
@@ -119,12 +105,7 @@ button:active, .btn:active {
     margin-top: 5px;
 }
 
-#saveCuePropertiesButton {
-    background-color: #28a745; /* Green */
-}
-#saveCuePropertiesButton:hover {
-    background-color: #218838; /* Darker Green */
-}
+
 
 #deleteCuePropertiesButton {
     background-color: #dc3545; /* Red */

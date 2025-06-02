@@ -33,7 +33,7 @@ function openEasterEggGameWindow() {
 
     easterEggWindow = new BrowserWindow({
         width: 700, // Adjust as needed
-        height: 540, // Adjust as needed
+        height: 560, // Adjust as needed
         parent: mainWindow, // Optional: to make it a child window
         modal: false,       // Optional: set to true to make it a modal dialog
         resizable: false,
@@ -84,7 +84,7 @@ async function createWindow() {
         nodeIntegration: false, 
       },
       icon: path.join(__dirname, 'assets', 'icons', 'icon.png'),
-      title: "acCompaniment Soundboard"
+      title: "acCompaniment"
     });
     console.log('MAIN_JS: createWindow - BrowserWindow created'); // LOG 5
 

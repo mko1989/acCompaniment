@@ -9,12 +9,22 @@ let cueStoreRef = null;
 let uiRef = null;
 let appConfigUIRef = null;
 let sidebarsRef = null;
+
+let _cueListUpdatedCallback = null; // To store the callback from cueStore
+let queuedCuesUpdate = null; // To queue cues if callback isn't ready
+let cuesUpdatedListenerRegistered = false; // Flag to ensure listener is only set once
+
 const configureWingButtonForCue = (cueId, wingTriggerData) => electronAPIInstance.invoke('configure-wing-button-for-cue', cueId, wingTriggerData);
 const clearWingButtonForCue = (cueId, oldWingTriggerData) => electronAPIInstance.invoke('clear-wing-button-for-cue', cueId, oldWingTriggerData);
 const setAudioOutputDevice = (deviceId) => electronAPIInstance.invoke('set-audio-output-device', deviceId);
 const showMultipleFilesDropModalComplete = (result) => electronAPIInstance.send('multiple-files-drop-modal-complete', result);
 const showOpenDialog = (options) => electronAPIInstance.invoke('show-open-dialog', options);
 const showSaveDialog = (options) => electronAPIInstance.invoke('show-save-dialog', options);
+const sendStartOscLearn = (cueId) => electronAPIInstance.send('start-osc-learn', cueId);
+const sendStopOscLearn = () => electronAPIInstance.send('stop-osc-learn');
+const sendSaveOscConfig = (config) => electronAPIInstance.invoke('save-osc-config', config);
+const sendRequestOscConfig = () => electronAPIInstance.invoke('request-osc-config');
+const sendOscMessageToMixer = (message) => electronAPIInstance.invoke('send-osc-message-to-mixer', message);
 
 
 function initialize(electronAPI) {
@@ -22,20 +32,49 @@ function initialize(electronAPI) {
     electronAPIInstance = electronAPI;
 
     if (electronAPIInstance && typeof electronAPIInstance.on === 'function') {
-        setupListeners();
+        // DO NOT set up 'cues-updated-from-main' listener here anymore.
+        // It will be set up by registerCueListUpdatedCallback.
+        setupOtherListeners(); // Assuming other listeners can be set up here
     } else {
         console.error('electronAPI not found or `on` is not a function. IPC listeners will not work.');
     }
 }
 
 function setModuleRefs(modules) {
-    console.log('IPC Binding: setModuleRefs() CALLED with:', modules);
-    audioControllerRef = modules.audioCtrl;
-    dragDropHandlerRef = modules.dragDropCtrl;
-    cueStoreRef = modules.cueStoreMod;
-    uiRef = modules.uiMod;
-    appConfigUIRef = modules.appConfigUIMod;
-    sidebarsRef = modules.sidebarsMod;
+    console.log('IPC Binding: setModuleRefs CALLED with:', modules);
+    // Ensure we are getting the .default export if modules are imported with import *
+    // audioCtrl is expected to be the audioController namespace import
+    audioControllerRef = modules.audioCtrl && modules.audioCtrl.default ? modules.audioCtrl.default : modules.audioCtrl;
+    dragDropHandlerRef = modules.dragDropCtrl && modules.dragDropCtrl.default ? modules.dragDropCtrl.default : modules.dragDropCtrl;
+    cueStoreRef = modules.cueStoreMod && modules.cueStoreMod.default ? modules.cueStoreMod.default : modules.cueStoreMod;
+    uiRef = modules.uiMod && modules.uiMod.default ? modules.uiMod.default : modules.uiMod;
+    appConfigUIRef = modules.appConfigUIMod && modules.appConfigUIMod.default ? modules.appConfigUIMod.default : modules.appConfigUIMod;
+    sidebarsRef = modules.sidebarsAPI; // This is expected to be the direct module/API, not a namespace
+
+    console.log('IPC Binding: audioControllerRef after setModuleRefs:', audioControllerRef);
+    console.log('IPC Binding: dragDropHandlerRef after setModuleRefs:', dragDropHandlerRef);
+    console.log('IPC Binding: cueStoreRef after setModuleRefs:', cueStoreRef);
+    console.log('IPC Binding: uiRef after setModuleRefs:', uiRef);
+    console.log('IPC Binding: appConfigUIRef after setModuleRefs:', appConfigUIRef);
+    console.log('IPC Binding: sidebarsRef after setModuleRefs:', sidebarsRef);
+
+    // Validate that essential refs are now actual objects with expected functions
+    if (audioControllerRef && typeof audioControllerRef.playCueByIdFromMain === 'function') {
+        console.log('IPC Binding: audioControllerRef.playCueByIdFromMain is now available.');
+    } else {
+        console.warn('IPC Binding: audioControllerRef.playCueByIdFromMain is STILL NOT available after setModuleRefs. Check imports and module structure.', audioControllerRef);
+    }
+    if (audioControllerRef && typeof audioControllerRef.toggle === 'function') {
+        console.log('IPC Binding: audioControllerRef.toggle is now available.');
+    } else {
+        console.warn('IPC Binding: audioControllerRef.toggle is STILL NOT available after setModuleRefs.');
+    }
+
+    if (uiRef && typeof uiRef.showModal === 'function') {
+        console.log('IPC Binding: uiRef.showModal is available.');
+    } else {
+        // console.warn('IPC Binding: uiRef.showModal is NOT available after setModuleRefs. uiRef:', uiRef); // uiRef might be the direct ui.js module which doesn't have showModal directly
+    }
 }
 
 // --- Senders to Main Process ---
@@ -135,190 +174,136 @@ async function getMediaDuration(filePath) {
 }
 
 // --- Listeners for Main Process Events ---
-function setupListeners() {
-    console.log('IPC Binding: setupListeners() CALLED');
-    // Listen for files dropped (forwarded from main process)
-    /*
-    electronAPIInstance.on('files-dropped-on-app', (filePaths) => {
-        console.log('IPC Binding: Renderer received files-dropped-on-app:', filePaths);
-        // The dragDropHandler module is now expected to set up its own global listeners 
-        // or be called by ui.js when a general drop occurs.
-        // For now, ui.js has assignFilesToRelevantTarget that can be used.
-        if (uiRef && typeof uiRef.assignFilesToRelevantTarget === 'function') {
-            uiRef.assignFilesToRelevantTarget(filePaths, document.body); // Indicate general drop
-        } else {
-            console.warn('uiRef or assignFilesToRelevantTarget not available for general file drop.');
-        }
-    });
-    */
+function setupOtherListeners() {
+    console.log('IPC Binding: setupOtherListeners() CALLED');
+    // Example: electronAPIInstance.on('some-other-event', handler);
+    // The original setupListeners had more, so those would be refactored here or initialized directly
+    // For instance, 'app-config-updated-from-main', 'play-audio-by-id', etc.
+    // This refactoring requires careful checking of the original setupListeners content.
 
-    // Listener for when the main process signals it's ready
+    // Re-adding other listeners from the original setupListeners function explicitly here
+    // to ensure they are still active. The 'cues-updated-from-main' is the one being moved.
+
     electronAPIInstance.on('main-process-ready', () => {
-        console.log('IPC Binding: Received main-process-ready signal. UI module handles its own readiness now.');
+        console.log('IPC Binding: Received main-process-ready signal.');
     });
 
-    console.log(`IPC Binding: Attempting to set up listener for 'app-config-updated-from-main'.`);
     electronAPIInstance.on('app-config-updated-from-main', (newConfig) => { 
         console.log('IPC Binding: SUCCESS - Received app-config-updated-from-main with new config:', newConfig);
         if (uiRef && typeof uiRef.applyAppConfiguration === 'function') {
-            console.log('IPC Binding: Calling uiRef.applyAppConfiguration for app-config-updated-from-main.');
             uiRef.applyAppConfiguration(newConfig);
-        } else {
-            console.warn('IPC Binding: uiRef.applyAppConfiguration not available or uiRef not set yet for app-config-updated-from-main.');
-        }
-    });
-
-    console.log(`IPC Binding: Attempting to set up listener for 'cues-updated-from-main'.`);
-    electronAPIInstance.on('cues-updated-from-main', (cues) => {
-        console.log('IPC Binding: SUCCESS - Received cues-updated-from-main. Number of cues:', cues ? cues.length : 'N/A');
-        if (cueStoreRef && typeof cueStoreRef.handleCuesUpdated === 'function') {
-            console.log('IPC Binding: Calling cueStoreRef.handleCuesUpdated.');
-            cueStoreRef.handleCuesUpdated(cues);
-        } else {
-            console.warn('IPC Binding: cueStoreRef.handleCuesUpdated not available or cueStoreRef not set yet.');
         }
     });
 
     electronAPIInstance.on('play-audio-by-id', (cueId) => {
         console.log(`IPC Binding: Received 'play-audio-by-id' for cueId: ${cueId}`);
-        if (!cueStoreRef || !audioControllerRef) {
-            console.warn('IPC Binding: cueStoreRef or audioControllerRef not set for play-audio-by-id');
-            return;
-        }
-        const cue = cueStoreRef.getCueById(cueId);
-        console.log(`IPC Binding (play-audio-by-id): Cue found by ID ${cueId}?`, cue ? 'Yes' : 'No', cue);
-        if (cue && typeof audioControllerRef.play === 'function') {
-            // Play typically implies a fresh play or resume if paused.
-            // If it's playing, retrigger logic is usually in toggle. 
-            // For a direct 'play' command from Companion, it might mean force play/restart.
-            // The audioController.play will handle resume if paused, or restart if already playing.
-            // If specific retrigger is needed, Companion should send 'toggle' with behavior.
-            console.log(`IPC: play-audio-by-id received for ${cueId}. Calling audioController.play.`);
-            audioControllerRef.play(cue); 
-        } else {
-            console.warn(`Cue ${cueId} not found or audioControllerRef.play not available.`);
+        if (cueStoreRef && audioControllerRef && audioControllerRef.play) {
+            const cue = cueStoreRef.getCueById(cueId);
+            if (cue) audioControllerRef.play(cue);
         }
     });
 
     electronAPIInstance.on('stop-audio-by-id', (cueId) => {
         console.log(`IPC Binding: Received 'stop-audio-by-id' for cueId: ${cueId}`);
-        if (!cueStoreRef || !audioControllerRef) {
-            console.warn('IPC Binding: cueStoreRef or audioControllerRef not set for stop-audio-by-id');
-            return;
-        }
-        const cue = cueStoreRef.getCueById(cueId);
-        console.log(`IPC Binding (stop-audio-by-id): Cue found by ID ${cueId}?`, cue ? 'Yes' : 'No', cue);
-        if (cue && typeof audioControllerRef.stop === 'function') {
-            console.log(`IPC: stop-audio-by-id received for ${cueId}. Calling audioController.stop.`);
-            audioControllerRef.stop(cueId, true, true); // fromCompanion = true, useFade = true
-        } else {
-             console.warn(`Cue ${cueId} not found or audioControllerRef.stop not available.`);
+        if (audioControllerRef && audioControllerRef.stop) {
+            audioControllerRef.stop(cueId, true, true);
         }
     });
 
     electronAPIInstance.on('toggle-audio-by-id', (cueId) => {
         console.log(`IPC Binding: Received 'toggle-audio-by-id' for cueId: ${cueId}`);
-        if (!cueStoreRef || !audioControllerRef) {
-            console.warn('IPC Binding: cueStoreRef or audioControllerRef not set for toggle-audio-by-id');
-            return;
-        }
-        const cue = cueStoreRef.getCueById(cueId);
-        console.log(`IPC Binding (toggle-audio-by-id): Cue found by ID ${cueId}?`, cue ? 'Yes' : 'No', cue);
-        if (cue && typeof audioControllerRef.toggle === 'function') {
-            // Companion toggle will use the default retrigger behavior in audioController.toggle (which is 'restart')
-            // unless Companion starts sending a specific behavior.
-            console.log(`IPC: toggle-audio-by-id received for ${cueId}. Calling audioController.toggle.`);
-            audioControllerRef.toggle(cue, true);
-        } else {
-            console.warn(`Cue ${cueId} not found or audioControllerRef.toggle not available.`);
+        if (cueStoreRef && audioControllerRef && audioControllerRef.toggle) {
+            const cue = cueStoreRef.getCueById(cueId);
+            if (cue) audioControllerRef.toggle(cue, true);
         }
     });
 
-    // Listener for workspace changes from the main process
     electronAPIInstance.on('workspace-did-change', async () => {
         console.log('IPC Binding: Received workspace-did-change signal.');
-        try {
-            if (uiRef && typeof uiRef.handleWorkspaceChange === 'function') {
-                await uiRef.handleWorkspaceChange(); 
-            } else {
-                console.warn('uiRef.handleWorkspaceChange not available or uiRef not set yet. Attempting fallbacks.');
-                if (cueStoreRef && typeof cueStoreRef.loadCuesFromServer === 'function') {
-                    await cueStoreRef.loadCuesFromServer();
-                    console.log('IPC Binding: Fallback: Requested cueStore to reload cues.');
-                }
-                if (uiRef && typeof uiRef.loadAndApplyAppConfiguration === 'function') { // Assuming uiRef could still have other useful methods
-                    await uiRef.loadAndApplyAppConfiguration();
-                    console.log('IPC Binding: Fallback: Requested ui to reload app configuration.');
-                }
-            }
-        } catch (error) {
-            console.error('IPC Binding: Error handling workspace-did-change:', error);
+        if (uiRef && typeof uiRef.handleWorkspaceChange === 'function') {
+            await uiRef.handleWorkspaceChange(); 
         }
     });
-
-    // --- Listener for triggering cues from main process (e.g., via HTTP remote or Companion) ---
-    // Ensure any previous listeners are removed before adding a new one, to prevent duplication if setupListeners were ever called multiple times.
-    if (electronAPIInstance && typeof electronAPIInstance.removeAllListeners === 'function') {
-        console.log("IPC Binding: Removing existing listeners for 'trigger-cue-by-id-from-main' before re-adding.");
-        electronAPIInstance.removeAllListeners('trigger-cue-by-id-from-main');
-    }
-    let triggerCueByIdFromMainInProgress = false; // Flag to prevent re-entrancy
+    
+    let triggerCueByIdFromMainInProgress = false;
     electronAPIInstance.on('trigger-cue-by-id-from-main', ({ cueId, source }) => {
-        if (triggerCueByIdFromMainInProgress) {
-            console.warn(`IPC Binding: 'trigger-cue-by-id-from-main' for ${cueId} (source: ${source}) IGNORED, flag indicates another trigger is already processing.`);
-            return;
-        }
+        if (triggerCueByIdFromMainInProgress) return;
         triggerCueByIdFromMainInProgress = true;
-        console.log(`IPC Binding: Received 'trigger-cue-by-id-from-main' for cue: ${cueId}, source: ${source}. Processing.`);
-        
+        console.log(`IPC Binding: Received 'trigger-cue-by-id-from-main' for cue: ${cueId}, source: ${source}.`);
         try {
             if (audioControllerRef && typeof audioControllerRef.playCueByIdFromMain === 'function') {
                 audioControllerRef.playCueByIdFromMain(cueId, source);
-            } else {
-                console.warn(`IPC Binding: audioControllerRef.playCueByIdFromMain not available for cue ${cueId} from source ${source}. audioControllerRef:`, audioControllerRef);
             }
         } finally {
-            // Reset the flag after a short delay to allow the call stack to unwind and prevent immediate re-trigger
-            // by a potentially duplicated event, but allow subsequent legitimate events.
-            setTimeout(() => {
-                triggerCueByIdFromMainInProgress = false;
-                console.log(`IPC Binding: 'trigger-cue-by-id-from-main' flag reset for ${cueId}.`);
-            }, 50); // 50ms should be enough for most duplicated events if they are near-simultaneous
+            setTimeout(() => { triggerCueByIdFromMainInProgress = false; }, 50);
         }
     });
 
     electronAPIInstance.on('mixer-subscription-feedback', (feedbackData) => {
-        console.log('IPC Binding: Received mixer-subscription-feedback', feedbackData);
         if (sidebarsRef && typeof sidebarsRef.updateMixerSubFeedbackDisplay === 'function') {
             sidebarsRef.updateMixerSubFeedbackDisplay(feedbackData.buttonId, feedbackData.value);
-        } else {
-            console.warn('sidebarsRef or updateMixerSubFeedbackDisplay not available.');
         }
     });
 
-    // Listener for continuous playback time updates
     electronAPIInstance.on('playback-time-update-from-main', (data) => {
-        // console.log('[IPC_BINDING_DEBUG] Received playback-time-update-from-main:', data);
         if (uiRef && typeof uiRef.updateCueButtonTimeDisplay === 'function') {
             uiRef.updateCueButtonTimeDisplay(data);
-        } else {
-            // console.warn('[IPC_BINDING_DEBUG] uiRef or uiRef.updateCueButtonTimeDisplay not available for playback-time-update-from-main.');
         }
     });
 
-    // Listener for highlighting playing playlist item in sidebar
     electronAPIInstance.on('highlight-playing-item', (data) => {
-        console.log('IPC Binding: Received highlight-playing-item', data);
         if (uiRef && typeof uiRef.highlightPlayingItem === 'function') {
             uiRef.highlightPlayingItem(data);
-        } else {
-            console.warn('uiRef or highlightPlayingItem not available for highlight-playing-item.');
         }
     });
-};
+}
 
 // Note: ipcRendererBindings itself no longer directly calls audioController methods like playCueById, stopCue, etc.
 // It receives events from main and calls the new methods (play, stop, toggle) on audioControllerRef.
+
+function registerCueListUpdatedCallback(callback) {
+    console.log('IPC Binding: registerCueListUpdatedCallback CALLED. Registering callback:', typeof callback === 'function' ? 'Function received' : 'NOT a function');
+    if (typeof callback === 'function') {
+        _cueListUpdatedCallback = callback; // Store the callback
+        console.log('IPC Binding: _cueListUpdatedCallback has been SET.');
+
+        // Set up the listener only if it hasn't been done already
+        if (!cuesUpdatedListenerRegistered && electronAPIInstance && typeof electronAPIInstance.on === 'function') {
+            console.log(`IPC Binding: Setting up 'cues-updated-from-main' listener NOW.`);
+            electronAPIInstance.on('cues-updated-from-main', (cues) => {
+                console.log(`IPC Binding: Event 'cues-updated-from-main' received. Number of cues: ${cues ? cues.length : 'N/A'}`);
+                // Now _cueListUpdatedCallback should be the one just set
+                if (typeof _cueListUpdatedCallback === 'function') {
+                    console.log('IPC Binding: Invoking _cueListUpdatedCallback from newly registered listener.');
+                    _cueListUpdatedCallback(cues);
+                } else {
+                    // This case should ideally not happen if registration logic is correct
+                    console.error('IPC Binding: cues-updated-from-main event, but _cueListUpdatedCallback is still not a function!');
+                }
+            });
+            cuesUpdatedListenerRegistered = true;
+            console.log('IPC Binding: cues-updated-from-main listener has been registered.');
+        } else if (cuesUpdatedListenerRegistered) {
+            console.log('IPC Binding: cues-updated-from-main listener was already registered.');
+        } else {
+            console.error('IPC Binding: Cannot register cues-updated-from-main listener - electronAPIInstance not available.');
+        }
+
+        // Process any queued update immediately with the now registered callback and listener
+        if (queuedCuesUpdate) {
+            console.log('IPC Binding: Found queued cues update. Processing it now with the new callback.');
+            if (typeof _cueListUpdatedCallback === 'function') {
+                 _cueListUpdatedCallback(queuedCuesUpdate);
+            } else {
+                // Should not happen if we just set it
+                console.error('IPC Binding: Queued update exists, but _cueListUpdatedCallback is not callable even after assignment!');
+            }
+            queuedCuesUpdate = null; // Clear the queue
+        }
+    } else {
+        console.error('IPC Binding: Attempted to register a non-function as cue list updated callback.');
+    }
+}
 
 export {
     initialize,
@@ -341,5 +326,11 @@ export {
     setAudioOutputDevice,
     showMultipleFilesDropModalComplete,
     showOpenDialog,
-    showSaveDialog
+    showSaveDialog,
+    sendStartOscLearn,
+    sendStopOscLearn,
+    sendSaveOscConfig,
+    sendRequestOscConfig,
+    sendOscMessageToMixer,
+    registerCueListUpdatedCallback
 };

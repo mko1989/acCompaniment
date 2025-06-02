@@ -310,6 +310,8 @@ function bindPropertiesSidebarEventListeners() {
     if (propDuckingLevelInput && propDuckingLevelValueSpan) {
         propDuckingLevelInput.addEventListener('input', (e) => {
             propDuckingLevelValueSpan.textContent = e.target.value;
+            console.log(`[PropertiesSidebarEventListeners] INPUT event on propDuckingLevelInput. Value: ${e.target.value}`);
+            debouncedSaveCueProperties();
         });
     }
 
@@ -825,11 +827,37 @@ function highlightPlayingPlaylistItemInSidebar(cueId, playlistItemId) {
     });
 }
 
+// New function to refresh the playlist view if it's the active cue
+function refreshPlaylistPropertiesView(cueIdToRefresh) {
+    if (!propertiesSidebar || propertiesSidebar.classList.contains('hidden')) {
+        console.log('[PropertiesSidebar refreshPlaylistPropertiesView] Sidebar not visible, no refresh needed for', cueIdToRefresh);
+        return;
+    }
+    if (activePropertiesCueId && activePropertiesCueId === cueIdToRefresh) {
+        console.log('[PropertiesSidebar refreshPlaylistPropertiesView] Active cue matches cueIdToRefresh:', cueIdToRefresh, '. Re-fetching and re-rendering.');
+        const latestCueData = cueStore.getCueById(activePropertiesCueId);
+        if (latestCueData && latestCueData.type === 'playlist') {
+            // Ensure playlistItems is an array, default to empty if not.
+            // Deep copy to avoid modifying cueStore's copy directly if renderPlaylistInProperties modifies stagedPlaylistItems in the future (it shouldn't, but good practice).
+            stagedPlaylistItems = latestCueData.playlistItems ? JSON.parse(JSON.stringify(latestCueData.playlistItems)) : [];
+            renderPlaylistInProperties();
+            console.log('[PropertiesSidebar refreshPlaylistPropertiesView] Playlist items refreshed and re-rendered.');
+        } else if (latestCueData) {
+            console.log('[PropertiesSidebar refreshPlaylistPropertiesView] Active cue is not a playlist, no playlist items to refresh.');
+        } else {
+            console.warn('[PropertiesSidebar refreshPlaylistPropertiesView] Could not find active cue data in store for ID:', activePropertiesCueId);
+        }
+    } else {
+        console.log('[PropertiesSidebar refreshPlaylistPropertiesView] Cue to refresh (', cueIdToRefresh, ') does not match active cue (', activePropertiesCueId, '). No action.');
+    }
+}
+
 export {
     initPropertiesSidebar,
     openPropertiesSidebar,
     hidePropertiesSidebar,
     getActivePropertiesCueId,
+    refreshPlaylistPropertiesView,
     setFilePathInProperties,
     handleCuePropertyChangeFromWaveform,
     highlightPlayingPlaylistItemInSidebar,

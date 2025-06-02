@@ -337,82 +337,83 @@ async function getAudioFileDuration(filePath) {
     }
 }
 
-async function addOrUpdateProcessedCue(cueData, silentUpdate = false) {
-  console.log(`CueManager: addOrUpdateProcessedCue called for ID: ${cueData.id || 'new cue'}. Silent: ${silentUpdate}`);
-  const cueId = cueData.id || generateUUID();
-  let isNew = true;
-  let existingCueIndex = -1;
-  if (cueData.id) { // If an ID is provided, try to find an existing cue
-    existingCueIndex = cues.findIndex(c => c.id === cueData.id);
+async function addOrUpdateProcessedCue(cueData, workspacePath) {
+    console.log(`[CueManager] addOrUpdateProcessedCue received raw cueData. ID: ${cueData.id}, Name: ${cueData.name}`);
+    console.log(`[CueManager] Ducking properties received: isDuckingTrigger=${cueData.isDuckingTrigger}, duckingLevel=${cueData.duckingLevel}, enableDucking=${cueData.enableDucking}`);
+
+    const cueId = cueData.id || await generateUUID(); // Generate UUID if not provided
+    const existingCueIndex = cues.findIndex(c => c.id === cueId);
+    let isNew = true;
     if (existingCueIndex !== -1) {
       isNew = false;
     }
-  }
 
-  const effectiveRetriggerBehavior = cueData.retriggerBehavior || 'restart';
+    const effectiveRetriggerBehavior = cueData.retriggerBehavior || 'restart';
 
-  const baseCue = {
-    id: cueId,
-    name: cueData.name || 'Unnamed Cue',
-    type: cueData.type || 'single_file',
-    filePath: cueData.filePath || null,
-    volume: cueData.volume !== undefined ? cueData.volume : 1, // Default to 1 (100%)
-    fadeInTime: cueData.fadeInTime || 0,
-    fadeOutTime: cueData.fadeOutTime || 0,
-    loop: cueData.loop || false,
-    retriggerBehavior: effectiveRetriggerBehavior,
-    retriggerAction: effectiveRetriggerBehavior, // TODO: Consolidate retriggerAction & retriggerBehavior
-    retriggerActionCompanion: effectiveRetriggerBehavior, // TODO: Consolidate
-    knownDuration: cueData.knownDuration || 0,
-    // WING Trigger specific properties
-    wingTrigger: cueData.wingTrigger ? 
-                 { enabled: false, userButton: null, mixerType: cueData.wingTrigger.mixerType || 'behringer_wing', ...cueData.wingTrigger } : 
-                 { enabled: false, userButton: null, mixerType: 'behringer_wing' },
-    // OSC Trigger specific properties - REMOVED
-    // oscTrigger: cueData.oscTrigger ? 
-    //             { enabled: false, path: null, args: [], ...cueData.oscTrigger } : 
-    //             { enabled: false, path: null, args: [] },
-    // Playlist specific properties
-    playlistItems: cueData.playlistItems || [],
-    shuffle: cueData.shuffle || false, // for playlists
-    repeatOne: cueData.repeatOne || false, // for playlists
-    playlistPlayMode: cueData.playlistPlayMode || 'continue_to_next', // 'continue_to_next' or 'stop_and_cue_next'
-    // Trim specific properties
-    trimStartTime: cueData.trimStartTime || 0,
-    trimEndTime: cueData.trimEndTime || 0,
-    // X32/X-Air specific - REMOVED
-    // x32Trigger: cueData.x32Trigger ? 
-    //             { enabled: false, layer: 'A', button: '1', ...cueData.x32Trigger } :
-    //             { enabled: false, layer: 'A', button: '1' },
-    // Ducking Properties
-    enableDucking: cueData.enableDucking !== undefined ? cueData.enableDucking : false,
-    duckingLevel: cueData.duckingLevel !== undefined ? cueData.duckingLevel : 20,
-    isDuckingTrigger: cueData.isDuckingTrigger !== undefined ? cueData.isDuckingTrigger : false,
-  };
+    const baseCue = {
+      id: cueId,
+      name: cueData.name || 'Unnamed Cue',
+      type: cueData.type || 'single_file',
+      filePath: cueData.filePath || null,
+      volume: cueData.volume !== undefined ? cueData.volume : 1, // Default to 1 (100%)
+      fadeInTime: cueData.fadeInTime || 0,
+      fadeOutTime: cueData.fadeOutTime || 0,
+      loop: cueData.loop || false,
+      retriggerBehavior: effectiveRetriggerBehavior,
+      retriggerAction: effectiveRetriggerBehavior, // TODO: Consolidate retriggerAction & retriggerBehavior
+      retriggerActionCompanion: effectiveRetriggerBehavior, // TODO: Consolidate
+      knownDuration: cueData.knownDuration || 0,
+      // WING Trigger specific properties
+      wingTrigger: cueData.wingTrigger ? 
+                   { enabled: false, userButton: null, mixerType: cueData.wingTrigger.mixerType || 'behringer_wing', ...cueData.wingTrigger } : 
+                   { enabled: false, userButton: null, mixerType: 'behringer_wing' },
+      // OSC Trigger specific properties - REMOVED
+      // oscTrigger: cueData.oscTrigger ? 
+      //             { enabled: false, path: null, args: [], ...cueData.oscTrigger } : 
+      //             { enabled: false, path: null, args: [] },
+      // Playlist specific properties
+      playlistItems: cueData.playlistItems || [],
+      shuffle: cueData.shuffle || false, // for playlists
+      repeatOne: cueData.repeatOne || false, // for playlists
+      playlistPlayMode: cueData.playlistPlayMode || 'continue_to_next', // 'continue_to_next' or 'stop_and_cue_next'
+      // Trim specific properties
+      trimStartTime: cueData.trimStartTime || 0,
+      trimEndTime: cueData.trimEndTime || 0,
+      // X32/X-Air specific - REMOVED
+      // x32Trigger: cueData.x32Trigger ? 
+      //             { enabled: false, layer: 'A', button: '1', ...cueData.x32Trigger } :
+      //             { enabled: false, layer: 'A', button: '1' },
+      // Ducking Properties
+      enableDucking: cueData.enableDucking !== undefined ? cueData.enableDucking : false,
+      duckingLevel: cueData.duckingLevel !== undefined ? cueData.duckingLevel : 20,
+      isDuckingTrigger: cueData.isDuckingTrigger !== undefined ? cueData.isDuckingTrigger : false,
+    };
 
-  // Ensure playlist items have unique IDs and knownDurations if not present
-  if (baseCue.type === 'playlist' && baseCue.playlistItems) {
-    baseCue.playlistItems.forEach(item => {
-      if (!item.id) {
-        item.id = generateUUID();
-      }
-      if (!item.knownDuration || item.knownDuration <= 0) {
-        item.knownDuration = baseCue.knownDuration;
-      }
-    });
-  }
+    // Ensure playlist items have unique IDs and knownDurations if not present
+    if (baseCue.type === 'playlist' && baseCue.playlistItems) {
+      baseCue.playlistItems.forEach(item => {
+        if (!item.id) {
+          item.id = generateUUID();
+        }
+        // If item.knownDuration is missing or invalid, leave it as is (or ensure it's 0).
+        // The initialize() function or a cue-duration-update IPC should provide the correct duration later.
+        if (item.knownDuration === undefined || item.knownDuration === null || typeof item.knownDuration !== 'number' || item.knownDuration <= 0) {
+          item.knownDuration = 0; // Default to 0 if not a valid positive number
+        }
+      });
+    }
 
-  if (isNew) {
-    cues.push(baseCue);
-  } else {
-    cues[existingCueIndex] = baseCue;
-  }
+    if (isNew) {
+      cues.push(baseCue);
+    } else {
+      cues[existingCueIndex] = baseCue;
+    }
 
-  // Save and notify (unless silentUpdate is true)
-  saveCuesToFile(silentUpdate);
+    // Save and notify (unless silentUpdate is true)
+    saveCuesToFile();
 
-  // Return a copy of the processed cue from the array
-  return { ...cues[existingCueIndex !== -1 ? existingCueIndex : cues.length - 1] };
+    // Return a copy of the processed cue from the array
+    return { ...cues[existingCueIndex !== -1 ? existingCueIndex : cues.length - 1] };
 }
 
 // New function to update duration for a single cue or a specific playlist item

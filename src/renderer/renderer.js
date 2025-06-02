@@ -29,36 +29,58 @@ async function ensureElectronApiReady() {
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Renderer process starting initialization...');
 
-    const electronAPI = await ensureElectronApiReady();
+    console.log('Renderer: Ensuring Electron API is ready...');
+    await ensureElectronApiReady(); // Wait for window.electronAPI
+    const electronAPI = window.electronAPI;
+    console.log('Renderer: Electron API is ready.');
 
-    // 1. Initialize IPC Bindings (sets up listeners but refs are null initially)
+    // 1. Initialize IPC Renderer Bindings (needs electronAPI)
+    console.log('Renderer: Initializing IPC Renderer Bindings...');
     ipcRendererBindings.initialize(electronAPI);
+    console.log('Renderer: IPC Renderer Bindings initialized.');
 
-    // 2. Initialize AppConfigUI (loads config from main)
-    appConfigUI.init(electronAPI);
+    // 2. Initialize AppConfigUI (needs electronAPI)
+    // This should return the initial config for AudioController
+    console.log('Renderer: Initializing AppConfigUI...');
+    const initialAppConfig = await appConfigUI.init(electronAPI);
+    if (!initialAppConfig || Object.keys(initialAppConfig).length === 0) {
+        console.warn('Renderer: AppConfigUI.init did not return a valid config. AudioController will use defaults or its own loaded config initially.');
+    }
+    console.log('Renderer: AppConfigUI initialized. Received config:', initialAppConfig);
 
-    // After AppConfigUI is initialized, get the config and provide it to AudioController
-    const currentAppConfig = appConfigUI.getCurrentAppConfig();
-    if (currentAppConfig && Object.keys(currentAppConfig).length > 0) {
-        if (typeof audioController.updateAppConfig === 'function') {
-            audioController.updateAppConfig(currentAppConfig);
-            console.log('Renderer: App config passed to AudioController.');
-        } else {
-            console.error('Renderer: audioController.updateAppConfig is not a function.');
-        }
+    // 3. Initialize Main UI module (which also initializes its sub-modules: cueGrid, sidebars, modals)
+    // This needs to happen before CueStore and AudioController if they depend on UI handles directly.
+    console.log('Renderer: Initializing Main UI Module (ui.js)...');
+    const uiHandles = await ui.init(
+        cueStore,         // cueStore module (not yet fully initialized with UI refs, but object exists)
+        audioController,  // audioController module (not yet fully initialized with UI refs, but object exists)
+        electronAPI,      // electronAPI instance from preload
+        dragDropHandler,  // Module object (init called later)
+        appConfigUI,      // Initialized module
+        waveformControls, // Initialized module (init called right before or during ui.init ideally)
+        ipcRendererBindings // Pass the actual imported module (for uiCoreInterface)
+    );
+    console.log('Renderer: Main UI Module initialized. Received uiHandles:', uiHandles);
+
+    // 4. Initialize CueStore (needs electronAPI and UI Handles for refreshes)
+    console.log('Renderer: Initializing CueStore...');
+    cueStore.init(ipcRendererBindings, uiHandles); // Pass uiHandles
+    console.log('Renderer: CueStore initialized.');
+
+    // 5. Initialize AudioController (needs cueStore, electronAPI, and UI Handles)
+    console.log('Renderer: Initializing AudioController...');
+    await audioController.default.init(cueStore, electronAPI, uiHandles.cueGridModule, uiHandles.propertiesSidebarModule);
+    console.log('Renderer: AudioController initialized.');
+
+    // Update AudioController with the configuration obtained from AppConfigUI
+    if (initialAppConfig && audioController.default && typeof audioController.default.updateAppConfig === 'function') {
+        console.log('Renderer: Passing initialAppConfig to audioController.default.updateAppConfig.');
+        audioController.default.updateAppConfig(initialAppConfig);
     } else {
-        console.warn('Renderer: AppConfigUI did not return a valid config to pass to AudioController.');
+        console.warn('Renderer: initialAppConfig not available or audioController.default.updateAppConfig is not a function. AC will use its own loaded config or defaults.');
     }
 
-    // 3. Initialize CueStore (needs electronAPI for initial cue load)
-    // Pass ui module directly for refreshCueGrid. Sidebars placeholder remains for now.
-    cueStore.init(electronAPI, null /* sidebarsAPI placeholder */, ui /* main ui module for refreshCueGrid */);
-
-    // 4. Initialize AudioController (needs cueStore and electronAPI)
-    // No direct UI handles passed here initially; they'll be set later via setUIRefs.
-    await audioController.init(cueStore, electronAPI, null /* cueGridAPI placeholder */, null /* sidebarsAPI placeholder */);
-
-    // 5. Initialize WaveformControls (needs electronAPI for IPC, audioController for playback)
+    // 6. Initialize WaveformControls (needs electronAPI for IPC, audioController for playback)
     // 'sidebars' here is the imported propertiesSidebar.js aliased as sidebars.
     // Ensure propertiesSidebar.js exports handleCuePropertyChangeFromWaveform correctly.
     if (sidebars && typeof sidebars.handleCuePropertyChangeFromWaveform === 'function') {
@@ -71,17 +93,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Fallback initialization for waveformControls if the callback is missing, or handle error appropriately
         waveformControls.init({ ipcRendererBindings: electronAPI, onTrimChange: () => {} });
     }
-
-    // 6. Initialize Main UI module, which also initializes its sub-modules (cueGrid, sidebars, modals)
-    const uiHandles = await ui.init(
-        cueStore,         // Initialized module
-        audioController,  // Initialized module
-        electronAPI,      // electronAPI instance from preload
-        dragDropHandler,  // Module object (init called later)
-        appConfigUI,      // Initialized module
-        waveformControls, // Initialized module
-        ipcRendererBindings // Pass the actual imported module (for uiCoreInterface)
-    );
 
     // 7. Set Module References for IPC Bindings AFTER core modules and UI are initialized
     // This allows IPC messages to be correctly routed to initialized modules.
@@ -102,11 +113,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 9. Update modules that might need specific UI handles from ui.init
     if (uiHandles.cueGridModule && uiHandles.propertiesSidebarModule) {
-         audioController.setUIRefs(uiHandles.cueGridModule, uiHandles.propertiesSidebarModule);
-    }
-    // Pass the propertiesSidebar module to cueStore if it has a setter for it.
-    if (uiHandles.propertiesSidebarModule && typeof cueStore.setSidebarsModule === 'function') {
-        cueStore.setSidebarsModule(uiHandles.propertiesSidebarModule);
+         audioController.default.setUIRefs(uiHandles.cueGridModule, uiHandles.propertiesSidebarModule);
     }
 
     // 10. Load initial data and render UI (triggers cueGrid.renderCues via ui.js)

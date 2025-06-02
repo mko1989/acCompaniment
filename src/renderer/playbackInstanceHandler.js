@@ -364,82 +364,53 @@ export function createPlaybackInstance(
         },
         onend: () => {
             console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Fired for ${filePath}.`);
-            const playingState = currentlyPlaying[cueId];
-
-            if (playingState && playingState.isRestarting) {
-                console.log(`PlaybackInstanceHandler: onend - cue ${cueId} was restarting. State likely cleared by onstop. No further action.`);
-                // isRestarting flag means this onend is from a sound.stop() call during a restart sequence.
-                // The main state (currentlyPlaying[cueId]) should have been deleted by onstop.
-                return; 
-            }
-
-            if (playingState && playingState.isFadingOutToRestart) {
-                console.log(`PlaybackInstanceHandler: onend - cue ${cueId} was fading out to restart. Restart logic is separate.`);
-                // This might occur if fade completes. Restart is handled by toggle's setTimeout.
-                // Ensure we don't proceed with playlist logic here.
-                return;
-            }
-
-            // Clear the specific sound instance from the state, as it has ended.
-            if (playbackIntervals[cueId]) {
-                clearInterval(playbackIntervals[cueId]);
-                delete playbackIntervals[cueId];
-            }
+            // Clear the specific interval for this sound instance
             if (playingState.timeUpdateInterval) {
                 clearInterval(playingState.timeUpdateInterval);
                 playingState.timeUpdateInterval = null;
             }
-            
-            // Clear Fading Flags
-            playingState.isFadingIn = false;
-            playingState.isFadingOut = false;
-            playingState.fadeTotalDurationMs = 0;
-            playingState.fadeStartTime = 0;
+            if (playbackIntervals[cueId]) { // Also clear the one in the shared map if it's this one
+                clearInterval(playbackIntervals[cueId]);
+                delete playbackIntervals[cueId];
+            }
 
-            sendPlaybackTimeUpdate(cueId, null, playingState, currentItemNameForEvents, 'stopped');
-            
-            let handledByLoopOrPlaylist = false;
-            playingState.isPaused = false; // Ensure not stuck in paused state
+            let errorOccurred = false; // Placeholder, can be set by other event handlers if needed
+
+            // Special handling for 'stop_and_cue_next' playlists:
+            // The status update will be handled by _handlePlaylistEnd after it sets the cued state.
+            // For other cases, send 'stopped' status now.
+            const isStopAndCueNextPlaylist = playingState.isPlaylist && mainCue.playlistPlayMode === 'stop_and_cue_next';
+
+            if (!isStopAndCueNextPlaylist) {
+                console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Not a 'stop_and_cue_next' playlist or not a playlist. Sending 'stopped' status.`);
+                sendPlaybackTimeUpdate(cueId, sound, playingState, currentItemNameForEvents, 'stopped');
+            } else {
+                console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Is a 'stop_and_cue_next' playlist. Deferring specific status update to _handlePlaylistEnd.`);
+            }
 
             if (playingState.isPlaylist) {
-                if (sidebarsAPI && typeof sidebarsAPI.highlightPlayingPlaylistItemInSidebar === 'function') {
-                    sidebarsAPI.highlightPlayingPlaylistItemInSidebar(cueId, null);
+                console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Cue is a playlist. Calling _handlePlaylistEnd. Playlist Mode: ${mainCue.playlistPlayMode}`);
+                audioControllerContext._handlePlaylistEnd(cueId, errorOccurred);
+            } else if (mainCue.loop) {
+                console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Single cue with loop=true. Replaying.`);
+                // For single looping cues, simply play again.
+                // No need to call _initializeAndPlayNew as the sound object is already loaded.
+                // Ensure seeking to start if trimStartTime is defined.
+                let effectiveStartTime = mainCue.trimStartTime || 0;
+                if (effectiveStartTime > 0) {
+                    sound.seek(effectiveStartTime);
                 }
-                _handlePlaylistEnd(cueId, false); // Call audioController's playlist handler
-                handledByLoopOrPlaylist = true;
-            } else if (mainCue.loop && !playingState.isStopping) { 
-                console.log(`PlaybackInstanceHandler: Looping single cue ${cueId}`);
-                const trimStart = mainCue.trimStartTime || 0;
-                sound.seek(trimStart);
-                sound.play(); // Re-play this same sound instance
-
-                // Restart interval (this will be set up again by onplay)
-                if (cueGridAPI && cueGridAPI.updateButtonPlayingState) {
-                     cueGridAPI.updateButtonPlayingState(cueId, true, null);
+                sound.play(); // Howler's own loop flag should handle this, but explicit play for safety.
+            } else {
+                // Single cue, not looping, and not a playlist - it just ended.
+                console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Single cue, no loop. Processing complete.`);
+                // UI and state cleanup for a simple non-looping single cue that finished.
+                if (currentlyPlaying[cueId]) { // Check if it wasn't already cleaned by a rapid stop call
+                    delete currentlyPlaying[cueId];
                 }
-                handledByLoopOrPlaylist = true;
+                if (cueGridAPI) cueGridAPI.updateButtonPlayingState(cueId, false);
+                // IPC status update for 'stopped' was already sent above if not stop_and_cue_next
             }
-
-            if (!handledByLoopOrPlaylist) {
-                // Genuine stop for a single cue, or playlist handled by _handlePlaylistEnd already cleared it
-                if (currentlyPlaying[cueId] && currentlyPlaying[cueId].sound === sound) { // Check if this is still the active sound
-                     delete currentlyPlaying[cueId];
-                     console.log(`PlaybackInstanceHandler: Cleared currentlyPlaying state for ${cueId} in onend.`);
-                }
-                if (cueGridAPI && cueGridAPI.updateButtonPlayingState) {
-                    cueGridAPI.updateButtonPlayingState(cueId, false, null);
-                }
-                // Sidebars highlight for playlist would have been cleared by playlist handler.
-                if (ipcBindings && typeof ipcBindings.send === 'function') {
-                    ipcBindings.send('cue-status-update', { cueId: cueId, status: 'stopped', details: {} });
-                }
-            }
-
-            if (ipcBindings && typeof ipcBindings.send === 'function') {
-                // console.log("onend: Sending cue-status-update to main process for cue: ", cueId);
-                ipcBindings.send('cue-status-update', { cueId: cueId, status: 'stopped', details: { reason: 'ended' } });
-            }
-            
             console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Cue item processing complete.`);
         },
         onstop: (soundId) => {
@@ -509,6 +480,61 @@ export function createPlaybackInstance(
                 }
             }
             console.log(`[TIME_UPDATE_DEBUG ${cueId}] onstop: Processing complete.`);
+
+            // If the cue was a ducking trigger, revert ducking for other cues
+            if (mainCue && mainCue.isDuckingTrigger) {
+                console.log(`PlaybackInstanceHandler: Cue ${cueId} (a ducking trigger) stopped. Reverting ducking.`);
+                audioControllerContext._revertDucking(cueId);
+            }
+
+            const isFadedOutForStop = playingState.acIsStoppingWithFade && playingState.sound && playingState.sound.volume() === 0;
+            const isRetriggerRelatedStop = playingState.acStopSource && 
+                                     (playingState.acStopSource.includes('_stop') || playingState.acStopSource === 'restart');
+
+            // --- START STOP ALL DEBUG ---            
+            console.log(`[StopAll Debug OnStop ${cueId}] sound.acExplicitStopReason: ${sound.acExplicitStopReason}`);
+            console.log(`[StopAll Debug OnStop ${cueId}] playingState.explicitStopReason: ${playingState.explicitStopReason}`);
+            const explicitStopReason = sound.acExplicitStopReason || playingState.explicitStopReason;
+            console.log(`[StopAll Debug OnStop ${cueId}] Combined explicitStopReason: ${explicitStopReason}`);
+            // --- END STOP ALL DEBUG --- 
+
+            // Decision logic for onstop:
+            // Check the reason directly on the sound object first, then fallback to playingState
+            // const explicitStopReason = sound.acExplicitStopReason || playingState.explicitStopReason; // Already defined above for debug
+
+            if (explicitStopReason === 'stop_all') {
+                console.log(`PlaybackInstanceHandler: onstop for ${cueId} - Reason: 'stop_all'. Forcing cleanup.`);
+                if (currentlyPlaying[cueId]) {
+                    if (currentlyPlaying[cueId].sound && typeof currentlyPlaying[cueId].sound.unload === 'function') {
+                        currentlyPlaying[cueId].sound.unload();
+                    }
+                    delete currentlyPlaying[cueId];
+                }
+            } else if (isFadedOutForStop || isRetriggerRelatedStop) {
+                console.log(`PlaybackInstanceHandler: onstop for ${cueId} - Reason: Faded out for stop or retrigger. Forcing cleanup.`);
+                if (currentlyPlaying[cueId]) {
+                    if (currentlyPlaying[cueId].sound && typeof currentlyPlaying[cueId].sound.unload === 'function') {
+                         currentlyPlaying[cueId].sound.unload(); 
+                    }
+                    delete currentlyPlaying[cueId];
+                }
+            } else if (playingState.isPlaylist) {
+                // Not a forced stop, and it's a playlist -> delegate to _handlePlaylistEnd
+                console.log(`PlaybackInstanceHandler: onstop for playlist item ${currentItemNameForEvents} in ${cueId}. Calling _handlePlaylistEnd.`);
+                audioControllerContext._handlePlaylistEnd(mainCue.id, false); // false for errorOccurred
+            } else if (!mainCue.loop) {
+                // Single cue, not looping, ended naturally or was stopped without flags indicating a forced cleanup
+                console.log(`PlaybackInstanceHandler: onstop for single, non-looping cue ${cueId}. Cleaning up.`);
+                if (currentlyPlaying[cueId]) {
+                    if (currentlyPlaying[cueId].sound && typeof currentlyPlaying[cueId].sound.unload === 'function') {
+                        currentlyPlaying[cueId].sound.unload();
+                    }
+                    delete currentlyPlaying[cueId];
+                }
+            } else {
+                // Looping single cue ended (Howler handles its own loop) or other unhandled scenario.
+                console.log(`PlaybackInstanceHandler: onstop for ${cueId} - Looping single cue or unhandled. No explicit cleanup by this handler.`);
+            }
         },
         onfade: (soundId) => {
             console.log(`[TIME_UPDATE_DEBUG ${cueId}] onfade: Event for ${filePath}. Current volume: ${sound.volume()}`);

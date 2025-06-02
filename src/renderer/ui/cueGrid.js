@@ -105,8 +105,8 @@ function renderCues() {
             remaining: timeRemainingElem
         };
 
-        const isCurrentlyPlaying = audioController.isPlaying(cue.id);
-        const isCurrentlyCued = audioController.isCued(cue.id);
+        const isCurrentlyPlaying = audioController.default.isPlaying(cue.id);
+        const isCurrentlyCued = audioController.default.isCued(cue.id);
         // Pass the created elements directly for initial setup
         updateButtonPlayingState(cue.id, isCurrentlyPlaying, null, isCurrentlyCued, elementsForTimeUpdate);
 
@@ -137,12 +137,12 @@ function handleCueButtonClick(event, cue) {
     } else { 
         const retriggerBehavior = cue.retriggerBehavior || uiCore.getCurrentAppConfig().defaultRetriggerBehavior || 'restart';
         console.log(`UI: Show mode action for cue ${cue.id}. Using retrigger behavior: ${retriggerBehavior}`);
-        audioController.toggle(cue.id, false, retriggerBehavior);
+        audioController.default.toggle(cue.id, false, retriggerBehavior);
     }
 }
 
 function updateButtonPlayingState(cueId, isPlaying, statusTextArg = null, isCuedOverride = false, elements = null) {
-    console.log(`[CueGrid UpdateButtonPlayingState ENTRY] cueId: ${cueId}, isPlaying: ${isPlaying}, isCuedOverride: ${isCuedOverride}, elements received:`, elements ? typeof elements : 'null', elements);
+    console.log(`[CueGrid UpdateButtonPlayingState ENTRY] cueId: ${cueId}, isPlaying(arg): ${isPlaying}, isCuedOverride: ${isCuedOverride}, elements received:`, elements ? typeof elements : 'null', elements);
     const button = document.getElementById(`cue-btn-${cueId}`);
     if (!button || !cueStore || !audioController) return;
     const cue = cueStore.getCueById(cueId);
@@ -150,58 +150,106 @@ function updateButtonPlayingState(cueId, isPlaying, statusTextArg = null, isCued
 
     const statusIndicator = button.querySelector('.cue-status-indicator');
     const nameContainer = button.querySelector('.cue-button-name-container');
-    let nameHTML = cue.name || 'Cue';
+    let nameHTML = ''; // Start with empty and build up
+    const mainCueNameSpan = `<span class="cue-button-main-name">${cue.name || 'Cue'}</span>`;
+    nameHTML += mainCueNameSpan;
+
     let statusIconSrc = '../../assets/icons/stop.png';
     let statusIconAlt = 'Stopped';
 
-    button.classList.remove('playing', 'paused', 'cued');
+    // Ensure a text indicator element exists or create it
+    let cuedTextIndicator = button.querySelector('.cue-cued-text-indicator');
+    if (!cuedTextIndicator) {
+        cuedTextIndicator = document.createElement('div');
+        cuedTextIndicator.className = 'cue-cued-text-indicator';
+        button.insertBefore(cuedTextIndicator, button.firstChild); // Add to top-left
+    }
 
-    if (isPlaying) {
-        button.classList.add('playing');
-        statusIconSrc = '../../assets/icons/play.png';
-        statusIconAlt = 'Playing';
-        if (nameContainer && cue.type === 'playlist') {
-            const currentItemName = audioController.getCurrentlyPlayingPlaylistItemName(cue.id);
-            const nextItemName = audioController.getNextPlaylistItemName(cue.id);
-            let playlistInfoHTML = '';
-            if (currentItemName) {
-                playlistInfoHTML += `<span class="playlist-now-playing">(Now: ${currentItemName})</span>`;
+    button.classList.remove('playing', 'paused', 'cued');
+    statusIndicator.style.display = 'block'; // Default to visible
+    cuedTextIndicator.style.display = 'none'; // Default to hidden
+
+    // Get comprehensive state from audioController
+    const playbackState = audioController.default.getPlaybackTimes(cue.id);
+    // console.log(`[CueGrid updateButtonPlayingState for ${cue.id}] Playback state from AC:`, playbackState ? JSON.parse(JSON.stringify(playbackState)) : null);
+
+    if (playbackState) {
+        const actualIsPlaying = playbackState.isPlaying;
+        const actualIsPaused = playbackState.isPaused;
+        // isCued can be from playbackState.isCued (which includes isCuedNext) or the override
+        const actualIsCued = isCuedOverride || playbackState.isCued;
+        const currentItemName = playbackState.currentPlaylistItemName;
+        const nextItemName = playbackState.nextPlaylistItemName;
+        
+        let playlistInfoHTML = ''; // Initialize playlistInfoHTML here
+
+        if (actualIsPlaying) {
+            button.classList.add('playing');
+            statusIconSrc = '../../assets/icons/play.png';
+            statusIconAlt = 'Playing';
+            if (nameContainer && cue.type === 'playlist') {
+                let playlistInfoHTML = '';
+                if (currentItemName) {
+                    playlistInfoHTML += `<span class="playlist-now-playing">(Now: ${currentItemName})</span>`;
+                }
+                if (nextItemName) {
+                    if (playlistInfoHTML) playlistInfoHTML += '<br>';
+                    playlistInfoHTML += `<span class="playlist-next-item-playing">(Next: ${nextItemName})</span>`;
+                }
+                if (playlistInfoHTML) nameHTML += `<br>${playlistInfoHTML}`;
             }
-            if (nextItemName) {
-                if (playlistInfoHTML) playlistInfoHTML += '<br>';
-                playlistInfoHTML += `<span class="playlist-next-item-playing">(Next: ${nextItemName})</span>`;
+        } else if (actualIsPaused) {
+            button.classList.add('paused');
+            if (cue.type === 'playlist' && actualIsCued) { // Specifically for playlist cued and paused
+                statusIndicator.style.display = 'none';
+                cuedTextIndicator.style.display = 'block';
+                cuedTextIndicator.textContent = 'Cued';
+                statusIconAlt = 'Playlist Cued'; // Alt text for accessibility if needed
+            } else {
+                statusIconSrc = '../../assets/icons/pause.png';
+                statusIconAlt = 'Paused';
             }
+            if (nameContainer && cue.type === 'playlist') {
+                let playlistInfoHTML = '';
+                if (currentItemName) {
+                    playlistInfoHTML += `<span class="playlist-now-playing">(Paused: ${currentItemName})</span>`;
+                }
+                if (nextItemName) {
+                    if (playlistInfoHTML) playlistInfoHTML += '<br>';
+                    playlistInfoHTML += `<span class="playlist-next-item-playing">(Next: ${nextItemName})</span>`;
+                }
+                if (playlistInfoHTML) nameHTML += `<br>${playlistInfoHTML}`;
+            }
+        } else if (actualIsCued) { // Covers idle playlists (where nextItemName is set) and explicitly cued items
+            button.classList.add('cued');
+            statusIconSrc = '../../assets/icons/play.png'; // Show play icon for cued state
+            statusIconAlt = 'Cued';
+            if (nameContainer && cue.type === 'playlist') {
+                if (nextItemName) {
+                    playlistInfoHTML += `<span class="next-playlist-item">(Next: ${nextItemName})</span>`;
+                } else if (currentItemName) {
+                    playlistInfoHTML += `<span class="next-playlist-item">(Cued: ${currentItemName})</span>`;
+                }
+                if (playlistInfoHTML) nameHTML += `<br>${playlistInfoHTML}`;
+            }
+        } else { // Stopped / Idle (and not specifically cued by logic above, e.g. single file cue just stopped)
+            // For idle single file cues, playbackState might be null or have isPlaying/isPaused false.
+            // If it's a playlist and truly idle (no specific next item from isCued logic), 
+            // playbackState.nextPlaylistItemName (first item) should be populated by audioController's fallback.
+            if (nameContainer && cue.type === 'playlist' && nextItemName) {
+                 playlistInfoHTML += `<span class="next-playlist-item">(Next: ${nextItemName})</span>`;
+                 if (playlistInfoHTML) nameHTML += `<br>${playlistInfoHTML}`;
+            }
+        }
+    } else {
+        // Fallback if playbackState is null (should be rare with new audioController logic but handle defensively)
+        console.warn(`[CueGrid updateButtonPlayingState for ${cue.id}] Playback state was null. Defaulting to stopped state.`);
+         if (nameContainer && cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0) {
+            // Basic fallback for idle playlist if everything else failed
+            let playlistInfoHTML = ''; // Initialize playlistInfoHTML here for fallback
+            const firstItemName = cue.playlistItems[0]?.name || 'Item 1';
+            playlistInfoHTML += `<span class="next-playlist-item">(Next: ${firstItemName})</span>`;
             if (playlistInfoHTML) nameHTML += `<br>${playlistInfoHTML}`;
-        }
-    } else if (audioController.isPaused(cue.id)) {
-        button.classList.add('paused');
-        statusIconSrc = '../../assets/icons/pause.png';
-        statusIconAlt = 'Paused';
-        if (nameContainer && cue.type === 'playlist') {
-            const currentItemName = audioController.getCurrentlyPlayingPlaylistItemName(cue.id);
-            const nextItemName = audioController.getNextPlaylistItemName(cue.id);
-            let playlistInfoHTML = '';
-            if (currentItemName) {
-                playlistInfoHTML += `<span class="playlist-now-playing">(Paused: ${currentItemName})</span>`;
-            }
-            if (nextItemName) {
-                if (playlistInfoHTML) playlistInfoHTML += '<br>';
-                playlistInfoHTML += `<span class="playlist-next-item-playing">(Next: ${nextItemName})</span>`;
-            }
-            if (playlistInfoHTML) nameHTML += `<br>${playlistInfoHTML}`;
-        }
-    } else if (isCuedOverride || audioController.isCued(cue.id)) {
-        button.classList.add('cued');
-        statusIconSrc = '../../assets/icons/play.png';
-        statusIconAlt = 'Cued';
-        if (nameContainer && cue.type === 'playlist') {
-            const nextItemName = audioController.getNextPlaylistItemName(cue.id);
-            if (nextItemName) nameHTML += `<br><span class="next-playlist-item">(Next: ${nextItemName})</span>`;
-        }
-    } else { // Stopped / Idle
-        if (nameContainer && cue.type === 'playlist') {
-            const firstItemName = audioController.getNextPlaylistItemName(cue.id);
-            if (firstItemName) nameHTML += `<br><span class="next-playlist-item">(Next: ${firstItemName})</span>`;
         }
     }
 
@@ -223,8 +271,10 @@ function updateButtonPlayingState(cueId, isPlaying, statusTextArg = null, isCued
     // Pass the elements through to updateCueButtonTime
     updateCueButtonTime(cueId, elements); 
 
-    if (statusIndicator) {
+    if (statusIndicator.style.display !== 'none') {
         statusIndicator.innerHTML = `<img src="${statusIconSrc}" alt="${statusIconAlt}" class="cue-status-icon">`;
+    } else {
+        statusIndicator.innerHTML = ''; // Clear if hidden to prevent old icon flash
     }
 
 
@@ -260,7 +310,7 @@ function updateCueButtonTime(cueId, elements = null, isFadingIn = false, isFadin
         };
     }
 
-    const playbackTimes = audioController.getPlaybackTimes(cueId);
+    const playbackTimes = audioController.default.getPlaybackTimes(cueId);
     // --- START DIAGNOSTIC LOG ---
     console.log(`[CueGrid updateCueButtonTime] For cue ${cueId}, audioController.getPlaybackTimes returned:`, JSON.stringify(playbackTimes));
     // --- END DIAGNOSTIC LOG ---

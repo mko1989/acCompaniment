@@ -59,20 +59,21 @@ let configWingModelTypeGroup; // New group for WING Model select
 let currentAppConfig = {};
 let isPopulatingSidebar = false;
 
-function init(electronAPI) { // Renamed parameter to avoid confusion
+async function init(electronAPI) { // Renamed parameter to avoid confusion
     console.log('AppConfigUI: Initializing...');
     // ipcRendererBindings is already available as ipcRendererBindingsModule via import
     // No need to store electronAPI here if all IPC calls go through the module.
     cacheDOMElements();
     bindEventListeners();
 
-
-    // Directly load config now
-    forceLoadAndApplyAppConfiguration().then(() => {
-        console.log('AppConfigUI: Initial config loaded and populated after init.');
-    }).catch(error => {
+    try {
+        await forceLoadAndApplyAppConfiguration();
+        console.log('AppConfigUI: Initial config loaded and populated after init. Returning config.');
+        return currentAppConfig; // Return the loaded config
+    } catch (error) {
         console.error('AppConfigUI: Error during initial config load in init:', error);
-    });
+        return {}; // Return empty object or handle error as appropriate
+    }
 }
 
 function cacheDOMElements() {

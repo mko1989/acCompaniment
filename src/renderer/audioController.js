@@ -179,43 +179,33 @@ function seek(cueId, positionSec) {
 
 function getPlaybackTimes(cueId) {
     console.log(`AudioController: getPlaybackTimes called for cueId: ${cueId}. Initialized: ${audioControllerInitialized}`);
-    // console.log(`AudioController: playbackManagerModule type: ${typeof playbackManagerModule}`);
-    // if (playbackManagerModule) {
-    //     console.log(`AudioController: playbackManagerModule.getPlaybackState type: ${typeof playbackManagerModule.getPlaybackState}`);
-    // }
 
     if (!audioControllerInitialized || !playbackManagerModule || typeof playbackManagerModule.getPlaybackState !== 'function') {
         console.warn(`AudioController: getPlaybackTimes prerequisites not met for cueId: ${cueId}. Module ready: ${!!playbackManagerModule}, getPlaybackState is function: ${typeof playbackManagerModule?.getPlaybackState === 'function'}. Returning default idle times.`);
-        // Fallback to cueStore for idle times if controller/manager not ready
         if (cueStoreRef) {
             const cue = cueStoreRef.getCueById(cueId);
             if (cue) {
                 const originalKnownDuration = cue.knownDuration || 0;
                 const trimStartTime = cue.trimStartTime || 0;
-                const trimEndTime = cue.trimEndTime; // Can be null, undefined, or a value
-
+                const trimEndTime = cue.trimEndTime;
                 let effectiveDuration;
-
                 if (trimEndTime && trimEndTime > trimStartTime) {
-                    // Both start and end trims are set and valid
                     effectiveDuration = trimEndTime - trimStartTime;
                 } else if (trimEndTime && trimEndTime <= trimStartTime && trimEndTime > 0) {
-                    // Invalid trim: end is before or at start, but end is positive
-                    // This case should ideally be prevented by UI validation
-                    effectiveDuration = 0; 
+                    effectiveDuration = 0;
                     console.warn(`AudioController: Cue ${cue.id} has invalid trim (end <= start). Duration set to 0.`);
                 } else if (trimStartTime > 0) {
-                    // Only start trim is set
                     effectiveDuration = originalKnownDuration - trimStartTime;
                 } else if (trimEndTime && trimEndTime > 0 && trimEndTime < originalKnownDuration) {
-                    // Only end trim is set (and it's less than original duration)
                     effectiveDuration = trimEndTime;
                 } else {
-                    // No valid trims, or trimEndTime is >= originalKnownDuration (or not set)
                     effectiveDuration = originalKnownDuration;
                 }
-                
-                effectiveDuration = Math.max(0, effectiveDuration); // Ensure non-negative
+                effectiveDuration = Math.max(0, effectiveDuration);
+                let nextItemName = null;
+                if (cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0) {
+                    nextItemName = cue.playlistItems[0]?.name || 'Item 1';
+                }
 
                 return {
                     currentTime: 0,
@@ -223,80 +213,68 @@ function getPlaybackTimes(cueId) {
                     currentTimeFormatted: formatTimeMMSS(0),
                     durationFormatted: formatTimeMMSS(effectiveDuration),
                     remainingTime: effectiveDuration,
-                    remainingTimeFormatted: formatTimeMMSS(effectiveDuration)
+                    remainingTimeFormatted: formatTimeMMSS(effectiveDuration),
+                    isPlaying: false,
+                    isPaused: false,
+                    isCued: cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0, // Only cued if it's a playlist with items
+                    currentPlaylistItemName: null,
+                    nextPlaylistItemName: nextItemName, // For idle playlist, show first item as next
+                    isPlaylist: cue.type === 'playlist'
                 };
             }
         }
         return { // Absolute fallback
-            currentTime: 0, duration: 0, currentTimeFormatted: '00:00', durationFormatted: '00:00', remainingTime: 0, remainingTimeFormatted: '00:00'
+            currentTime: 0, duration: 0, currentTimeFormatted: '00:00', durationFormatted: '00:00', remainingTime: 0, remainingTimeFormatted: '00:00',
+            isPlaying: false, isPaused: false, isCued: false, currentPlaylistItemName: null, nextPlaylistItemName: null, isPlaylist: false
         };
     }
 
     const state = playbackManagerModule.getPlaybackState(cueId);
-    // console.log(`AudioController: State from playbackManagerModule.getPlaybackState for ${cueId}:`, state ? JSON.parse(JSON.stringify(state)) : null);
     
-    if (state) { // Cue is active (playing, paused)
-        // --- START DIAGNOSTIC LOG ---
+    if (state) { 
         console.log(`[AudioController getPlaybackTimes] CueID: ${cueId} - Received state from playbackManager:`, JSON.stringify(state));
-        // --- END DIAGNOSTIC LOG ---
+        // Pass through all relevant state, including names and status flags
         return {
             currentTime: state.currentTime,
             duration: state.duration,
             currentTimeFormatted: state.currentTimeFormatted,
             durationFormatted: state.durationFormatted,
             remainingTime: Math.max(0, state.duration - state.currentTime),
-            remainingTimeFormatted: formatTimeMMSS(Math.max(0, state.duration - state.currentTime))
+            remainingTimeFormatted: formatTimeMMSS(Math.max(0, state.duration - state.currentTime)),
+            isPlaying: state.isPlaying,
+            isPaused: state.isPaused,
+            isCued: state.isCued || state.isCuedNext, // Combine cued flags for general UI use
+            currentPlaylistItemName: state.currentPlaylistItemName,
+            nextPlaylistItemName: state.nextPlaylistItemName,
+            isPlaylist: state.isPlaylist,
+            isFadingIn: state.isFadingIn,
+            isFadingOut: state.isFadingOut,
+            isDucked: state.isDucked
+            // Add other relevant fields from 'state' if cueGrid needs them directly
         };
-    } else { // Cue is idle, get duration from cueStore
-        if (cueStoreRef) {
+    } else { // Cue is idle (and not found by playbackManagerModule.getPlaybackState, e.g. truly empty)
+        console.warn(`AudioController: getPlaybackTimes - playbackManagerModule.getPlaybackState returned null for cueId: ${cueId}. Using fallback idle state.`);
+        if (cueStoreRef) { // Try cueStore again as a last resort for some basic info
             const cue = cueStoreRef.getCueById(cueId);
             if (cue) {
-                const originalKnownDuration = cue.knownDuration || 0;
-                const trimStartTime = cue.trimStartTime || 0;
-                const trimEndTime = cue.trimEndTime; // Can be null, undefined, or a value
-
-                let effectiveDuration;
-
-                if (trimEndTime && trimEndTime > trimStartTime) {
-                    // Both start and end trims are set and valid
-                    effectiveDuration = trimEndTime - trimStartTime;
-                } else if (trimEndTime && trimEndTime <= trimStartTime && trimEndTime > 0) {
-                    // Invalid trim: end is before or at start, but end is positive
-                    // This case should ideally be prevented by UI validation
-                    effectiveDuration = 0; 
-                    console.warn(`AudioController: Cue ${cue.id} has invalid trim (end <= start). Duration set to 0.`);
-                } else if (trimStartTime > 0) {
-                    // Only start trim is set
-                    effectiveDuration = originalKnownDuration - trimStartTime;
-                } else if (trimEndTime && trimEndTime > 0 && trimEndTime < originalKnownDuration) {
-                    // Only end trim is set (and it's less than original duration)
-                    effectiveDuration = trimEndTime;
-                } else {
-                    // No valid trims, or trimEndTime is >= originalKnownDuration (or not set)
-                    effectiveDuration = originalKnownDuration;
+                 let nextItemNameFallback = null;
+                if (cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0) {
+                    nextItemNameFallback = cue.playlistItems[0]?.name || 'Item 1';
                 }
-                
-                effectiveDuration = Math.max(0, effectiveDuration); // Ensure non-negative
-
                 return {
-                    currentTime: 0,
-                    duration: effectiveDuration,
-                    currentTimeFormatted: formatTimeMMSS(0),
-                    durationFormatted: formatTimeMMSS(effectiveDuration),
-                    remainingTime: effectiveDuration,
-                    remainingTimeFormatted: formatTimeMMSS(effectiveDuration)
+                    currentTime: 0, duration: cue.knownDuration || 0, currentTimeFormatted: '00:00', 
+                    durationFormatted: formatTimeMMSS(cue.knownDuration || 0), 
+                    remainingTime: cue.knownDuration || 0, remainingTimeFormatted: formatTimeMMSS(cue.knownDuration || 0),
+                    isPlaying: false, isPaused: false, 
+                    isCued: cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0, // Only cued if it's a playlist with items
+                    currentPlaylistItemName: null, nextPlaylistItemName: nextItemNameFallback, 
+                    isPlaylist: cue.type === 'playlist'
                 };
             }
         }
-        // Fallback if cue not found or cueStoreRef not available
-        console.warn(`AudioController: Cue ${cueId} not found in cueStore for idle time display or cueStoreRef missing.`);
-        return {
-            currentTime: 0,
-            duration: 0,
-            currentTimeFormatted: '00:00',
-            durationFormatted: '00:00',
-            remainingTime: 0,
-            remainingTimeFormatted: '00:00'
+        return { // Absolute fallback for truly unknown/empty cue
+            currentTime: 0, duration: 0, currentTimeFormatted: '00:00', durationFormatted: '00:00', remainingTime: 0, remainingTimeFormatted: '00:00',
+            isPlaying: false, isPaused: false, isCued: false, currentPlaylistItemName: null, nextPlaylistItemName: null, isPlaylist: false
         };
     }
 }
@@ -371,9 +349,6 @@ const play = (cue, isResume = false) => playbackManagerModule?.play(cue, isResum
 const stop = (cueId, fromCompanion = false, useFade = false) => playbackManagerModule?.stop(cueId, fromCompanion, useFade);
 const pause = (cueId) => playbackManagerModule?.pause(cueId);
 
-const getCurrentlyPlayingPlaylistItemName = (cueId) => playbackManagerModule?.getCurrentlyPlayingPlaylistItemName(cueId);
-const getNextPlaylistItemName = (cueId) => playbackManagerModule?.getNextPlaylistItemName(cueId);
-
 function playCueByIdFromMain(cueId, source = 'unknown') {
     console.log(`AudioController: playCueByIdFromMain called for cueId: ${cueId}, source: ${source}`);
     if (!cueStoreRef) {
@@ -398,26 +373,24 @@ function playCueByIdFromMain(cueId, source = 'unknown') {
     }
 }
 
-export {
+export default {
     init,
     setUIRefs,
-    updateAppConfig,
-    getAppConfig,
-    setAudioOutputDevice,
-    // Playback control
-    play,
-    stop,
     toggle,
     stopAll,
-    pause,
-    // Status checking
+    // Play, Stop, Pause are now primarily internal or for very specific direct calls if needed.
+    // The main interaction point is toggle().
+    // play: (cue, isResume = false) => playbackManagerModule?.playCue(cue, isResume), // Expose playCue from manager
+    // stop: (cueId, useFade = true, fromCompanion = false) => playbackManagerModule?.stopCue(cueId, useFade, fromCompanion), // Expose stopCue from manager
+    // pause: (cueId) => playbackManagerModule?.pauseCue(cueId), // Expose pauseCue from manager
+    seek,
+    getPlaybackTimes, // This now includes more comprehensive state
     isPlaying,
     isPaused,
     isCued,
-    // Information retrieval
-    getPlaybackTimes,
-    getCurrentlyPlayingPlaylistItemName,
-    getNextPlaylistItemName,
-    playCueByIdFromMain,
-    _updateInternalAppConfig
+    updateAppConfig: _updateInternalAppConfig, // Expose the internal updater
+    setAudioOutputDevice,
+    playCueByIdFromMain // Make sure this is exported if called from IPC
+    // getCurrentlyPlayingPlaylistItemName, // REMOVED
+    // getNextPlaylistItemName, // REMOVED
 };

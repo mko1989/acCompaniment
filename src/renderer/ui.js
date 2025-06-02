@@ -182,7 +182,9 @@ function bindCoreEventListeners() {
 
     if (stopAllButton) {
         stopAllButton.addEventListener('click', () => {
-            if (audioControllerModule && typeof audioControllerModule.stopAll === 'function') {
+            // Access .default if audioControllerModule is the namespace import
+            const ac = audioControllerModule && audioControllerModule.default ? audioControllerModule.default : audioControllerModule;
+            if (ac && typeof ac.stopAll === 'function') {
                 const config = appConfigUIModuleInternal.getCurrentAppConfig(); // Get from appConfigUI
                 const behavior = config.defaultStopAllBehavior || 'stop';
                 
@@ -191,7 +193,7 @@ function bindCoreEventListeners() {
                 
                 // Pass useFade directly in the options
                 // Also, preserve exceptCueId if it were ever to be used, though not currently by this button.
-                audioControllerModule.stopAll({ useFade: useFadeForStopAll }); 
+                ac.stopAll({ useFade: useFadeForStopAll }); 
             }
         });
     }
@@ -238,10 +240,22 @@ function updateModeUI() {
     if (effectiveMode === 'show') {
         appContainer.classList.remove('edit-mode');
         appContainer.classList.add('show-mode');
+        if (modeToggleBtn) {
+            modeToggleBtn.classList.add('show-mode-active');
+            modeToggleBtn.classList.remove('edit-mode-active');
+            // modeToggleBtn.textContent = 'Enter Edit Mode'; // Text content is now handled by CSS or direct HTML
+            modeToggleBtn.style.backgroundImage = "url('../../assets/icons/edit.png')"; 
+        }
         // if (modeToggleBtnTextSpan) modeToggleBtnTextSpan.textContent = 'Enter Edit Mode'; // Text update removed
     } else { // 'edit'
         appContainer.classList.remove('show-mode');
         appContainer.classList.add('edit-mode');
+        if (modeToggleBtn) {
+            modeToggleBtn.classList.remove('show-mode-active');
+            modeToggleBtn.classList.add('edit-mode-active');
+            // modeToggleBtn.textContent = 'Enter Show Mode'; // Text content is now handled by CSS or direct HTML
+            modeToggleBtn.style.backgroundImage = "url('../../assets/icons/show_light.png')"; 
+        }
         // if (modeToggleBtnTextSpan) modeToggleBtnTextSpan.textContent = 'Enter Show Mode'; // Text update removed
     }
     

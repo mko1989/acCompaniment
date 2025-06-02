@@ -12,7 +12,6 @@
     background-color: var(--cue-default-bg);
     border: 1px solid var(--button-secondary-border);
     border-radius: var(--border-radius);
-    text-align: center;
     cursor: pointer;
     aspect-ratio: 1 / 1;
     display: flex;
@@ -63,7 +62,6 @@
 
 .cue-button-name-container {
     font-weight: bold;
-    word-break: break-word;
     flex-grow: 1;
     display: flex;
     flex-direction: column;
@@ -71,23 +69,55 @@
     align-items: center;
     width: 100%;
     color: var(--text-color);
+    overflow: hidden;
+    padding: 0 2px;
+}
+
+.cue-button-main-name,
+.cue-button .playlist-now-playing,
+.cue-button .playlist-next-item-playing,
+.cue-button .next-playlist-item {
+    display: block;
+    width: 100%;
+    text-align: center;
+}
+
+.cue-button-main-name {
+    font-weight: bold;
+    white-space: normal;
+    line-height: 1.2;
+}
+
+/* Make main name of a playlist cue smaller */
+.cue-button:has(.playlist-now-playing) .cue-button-main-name,
+.cue-button:has(.playlist-next-item-playing) .cue-button-main-name,
+.cue-button:has(.next-playlist-item) .cue-button-main-name {
+    font-size: 0.8em; /* Smaller font size for playlist's main name */
+    font-weight: normal; /* Less emphasis */
+    margin-bottom: 0px; /* Reduce space below playlist's main name */
+    line-height: 1.1;
 }
 
 .cue-button .now-playing-item,
 .cue-button .playlist-info,
-.cue-button .next-playlist-item,
 .cue-button .playlist-now-playing,
-.cue-button .playlist-next-item-playing {
-    display: block;
+.cue-button .playlist-next-item-playing,
+.cue-button .next-playlist-item {
     font-size: 0.8em;
     font-weight: normal;
     color: var(--text-secondary-color);
-    margin-top: 2px;
-    line-height: 1.2;
+    margin-top: 0px; /* Reduced margin for tighter packing */
+    line-height: 1.1;
+    white-space: normal; /* Allow wrapping */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-height: calc(1.1em * 2); /* Approx 2 lines (line-height * 2) */
+    /* For a more precise 2-line clamp with ellipsis at the end of the 2nd line, CSS is limited. */
+    /* This will show ellipsis if content exceeds two lines height. */
 }
 
 .cue-button .next-playlist-item {
-    font-size: 0.75em; /* Slightly smaller */
+    font-size: 0.75em;
     color: #aaaaaa;
 }
 
@@ -98,7 +128,9 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-top: 3px;
+    margin-top: auto;
+    padding-top: 2px;
+    flex-shrink: 0;
 }
 
 .cue-time-separator {
@@ -157,6 +189,19 @@
 .cue-button.cued .cue-time-remaining {
     color: #d4e7f5; /* Lighter blue for text on blue */
 }
+.cue-button .cue-cued-text-indicator {
+    position: absolute;
+    top: 2px;
+    left: 4px;
+    font-size: 10px;
+    color: #dddddd;
+    background-color: rgba(0, 0, 0, 0.6);
+    padding: 2px 4px;
+    border-radius: 3px;
+    z-index: 5;
+    line-height: 1;
+    display: none;
+}
 .cue-button.cued:hover {
     background-color: #004c7a; /* Darker blue */
 }
@@ -168,23 +213,16 @@
 
 /* Style for fading cues */
 .cue-button.fading {
-    /* background-color: var(--cue-fading-bg, #a52a2a); */ /* Rely on .fading-in or .fading-out for background */
-    color: white; /* Ensure text is readable */
+    color: white;
 }
-
-/*.cue-button.fading:hover {
-    background-color: #8b0000; /* Darker red for hover - this might need adjustment if .fading no longer sets a base red */
-/*} 
-*/
 
 /* Specific style for fading-out */
 .cue-button.fading-out {
-    background-color: var(--cue-fading-out-bg, #a52a2a); /* Example: brownish-red */
-    /* You might not need to repeat color: white; if .fading already handles it */
+    background-color: var(--cue-fading-out-bg, #a52a2a);
 }
 
 /* Optional: Specific style for fading-in */
 .cue-button.fading-in {
-    background-color: var(--cue-fading-in-bg, #2a8fa5); /* Example: a bluish/greenish */
+    background-color: var(--cue-fading-in-bg, #2a8fa5);
 }
 

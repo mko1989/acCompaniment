@@ -348,10 +348,23 @@ function _handlePlaylistEnd(cueId, errorOccurred = false) {
             ipcBindingsRef.send('cue-status-update', { cueId: cueId, status: 'error', details: { details: 'playlist_playback_error' } });
         }
         // If the playlist itself was a trigger, revert ducking.
-        const fullCueData = getGlobalCueByIdRef(cueId);
-        if (fullCueData && fullCueData.isDuckingTrigger) {
-            console.log(`AudioPlaybackManager: Playlist trigger cue ${cueId} ended with error. Reverting ducking.`);
-            _revertDucking(cueId); // Revert based on the playlist's ID
+        console.log(`AudioPlaybackManager: _handlePlaylistEnd (error path) for ${cueId}. Attempting to check for ducking trigger.`);
+        const fullCueDataError = getGlobalCueByIdRef(cueId);
+        const initialCueDataError = playingState.cue; 
+
+        console.log(`AudioPlaybackManager: _handlePlaylistEnd (error path) for ${cueId}. Fresh fullCueData:`, fullCueDataError ? JSON.stringify(fullCueDataError) : 'null');
+        console.log(`AudioPlaybackManager: _handlePlaylistEnd (error path) for ${cueId}. Initial playingState.cue:`, initialCueDataError ? JSON.stringify(initialCueDataError) : 'null');
+
+        const isTriggerFreshError = fullCueDataError && fullCueDataError.isDuckingTrigger;
+        const isTriggerInitialError = initialCueDataError && initialCueDataError.isDuckingTrigger;
+
+        console.log(`AudioPlaybackManager: _handlePlaylistEnd (error path) for ${cueId}. isTriggerFresh: ${isTriggerFreshError}, isTriggerInitial: ${isTriggerInitialError}`);
+        
+        if (isTriggerFreshError || isTriggerInitialError) {
+            console.log(`AudioPlaybackManager: Playlist trigger cue ${cueId} ended with error. isDuckingTrigger (fresh/initial): ${isTriggerFreshError}/${isTriggerInitialError}. Reverting ducking.`);
+            _revertDucking(cueId);
+        } else {
+            console.log(`AudioPlaybackManager: Playlist cue ${cueId} ended with error but was NOT identified as a ducking trigger (fresh: ${isTriggerFreshError}, initial: ${isTriggerInitialError}). No ducking reversion.`);
         }
         return;
     }
@@ -375,31 +388,57 @@ function _handlePlaylistEnd(cueId, errorOccurred = false) {
                 cuedOK = true;
             } else { // No loop, playlist ends
                 delete currentlyPlaying[cueId];
-                if (cueGridAPIRef) cueGridAPIRef.updateButtonPlayingState(cueId, false, null);
+                if (cueGridAPIRef) cueGridAPIRef.updateButtonPlayingState(cueId, false, null, false); // Ensure isCuedOverride is false
                 if (ipcBindingsRef) ipcBindingsRef.send('cue-status-update', { cueId: cueId, status: 'stopped', details: { reason: 'playlist_ended_fully_no_loop_stop_mode' } });
-                const fullCueData = getGlobalCueByIdRef(cueId);
-                if (fullCueData && fullCueData.isDuckingTrigger) {
-                    console.log(`AudioPlaybackManager: Non-looping playlist trigger cue ${cueId} ended. Reverting ducking.`);
+                
+                console.log(`AudioPlaybackManager: _handlePlaylistEnd (stop_and_cue_next) for ${cueId}. Attempting to check for ducking trigger.`);
+                const fullCueDataStopMode = getGlobalCueByIdRef(cueId);
+                const initialCueDataStopMode = playingState.cue;
+
+                console.log(`AudioPlaybackManager: _handlePlaylistEnd (stop_and_cue_next) for ${cueId}. Fresh fullCueData:`, fullCueDataStopMode ? JSON.stringify(fullCueDataStopMode) : 'null');
+                console.log(`AudioPlaybackManager: _handlePlaylistEnd (stop_and_cue_next) for ${cueId}. Initial playingState.cue:`, initialCueDataStopMode ? JSON.stringify(initialCueDataStopMode) : 'null');
+
+                const isTriggerFreshStopMode = fullCueDataStopMode && fullCueDataStopMode.isDuckingTrigger;
+                const isTriggerInitialStopMode = initialCueDataStopMode && initialCueDataStopMode.isDuckingTrigger;
+
+                console.log(`AudioPlaybackManager: _handlePlaylistEnd (stop_and_cue_next) for ${cueId}. isTriggerFresh: ${isTriggerFreshStopMode}, isTriggerInitial: ${isTriggerInitialStopMode}`);
+
+                if (isTriggerFreshStopMode || isTriggerInitialStopMode) {
+                    console.log(`AudioPlaybackManager: Non-looping playlist trigger cue ${cueId} (stop_and_cue_next mode) ended. isDuckingTrigger (fresh/initial): ${isTriggerFreshStopMode}/${isTriggerInitialStopMode}. Reverting ducking.`);
                     _revertDucking(cueId);
+                } else {
+                    console.log(`AudioPlaybackManager: Playlist cue ${cueId} (stop_and_cue_next mode) ended but was NOT identified as a ducking trigger (fresh: ${isTriggerFreshStopMode}, initial: ${isTriggerInitialStopMode}). No ducking reversion.`);
                 }
                 return;
             }
         }
         if (cuedOK) {
-            playingState.isPaused = true; // Cued state implies paused until next explicit play
+            playingState.isPaused = true; // Explicitly set to paused
             playingState.isCuedNext = true; // Explicitly mark that it's cued for next
+            playingState.isCued = true; // General cued flag
+            playingState.sound = null; // Ensure no sound object from previous item lingers in this cued state
+
+            console.log(`AudioPlaybackManager: _handlePlaylistEnd - stop_and_cue_next - Set playingState for ${cueId}: isPaused=${playingState.isPaused}, isCuedNext=${playingState.isCuedNext}, isCued=${playingState.isCued}`); // DEBUG LOG
+
+            // If this playlist, which is now paused and cued, was a ducking trigger, revert ducking.
+            const playlistCueData = getGlobalCueByIdRef(cueId); // cueId is the playlist's ID
+            if (playlistCueData && playlistCueData.isDuckingTrigger) {
+                console.log(`AudioPlaybackManager: Playlist trigger ${cueId} (stop_and_cue_next mode) is now cued/paused. Reverting ducking.`);
+                _revertDucking(cueId);
+            }
+
             let cuedOriginalIdx = playingState.currentPlaylistItemIndex; // This is the logical index in current order
             if (mainCue.shuffle && playingState.shufflePlaybackOrder && playingState.shufflePlaybackOrder.length > playingState.currentPlaylistItemIndex) {
-                cuedOriginalIdx = playingState.shufflePlaybackOrder[playingState.currentPlaylistItemIndex]; // Get original index from shuffle map
+                cuedOriginalIdx = playingState.shufflePlaybackOrder[playingState.currentPlaylistItemIndex];
             }
             if (cuedOriginalIdx >= 0 && cuedOriginalIdx < listLen) {
                 const item = playingState.originalPlaylistItems[cuedOriginalIdx];
                 cuedName = item.name || item.path.split(/[\\\/]/).pop();
             }
-            if (cueGridAPIRef) cueGridAPIRef.updateButtonPlayingState(cueId, false, `Next: ${cuedName || 'Item'}`, true); // true for isPaused (cued)
-            if (ipcBindingsRef) ipcBindingsRef.send('cue-status-update', { cueId: cueId, status: 'stopped', details: { reason: 'playlist_item_ended_cued_next', nextItem: cuedName } });
+            // Update button state: not playing (false), provide next item name, IS cued (true)
+            if (cueGridAPIRef) cueGridAPIRef.updateButtonPlayingState(cueId, false, `Next: ${cuedName || 'Item'}`, true);
+            if (ipcBindingsRef) ipcBindingsRef.send('cue-status-update', { cueId: cueId, status: 'cued_next', details: { reason: 'playlist_item_ended_cued_next', nextItem: cuedName } });
         }
-        // Ducking state for the *playlist as a whole* is managed when it starts/stops, not between items unless the playlist itself stops.
         return;
     }
 
@@ -431,17 +470,30 @@ function _handlePlaylistEnd(cueId, errorOccurred = false) {
             if (cueGridAPIRef) cueGridAPIRef.updateButtonPlayingState(cueId, false);
             if (ipcBindingsRef) ipcBindingsRef.send('cue-status-update', { cueId: cueId, status: 'stopped', details: { reason: 'playlist_ended_naturally_no_loop' } });
             
-            const fullCueData = getGlobalCueByIdRef(cueId);
-            if (fullCueData && fullCueData.isDuckingTrigger) {
-                console.log(`AudioPlaybackManager: Non-looping playlist trigger cue ${cueId} ended. Reverting ducking.`);
+            console.log(`AudioPlaybackManager: _handlePlaylistEnd (play_through) for ${cueId}. Attempting to check for ducking trigger.`);
+            const fullCueDataPlayThrough = getGlobalCueByIdRef(cueId);
+            const initialCueDataPlayThrough = playingState.cue;
+
+            console.log(`AudioPlaybackManager: _handlePlaylistEnd (play_through) for ${cueId}. Fresh fullCueData:`, fullCueDataPlayThrough ? JSON.stringify(fullCueDataPlayThrough) : 'null');
+            console.log(`AudioPlaybackManager: _handlePlaylistEnd (play_through) for ${cueId}. Initial playingState.cue:`, initialCueDataPlayThrough ? JSON.stringify(initialCueDataPlayThrough) : 'null');
+
+            const isTriggerFreshPlayThrough = fullCueDataPlayThrough && fullCueDataPlayThrough.isDuckingTrigger;
+            const isTriggerInitialPlayThrough = initialCueDataPlayThrough && initialCueDataPlayThrough.isDuckingTrigger;
+
+            console.log(`AudioPlaybackManager: _handlePlaylistEnd (play_through) for ${cueId}. isTriggerFresh: ${isTriggerFreshPlayThrough}, isTriggerInitial: ${isTriggerInitialPlayThrough}`);
+
+            if (isTriggerFreshPlayThrough || isTriggerInitialPlayThrough) {
+                console.log(`AudioPlaybackManager: Non-looping playlist trigger cue ${cueId} (play_through mode) ended. isDuckingTrigger (fresh/initial): ${isTriggerFreshPlayThrough}/${isTriggerInitialPlayThrough}. Reverting ducking.`);
                 _revertDucking(cueId);
+            } else {
+                 console.log(`AudioPlaybackManager: Playlist cue ${cueId} (play_through mode) ended but was NOT identified as a ducking trigger (fresh: ${isTriggerFreshPlayThrough}, initial: ${isTriggerInitialPlayThrough}). No ducking reversion.`);
             }
         }
     }
 }
 
-function stop(cueId, useFade = true, fromCompanion = false, isRetriggerStop = false) {
-    console.log(`AudioPlaybackManager: stop() called for cueId: ${cueId}, useFade: ${useFade}, fromCompanion: ${fromCompanion}, isRetriggerStop: ${isRetriggerStop}`);
+function stop(cueId, useFade = true, fromCompanion = false, isRetriggerStop = false, stopReason = null) {
+    console.log(`AudioPlaybackManager: stop() called for cueId: ${cueId}, useFade: ${useFade}, fromCompanion: ${fromCompanion}, isRetriggerStop: ${isRetriggerStop}, stopReason: ${stopReason}`);
     const playingState = currentlyPlaying[cueId];
 
     if (playingState && playingState.sound) {
@@ -452,6 +504,11 @@ function stop(cueId, useFade = true, fromCompanion = false, isRetriggerStop = fa
         
         playingState.acIsStoppingWithFade = useFade && fadeOutTime > 0;
         playingState.acStopSource = isRetriggerStop ? (cue ? cue.retriggerAction : 'unknown_retrigger') : (fromCompanion ? 'companion_stop' : 'manual_stop');
+        playingState.explicitStopReason = stopReason; // Store the explicit stop reason
+
+        if (playingState.sound) { // Ensure sound exists before attaching property
+            playingState.sound.acExplicitStopReason = stopReason; // Attach to sound instance
+        }
 
         if (playingState.acIsStoppingWithFade) {
             playingState.isFadingOut = true;
@@ -496,20 +553,44 @@ function pause(cueId) {
     const current = currentlyPlaying[cueId];
     if (current && current.sound && current.sound.playing() && !current.isPaused) {
         console.log('AudioPlaybackManager: Pausing cue:', cueId);
-        current.sound.pause(); 
-        // If this cue itself is a trigger, ducking should remain active while paused.
-        // Reverting ducking only happens when the trigger cue STOPS.
+        current.sound.pause();
+        current.isPaused = true; // Ensure isPaused state is accurately set
+
+        // If this cue itself is a trigger and is being paused, revert ducking for others.
+        const cueData = getGlobalCueByIdRef(cueId);
+        if (cueData && cueData.isDuckingTrigger) {
+            console.log(`AudioPlaybackManager: Paused cue ${cueId} is a ducking trigger. Reverting ducking.`);
+            _revertDucking(cueId);
+        }
     }
 }
 
 function stopAllCues(options = { exceptCueId: null, useFade: true }) {
     console.log('AudioPlaybackManager: stopAllCues called. Options:', options);
+
+    let useFadeForStop = options.useFade; // Default to options.useFade if present
+
+    if (options && options.behavior) {
+        // If behavior is specified (likely from Companion), it takes precedence
+        useFadeForStop = options.behavior === 'fade_out_and_stop';
+        console.log(`AudioPlaybackManager: stopAllCues - behavior specified: '${options.behavior}', setting useFadeForStop to: ${useFadeForStop}`);
+    } else if (options && options.useFade !== undefined) {
+        // If behavior is not specified, but useFade is, use that.
+        useFadeForStop = options.useFade;
+        console.log(`AudioPlaybackManager: stopAllCues - behavior NOT specified, using options.useFade: ${useFadeForStop}`);
+    } else {
+        // Fallback if neither behavior nor options.useFade is explicitly set
+        // This maintains the original default of 'true' if options itself is minimal or undefined.
+        useFadeForStop = true; 
+        console.log(`AudioPlaybackManager: stopAllCues - behavior and options.useFade NOT specified, defaulting useFadeForStop to: ${useFadeForStop}`);
+    }
+
     for (const cueId in currentlyPlaying) {
-        if (options.exceptCueId && cueId === options.exceptCueId) {
+        if (options && options.exceptCueId && cueId === options.exceptCueId) {
             continue;
         }
         // Use the individual stop method to ensure proper fade and state handling
-        stop(cueId, options.useFade !== undefined ? options.useFade : true);
+        stop(cueId, useFadeForStop, false, false, 'stop_all');
     }
 }
 
@@ -572,32 +653,33 @@ function toggleCue(cueIdToToggle, fromCompanion = false, retriggerBehaviorOverri
 
     if (currentPlayingState) { // Cue is currently in playing, paused, or cued_next state
         if (currentPlayingState.isPaused) {
-            // If playlist is in 'stop_and_cue_next' mode and is cued, then 'toggle' should play the cued item.
-            if (currentPlayingState.isPlaylist && cue.playlistPlayMode === 'stop_and_cue_next' && currentPlayingState.isCuedNext) {
-                console.log(`AudioPlaybackManager: Toggle - Resuming cued playlist item for ${cueIdToToggle}.`);
-                currentPlayingState.isPaused = false; // Transition from cued to playing
+            // If playlist is in 'stop_and_cue_next' mode and is cued (isPaused AND isCuedNext are true), then 'toggle' should play the cued item.
+            if (currentPlayingState.isPlaylist && cue.playlistPlayMode === 'stop_and_cue_next' && currentPlayingState.isCuedNext && currentPlayingState.isCued) {
+                console.log(`AudioPlaybackManager: Toggle - Playing cued playlist item for ${cueIdToToggle}.`);
+                currentPlayingState.isPaused = false;
                 currentPlayingState.isCuedNext = false;
-                _playTargetItem(cueIdToToggle, currentPlayingState.currentPlaylistItemIndex, true); // true for isResume (from cued state)
-            } else { // Standard pause: retrigger behavior applies
-                console.log(`AudioPlaybackManager: Toggle - Cue ${cueIdToToggle} is PAUSED. Applying retrigger: ${retriggerBehavior}`);
-            switch (retriggerBehavior) {
+                currentPlayingState.isCued = false;
+                _playTargetItem(cueIdToToggle, currentPlayingState.currentPlaylistItemIndex, false); // Play the cued item (isResumeForSeekAndFade = false for fresh play)
+            } else { // Standard pause (not a cued playlist item) or other playlist modes: retrigger behavior applies
+                console.log(`AudioPlaybackManager: Toggle - Cue ${cueIdToToggle} is PAUSED (or not a specifically cued playlist item). Applying retrigger: ${retriggerBehavior}`);
+                switch (retriggerBehavior) {
                     case 'restart':
                         stop(cueIdToToggle, false, fromCompanion, true); // Stop immediately (isRetriggerStop=true)
                         // Add a slight delay for stop to process before playing fresh
                         if (pendingRestarts[cueIdToToggle]) clearTimeout(pendingRestarts[cueIdToToggle]);
                         pendingRestarts[cueIdToToggle] = setTimeout(() => { play(cue, false); delete pendingRestarts[cueIdToToggle];}, 50);
                         break;
-                case 'stop':
+                    case 'stop':
                         stop(cueIdToToggle, false, fromCompanion, true); // Stop immediately
-                    break;
-                case 'fade_out_and_stop':
+                        break;
+                    case 'fade_out_and_stop':
                          stop(cueIdToToggle, true, fromCompanion, true); // Fade out and stop
-                    break;
+                        break;
                     case 'toggle_pause_play': // If paused, play
                     default: // Default is resume
                     play(cue, true); // Resume
                     break;
-            }
+                }
             }
         } else { // Cue is actively PLAYING
             console.log(`AudioPlaybackManager: Toggle - Cue ${cueIdToToggle} is PLAYING. Applying retrigger: ${retriggerBehavior}`);
@@ -622,8 +704,8 @@ function toggleCue(cueIdToToggle, fromCompanion = false, retriggerBehaviorOverri
     } else { // Cue is NOT currently playing
         console.log(`AudioPlaybackManager: Toggle - Cue ${cueIdToToggle} not currently playing. Starting fresh.`);
         play(cue, false); // Start fresh
-            }
-        }
+    }
+}
 
 
 function getPlaybackState(cueId) {
@@ -657,13 +739,12 @@ function getPlaybackState(cueId) {
                 isPlaylist: mainCueFromState?.type === 'playlist',
                 volume: sound ? sound.volume() : (mainCueFromState?.volume !== undefined ? mainCueFromState.volume : 1.0), // Provide default volume if sound not available
                 itemBaseDuration: playingState.duration || 0, // from playingState.duration
+                currentPlaylistItemName: null,
+                nextPlaylistItemName: null,
             };
         }
         
         const itemBaseDuration = playingState.duration; // This is the Howler sound.duration(), raw for current item
-        
-        // console.log(`AudioPlaybackManager (getPlaybackState for ${cueId}): playingState.cue before passing:`, mainCueFromState ? JSON.parse(JSON.stringify(mainCueFromState)) : mainCueFromState);
-        // console.log(`AudioPlaybackManager (getPlaybackState for ${cueId}): itemBaseDuration before passing: ${itemBaseDuration}`);
         
         const times = getPlaybackTimesUtilRef(
             sound, // Arg 1
@@ -674,14 +755,75 @@ function getPlaybackState(cueId) {
             playingState.isPlaylist ? playingState.shufflePlaybackOrder : null, // Arg 6: playlistShuffleOrder
             playingState.isPlaylist ? (playingState.isCuedNext || false) : false // Arg 7: isCurrentlyCuedNext
         );
-        // console.log(`AudioPlaybackManager: times from getPlaybackTimesUtilRef for ${cueId}:`, times ? JSON.parse(JSON.stringify(times)) : null);
 
         const currentTimeFormatted = formatTimeMMSSRef(times.currentTime);
-        // IMPORTANT: Use times.currentItemAdjustedDuration for the duration displayed if available,
-        // otherwise fall back to times.currentItemDuration.
-        // times.currentItemAdjustedDuration considers trims.
         const displayDuration = times.currentItemAdjustedDuration !== undefined ? times.currentItemAdjustedDuration : times.currentItemDuration;
         const durationFormatted = formatTimeMMSSRef(displayDuration);
+
+        let currentPlaylistItemName = null;
+        let nextPlaylistItemName = null;
+
+        if (mainCueFromState.type === 'playlist' && playingState.originalPlaylistItems && playingState.originalPlaylistItems.length > 0) {
+            const currentLogicalIndex = playingState.currentPlaylistItemIndex;
+            let currentOriginalIndex = currentLogicalIndex;
+            if (mainCueFromState.shuffle && playingState.shufflePlaybackOrder && playingState.shufflePlaybackOrder.length > currentLogicalIndex) {
+                currentOriginalIndex = playingState.shufflePlaybackOrder[currentLogicalIndex];
+            }
+
+            if (currentOriginalIndex >= 0 && currentOriginalIndex < playingState.originalPlaylistItems.length) {
+                currentPlaylistItemName = playingState.originalPlaylistItems[currentOriginalIndex]?.name || `Item ${currentOriginalIndex + 1}`;
+            }
+
+            if (playingState.isCuedNext) {
+                // If explicitly cued (stop_and_cue_next mode), currentPlaylistItemIndex already points to the cued item
+                let cuedOriginalIndex = currentLogicalIndex; // currentPlaylistItemIndex is the *next* item to play
+                 if (mainCueFromState.shuffle && playingState.shufflePlaybackOrder && playingState.shufflePlaybackOrder.length > currentLogicalIndex) {
+                    cuedOriginalIndex = playingState.shufflePlaybackOrder[currentLogicalIndex];
+                }
+                if (cuedOriginalIndex >= 0 && cuedOriginalIndex < playingState.originalPlaylistItems.length) {
+                    nextPlaylistItemName = playingState.originalPlaylistItems[cuedOriginalIndex]?.name || `Item ${cuedOriginalIndex + 1}`;
+                }
+                 // When cued, the "current" item is effectively none, as it just finished.
+                // Or, we could display the one that *was* playing. For simplicity, if cued, current is less relevant than next.
+                // For now, if cued, currentPlaylistItemName will reflect the *upcoming* cued item if sound.playing() is false.
+                // If sound is still playing (e.g. fade out of previous), it might be ambiguous.
+                // Let's refine: if cued, current name is the one about to play, next is null or after that.
+                // For 'stop_and_cue_next', when an item *ends*, `isCuedNext` becomes true, `currentPlaylistItemIndex` is updated.
+                // So, `currentPlaylistItemName` derived from `currentPlaylistItemIndex` *is* the "next" item.
+                // So we can set `nextPlaylistItemName = currentPlaylistItemName` and perhaps clear `currentPlaylistItemName` if truly stopped.
+                // However, cueGrid logic uses "Next: " when cued. So let's ensure nextPlaylistItemName is the cued one.
+                if (sound && !sound.playing() && playingState.isPaused) { // Truly cued and waiting
+                    currentPlaylistItemName = null; // The previous one finished.
+                    // nextPlaylistItemName is already set above from currentPlaylistItemIndex which *is* the cued one.
+                }
+
+            } else if (sound && sound.playing()) { // Actively playing a playlist item
+                let nextLogicalIndex = currentLogicalIndex + 1;
+                const effectiveListLength = (mainCueFromState.shuffle && playingState.shufflePlaybackOrder && playingState.shufflePlaybackOrder.length > 0)
+                                          ? playingState.shufflePlaybackOrder.length
+                                          : playingState.originalPlaylistItems.length;
+
+                if (nextLogicalIndex < effectiveListLength) {
+                    let nextOriginalIndex = nextLogicalIndex;
+                    if (mainCueFromState.shuffle && playingState.shufflePlaybackOrder && playingState.shufflePlaybackOrder.length > nextLogicalIndex) {
+                        nextOriginalIndex = playingState.shufflePlaybackOrder[nextLogicalIndex];
+                    }
+                    if (nextOriginalIndex >= 0 && nextOriginalIndex < playingState.originalPlaylistItems.length) {
+                        nextPlaylistItemName = playingState.originalPlaylistItems[nextOriginalIndex]?.name || `Item ${nextOriginalIndex + 1}`;
+                    }
+                } else if (mainCueFromState.loop) { // Reached end, will loop
+                    let nextOriginalIndex = 0; // Loops to first item in logical order
+                    if (mainCueFromState.shuffle && playingState.shufflePlaybackOrder && playingState.shufflePlaybackOrder.length > 0) {
+                         // If shuffle is on, next after loop is the first item in the *current* shuffleOrder (index 0 of shuffleOrder maps to an original index)
+                        nextOriginalIndex = playingState.shufflePlaybackOrder[0];
+                    }
+                     if (nextOriginalIndex >= 0 && nextOriginalIndex < playingState.originalPlaylistItems.length) {
+                        nextPlaylistItemName = playingState.originalPlaylistItems[nextOriginalIndex]?.name || `Item ${nextOriginalIndex + 1}`;
+                    }
+                }
+            }
+        }
+
 
         // --- START DETAILED DIAGNOSTIC LOG ---
         console.log(`[AudioPlaybackManager getPlaybackState DEBUG for ${cueId}]`);
@@ -707,14 +849,73 @@ function getPlaybackState(cueId) {
             isDucked: playingState.isDucked || false,
             activeDuckingTriggerId: playingState.activeDuckingTriggerId || null,
             isCuedNext: playingState.isCuedNext || false,
-            isCued: playingState.isCued || false,
-            itemBaseDuration: itemBaseDuration
+            isCued: playingState.isCued || false, // isCued should reflect the explicit cued state
+            itemBaseDuration: itemBaseDuration,
+            currentPlaylistItemName: currentPlaylistItemName,
+            nextPlaylistItemName: nextPlaylistItemName
         };
-    } else {
-        // This is a normal occurrence when a cue is idle or has just stopped.
-        console.log(`AudioPlaybackManager: getPlaybackState called for ${cueId}, but no active sound instance found (e.g., cue is idle or stopped).`);
+    } else if (playingState) { // Sound is null, but playingState exists (e.g. cued playlist)
+        console.log(`[AudioPlaybackManager getPlaybackState DEBUG - Sound NULL] CueID: ${cueId}, isPaused: ${playingState.isPaused}, isCued: ${playingState.isCued}, isCuedNext: ${playingState.isCuedNext}`);
+        const mainCueFromState = playingState.cue;
+
+        // PRIORITIZE THIS CHECK: For a playlist that is explicitly paused AND cued (e.g., "stop_and_cue_next" mode after item finishes)
+        if (mainCueFromState && mainCueFromState.type === 'playlist' && 
+            playingState.isPaused && (playingState.isCuedNext || playingState.isCued)) {
+            
+            let nextItemName = null;
+            let nextItemDuration = 0;
+            if (playingState.originalPlaylistItems && playingState.originalPlaylistItems.length > 0) {
+                let nextLogicalIdx = playingState.currentPlaylistItemIndex; // This index IS the cued item
+                let nextOriginalIdx = nextLogicalIdx;
+                if (mainCueFromState.shuffle && playingState.shufflePlaybackOrder && playingState.shufflePlaybackOrder.length > nextLogicalIdx) {
+                    nextOriginalIdx = playingState.shufflePlaybackOrder[nextLogicalIdx];
+                }
+                if (nextOriginalIdx >= 0 && nextOriginalIdx < playingState.originalPlaylistItems.length) {
+                    const nextItem = playingState.originalPlaylistItems[nextOriginalIdx];
+                    nextItemName = nextItem?.name || `Item ${nextOriginalIdx + 1}`;
+                    nextItemDuration = nextItem?.knownDuration || 0;
+                }
+            }
+            return {
+                isPlaying: false,
+                isPaused: true, // CRITICAL: This cue is paused and waiting
+                isPlaylist: true,
+                volume: mainCueFromState.volume !== undefined ? mainCueFromState.volume : 1.0,
+                currentTime: 0,
+                currentTimeFormatted: '00:00',
+                duration: nextItemDuration, 
+                durationFormatted: formatTimeMMSSRef ? formatTimeMMSSRef(nextItemDuration) : '00:00',
+                isFadingIn: false, isFadingOut: false, isDucked: false, activeDuckingTriggerId: null,
+                isCuedNext: playingState.isCuedNext || false,
+                isCued: playingState.isCued || true, // Ensure isCued is true as it's a cued state
+                itemBaseDuration: nextItemDuration,
+                currentPlaylistItemName: null, 
+                nextPlaylistItemName: nextItemName
+            };
+        } 
+        // FALLBACK CHECK: For other cases where sound is null but playingState exists 
+        // (e.g., a playlist that's generally idle but has some state, not specifically paused+cued)
+        else if (mainCueFromState && mainCueFromState.type === 'playlist' && mainCueFromState.playlistItems && mainCueFromState.playlistItems.length > 0) {
+            const firstItemName = mainCueFromState.playlistItems[0]?.name || `Item 1`;
+            return {
+                isPlaying: false,
+                isPaused: false, // Generic idle playlist is not considered paused
+                isPlaylist: true,
+                volume: mainCueFromState.volume !== undefined ? mainCueFromState.volume : 1.0,
+                currentTime: 0, currentTimeFormatted: '00:00', duration: mainCueFromState.playlistItems[0]?.knownDuration || 0,
+                durationFormatted: formatTimeMMSSRef ? formatTimeMMSSRef(mainCueFromState.playlistItems[0]?.knownDuration || 0) : '00:00',
+                isFadingIn: false, isFadingOut: false, isDucked: false, activeDuckingTriggerId: null,
+                isCuedNext: false, 
+                isCued: false, 
+                itemBaseDuration: mainCueFromState.playlistItems[0]?.knownDuration || 0,
+                currentPlaylistItemName: null, nextPlaylistItemName: firstItemName
+            };
+        }
+        // If it's not a playlist or doesn't fit the above conditions when sound is null
         return null;
     }
+    // Default fallback if playingState does not exist (truly idle or error)
+    return null;
 }
 
 
