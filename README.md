@@ -189,6 +189,9 @@ If you encounter issues not covered here, please check the [Issues](../../issues
 
 Contributions are welcome! Please feel free to submit pull requests or open issues for bugs and feature requests.
 
+If you like it consider buying me a coffee 
+https://ko-fi.com/mko1989
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
