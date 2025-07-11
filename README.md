@@ -74,23 +74,34 @@ Download the latest release from the [Releases](../../releases) page for your op
 5. **Stop All:** Use the red "Don't Panic" button to stop all playing cues
 6. **Remote Control:** Enable HTTP remote control in settings to access the web interface
 
+### Main workspace (red in show mode, gray in edit mode)
 <img width="666" height="541" alt="Screenshot 2025-07-11 at 18 09 11" src="https://github.com/user-attachments/assets/696e765b-4912-4258-9b9c-0f9083d57e2a" />
 
-<img width="305" height="540" alt="Screenshot 2025-07-11 at 18 09 01" src="https://github.com/user-attachments/assets/ee4fea3d-74a4-4aa3-8941-0bad315bbf1e" />
-
-<img width="312" height="659" alt="Screenshot 2025-07-11 at 18 08 50" src="https://github.com/user-attachments/assets/ed5a5c7c-f4d5-4a42-8091-9a753c2d5653" />
-
-<img width="312" height="373" alt="Screenshot 2025-07-11 at 18 08 37" src="https://github.com/user-attachments/assets/bba057c7-b959-4334-8fd9-515c1a2966f2" />
-
-<img width="305" height="714" alt="Screenshot 2025-07-11 at 18 08 27" src="https://github.com/user-attachments/assets/ac266220-f489-4787-9ccb-0787a669bae0" />
-
-<img width="350" height="318" alt="Screenshot 2025-07-11 at 18 08 03" src="https://github.com/user-attachments/assets/cd796ad5-f84f-4efc-92b9-4eb94bc968b2" />
-
+### Buttons
 <img width="166" height="90" alt="Screenshot 2025-07-11 at 18 07 15" src="https://github.com/user-attachments/assets/90b4ddeb-8559-4334-9f01-a82c2b7a4afe" />
 
+### App config
+<img width="272" height="660" alt="Screenshot 2025-07-11 at 18 06 52" src="https://github.com/user-attachments/assets/c46f8468-0edc-4c4d-8f6d-d346748ced49" />
+
+### App config cont.
+<img width="350" height="318" alt="Screenshot 2025-07-11 at 18 08 03" src="https://github.com/user-attachments/assets/cd796ad5-f84f-4efc-92b9-4eb94bc968b2" />
+
+### Single cue properties
+<img width="305" height="714" alt="Screenshot 2025-07-11 at 18 08 27" src="https://github.com/user-attachments/assets/ac266220-f489-4787-9ccb-0787a669bae0" />
+
+### Single cue properties cont.
+<img width="312" height="373" alt="Screenshot 2025-07-11 at 18 08 37" src="https://github.com/user-attachments/assets/bba057c7-b959-4334-8fd9-515c1a2966f2" />
+
+### Playlist cue properties
+<img width="312" height="659" alt="Screenshot 2025-07-11 at 18 08 50" src="https://github.com/user-attachments/assets/ed5a5c7c-f4d5-4a42-8091-9a753c2d5653" />
+
+### Playlist properties cont.
+<img width="305" height="540" alt="Screenshot 2025-07-11 at 18 09 01" src="https://github.com/user-attachments/assets/ee4fea3d-74a4-4aa3-8941-0bad315bbf1e" />
+
+### Add multiple files modal
 <img width="266" height="307" alt="Screenshot 2025-07-11 at 18 07 03" src="https://github.com/user-attachments/assets/d08808c9-9363-49c5-aa3f-15863b074b0d" />
 
-<img width="272" height="660" alt="Screenshot 2025-07-11 at 18 06 52" src="https://github.com/user-attachments/assets/c46f8468-0edc-4c4d-8f6d-d346748ced49" />
+
 
 ## Development
 
