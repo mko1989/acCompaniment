@@ -20,7 +20,7 @@
     *   Workspace management: Save and load entire cue layouts.
     *   Option to automatically load the last opened workspace.
 *   **Integration & Control:**
-    *   **Bitfocus Companion:** Seamless integration via a dedicated Companion module (`companion-module-highpass-accompaniment`) for remote triggering of cues and receiving feedback (cue status, playback times).
+    *   **Bitfocus Companion:** Seamless integration via a dedicated Companion module (https://github.com/mko1989/companion-module-highpass-accompaniment) for remote triggering of cues and receiving feedback (cue status, playback times).
     *   **HTTP Remote Control:** Built-in web interface for remote control via any web browser.
 *   **User Interface:**
     *   Clear and intuitive grid-based layout for cue buttons.
