@@ -24,23 +24,23 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^31.0.0",
-    "electron-rebuild": "^3.2.9",
-    "electron-builder": "^24.13.3"
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3",
+    "electron-rebuild": "^3.2.9"
   },
   "dependencies": {
-    "fs-extra": "^11.2.0",
     "audio-decode": "^2.2.3",
     "express": "^5.1.0",
+    "fs-extra": "^11.2.0",
     "howler": "^2.2.4",
     "music-metadata": "^11.2.3",
     "node-osc": "^9.1.5",
+    "node-web-audio-api": "^1.0.4",
     "osc": "^2.4.5",
     "uuid": "^11.1.0",
     "waveform-data": "^4.5.1",
     "wavesurfer.js": "^7.9.5",
-    "ws": "^8.18.2",
-    "node-web-audio-api": "^1.0.4"
+    "ws": "^8.18.2"
   },
   "build": {
     "appId": "com.highpass.acCompaniment",
@@ -50,7 +50,9 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["universal"]
+          "arch": [
+            "universal"
+          ]
         }
       ],
       "icon": "assets/icons/icon.png",

@@ -142,6 +142,11 @@ export function createPlaybackInstance(
 
             playingState.sound = sound; // IMPORTANT: Update the sound reference in the shared playingState
             playingState.isPaused = false;
+            
+            // Update current cue priority for Companion
+            if (audioControllerContext._updateCurrentCueForCompanion) {
+                audioControllerContext._updateCurrentCueForCompanion();
+            }
 
             // Ducking logic: Called on play
             const fullCueData = audioControllerContext.getGlobalCueById(cueId);
@@ -494,6 +499,11 @@ export function createPlaybackInstance(
                 }
                 delete audioControllerContext.currentlyPlaying[cueId];
                 console.log(`[TIME_UPDATE_DEBUG ${cueId}] onstop: Deleted currentlyPlaying[${cueId}].`);
+                
+                // Clear playlist highlighting when cue stops
+                if (audioControllerContext.sidebarsAPI && typeof audioControllerContext.sidebarsAPI.highlightPlayingPlaylistItemInSidebar === 'function') {
+                    audioControllerContext.sidebarsAPI.highlightPlayingPlaylistItemInSidebar(cueId, null);
+                }
             } else if (globalPlayingStateForCue) {
                 // An onstop event fired, but the sound instance (this 'sound') is not the one
                 // currently tracked in currentlyPlaying[cueId].sound. This might be an old instance.

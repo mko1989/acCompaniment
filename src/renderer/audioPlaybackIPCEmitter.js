@@ -137,8 +137,12 @@ function sendPlaybackTimeUpdate(cueId, soundInstance, playingState, currentItemN
         Is Playlist: ${playingState.isPlaylist}
         Trim Start: ${cue.trimStartTime || 'N/A'}, Trim End: ${cue.trimEndTime || 'N/A'}`);
 
+    // Check if this is a current cue update (for Companion priority)
+    const isCurrentCueUpdate = cueId.startsWith('current_cue_');
+    const actualCueId = isCurrentCueUpdate ? cueId.replace('current_cue_', '') : cueId;
+    
     const payload = {
-        cueId: cueId,
+        cueId: actualCueId,
         cueName: cue.name || '',
         playlistItemName: playingState.isPlaylist ? (currentItemName || '') : '',
         currentTimeSec: currentTimeSec,
@@ -152,7 +156,8 @@ function sendPlaybackTimeUpdate(cueId, soundInstance, playingState, currentItemN
         isFadingIn: playingState ? playingState.isFadingIn || false : false,
         isFadingOut: playingState ? playingState.isFadingOut || false : false,
         fadeTimeRemainingMs: calculateRemainingFadeTime(playingState),
-        fadeTotalDurationMs: playingState ? playingState.fadeTotalDurationMs || 0 : 0
+        fadeTotalDurationMs: playingState ? playingState.fadeTotalDurationMs || 0 : 0,
+        isCurrentCue: isCurrentCueUpdate // Flag for Companion to know this is the priority cue
     };
     
     console.log(`[IPC_DEBUG] AudioPlaybackIPCEmitter sending to 'playback-time-update':`, {cueId, currentTimeSec, status});

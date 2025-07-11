@@ -22,6 +22,10 @@ let currentlyPlaying = {}; // cueId: { sound: Howl_instance, cue: cueData, isPau
 let playbackIntervals = {}; // For time updates
 let pendingRestarts = {}; // For restart logic
 
+// Current cue priority system for Companion variables
+let cuePlayOrder = []; // Array of cueIds in order they were started (most recent first)
+let lastCurrentCueId = null; // Track the last cue that was considered "current"
+
 let publicAPIManagerInstance; // Defined at module level
 
 // Enhanced logging utility for better performance and configurability
@@ -290,6 +294,9 @@ function _initializeAndPlayNew(cue) {
         currentlyPlaying[cueId] = initialPlayingState;
         _playTargetItem(cueId, undefined, false);
     }
+    
+    // Add to play order for current cue tracking
+    _addToPlayOrder(cueId);
 }
 
 function _playTargetItem(cueId, playlistItemIndex, isResumeForSeekAndFade = false) {
@@ -461,7 +468,8 @@ function _proceedWithPlayback(cueId, playingState, filePath, currentItemName, ac
         _applyDucking, 
             _revertDucking,
             _cleanupSoundInstance, // Add the cleanup utility to the context
-            getAppConfigFunc: getAppConfigFuncRef // Add app config function for performance optimizations
+            getAppConfigFunc: getAppConfigFuncRef, // Add app config function for performance optimizations
+            _updateCurrentCueForCompanion // Add current cue priority function
     };
     
         log.debug(`Creating playback instance for ${cueId} with file: ${filePath}`);
@@ -633,6 +641,10 @@ function _handlePlaylistEnd(cueId, errorOccurred = false) {
             setTimeout(() => _playTargetItem(cueId, 0, false), 10);
         } else { // No loop, playlist truly ends
             delete currentlyPlaying[cueId];
+            // Remove from play order and update current cue
+            _removeFromPlayOrder(cueId);
+            _updateCurrentCueForCompanion();
+            
             if (cueGridAPIRef) cueGridAPIRef.updateButtonPlayingState(cueId, false);
             // Clear playlist highlighting in properties sidebar
             if (sidebarsAPIRef && typeof sidebarsAPIRef.highlightPlayingPlaylistItemInSidebar === 'function') {
@@ -722,6 +734,15 @@ function stop(cueId, useFade = true, fromCompanion = false, isRetriggerStop = fa
         // Clean up any lingering state if no sound
         if (playingState) {
             delete currentlyPlaying[cueId];
+            // Remove from play order and update current cue
+            _removeFromPlayOrder(cueId);
+            _updateCurrentCueForCompanion();
+            
+            // Clear playlist highlighting
+            if (sidebarsAPIRef && typeof sidebarsAPIRef.highlightPlayingPlaylistItemInSidebar === 'function') {
+                sidebarsAPIRef.highlightPlayingPlaylistItemInSidebar(cueId, null);
+            }
+            
              if (cueGridAPIRef) cueGridAPIRef.updateButtonPlayingState(cueId, false);
              if (ipcBindingsRef) ipcBindingsRef.send('cue-status-update', { cueId: cueId, status: 'stopped', details: { reason: 'stop_called_no_sound' } });
         }
@@ -740,6 +761,59 @@ function pause(cueId) {
         if (cueData && cueData.isDuckingTrigger) {
             console.log(`AudioPlaybackManager: Paused cue ${cueId} is a ducking trigger. Reverting ducking.`);
             _revertDucking(cueId);
+        }
+    }
+}
+
+// Current cue priority management functions
+function _addToPlayOrder(cueId) {
+    // Remove cueId if it already exists in the array
+    cuePlayOrder = cuePlayOrder.filter(id => id !== cueId);
+    // Add to the beginning (most recent)
+    cuePlayOrder.unshift(cueId);
+    console.log(`AudioPlaybackManager: Updated play order - current: ${cueId}, order: [${cuePlayOrder.join(', ')}]`);
+}
+
+function _removeFromPlayOrder(cueId) {
+    cuePlayOrder = cuePlayOrder.filter(id => id !== cueId);
+    console.log(`AudioPlaybackManager: Removed ${cueId} from play order - remaining: [${cuePlayOrder.join(', ')}]`);
+}
+
+function _getCurrentPriorityCue() {
+    // Find the first cue in play order that is actually still playing
+    for (const cueId of cuePlayOrder) {
+        const playingState = currentlyPlaying[cueId];
+        if (playingState && playingState.sound && (playingState.sound.playing() || playingState.isPaused)) {
+            return cueId;
+        }
+    }
+    return null;
+}
+
+function _updateCurrentCueForCompanion() {
+    const newCurrentCueId = _getCurrentPriorityCue();
+    
+    if (newCurrentCueId !== lastCurrentCueId) {
+        console.log(`AudioPlaybackManager: Current cue changed from ${lastCurrentCueId} to ${newCurrentCueId}`);
+        lastCurrentCueId = newCurrentCueId;
+        
+        // Send current cue update to companion
+        if (sendPlaybackTimeUpdateRef && newCurrentCueId) {
+            const playingState = currentlyPlaying[newCurrentCueId];
+            if (playingState && playingState.sound) {
+                const currentItemName = playingState.isPlaylist ? 
+                    playingState.originalPlaylistItems[playingState.currentPlaylistItemIndex]?.name || null : 
+                    null;
+                
+                // Send special update with "current_cue" prefix for companion variables
+                sendPlaybackTimeUpdateRef(
+                    `current_cue_${newCurrentCueId}`, 
+                    playingState.sound, 
+                    playingState, 
+                    currentItemName, 
+                    playingState.sound.playing() ? 'playing' : 'paused'
+                );
+            }
         }
     }
 }
@@ -841,6 +915,15 @@ function _cleanupSoundInstance(cueId, state, options = {}) {
     // Clear the state from global tracking if requested
     if (clearState && currentlyPlaying[cueId] === state) {
         delete currentlyPlaying[cueId];
+        // Remove from play order and update current cue
+        _removeFromPlayOrder(cueId);
+        _updateCurrentCueForCompanion();
+        
+        // Clear playlist highlighting
+        if (sidebarsAPIRef && typeof sidebarsAPIRef.highlightPlayingPlaylistItemInSidebar === 'function') {
+            sidebarsAPIRef.highlightPlayingPlaylistItemInSidebar(cueId, null);
+        }
+        
         log.verbose(`_cleanupSoundInstance: Cleared global state for ${cueId}`);
     }
     

@@ -935,14 +935,76 @@ function handleCuePropertyChangeFromWaveform(trimStart, trimEnd) {
 }
 
 function highlightPlayingPlaylistItemInSidebar(cueId, playlistItemId) {
-    if (!activePropertiesCueId || activePropertiesCueId !== cueId || !propPlaylistItemsUl) return;
+    console.log(`[PropertiesSidebar] highlightPlayingPlaylistItemInSidebar called: cueId=${cueId}, playlistItemId=${playlistItemId}`);
+    console.log(`[PropertiesSidebar] activePropertiesCueId=${activePropertiesCueId}, propPlaylistItemsUl exists=${!!propPlaylistItemsUl}`);
+    
+    if (!activePropertiesCueId || activePropertiesCueId !== cueId || !propPlaylistItemsUl) {
+        console.log(`[PropertiesSidebar] Highlighting skipped - conditions not met`);
+        return;
+    }
+    
     const items = propPlaylistItemsUl.querySelectorAll('li.playlist-item');
-    items.forEach(itemLi => {
+    console.log(`[PropertiesSidebar] Found ${items.length} playlist items to check`);
+    
+    let highlightedCount = 0;
+    
+    // First pass: remove all highlights
+    items.forEach((itemLi, index) => {
+        const wasHighlighted = itemLi.classList.contains('playlist-item-playing');
         itemLi.classList.remove('playlist-item-playing');
-        if (itemLi.dataset.itemId === playlistItemId) {
-            itemLi.classList.add('playlist-item-playing');
+        
+        if (wasHighlighted) {
+            console.log(`[PropertiesSidebar] Removed highlight from item ${index}: id=${itemLi.dataset.itemId}`);
         }
     });
+    
+    // Force a reflow to ensure CSS changes are applied (Mac M1 fix)
+    propPlaylistItemsUl.offsetHeight;
+    
+    // Second pass: add highlight if needed
+    if (playlistItemId !== null && playlistItemId !== undefined) {
+        items.forEach((itemLi, index) => {
+            const itemId = itemLi.dataset.itemId;
+            
+            if (itemId === playlistItemId) {
+                // Mac M1 specific fix: Use multiple strategies to ensure highlighting works
+                const applyHighlight = () => {
+                    itemLi.classList.add('playlist-item-playing');
+                    
+                    // Force a repaint by briefly changing a property
+                    const originalDisplay = itemLi.style.display;
+                    itemLi.style.display = 'none';
+                    itemLi.offsetHeight; // Force reflow
+                    itemLi.style.display = originalDisplay;
+                    
+                    // Verify the class was applied
+                    if (!itemLi.classList.contains('playlist-item-playing')) {
+                        console.warn(`[PropertiesSidebar] Class not applied on first try for item ${index}, retrying...`);
+                        setTimeout(() => {
+                            itemLi.classList.add('playlist-item-playing');
+                        }, 10);
+                    }
+                };
+                
+                // Use requestAnimationFrame to ensure DOM is ready
+                requestAnimationFrame(() => {
+                    applyHighlight();
+                    // Double-check after a short delay for Mac M1
+                    setTimeout(() => {
+                        if (!itemLi.classList.contains('playlist-item-playing')) {
+                            console.warn(`[PropertiesSidebar] Highlighting failed for item ${index}, forcing reapply...`);
+                            applyHighlight();
+                        }
+                    }, 50);
+                });
+                
+                highlightedCount++;
+                console.log(`[PropertiesSidebar] Highlighted item ${index}: id=${itemId}`);
+            }
+        });
+    }
+    
+    console.log(`[PropertiesSidebar] Highlighting complete: ${highlightedCount} items highlighted`);
 }
 
 // New function to refresh the playlist view if it's the active cue

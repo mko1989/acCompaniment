@@ -155,11 +155,23 @@
     background-color: var(--cue-playing-bg) !important;
     color: white !important;
     border-color: #2cb72c !important; /* A slightly lighter green for border */
+    /* Mac M1 rendering fixes */
+    transform: translateZ(0); /* Force hardware acceleration */
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transition: background-color 0.1s ease, color 0.1s ease, border-color 0.1s ease;
 }
 .playlist-item-playing .playlist-item-name,
 .playlist-item-playing .playlist-item-drag-handle {
     color: white !important;
+    /* Mac M1 rendering fixes */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
 }
 .playlist-item-playing .playlist-item-duration {
     color: #e0e0e0 !important;
+    /* Mac M1 rendering fixes */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
 } 
