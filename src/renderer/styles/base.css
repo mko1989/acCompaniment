@@ -94,3 +94,55 @@ h1 {
     min-height: 2em; /* Ensure it has some height even when empty */
     word-wrap: break-word;
 } 
+
+/* Remote Links Container */
+.remote-links-container {
+    margin-top: 8px;
+}
+
+.remote-link-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    margin: 4px 0;
+    background-color: var(--background-darker);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+}
+
+.remote-link-info {
+    flex-grow: 1;
+}
+
+.remote-link-interface {
+    font-weight: bold;
+    color: var(--text-color);
+    font-size: 0.9em;
+}
+
+.remote-link-url {
+    color: var(--text-secondary-color);
+    font-size: 0.85em;
+    font-family: monospace;
+}
+
+.remote-link-copy {
+    background-color: var(--button-secondary-bg);
+    border: 1px solid var(--button-secondary-border);
+    color: var(--text-color);
+    padding: 4px 8px;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: 0.8em;
+    margin-left: 8px;
+}
+
+.remote-link-copy:hover {
+    background-color: var(--button-secondary-hover-bg);
+}
+
+.remote-link-copy.copied {
+    background-color: var(--success-color);
+    color: white;
+} 

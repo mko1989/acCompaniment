@@ -128,6 +128,12 @@ async function getAudioOutputDevices() {
     return electronAPIInstance.invoke('get-audio-output-devices');
 }
 
+// New function to get HTTP remote info
+async function getHttpRemoteInfo() {
+    if (!electronAPIInstance) throw new Error("electronAPIInstance not available for get-http-remote-info");
+    return electronAPIInstance.invoke('get-http-remote-info');
+}
+
 async function addOrUpdateCue(cueData) {
     if (!electronAPIInstance) throw new Error("electronAPIInstance not available for add-or-update-cue");
     console.log(`IPC Binding: Sending add-or-update-cue for cue ID: ${cueData.id || 'new cue'}`);
@@ -315,6 +321,7 @@ export {
     getAppConfig,
     saveAppConfig,
     getAudioOutputDevices,
+    getHttpRemoteInfo,
     addOrUpdateCue,
     deleteCue,
     sendCueDurationUpdate,

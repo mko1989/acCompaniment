@@ -102,19 +102,43 @@ export function createPlaybackInstance(
         onplay: () => {
             console.log(`[TIME_UPDATE_DEBUG ${cueId}] onplay: Fired for ${filePath}. isResumeForSeekAndFade: ${isResumeForSeekAndFade}`);
             
-            // === Additions for retrigger race condition START ===
-            // If this sound instance was told to stop with fade as part of a 'fade_out_and_stop' retrigger,
-            // then its 'onplay' event should be a no-op or ensure it truly stops.
-            if (sound.acIsStoppingWithFade && sound.acStopSource === 'fade_out_and_stop') {
-                console.log(`[RETRIGGER_DEBUG ${cueId}] onplay: Suppressed for ${filePath}. Reason: acIsStoppingWithFade is true and acStopSource is 'fade_out_and_stop'.`);
-                if (sound.playing()) { // If Howler somehow still considers it playing via this event
-                    sound.stop();     // Stop it immediately to prevent unwanted playback or further events.
+            // === Enhanced race condition protection START ===
+            // Check if this sound instance is stale or conflicting with a newer instance
+            const currentGlobalState = audioControllerContext.currentlyPlaying[cueId];
+            
+            // If no global state exists, this sound instance is likely stale
+            if (!currentGlobalState) {
+                console.warn(`[RETRIGGER_DEBUG ${cueId}] onplay: No global state found for cue. This sound instance may be stale. Stopping.`);
+                if (sound.playing()) {
+                    sound.stop();
                 }
-                // It's crucial to not proceed with setting up intervals or updating UI as playing
-                // because this sound instance is on its way out due to the retrigger.
                 return; 
             }
-            // === Additions for retrigger race condition END ===
+            
+            // If there's already a different sound instance in the global state, this one is stale
+            if (currentGlobalState.sound && currentGlobalState.sound !== sound) {
+                console.warn(`[RETRIGGER_DEBUG ${cueId}] onplay: Different sound instance already exists in global state. This instance is stale. Stopping.`);
+                if (sound.playing()) {
+                    sound.stop();
+                }
+                return;
+            }
+            
+            // If this sound instance was marked for stopping with fade as part of retrigger behavior
+            if (sound.acIsStoppingWithFade && (sound.acStopSource === 'fade_out_and_stop' || sound.acStopSource === 'restart')) {
+                console.log(`[RETRIGGER_DEBUG ${cueId}] onplay: Suppressed for ${filePath}. Reason: acIsStoppingWithFade is true and acStopSource is '${sound.acStopSource}'.`);
+                if (sound.playing()) {
+                    sound.stop();
+                }
+                return; 
+            }
+            
+            // Additional check: if the playingState passed to this function is different from current global state
+            if (playingState !== currentGlobalState) {
+                console.warn(`[RETRIGGER_DEBUG ${cueId}] onplay: playingState from closure differs from current global state. This may be a stale instance.`);
+                // Don't immediately stop - allow it to proceed but log the warning
+            }
+            // === Enhanced race condition protection END ===
 
             playingState.sound = sound; // IMPORTANT: Update the sound reference in the shared playingState
             playingState.isPaused = false;
@@ -171,14 +195,131 @@ export function createPlaybackInstance(
                 console.warn(`PlaybackInstanceHandler: Could not get fullCueData for ${cueId} in onplay for ducking logic.`);
             }
 
-            if (playingState.timeUpdateInterval) {
-                clearInterval(playingState.timeUpdateInterval);
+            // === Time Update Interval Management START ===
+            // Optimized interval management with adaptive frequency
+            const existingGlobalInterval = audioControllerContext.playbackIntervals[cueId];
+            const existingStateInterval = playingState.timeUpdateInterval;
+            
+            if (existingGlobalInterval) {
+                console.log(`[TIME_UPDATE_DEBUG ${cueId}] onplay: Clearing existing global interval before creating new one`);
+                clearInterval(existingGlobalInterval);
+                delete audioControllerContext.playbackIntervals[cueId];
+            }
+            
+            if (existingStateInterval) {
+                console.log(`[TIME_UPDATE_DEBUG ${cueId}] onplay: Clearing existing state interval before creating new one`);
+                clearInterval(existingStateInterval);
                 playingState.timeUpdateInterval = null;
             }
-            if (playbackIntervals[cueId]) {
-                clearInterval(playbackIntervals[cueId]);
-                delete playbackIntervals[cueId];
+            
+            // High-precision update frequency for smooth fading display (0.1s precision)
+            const duration = sound.duration();
+            let updateInterval = 100; // 100ms (0.1s) for precise fading display
+            
+            // Only use slower intervals for very long tracks to save CPU
+            if (duration > 600) { // 10+ minutes - use slightly slower updates
+                updateInterval = 250; // 0.25 seconds
             }
+            
+            // Always use high precision for fading operations
+            const appConfig = audioControllerContext.getAppConfigFunc ? audioControllerContext.getAppConfigFunc() : {};
+            // Force high precision for better user experience
+            updateInterval = 100; // Always 100ms for smooth fade display
+
+            console.log(`[TIME_UPDATE_DEBUG ${cueId}] Using adaptive update interval: ${updateInterval}ms for duration: ${duration}s`);
+            
+            // Performance-optimized time update logic
+            let lastUpdateTime = 0;
+            let updateCounter = 0;
+            
+            const newInterval = setInterval(() => {
+                const now = Date.now();
+                
+                // Skip update if too soon (debouncing)
+                if (now - lastUpdateTime < updateInterval - 50) {
+                    return;
+                }
+                
+                lastUpdateTime = now;
+                updateCounter++;
+                
+                // Get fresh references each time the interval runs
+                const latestGlobalState = audioControllerContext.currentlyPlaying[cueId];
+                let intervalStopReason = "";
+
+                // Enhanced validation checks with early returns for performance
+                if (!latestGlobalState) {
+                    intervalStopReason = "Global state for cueId is MISSING";
+                } else if (latestGlobalState !== playingState) {
+                    intervalStopReason = "Global state object for cueId CHANGED";
+                } else if (latestGlobalState.sound !== sound) {
+                    intervalStopReason = "Sound instance in state does not match interval's sound";
+                } else if (latestGlobalState.isPaused) {
+                    intervalStopReason = "State is marked as paused";
+                }
+
+                if (intervalStopReason) {
+                    console.log(`[TIME_UPDATE_DEBUG ${cueId}] Stopping interval after ${updateCounter} updates. Reason: ${intervalStopReason}`);
+                    clearInterval(newInterval);
+                    if (audioControllerContext.playbackIntervals[cueId] === newInterval) {
+                        delete audioControllerContext.playbackIntervals[cueId];
+                    }
+                    if (playingState.timeUpdateInterval === newInterval) {
+                        playingState.timeUpdateInterval = null;
+                    }
+                    return;
+                }
+
+                // Send time update for UI button time display
+                console.log(`[TIME_UPDATE_DEBUG ${cueId}] Interval update #${updateCounter}: sound.playing()=${sound.playing()}, sound.seek()=${sound.seek()}, sound.state()=${sound.state()}`);
+                sendPlaybackTimeUpdate(cueId, sound, latestGlobalState, currentItemNameForEvents, 'playing');
+
+                // Always update fade state for smooth fading timer
+                let isFadingIn = false;
+                let isFadingOut = false;
+                let fadeTimeRemainingMs = 0;
+
+                if (latestGlobalState.isFadingIn) {
+                    isFadingIn = true;
+                    const fadeElapsed = now - latestGlobalState.fadeStartTime;
+                    fadeTimeRemainingMs = Math.max(0, latestGlobalState.fadeTotalDurationMs - fadeElapsed);
+                } else if (latestGlobalState.isFadingOut) {
+                    isFadingOut = true;
+                    const fadeElapsed = now - latestGlobalState.fadeStartTime;
+                    fadeTimeRemainingMs = Math.max(0, latestGlobalState.fadeTotalDurationMs - fadeElapsed);
+                }
+
+                // Update button state if fading or if fade status changed
+                const isFading = isFadingIn || isFadingOut;
+                const fadeStatusChanged = (isFadingIn !== latestGlobalState.lastUIFadingIn || 
+                                         isFadingOut !== latestGlobalState.lastUIFadingOut);
+                
+                if (isFading || fadeStatusChanged) {
+                    latestGlobalState.lastUIFadingIn = isFadingIn;
+                    latestGlobalState.lastUIFadingOut = isFadingOut;
+                    
+                    if (audioControllerContext.cueGridAPI && audioControllerContext.cueGridAPI.updateCueButtonTime) {
+                        // Use updateCueButtonTime directly for smoother fade timer updates
+                        audioControllerContext.cueGridAPI.updateCueButtonTime(
+                            cueId, 
+                            null, // elements 
+                            isFadingIn, 
+                            isFadingOut, 
+                            fadeTimeRemainingMs
+                        );
+                    }
+                }
+                
+                // Performance optimization: Only send detailed state updates periodically for non-fade data
+                const shouldSendDetailedUpdate = updateCounter % 4 === 0; // Every 4th update
+            }, updateInterval);
+            
+            // Store the interval reference in both locations for proper cleanup
+            playingState.timeUpdateInterval = newInterval;
+            audioControllerContext.playbackIntervals[cueId] = newInterval;
+            
+            console.log(`[TIME_UPDATE_DEBUG ${cueId}] Created optimized time update interval with ${updateInterval}ms frequency`);
+            // === Time Update Interval Management END ===
 
             // Initial time update immediately on play
             console.log(`[TIME_UPDATE_DEBUG ${cueId}] onplay: Sending initial time update.`);
@@ -201,107 +342,6 @@ export function createPlaybackInstance(
                     }
                 }
             }
-
-            console.log(`[TIME_UPDATE_DEBUG ${cueId}] onplay: About to set up setInterval.`);
-            const newInterval = setInterval(() => {
-                // playingState is from closure, was audioControllerContext.currentlyPlaying[cueId] at creation.
-                // sound is from closure, the Howl instance.
-
-                const latestGlobalState = currentlyPlaying[cueId]; // Freshly get from audioControllerContext.currentlyPlaying
-                let intervalStopReason = "";
-
-                if (!latestGlobalState) {
-                    // If global state is gone, and we're not in a state where we expect it to be gone soon (like fading to stop/restart)
-                    if (!playingState.isFadingOutToStop && !playingState.isFadingOutToRestart) {
-                        intervalStopReason = "Global state for cueId is MISSING and not actively fading to stop/restart.";
-                    } else if (!sound.playing() && (playingState.isFadingOutToStop || playingState.isFadingOutToRestart)) {
-                        // If it's meant to be fading out but is no longer 'playing' according to Howler, it's effectively stopped or will stop imminently.
-                        // This can happen if stop() was called directly after fade initiated.
-                        intervalStopReason = "Global state present, sound not playing during an intended fade out. Assuming stop.";
-                    }
-                } else if (latestGlobalState !== playingState) {
-                    intervalStopReason = `Global state object for cueId CHANGED. This interval is for a stale state.`;
-                    console.log(`[TIME_UPDATE_DEBUG ${cueId}] setInterval: Old state sound ID (from closure): ${playingState.sound ? (playingState.sound._sounds && playingState.sound._sounds[0] ? playingState.sound._sounds[0]._id : 'N/A') : 'N/A'}, New state sound ID (latestGlobalState): ${latestGlobalState.sound ? (latestGlobalState.sound._sounds && latestGlobalState.sound._sounds[0] ? latestGlobalState.sound._sounds[0]._id : 'N/A') : 'N/A'}`);
-                } else if (latestGlobalState.sound !== sound) {
-                    intervalStopReason = `Sound instance in state (ID: ${latestGlobalState.sound ? (latestGlobalState.sound._sounds && latestGlobalState.sound._sounds[0] ? latestGlobalState.sound._sounds[0]._id : 'N/A') : 'N/A'}) does not match interval's sound (ID: ${sound ? (sound._sounds && sound._sounds[0] ? sound._sounds[0]._id : 'N/A') : 'N/A'}).`;
-                } else if (!sound.playing() && !latestGlobalState.isFadingOutToStop && !latestGlobalState.isFadingOutToRestart) {
-                    // If sound.playing() is false, and we are not in a controlled fade-out, then stop the interval.
-                    intervalStopReason = "Sound not playing (sound.playing() is false) and not in a fade-out process.";
-                } else if (latestGlobalState.isPaused) {
-                    intervalStopReason = "State is marked as paused";
-                }
-
-                if (intervalStopReason) {
-                    console.log(`[TIME_UPDATE_DEBUG ${cueId}] setInterval: Stopping. Reason: ${intervalStopReason}. Cue: ${currentItemNameForEvents}, Path: ${filePath}`);
-                    clearInterval(newInterval);
-                    if (playbackIntervals[cueId] === newInterval) {
-                        delete playbackIntervals[cueId];
-                    }
-                    if (playingState.timeUpdateInterval === newInterval) {
-                        playingState.timeUpdateInterval = null;
-                    }
-                    if (latestGlobalState && latestGlobalState.timeUpdateInterval === newInterval) {
-                        latestGlobalState.timeUpdateInterval = null;
-                    }
-                    return;
-                }
-
-                // If all checks pass, or we are in a fade out, proceed to update time
-                const currentSeek = typeof sound.seek === 'function' ? sound.seek() : -1;
-                const expectedDuration = latestGlobalState.duration; // Use duration from the latest state
-
-                // console.log(`[TIME_UPDATE_DEBUG ${cueId}] setInterval: Conditions met. CurrentSeek: ${currentSeek}, Expected Duration: ${expectedDuration}. Calling sendPlaybackTimeUpdate.`);
-                
-                let statusForUpdate = 'playing';
-                if (latestGlobalState && latestGlobalState.isFadingOut) {
-                    statusForUpdate = 'fading_out';
-                }
-
-                sendPlaybackTimeUpdate(cueId, sound, latestGlobalState, currentItemNameForEvents, statusForUpdate);
-
-                // Update UI time directly for smoother updates
-                let isFadingIn = false;
-                let isFadingOut = false;
-                let fadeTimeRemainingMs = 0;
-
-                if (latestGlobalState) {
-                    if (latestGlobalState.isFadingIn && latestGlobalState.fadeStartTime && latestGlobalState.fadeTotalDurationMs > 0) {
-                        const elapsedFadeMs = Date.now() - latestGlobalState.fadeStartTime;
-                        if (elapsedFadeMs < latestGlobalState.fadeTotalDurationMs) {
-                            isFadingIn = true;
-                            fadeTimeRemainingMs = latestGlobalState.fadeTotalDurationMs - elapsedFadeMs;
-                        }
-                    }
-                    if (!isFadingIn && latestGlobalState.isFadingOut && latestGlobalState.fadeStartTime && latestGlobalState.fadeTotalDurationMs > 0) {
-                        const elapsedFadeMs = Date.now() - latestGlobalState.fadeStartTime;
-                        if (elapsedFadeMs < latestGlobalState.fadeTotalDurationMs) {
-                            isFadingOut = true;
-                            fadeTimeRemainingMs = latestGlobalState.fadeTotalDurationMs - elapsedFadeMs;
-                        }
-                    }
-                }
-
-                // --- START EXTENDED DIAGNOSTIC LOG FOR FADING UI --- 
-                const shouldLogFadeDetails = isFadingIn || isFadingOut; // Log if either flag is true
-                if (shouldLogFadeDetails) { 
-                    console.log(`[FADE_DETAILS_LOG ${cueId}] Interval Update. Calculated: isFadingIn=${isFadingIn}, isFadingOut=${isFadingOut}, fadeTimeRemainingMs=${fadeTimeRemainingMs}. From State: state.isFadingIn=${latestGlobalState?.isFadingIn}, state.isFadingOut=${latestGlobalState?.isFadingOut}, state.totalMs=${latestGlobalState?.fadeTotalDurationMs}, state.startTime=${latestGlobalState?.fadeStartTime}. SoundVolume: ${sound.volume()}`);
-                }
-                // --- END EXTENDED DIAGNOSTIC LOG FOR FADING UI --- 
-
-                if (cueGridAPI && typeof cueGridAPI.updateCueButtonTime === 'function') {
-                    // Call with null for elements, so it fetches times internally using audioController.
-                    // Pass fading parameters correctly.
-                    cueGridAPI.updateCueButtonTime(
-                        cueId, 
-                        null, // elements = null
-                        isFadingIn, 
-                        isFadingOut, 
-                        fadeTimeRemainingMs
-                    );
-                }
-            }, 250);
-            playbackIntervals[cueId] = newInterval; // Store globally by cueId
-            playingState.timeUpdateInterval = newInterval; // Store on specific playingState
 
             if (ipcBindings && typeof ipcBindings.send === 'function') {
                 let statusDetails = {};
@@ -494,46 +534,110 @@ export function createPlaybackInstance(
             // --- START STOP ALL DEBUG ---            
             console.log(`[StopAll Debug OnStop ${cueId}] sound.acExplicitStopReason: ${sound.acExplicitStopReason}`);
             console.log(`[StopAll Debug OnStop ${cueId}] playingState.explicitStopReason: ${playingState.explicitStopReason}`);
-            const explicitStopReason = sound.acExplicitStopReason || playingState.explicitStopReason;
-            console.log(`[StopAll Debug OnStop ${cueId}] Combined explicitStopReason: ${explicitStopReason}`);
             // --- END STOP ALL DEBUG --- 
 
-            // Decision logic for onstop:
-            // Check the reason directly on the sound object first, then fallback to playingState
-            // const explicitStopReason = sound.acExplicitStopReason || playingState.explicitStopReason; // Already defined above for debug
+            // Decision logic for onstop - use proper cleanup for different scenarios
+            const explicitStopReason = sound.acExplicitStopReason || playingState.explicitStopReason;
 
             if (explicitStopReason === 'stop_all') {
-                console.log(`PlaybackInstanceHandler: onstop for ${cueId} - Reason: 'stop_all'. Forcing cleanup.`);
-                if (currentlyPlaying[cueId]) {
-                    if (currentlyPlaying[cueId].sound && typeof currentlyPlaying[cueId].sound.unload === 'function') {
-                        currentlyPlaying[cueId].sound.unload();
+                console.log(`PlaybackInstanceHandler: onstop for ${cueId} - Reason: 'stop_all'. Using comprehensive cleanup.`);
+                // Use comprehensive cleanup for stop_all operations
+                if (audioControllerContext.currentlyPlaying[cueId]) {
+                    const state = audioControllerContext.currentlyPlaying[cueId];
+                    // Clean up using the audioPlaybackManager's cleanup utility
+                    if (typeof audioControllerContext._cleanupSoundInstance === 'function') {
+                        audioControllerContext._cleanupSoundInstance(cueId, state, { 
+                            forceUnload: true, 
+                            source: 'onstop_stop_all' 
+                        });
+                    } else {
+                        // Fallback to manual cleanup
+                        try {
+                            if (state.sound && typeof state.sound.unload === 'function') {
+                                state.sound.unload();
+                            }
+                        } catch (error) {
+                            console.warn(`PlaybackInstanceHandler: Error during fallback cleanup for ${cueId}:`, error);
                     }
-                    delete currentlyPlaying[cueId];
+                        delete audioControllerContext.currentlyPlaying[cueId];
+                    }
                 }
             } else if (isFadedOutForStop || isRetriggerRelatedStop) {
-                console.log(`PlaybackInstanceHandler: onstop for ${cueId} - Reason: Faded out for stop or retrigger. Forcing cleanup.`);
-                if (currentlyPlaying[cueId]) {
-                    if (currentlyPlaying[cueId].sound && typeof currentlyPlaying[cueId].sound.unload === 'function') {
-                         currentlyPlaying[cueId].sound.unload(); 
+                console.log(`PlaybackInstanceHandler: onstop for ${cueId} - Reason: Faded out for stop or retrigger. Using comprehensive cleanup.`);
+                // Use comprehensive cleanup for fade-out stops and retrigger-related stops
+                if (audioControllerContext.currentlyPlaying[cueId]) {
+                    const state = audioControllerContext.currentlyPlaying[cueId];
+                    if (typeof audioControllerContext._cleanupSoundInstance === 'function') {
+                        audioControllerContext._cleanupSoundInstance(cueId, state, { 
+                            forceUnload: true, 
+                            source: 'onstop_fade_or_retrigger' 
+                        });
+                    } else {
+                        // Fallback to manual cleanup
+                        try {
+                            if (state.sound && typeof state.sound.unload === 'function') {
+                                state.sound.unload();
+                            }
+                        } catch (error) {
+                            console.warn(`PlaybackInstanceHandler: Error during fallback cleanup for ${cueId}:`, error);
                     }
-                    delete currentlyPlaying[cueId];
+                        delete audioControllerContext.currentlyPlaying[cueId];
+                    }
                 }
             } else if (playingState.isPlaylist) {
-                // Not a forced stop, and it's a playlist -> delegate to _handlePlaylistEnd
-                console.log(`PlaybackInstanceHandler: onstop for playlist item ${currentItemNameForEvents} in ${cueId}. Calling _handlePlaylistEnd.`);
-                audioControllerContext._handlePlaylistEnd(mainCue.id, false); // false for errorOccurred
-            } else if (!mainCue.loop) {
-                // Single cue, not looping, ended naturally or was stopped without flags indicating a forced cleanup
-                console.log(`PlaybackInstanceHandler: onstop for single, non-looping cue ${cueId}. Cleaning up.`);
-                if (currentlyPlaying[cueId]) {
-                    if (currentlyPlaying[cueId].sound && typeof currentlyPlaying[cueId].sound.unload === 'function') {
-                        currentlyPlaying[cueId].sound.unload();
+                // For playlist items, ensure proper cleanup before delegating to _handlePlaylistEnd
+                console.log(`PlaybackInstanceHandler: onstop for playlist item ${currentItemNameForEvents} in ${cueId}. Cleaning up before delegation.`);
+                
+                // Clean up the current sound instance but don't clear the entire state
+                // since _handlePlaylistEnd will handle the playlist logic
+                if (audioControllerContext.currentlyPlaying[cueId] && audioControllerContext.currentlyPlaying[cueId].sound === sound) {
+                    try {
+                        sound.unload();
+                    } catch (error) {
+                        console.warn(`PlaybackInstanceHandler: Error during playlist item cleanup for ${cueId}:`, error);
                     }
-                    delete currentlyPlaying[cueId];
+                    audioControllerContext.currentlyPlaying[cueId].sound = null;
+                }
+                
+                audioControllerContext._handlePlaylistEnd(mainCue.id, false);
+            } else if (!mainCue.loop) {
+                // Single cue, not looping - use comprehensive cleanup
+                console.log(`PlaybackInstanceHandler: onstop for single, non-looping cue ${cueId}. Using comprehensive cleanup.`);
+                if (audioControllerContext.currentlyPlaying[cueId]) {
+                    const state = audioControllerContext.currentlyPlaying[cueId];
+                    if (typeof audioControllerContext._cleanupSoundInstance === 'function') {
+                        audioControllerContext._cleanupSoundInstance(cueId, state, { 
+                            forceUnload: true, 
+                            source: 'onstop_single_cue' 
+                        });
+                    } else {
+                        // Fallback to manual cleanup
+                        try {
+                            if (state.sound && typeof state.sound.unload === 'function') {
+                                state.sound.unload();
+                            }
+                        } catch (error) {
+                            console.warn(`PlaybackInstanceHandler: Error during fallback cleanup for ${cueId}:`, error);
+                    }
+                        delete audioControllerContext.currentlyPlaying[cueId];
+                    }
                 }
             } else {
-                // Looping single cue ended (Howler handles its own loop) or other unhandled scenario.
-                console.log(`PlaybackInstanceHandler: onstop for ${cueId} - Looping single cue or unhandled. No explicit cleanup by this handler.`);
+                // Looping single cue - minimal cleanup, let it continue
+                console.log(`PlaybackInstanceHandler: onstop for ${cueId} - Looping single cue. Minimal cleanup.`);
+                // For looping cues, we generally don't want to unload the sound
+                // Just clear any intervals and timers
+                if (audioControllerContext.currentlyPlaying[cueId]) {
+                    const state = audioControllerContext.currentlyPlaying[cueId];
+                    if (state.timeUpdateInterval) {
+                        clearInterval(state.timeUpdateInterval);
+                        state.timeUpdateInterval = null;
+                    }
+                    if (state.trimEndTimer) {
+                        clearTimeout(state.trimEndTimer);
+                        state.trimEndTimer = null;
+                    }
+                }
             }
         },
         onfade: (soundId) => {
@@ -581,9 +685,28 @@ export function createPlaybackInstance(
             }
         },
         onloaderror: (id, err) => {
-            console.error(`[TIME_UPDATE_DEBUG ${cueId}] onloaderror: Error loading ${filePath}:`, err, `(Sound ID: ${id})`);
+            console.error(`[ERROR_HANDLER ${cueId}] onloaderror: Failed to load ${filePath}:`, err, `(Sound ID: ${id})`);
+            
+            // Enhanced error context
+            const errorContext = {
+                cueId,
+                filePath,
+                itemName: currentItemNameForEvents,
+                isPlaylist: playingState.isPlaylist,
+                playlistIndex: actualItemIndexInOriginalList,
+                soundId: id,
+                error: err,
+                errorType: 'loaderror',
+                timestamp: Date.now(),
+                userAgent: navigator.userAgent,
+                audioCodecs: _getAudioCodecSupport()
+            };
+            
+            console.error('[ERROR_HANDLER] Complete error context:', errorContext);
+            
             const playingState = audioControllerContext.currentlyPlaying[cueId];
             if (playingState) {
+                // Clean up intervals to prevent memory leaks
                 if (playingState.timeUpdateInterval) {
                     clearInterval(playingState.timeUpdateInterval);
                     playingState.timeUpdateInterval = null;
@@ -592,24 +715,108 @@ export function createPlaybackInstance(
                     clearInterval(audioControllerContext.playbackIntervals[cueId]);
                     delete audioControllerContext.playbackIntervals[cueId];
                 }
+                
+                // Enhanced error recovery for playlists
                 if (playingState.isPlaylist) {
-                    console.warn(`[TIME_UPDATE_DEBUG ${cueId}] onloaderror: Attempting to play next item in playlist due to load error.`);
-                    audioControllerContext._handlePlaylistEnd(cueId, true); // true indicates an error, try next
+                    console.warn(`[ERROR_HANDLER ${cueId}] Load error for playlist item. Attempting recovery...`);
+                    
+                    // Mark this item as failed to prevent infinite retry loops
+                    if (!playingState.failedItems) {
+                        playingState.failedItems = new Set();
+                    }
+                    playingState.failedItems.add(actualItemIndexInOriginalList);
+                    
+                    // Try to find the next playable item
+                    const nextPlayableIndex = _findNextPlayableItem(playingState, actualItemIndexInOriginalList);
+                    
+                    if (nextPlayableIndex !== -1) {
+                        console.log(`[ERROR_HANDLER ${cueId}] Found next playable item at index ${nextPlayableIndex}`);
+                        setTimeout(() => {
+                            try {
+                                playingState.currentPlaylistItemIndex = nextPlayableIndex;
+                                audioControllerContext._playTargetItem(cueId, nextPlayableIndex, false);
+                            } catch (retryError) {
+                                console.error(`[ERROR_HANDLER ${cueId}] Error during playlist recovery:`, retryError);
+                                audioControllerContext._handlePlaylistEnd(cueId, true);
+                            }
+                        }, 100);
                 } else {
+                        console.error(`[ERROR_HANDLER ${cueId}] No more playable items in playlist`);
+                        audioControllerContext._handlePlaylistEnd(cueId, true);
+                    }
+                } else {
+                    // For single files, try alternative file formats or provide better error feedback
+                    console.error(`[ERROR_HANDLER ${cueId}] Single file load error. Checking for alternatives...`);
+                    
+                    // Check if file exists and provide specific error messages
+                    if (typeof electronAPIForPreload !== 'undefined' && electronAPIForPreload.checkFileExists) {
+                        electronAPIForPreload.checkFileExists(filePath).then((exists) => {
+                            if (!exists) {
+                                console.error(`[ERROR_HANDLER ${cueId}] File does not exist: ${filePath}`);
+                                errorContext.specificError = 'file_not_found';
+                            } else {
+                                console.error(`[ERROR_HANDLER ${cueId}] File exists but failed to load - likely codec/format issue`);
+                                errorContext.specificError = 'codec_unsupported';
+                            }
+                            _notifyErrorToUser(errorContext);
+                        }).catch(() => {
+                            console.error(`[ERROR_HANDLER ${cueId}] Unable to check file existence`);
+                            errorContext.specificError = 'file_check_failed';
+                            _notifyErrorToUser(errorContext);
+                        });
+                    } else {
+                        errorContext.specificError = 'load_failed_unknown';
+                        _notifyErrorToUser(errorContext);
+                    }
+                    
+                    // Clean up state for single file
                     delete audioControllerContext.currentlyPlaying[cueId];
                 }
             }
+            
+            // Update UI state
             if (audioControllerContext.cueGridAPI && audioControllerContext.cueGridAPI.updateButtonPlayingState) {
                 audioControllerContext.cueGridAPI.updateButtonPlayingState(cueId, false);
             }
+            
+            // Send enhanced error report via IPC
             if (audioControllerContext.ipcBindings && typeof audioControllerContext.ipcBindings.send === 'function') {
-                audioControllerContext.ipcBindings.send('cue-status-update', { cueId: cueId, status: 'error', details: { error: 'loaderror', message: err ? (typeof err === 'string' ? err : JSON.stringify(err)) : 'Unknown load error'} });
+                audioControllerContext.ipcBindings.send('cue-status-update', { 
+                    cueId: cueId, 
+                    status: 'error', 
+                    details: { 
+                        error: 'loaderror', 
+                        message: err ? (typeof err === 'string' ? err : JSON.stringify(err)) : 'Unknown load error',
+                        context: errorContext,
+                        recoveryAttempted: playingState?.isPlaylist || false
+                    } 
+                });
             }
         },
+        
         onplayerror: (id, err) => {
-            console.error(`[TIME_UPDATE_DEBUG ${cueId}] onplayerror: Error playing ${filePath}:`, err, `(Sound ID: ${id})`);
+            console.error(`[ERROR_HANDLER ${cueId}] onplayerror: Failed to play ${filePath}:`, err, `(Sound ID: ${id})`);
+            
+            // Enhanced error context
+            const errorContext = {
+                cueId,
+                filePath,
+                itemName: currentItemNameForEvents,
+                isPlaylist: playingState.isPlaylist,
+                playlistIndex: actualItemIndexInOriginalList,
+                soundId: id,
+                error: err,
+                errorType: 'playererror',
+                timestamp: Date.now(),
+                userAgent: navigator.userAgent,
+                audioContext: _getAudioContextInfo()
+            };
+            
+            console.error('[ERROR_HANDLER] Complete error context:', errorContext);
+            
             const playingState = audioControllerContext.currentlyPlaying[cueId];
             if (playingState) {
+                // Clean up intervals
                 if (playingState.timeUpdateInterval) {
                     clearInterval(playingState.timeUpdateInterval);
                     playingState.timeUpdateInterval = null;
@@ -618,21 +825,245 @@ export function createPlaybackInstance(
                     clearInterval(audioControllerContext.playbackIntervals[cueId]);
                     delete audioControllerContext.playbackIntervals[cueId];
                 }
+                
+                // Enhanced error recovery for playlists
                 if (playingState.isPlaylist) {
-                    console.warn(`[TIME_UPDATE_DEBUG ${cueId}] onplayerror: Attempting to play next item in playlist due to play error.`);
-                    audioControllerContext._handlePlaylistEnd(cueId, true); // true indicates an error, try next
+                    console.warn(`[ERROR_HANDLER ${cueId}] Play error for playlist item. Attempting recovery...`);
+                    
+                    // Mark this item as failed
+                    if (!playingState.failedItems) {
+                        playingState.failedItems = new Set();
+                    }
+                    playingState.failedItems.add(actualItemIndexInOriginalList);
+                    
+                    // Try to find the next playable item
+                    const nextPlayableIndex = _findNextPlayableItem(playingState, actualItemIndexInOriginalList);
+                    
+                    if (nextPlayableIndex !== -1) {
+                        console.log(`[ERROR_HANDLER ${cueId}] Found next playable item at index ${nextPlayableIndex}`);
+                        setTimeout(() => {
+                            try {
+                                playingState.currentPlaylistItemIndex = nextPlayableIndex;
+                                audioControllerContext._playTargetItem(cueId, nextPlayableIndex, false);
+                            } catch (retryError) {
+                                console.error(`[ERROR_HANDLER ${cueId}] Error during playlist recovery:`, retryError);
+                                audioControllerContext._handlePlaylistEnd(cueId, true);
+                            }
+                        }, 100);
                 } else {
+                        console.error(`[ERROR_HANDLER ${cueId}] No more playable items in playlist`);
+                        audioControllerContext._handlePlaylistEnd(cueId, true);
+                    }
+                } else {
+                    // For single files, attempt retry with different audio settings
+                    console.error(`[ERROR_HANDLER ${cueId}] Single file play error. Attempting alternative playback...`);
+                    
+                    // Attempt retry with HTML5 audio disabled (fallback to Web Audio)
+                    if (playingState.retryCount === undefined) {
+                        playingState.retryCount = 0;
+                    }
+                    
+                    if (playingState.retryCount < 1) {
+                        playingState.retryCount++;
+                        console.log(`[ERROR_HANDLER ${cueId}] Retrying playback with different settings (attempt ${playingState.retryCount})`);
+                        
+                        setTimeout(() => {
+                            try {
+                                // Create new sound instance with different settings
+                                const retrySound = new Howl({
+                                    src: [filePath],
+                                    volume: mainCue.volume !== undefined ? mainCue.volume : 1,
+                                    loop: mainCue.loop || false,
+                                    html5: false, // Try Web Audio instead of HTML5
+                                    format: ['mp3', 'wav', 'ogg', 'aac', 'm4a'] // Specify multiple formats
+                                });
+                                
+                                retrySound.once('load', () => {
+                                    console.log(`[ERROR_HANDLER ${cueId}] Retry successful`);
+                                    playingState.sound = retrySound;
+                                    retrySound.play();
+                                });
+                                
+                                retrySound.once('loaderror', () => {
+                                    console.error(`[ERROR_HANDLER ${cueId}] Retry also failed`);
+                                    errorContext.specificError = 'retry_failed';
+                                    _notifyErrorToUser(errorContext);
+                                    delete audioControllerContext.currentlyPlaying[cueId];
+                                });
+                                
+                            } catch (retryError) {
+                                console.error(`[ERROR_HANDLER ${cueId}] Error during retry:`, retryError);
+                                errorContext.specificError = 'retry_exception';
+                                _notifyErrorToUser(errorContext);
                     delete audioControllerContext.currentlyPlaying[cueId];
                 }
+                        }, 200);
+                    } else {
+                        console.error(`[ERROR_HANDLER ${cueId}] Max retry attempts reached`);
+                        errorContext.specificError = 'max_retries_exceeded';
+                        _notifyErrorToUser(errorContext);
+                        delete audioControllerContext.currentlyPlaying[cueId];
+                    }
+                }
             }
+            
+            // Update UI state
             if (audioControllerContext.cueGridAPI && audioControllerContext.cueGridAPI.updateButtonPlayingState) {
                 audioControllerContext.cueGridAPI.updateButtonPlayingState(cueId, false);
             }
+            
+            // Send enhanced error report via IPC
             if (audioControllerContext.ipcBindings && typeof audioControllerContext.ipcBindings.send === 'function') {
-                audioControllerContext.ipcBindings.send('cue-status-update', { cueId: cueId, status: 'error', details: { error: 'playerror', message: err ? (typeof err === 'string' ? err : JSON.stringify(err)) : 'Unknown play error' } });
+                audioControllerContext.ipcBindings.send('cue-status-update', { 
+                    cueId: cueId, 
+                    status: 'error', 
+                    details: { 
+                        error: 'playererror', 
+                        message: err ? (typeof err === 'string' ? err : JSON.stringify(err)) : 'Unknown play error',
+                        context: errorContext,
+                        recoveryAttempted: playingState?.isPlaylist || playingState?.retryCount > 0
+                    } 
+                });
             }
         }
     });
 
     return sound;
+}
+
+// Helper function to find the next playable item in a playlist
+function _findNextPlayableItem(playingState, currentIndex) {
+    if (!playingState.isPlaylist || !playingState.originalPlaylistItems) {
+        return -1;
+    }
+    
+    const mainCue = playingState.cue;
+    const items = playingState.originalPlaylistItems;
+    const shuffleOrder = playingState.shufflePlaybackOrder;
+    const failedItems = playingState.failedItems || new Set();
+    
+    // Determine the search space based on shuffle settings
+    const searchSpace = mainCue.shuffle && shuffleOrder && shuffleOrder.length > 0 
+        ? shuffleOrder.map((originalIndex, logicalIndex) => ({ logical: logicalIndex, original: originalIndex }))
+        : items.map((_, index) => ({ logical: index, original: index }));
+    
+    // Find current position in search space
+    const currentPosition = searchSpace.findIndex(item => 
+        mainCue.shuffle ? item.logical === currentIndex : item.original === currentIndex
+    );
+    
+    // Search forward from current position
+    for (let i = currentPosition + 1; i < searchSpace.length; i++) {
+        const candidate = searchSpace[i];
+        if (!failedItems.has(candidate.original)) {
+            return candidate.logical; // Return the logical index for playback
+        }
+    }
+    
+    // If looping is enabled, search from the beginning
+    if (mainCue.loop) {
+        for (let i = 0; i < currentPosition; i++) {
+            const candidate = searchSpace[i];
+            if (!failedItems.has(candidate.original)) {
+                return candidate.logical;
+            }
+        }
+    }
+    
+    return -1; // No playable items found
+}
+
+// Helper function to get audio codec support information
+function _getAudioCodecSupport() {
+    const audio = document.createElement('audio');
+    return {
+        mp3: audio.canPlayType('audio/mpeg') !== '',
+        wav: audio.canPlayType('audio/wav') !== '',
+        ogg: audio.canPlayType('audio/ogg') !== '',
+        aac: audio.canPlayType('audio/aac') !== '',
+        m4a: audio.canPlayType('audio/mp4') !== '',
+        webm: audio.canPlayType('audio/webm') !== '',
+        opus: audio.canPlayType('audio/ogg; codecs="opus"') !== ''
+    };
+}
+
+// Helper function to get audio context information
+function _getAudioContextInfo() {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) {
+            return { available: false, reason: 'AudioContext not supported' };
+        }
+        
+        const context = new AudioContext();
+        const info = {
+            available: true,
+            state: context.state,
+            sampleRate: context.sampleRate,
+            baseLatency: context.baseLatency,
+            outputLatency: context.outputLatency,
+            maxChannelCount: context.destination.maxChannelCount
+        };
+        
+        // Clean up the test context
+        context.close();
+        return info;
+    } catch (error) {
+        return { available: false, reason: error.message };
+    }
+}
+
+// Helper function to notify user of errors with appropriate UI feedback
+function _notifyErrorToUser(errorContext) {
+    console.error('[ERROR_HANDLER] Notifying user of error:', errorContext);
+    
+    // Create user-friendly error message
+    let userMessage = '';
+    let technicalDetails = '';
+    
+    switch (errorContext.specificError) {
+        case 'file_not_found':
+            userMessage = `Audio file not found: ${errorContext.itemName}`;
+            technicalDetails = `The file "${errorContext.filePath}" could not be found. It may have been moved, deleted, or the path is incorrect.`;
+            break;
+        case 'codec_unsupported':
+            userMessage = `Unsupported audio format: ${errorContext.itemName}`;
+            technicalDetails = `The audio file format is not supported by your browser. Supported formats: MP3, WAV, OGG, AAC, M4A.`;
+            break;
+        case 'retry_failed':
+            userMessage = `Audio playback failed: ${errorContext.itemName}`;
+            technicalDetails = `Multiple attempts to play the audio file have failed. The file may be corrupted or incompatible.`;
+            break;
+        case 'max_retries_exceeded':
+            userMessage = `Audio playback repeatedly failed: ${errorContext.itemName}`;
+            technicalDetails = `The system has exhausted all retry attempts for this audio file.`;
+            break;
+        default:
+            userMessage = `Audio error: ${errorContext.itemName}`;
+            technicalDetails = `An unexpected error occurred during audio playback.`;
+    }
+    
+    // Try to show a user-friendly notification if available
+    if (typeof window !== 'undefined' && window.showUserNotification) {
+        window.showUserNotification('error', userMessage, technicalDetails);
+    } else {
+        // Fallback to console error with structured information
+        console.error('[USER_ERROR]', {
+            message: userMessage,
+            details: technicalDetails,
+            cueId: errorContext.cueId,
+            filePath: errorContext.filePath,
+            timestamp: new Date(errorContext.timestamp).toISOString()
+        });
+    }
+    
+    // Log to error reporting service if available
+    if (typeof window !== 'undefined' && window.reportError) {
+        window.reportError({
+            type: 'audio_playback_error',
+            context: errorContext,
+            userMessage,
+            technicalDetails
+        });
+    }
 } 

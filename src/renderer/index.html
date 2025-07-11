@@ -60,8 +60,11 @@
                     <select id="defaultStopAllBehavior" name="defaultStopAllBehavior">
                         <option value="fade_out_and_stop">Fade Out then Stop</option> 
                         <option value="stop">Immediate Stop</option>
-
                     </select>
+                </div>
+                <div class="form-group" id="defaultStopAllFadeOutGroup" style="display: none;">
+                    <label for="defaultStopAllFadeOut">Stop All Fade Out Time (ms):</label>
+                    <input type="number" id="defaultStopAllFadeOut" name="defaultStopAllFadeOut" min="0" max="10000" step="100" value="1500">
                 </div>
 
                 <hr>
@@ -76,20 +79,33 @@
                     <label for="configMixerType">Mixer Type:</label>
                     <select id="configMixerType">
                         <option value="none">None</option>
-                        <option value="behringer_wing">Behringer WING</option>
                         <option value="behringer_wing_compact">Behringer WING Compact</option>
+                        <option value="behringer_wing_full">Behringer WING Full-size</option>
                     </select>
                 </div>
                 <div class="form-group" id="wingIpAddressGroup" style="display: none;">
                     <label for="configWingIpAddress">WING IP Address:</label>
                     <input type="text" id="configWingIpAddress" placeholder="e.g., 192.168.1.100">
                 </div>
-                <div class="form-group" id="wingModelTypeGroup" style="display: none;">
-                    <label for="configWingModelType">WING Model Type:</label>
-                    <select id="configWingModelType">
-                        <option value="compact">Compact</option>
-                        <option value="full_size">Full-size</option>
-                    </select>
+                <hr class="sidebar-hr">
+
+                <h3>HTTP Remote Control</h3>
+                <div class="form-group">
+                    <label for="configHttpRemoteEnabled" class="checkbox-label">
+                        <input type="checkbox" id="configHttpRemoteEnabled">
+                        Enable HTTP Remote Control
+                    </label>
+                </div>
+                <div class="form-group" id="httpRemotePortGroup">
+                    <label for="configHttpRemotePort">Remote Port:</label>
+                    <input type="number" id="configHttpRemotePort" min="1024" max="65535" value="3000">
+                    <p class="small-text">Port for HTTP remote control server. Restart required for changes.</p>
+                </div>
+                <div class="form-group" id="httpRemoteLinksGroup">
+                    <label>Remote Access Links:</label>
+                    <div id="httpRemoteLinks" class="remote-links-container">
+                        <p class="small-text">Loading network interfaces...</p>
+                    </div>
                 </div>
                 <hr class="sidebar-hr">
             </div>

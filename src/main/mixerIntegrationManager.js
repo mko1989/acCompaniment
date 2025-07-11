@@ -25,6 +25,12 @@ let wingAssignedCCs = new Set(); // For managing assigned MIDI CCs for WING trig
  * @param {object} oscListener - Reference to the main OscListener instance.
  */
 function initialize(initialConfig, mainWindow, cueManager, oscListener) {
+    // ALPHA BUILD: Skip mixer integration initialization entirely
+    if (!initialConfig.mixerIntegrationEnabled) {
+        console.log('MixerIntegrationManager: Mixer integration disabled, skipping initialization.');
+        return;
+    }
+    
     mainWindowRef = mainWindow;
     cueManagerRef = cueManager;
     oscListenerRef = oscListener; 
@@ -53,20 +59,12 @@ function updateSettings(newConfig) {
     }
 
     // Determine which module to load
-    if (currentConfig.mixerType === 'behringer_wing') {
-        if (currentConfig.wingModelType === 'compact') {
-            activeMixerModule = behringerWingCompact;
-            console.log('MixerIntegrationManager: Behringer WING Compact selected (via wingModelType), loading behringerWingCompact module.');
-        } else { // Default to WING Full if model is not compact (e.g., 'full', undefined, or other)
-            activeMixerModule = behringerWingFull;
-            console.log('MixerIntegrationManager: Behringer WING Full (or default WING) selected, loading behringerWingFull module.');
-        }
-    } else if (currentConfig.mixerType === 'behringer_wing_compact') {
+    if (currentConfig.mixerType === 'behringer_wing_compact') {
         activeMixerModule = behringerWingCompact;
-        console.log('MixerIntegrationManager: Behringer WING Compact selected (via mixerType), loading behringerWingCompact module.');
+        console.log('MixerIntegrationManager: Behringer WING Compact selected, loading behringerWingCompact module.');
     } else if (currentConfig.mixerType === 'behringer_wing_full') { 
         activeMixerModule = behringerWingFull;
-        console.log('MixerIntegrationManager: Behringer WING Full selected (via mixerType), loading behringerWingFull module.');
+        console.log('MixerIntegrationManager: Behringer WING Full selected, loading behringerWingFull module.');
     } else {
         console.warn(`MixerIntegrationManager: Unknown or unsupported mixerType: ${currentConfig.mixerType}`);
         return;
@@ -157,16 +155,9 @@ function updateCueMixerTrigger(cue) {
     }
     
     let currentActiveFullType = currentConfig.mixerType;
-    if (currentConfig.mixerType === 'behringer_wing') {
-        currentActiveFullType = currentConfig.wingModelType === 'compact' ? 'behringer_wing_compact' :
-                             'behringer_wing_full'; // Default to full if not compact
-    }
 
     let shouldConfigure = false;
     if (cueMixerType === currentActiveFullType) {
-        shouldConfigure = true;
-    } else if (cueMixerType === 'behringer_wing' && currentActiveFullType.startsWith('behringer_wing_')) {
-        // If cue is for generic 'behringer_wing' and active is specific (full/compact), configure it.
         shouldConfigure = true;
     }
 

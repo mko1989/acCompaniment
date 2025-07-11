@@ -6,7 +6,7 @@ let wingFullSubscriptionKeepAliveInterval = null;
 
 // Constants from original behringerWing.js, potentially more accurate for Full WING
 const WING_FULL_DEFAULT_REMOTE_PORT = 2223;
-const WING_FULL_SUBSCRIPTION_LOCAL_LISTEN_PORT = 23456;
+const WING_FULL_SUBSCRIPTION_LOCAL_LISTEN_PORT = 23458;
 const WING_FULL_SUBSCRIPTION_KEEP_ALIVE_MS = 8000; // 8 seconds
 
 let currentWingFullConfig = {};

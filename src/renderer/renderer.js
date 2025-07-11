@@ -83,15 +83,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 6. Initialize WaveformControls (needs electronAPI for IPC, audioController for playback)
     // 'sidebars' here is the imported propertiesSidebar.js aliased as sidebars.
     // Ensure propertiesSidebar.js exports handleCuePropertyChangeFromWaveform correctly.
+    console.log('Renderer: Checking sidebars module:', sidebars);
+    console.log('Renderer: sidebars keys:', sidebars ? Object.keys(sidebars) : 'null');
+    console.log('Renderer: handleCuePropertyChangeFromWaveform type:', typeof sidebars.handleCuePropertyChangeFromWaveform);
+    
     if (sidebars && typeof sidebars.handleCuePropertyChangeFromWaveform === 'function') {
+        console.log('Renderer: Found handleCuePropertyChangeFromWaveform, initializing waveformControls with callback');
         waveformControls.init({
             ipcRendererBindings: electronAPI, // Pass electronAPI as ipcRendererBindings
             onTrimChange: sidebars.handleCuePropertyChangeFromWaveform
         });
     } else {
         console.error('Renderer: sidebars.handleCuePropertyChangeFromWaveform is not available for WaveformControls init.');
+        console.log('Renderer: Available sidebars methods:', sidebars ? Object.keys(sidebars).filter(key => typeof sidebars[key] === 'function') : 'none');
         // Fallback initialization for waveformControls if the callback is missing, or handle error appropriately
-        waveformControls.init({ ipcRendererBindings: electronAPI, onTrimChange: () => {} });
+        waveformControls.init({ ipcRendererBindings: electronAPI, onTrimChange: () => {
+            console.warn('Renderer: Fallback onTrimChange called - no sidebar integration');
+        } });
     }
 
     // 7. Set Module References for IPC Bindings AFTER core modules and UI are initialized

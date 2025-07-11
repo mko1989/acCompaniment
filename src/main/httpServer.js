@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
+const os = require('os');
 const { formatTimeMMSS, calculateEffectiveTrimmedDurationSec } = require('./utils/timeUtils'); // Import utilities
 
 let cueManagerRef;
@@ -15,11 +16,18 @@ const recentlyTriggeredCuesByRemote = new Map(); // cueId -> timestamp
 const REMOTE_TRIGGER_DEBOUNCE_MS = 400; // Ignore duplicate remote triggers for the same cue within this time
 let ipcSentForThisRemoteTrigger = {}; // cueId -> boolean : Blocks IPC send if true for this specific trigger event
 
-const PORT = 3000; // Or a port from config
+let configuredPort = 3000; // Default port
+let appConfigRef = null; // Reference to app config
 
-function initialize(cueMgr, mainWin) {
+function initialize(cueMgr, mainWin, appConfig = null) {
     cueManagerRef = cueMgr;
     mainWindowRef = mainWin;
+    appConfigRef = appConfig;
+    
+    // Use configured port if available
+    if (appConfig && appConfig.httpRemotePort) {
+        configuredPort = appConfig.httpRemotePort;
+    }
 
     // Serve static files (like remote.html, and later CSS/JS for it)
     // Assuming remote.html will be in src/renderer/remote_control/
@@ -39,30 +47,37 @@ function initialize(cueMgr, mainWin) {
             const rawCues = cueManagerRef.getCues();
             const processedCues = rawCues.map(cue => {
                 let initialTrimmedDurationValueS = 0;
+                let originalKnownDurationS = 0;
+                
                 if (cue.type === 'single_file') {
                     initialTrimmedDurationValueS = calculateEffectiveTrimmedDurationSec(cue);
+                    originalKnownDurationS = cue.knownDuration || 0;
                 } else if (cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0) {
                     // For playlists, use the effective duration of the first item for initial display
                     // Playlist items have knownDuration, trimStartTime, trimEndTime
-                    initialTrimmedDurationValueS = calculateEffectiveTrimmedDurationSec(cue.playlistItems[0]);
+                    const firstItem = cue.playlistItems[0];
+                    initialTrimmedDurationValueS = calculateEffectiveTrimmedDurationSec(firstItem);
+                    originalKnownDurationS = firstItem.knownDuration || 0;
+                } else {
+                    // Fallback for other types or empty playlists
+                    initialTrimmedDurationValueS = cue.knownDuration || 0;
+                    originalKnownDurationS = cue.knownDuration || 0;
                 }
+                
+                console.log(`HTTP_SERVER: Initial cue data for ${cue.id} (${cue.type}): trimmed=${initialTrimmedDurationValueS}s, original=${originalKnownDurationS}s`);
+                
                 // Ensure all necessary fields expected by remote are present
                 return {
                     id: cue.id,
                     name: cue.name,
                     type: cue.type,
-                    // filePath: cue.filePath, // remote might not need this directly
-                    // volume: cue.volume, // remote might not need this initially
-                    // loop: cue.loop, // remote might not need this initially
                     status: 'stopped', // Initial status, will be updated by remote_cue_update
                     currentTimeS: 0,
                     currentItemDurationS: initialTrimmedDurationValueS, // Use this for initial total time display
                     initialTrimmedDurationS: initialTrimmedDurationValueS, // Explicitly for remote's logic
-                    knownDurationS: cue.knownDuration || 0, // Original untrimmed duration of main file/first item
+                    knownDurationS: originalKnownDurationS, // Original untrimmed duration of main file/first item
                     playlistItemName: (cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0) ? cue.playlistItems[0].name : null,
                     nextPlaylistItemName: null, // This will come from live updates
-                    // Make sure playlistItems are included if the remote needs to iterate them for any reason
-                    // For now, remote seems to rely on playlistItemName and nextPlaylistItemName from updates
                 };
             });
             ws.send(JSON.stringify({ type: 'all_cues', payload: processedCues }));
@@ -145,8 +160,8 @@ function initialize(cueMgr, mainWin) {
         });
     });
 
-    server.listen(PORT, () => {
-        console.log(`HTTP_SERVER: HTTP and WebSocket server started on port ${PORT}. Access remote at http://localhost:${PORT}`);
+    server.listen(configuredPort, () => {
+        console.log(`HTTP_SERVER: HTTP and WebSocket server started on port ${configuredPort}. Access remote at http://localhost:${configuredPort}`);
     });
 }
 
@@ -159,4 +174,47 @@ function broadcastToRemotes(message) {
     });
 }
 
-module.exports = { initialize, broadcastToRemotes }; 
+// Function to get all network interface IP addresses
+function getNetworkInterfaces() {
+    const interfaces = os.networkInterfaces();
+    const addresses = [];
+    
+    for (const interfaceName in interfaces) {
+        const interfaceInfo = interfaces[interfaceName];
+        for (const info of interfaceInfo) {
+            // Skip internal (loopback) and non-IPv4 addresses
+            if (!info.internal && info.family === 'IPv4') {
+                addresses.push({
+                    interface: interfaceName,
+                    address: info.address,
+                    url: `http://${info.address}:${configuredPort}`
+                });
+            }
+        }
+    }
+    
+    return addresses;
+}
+
+// Function to get HTTP remote info for app config
+function getRemoteInfo() {
+    return {
+        enabled: appConfigRef ? appConfigRef.httpRemoteEnabled !== false : true,
+        port: configuredPort,
+        interfaces: getNetworkInterfaces()
+    };
+}
+
+// Function to update configuration (for port changes, etc.)
+function updateConfig(newConfig) {
+    appConfigRef = newConfig;
+    
+    // If port changed, log a warning that restart is needed
+    if (newConfig.httpRemotePort && newConfig.httpRemotePort !== configuredPort) {
+        console.log(`HTTP_SERVER: Port change detected (${configuredPort} -> ${newConfig.httpRemotePort}). Server restart required for changes to take effect.`);
+        // Note: We don't restart the server automatically to avoid disrupting connections
+        // The port change will take effect on next app restart
+    }
+}
+
+module.exports = { initialize, broadcastToRemotes, getRemoteInfo, updateConfig }; 

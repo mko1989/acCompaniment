@@ -614,3 +614,57 @@ h1 { /* from old h1 */
 #multipleFilesDropModalContent .modal-actions button {
     width: 100%; /* Make buttons take full width of their container */
 } 
+
+/* ===== HIDE MIXER INTEGRATION FEATURES FOR ALPHA BUILD ===== */
+
+/* Hide all mixer integration elements by ID - most reliable approach */
+#configMixerIntegrationEnabled,
+input#configMixerIntegrationEnabled,
+label[for="configMixerIntegrationEnabled"],
+#mixerTypeGroup,
+#wingIpAddressGroup,
+#configMixerType,
+#configWingIpAddress,
+#wingTriggerSettingsContainer,
+#propWingTriggerEnabled,
+#wingFullSizeConfig,
+#wingCompactConfig,
+#wingUserButtonSubGroup_Legacy,
+#propWingFullLayer,
+#propWingFullButton,
+#propWingFullRow,
+#propWingCompactLayer,
+#propWingCompactButton,
+#propWingUserButton_Legacy {
+    display: none !important;
+}
+
+/* Hide the checkbox label containing the mixer integration checkbox */
+.checkbox-label:has(input#configMixerIntegrationEnabled),
+label.checkbox-label:has(#configMixerIntegrationEnabled) {
+    display: none !important;
+}
+
+/* Alternative approach: Hide any form group div that contains mixer elements */
+div.form-group:has(#configMixerIntegrationEnabled),
+div.form-group:has(#configMixerType),
+div.form-group:has(#configWingIpAddress) {
+    display: none !important;
+}
+
+/* Specific targeting for the Mixer Integration heading */
+#configSidebar h3:nth-of-type(3) {
+    display: none !important;
+}
+
+/* Hide HR elements around mixer section */
+#configSidebar hr:nth-of-type(2),
+#configSidebar hr:nth-of-type(3) {
+    display: none !important;
+}
+
+/* Fallback: Hide any element with mixer/wing in ID (but exclude waveform elements) */
+*[id*="mixer"],
+*[id*="wing"]:not([id*="waveform"]):not([id*="wf"]) {
+    display: none !important;
+} 

@@ -32,6 +32,8 @@ let configDefaultFadeOutInput; // in seconds in UI, converted to ms for config
 let configDefaultLoopSingleCueCheckbox;
 let configDefaultRetriggerBehaviorSelect;
 let configDefaultStopAllBehaviorSelect;
+let configDefaultStopAllFadeOutInput;
+let configDefaultStopAllFadeOutGroup;
 
 // OSC Settings
 let configOscEnabledCheckbox;
@@ -44,14 +46,19 @@ let configAudioOutputDeviceSelect;
 // UI Settings
 // let configShowQuickControlsCheckbox; // REMOVED
 
+// HTTP Remote Control Elements
+let configHttpRemoteEnabledCheckbox;
+let configHttpRemotePortGroup;
+let configHttpRemotePortInput;
+let configHttpRemoteLinksGroup;
+let configHttpRemoteLinksDiv;
+
 // Mixer Integration Elements
 let configMixerIntegrationEnabledCheckbox;
 let configMixerTypeGroup;
 let configMixerTypeSelect;
 let configWingIpAddressGroup;
 let configWingIpAddressInput;
-let configWingModelTypeSelect; // New WING Model select
-let configWingModelTypeGroup; // New group for WING Model select
 
 
 
@@ -93,6 +100,8 @@ function cacheDOMElements() {
     configDefaultLoopSingleCueCheckbox = document.getElementById('defaultLoop');
     configDefaultRetriggerBehaviorSelect = document.getElementById('retriggerBehavior');
     configDefaultStopAllBehaviorSelect = document.getElementById('defaultStopAllBehavior');
+    configDefaultStopAllFadeOutInput = document.getElementById('defaultStopAllFadeOut');
+    configDefaultStopAllFadeOutGroup = document.getElementById('defaultStopAllFadeOutGroup');
     
     // OSC Settings
     configOscEnabledCheckbox = document.getElementById('configOscEnabled');
@@ -102,14 +111,19 @@ function cacheDOMElements() {
     // Audio Settings
     configAudioOutputDeviceSelect = document.getElementById('configAudioOutputDevice');
 
+    // HTTP Remote Control Elements
+    configHttpRemoteEnabledCheckbox = document.getElementById('configHttpRemoteEnabled');
+    configHttpRemotePortGroup = document.getElementById('httpRemotePortGroup');
+    configHttpRemotePortInput = document.getElementById('configHttpRemotePort');
+    configHttpRemoteLinksGroup = document.getElementById('httpRemoteLinksGroup');
+    configHttpRemoteLinksDiv = document.getElementById('httpRemoteLinks');
+
     // Mixer Integration Elements
     configMixerIntegrationEnabledCheckbox = document.getElementById('configMixerIntegrationEnabled');
     configMixerTypeGroup = document.getElementById('mixerTypeGroup');
     configMixerTypeSelect = document.getElementById('configMixerType');
     configWingIpAddressGroup = document.getElementById('wingIpAddressGroup');
     configWingIpAddressInput = document.getElementById('configWingIpAddress');
-    configWingModelTypeSelect = document.getElementById('configWingModelType');
-    configWingModelTypeGroup = document.getElementById('wingModelTypeGroup'); 
 
 
 
@@ -119,7 +133,64 @@ function cacheDOMElements() {
         console.error('AppConfigUI (cacheDOMElements): configWingIpAddressInput NOT FOUND by ID \'configWingIpAddress\'!');
     }
 
+    // ALPHA BUILD: Hide mixer integration elements via JavaScript
+    hideMixerIntegrationElements();
+
     console.log('AppConfigUI: DOM elements cached.');
+}
+
+// ALPHA BUILD: Function to hide mixer integration elements
+function hideMixerIntegrationElements() {
+    console.log('AppConfigUI: Hiding mixer integration elements for alpha build...');
+    
+    // Hide mixer integration elements and their parent containers
+    const elementsToHide = [
+        'configMixerIntegrationEnabled',
+        'mixerTypeGroup', 
+        'wingIpAddressGroup',
+        'configMixerType',
+        'configWingIpAddress'
+    ];
+    
+    elementsToHide.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.style.display = 'none';
+            console.log(`AppConfigUI: Hidden element with ID: ${id}`);
+            
+            // Also hide parent form-group if it exists
+            const parentFormGroup = element.closest('.form-group');
+            if (parentFormGroup) {
+                parentFormGroup.style.display = 'none';
+                console.log(`AppConfigUI: Hidden parent form-group for: ${id}`);
+            }
+            
+            // Hide checkbox label if it exists
+            const label = document.querySelector(`label[for="${id}"]`);
+            if (label) {
+                label.style.display = 'none';
+                console.log(`AppConfigUI: Hidden label for: ${id}`);
+            }
+        }
+    });
+    
+    // Hide the "Mixer Integration" heading
+    const headings = document.querySelectorAll('#configSidebar h3');
+    headings.forEach(heading => {
+        if (heading.textContent && heading.textContent.includes('Mixer Integration')) {
+            heading.style.display = 'none';
+            console.log('AppConfigUI: Hidden "Mixer Integration" heading');
+            
+            // Hide the HR element before it
+            const prevHr = heading.previousElementSibling;
+            if (prevHr && prevHr.tagName === 'HR') {
+                prevHr.style.display = 'none';
+                console.log('AppConfigUI: Hidden HR before mixer heading');
+            }
+        }
+    });
+    
+    console.log('AppConfigUI: Mixer integration elements hidden for alpha build');
 }
 
 function bindEventListeners() {
@@ -142,7 +213,13 @@ function bindEventListeners() {
     if (configDefaultRetriggerBehaviorSelect) configDefaultRetriggerBehaviorSelect.addEventListener('change', handleAppConfigChange);
     if (configDefaultStopAllBehaviorSelect) {
         configDefaultStopAllBehaviorSelect.value = currentAppConfig.defaultStopAllBehavior || 'stop';
-        configDefaultStopAllBehaviorSelect.addEventListener('change', handleAppConfigChange);
+        configDefaultStopAllBehaviorSelect.addEventListener('change', () => {
+            handleStopAllBehaviorChange();
+            handleAppConfigChange();
+        });
+    }
+    if (configDefaultStopAllFadeOutInput) {
+        configDefaultStopAllFadeOutInput.addEventListener('change', handleAppConfigChange);
     }
     
     if (configOscEnabledCheckbox) {
@@ -155,6 +232,16 @@ function bindEventListeners() {
     if (configOscPortInput) configOscPortInput.addEventListener('blur', handleAppConfigChange); 
 
     if (configAudioOutputDeviceSelect) configAudioOutputDeviceSelect.addEventListener('change', handleAppConfigChange);
+    
+    // HTTP Remote Control event listeners
+    if (configHttpRemoteEnabledCheckbox) {
+        configHttpRemoteEnabledCheckbox.addEventListener('change', () => {
+            handleHttpRemoteEnabledChange();
+            handleAppConfigChange(); 
+        });
+    }
+    if (configHttpRemotePortInput) configHttpRemotePortInput.addEventListener('change', handleAppConfigChange);
+    if (configHttpRemotePortInput) configHttpRemotePortInput.addEventListener('blur', handleAppConfigChange);
     
     if (configMixerIntegrationEnabledCheckbox) {
         configMixerIntegrationEnabledCheckbox.addEventListener('change', () => {
@@ -174,7 +261,7 @@ function bindEventListeners() {
             handleAppConfigChange(); 
         });
     }
-    if (configWingModelTypeSelect) configWingModelTypeSelect.addEventListener('change', handleAppConfigChange);
+
 
 
 
@@ -217,10 +304,15 @@ function populateConfigSidebar(config) {
         if (configDefaultLoopSingleCueCheckbox) configDefaultLoopSingleCueCheckbox.checked = currentAppConfig.defaultLoopSingleCue || false;
         if (configDefaultRetriggerBehaviorSelect) configDefaultRetriggerBehaviorSelect.value = currentAppConfig.defaultRetriggerBehavior || 'restart';
         if (configDefaultStopAllBehaviorSelect) configDefaultStopAllBehaviorSelect.value = currentAppConfig.defaultStopAllBehavior || 'stop';
+        if (configDefaultStopAllFadeOutInput) configDefaultStopAllFadeOutInput.value = currentAppConfig.defaultStopAllFadeOutTime || 1500;
         
         // OSC Settings
         if (configOscEnabledCheckbox) configOscEnabledCheckbox.checked = currentAppConfig.oscEnabled || false;
         if (configOscPortInput) configOscPortInput.value = currentAppConfig.oscPort || 54321;
+        
+        // HTTP Remote Control Settings
+        if (configHttpRemoteEnabledCheckbox) configHttpRemoteEnabledCheckbox.checked = currentAppConfig.httpRemoteEnabled !== false; // Default to true
+        if (configHttpRemotePortInput) configHttpRemotePortInput.value = currentAppConfig.httpRemotePort || 3000;
         
         if (configAudioOutputDeviceSelect && currentAppConfig.audioOutputDeviceId) {
             configAudioOutputDeviceSelect.value = currentAppConfig.audioOutputDeviceId;
@@ -232,28 +324,24 @@ function populateConfigSidebar(config) {
             configMixerIntegrationEnabledCheckbox.checked = currentAppConfig.mixerIntegrationEnabled || false;
         }
         if (configMixerTypeSelect) {
-            configMixerTypeSelect.value = currentAppConfig.mixerType || 'wing';
+            configMixerTypeSelect.value = currentAppConfig.mixerType || 'none';
         }
-        if (currentAppConfig.mixerType === 'behringer_wing') {
+        // Set IP address for any Wing mixer type
+        if (currentAppConfig.mixerType === 'behringer_wing_compact' || currentAppConfig.mixerType === 'behringer_wing_full') {
             if (configWingIpAddressInput) {
                 configWingIpAddressInput.value = currentAppConfig.wingIpAddress || '';
-            }
-            if (configWingModelTypeSelect) {
-                console.log('[AppConfigUI populateConfigSidebar] Accessing WING Model. Element:', configWingModelTypeSelect, 'Selected Value:', configWingModelTypeSelect ? configWingModelTypeSelect.value : 'Element N/A');
-                configWingModelTypeSelect.value = currentAppConfig.wingModelType || 'compact';
             }
         } else {
             if (configWingIpAddressInput) {
                 configWingIpAddressInput.value = '';
             }
-            if (configWingModelTypeSelect) {
-                configWingModelTypeSelect.value = 'compact'; 
-            }
         }
         
         handleOscEnabledChange(); 
+        handleHttpRemoteEnabledChange();
         handleMixerIntegrationEnabledChange(); 
         handleMixerTypeChange();
+        handleStopAllBehaviorChange();
 
 
 
@@ -271,6 +359,78 @@ function handleOscEnabledChange() {
     console.log('AppConfigUI: OSC Enabled changed.');
 }
 
+function handleHttpRemoteEnabledChange() {
+    const isEnabled = configHttpRemoteEnabledCheckbox && configHttpRemoteEnabledCheckbox.checked;
+    if (configHttpRemotePortGroup) {
+        configHttpRemotePortGroup.style.display = isEnabled ? 'block' : 'none';
+    }
+    if (configHttpRemoteLinksGroup) {
+        configHttpRemoteLinksGroup.style.display = isEnabled ? 'block' : 'none';
+    }
+    
+    // Load remote info when enabled
+    if (isEnabled) {
+        loadHttpRemoteInfo();
+    }
+}
+
+async function loadHttpRemoteInfo() {
+    if (!ipcRendererBindingsModule || !configHttpRemoteLinksDiv) return;
+    
+    try {
+        const remoteInfo = await ipcRendererBindingsModule.getHttpRemoteInfo();
+        console.log('AppConfigUI: Received HTTP remote info:', remoteInfo);
+        
+        if (!remoteInfo.enabled) {
+            configHttpRemoteLinksDiv.innerHTML = '<p class="small-text">HTTP remote is disabled.</p>';
+            return;
+        }
+        
+        if (!remoteInfo.interfaces || remoteInfo.interfaces.length === 0) {
+            configHttpRemoteLinksDiv.innerHTML = '<p class="small-text">No network interfaces found.</p>';
+            return;
+        }
+        
+        let linksHTML = '';
+        remoteInfo.interfaces.forEach(iface => {
+            linksHTML += `
+                <div class="remote-link-item">
+                    <div class="remote-link-info">
+                        <div class="remote-link-interface">${iface.interface}</div>
+                        <div class="remote-link-url">${iface.url}</div>
+                    </div>
+                    <button class="remote-link-copy" onclick="copyToClipboard('${iface.url}', this)">Copy</button>
+                </div>
+            `;
+        });
+        
+        configHttpRemoteLinksDiv.innerHTML = linksHTML;
+    } catch (error) {
+        console.error('AppConfigUI: Error loading HTTP remote info:', error);
+        configHttpRemoteLinksDiv.innerHTML = '<p class="small-text">Error loading remote info.</p>';
+    }
+}
+
+// Global function for copy to clipboard
+window.copyToClipboard = async function(text, button) {
+    try {
+        await navigator.clipboard.writeText(text);
+        const originalText = button.textContent;
+        button.textContent = 'Copied!';
+        button.classList.add('copied');
+        setTimeout(() => {
+            button.textContent = originalText;
+            button.classList.remove('copied');
+        }, 2000);
+    } catch (error) {
+        console.error('Failed to copy to clipboard:', error);
+        button.textContent = 'Failed';
+        setTimeout(() => {
+            button.textContent = 'Copy';
+        }, 2000);
+    }
+};
+
 function handleMixerIntegrationEnabledChange() {
     const isEnabled = configMixerIntegrationEnabledCheckbox ? configMixerIntegrationEnabledCheckbox.checked : false;
     console.log(`AppConfigUI: handleMixerIntegrationEnabledChange - Checkbox is checked: ${isEnabled}. Element:`, configMixerIntegrationEnabledCheckbox);
@@ -282,7 +442,6 @@ function handleMixerIntegrationEnabledChange() {
     // Always hide all mixer-specific input fields when integration is disabled
     if (!isEnabled) {
         if (configWingIpAddressGroup) configWingIpAddressGroup.style.display = 'none';
-        if (configWingModelTypeGroup) configWingModelTypeGroup.style.display = 'none';
     } else {
         handleMixerTypeChange();
     }
@@ -294,16 +453,22 @@ function handleMixerTypeChange() {
     const selectedMixer = configMixerTypeSelect ? configMixerTypeSelect.value : 'none';
     console.log('AppConfigUI (handleMixerTypeChange): Selected mixer type:', selectedMixer);
 
-    const isWingFamily = selectedMixer === 'behringer_wing' || selectedMixer === 'behringer_wing_compact';
+    const isWingFamily = selectedMixer === 'behringer_wing_compact' || selectedMixer === 'behringer_wing_full';
 
     if (configWingIpAddressGroup) {
         configWingIpAddressGroup.style.display = isWingFamily ? 'block' : 'none';
     }
-    // Show model type selector only for the generic 'behringer_wing' type,
-    // as 'behringer_wing_compact' already specifies the model.
-    if (configWingModelTypeGroup) {
-        configWingModelTypeGroup.style.display = selectedMixer === 'behringer_wing' ? 'block' : 'none';
+}
+
+function handleStopAllBehaviorChange() {
+    const behavior = configDefaultStopAllBehaviorSelect ? configDefaultStopAllBehaviorSelect.value : 'stop';
+    const showFadeOutTime = behavior === 'fade_out_and_stop';
+    
+    if (configDefaultStopAllFadeOutGroup) {
+        configDefaultStopAllFadeOutGroup.style.display = showFadeOutTime ? 'block' : 'none';
     }
+    
+    console.log('AppConfigUI: Stop All behavior changed to:', behavior, 'Show fade out time:', showFadeOutTime);
 }
 
 
@@ -378,9 +543,13 @@ function gatherConfigFromUI() {
         defaultLoopSingleCue: configDefaultLoopSingleCueCheckbox ? configDefaultLoopSingleCueCheckbox.checked : false,
         defaultRetriggerBehavior: configDefaultRetriggerBehaviorSelect ? configDefaultRetriggerBehaviorSelect.value : 'restart',
         defaultStopAllBehavior: configDefaultStopAllBehaviorSelect ? configDefaultStopAllBehaviorSelect.value : 'stop',
+        defaultStopAllFadeOutTime: configDefaultStopAllFadeOutInput ? parseInt(configDefaultStopAllFadeOutInput.value) : 1500,
 
         oscEnabled: configOscEnabledCheckbox ? configOscEnabledCheckbox.checked : false,
         oscPort: configOscPortInput ? parseInt(configOscPortInput.value) : 54321,
+        
+        httpRemoteEnabled: configHttpRemoteEnabledCheckbox ? configHttpRemoteEnabledCheckbox.checked : true,
+        httpRemotePort: configHttpRemotePortInput ? parseInt(configHttpRemotePortInput.value) : 3000,
         
         audioOutputDeviceId: configAudioOutputDeviceSelect ? configAudioOutputDeviceSelect.value : 'default',
 
@@ -391,27 +560,18 @@ function gatherConfigFromUI() {
         theme: currentAppConfig.theme || 'system',
     };
     
-    // Logic for setting mixerType and relevant IP addresses / model types
+    // Logic for setting mixerType and relevant IP addresses
     if (mixerEnabled) {
         config.mixerType = mixerType; // Set the selected mixer type
 
-        if (mixerType === 'behringer_wing' || mixerType === 'behringer_wing_compact') {
+        if (mixerType === 'behringer_wing_compact' || mixerType === 'behringer_wing_full') {
             config.wingIpAddress = configWingIpAddressInput ? configWingIpAddressInput.value.trim() : '';
-            if (mixerType === 'behringer_wing') { // Model type is only relevant for the generic wing
-                const modelSelectElement = document.getElementById('configWingModelType'); // Re-fetch the element
-                console.log('[AppConfigUI gatherConfigFromUI] Accessing WING Model. Re-fetched Element:', modelSelectElement, 'Selected Value:', modelSelectElement ? modelSelectElement.value : 'Element N/A');
-                config.wingModelType = modelSelectElement ? modelSelectElement.value : 'compact';
-            } else { // For 'behringer_wing_compact'
-                config.wingModelType = 'behringer_wing_compact'; // Explicitly set based on mixerType
-            }
         } else {
             config.wingIpAddress = ''; // Clear if not a WING type
-            config.wingModelType = 'compact'; // Default or clear
         }
     } else { // Mixer integration disabled
         config.mixerType = 'none';
         config.wingIpAddress = '';
-        config.wingModelType = 'compact';
     }
     
     console.log('AppConfigUI (gatherConfigFromUI): Gathered config:', JSON.parse(JSON.stringify(config)));

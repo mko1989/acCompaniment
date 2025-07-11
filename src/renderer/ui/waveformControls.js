@@ -4,6 +4,7 @@
 let wavesurferInstance = null;
 let wsRegions = null; // Regions plugin instance
 let currentLiveTrimRegion = null; // ADDED: To store the live trimRegion object
+let isDestroyingWaveform = false; // ADDED: Flag to prevent callback loops during destruction
 let waveformIsStoppedAtTrimStart = false;
 let zoomLevel = 0; // Start at minimum zoom (0-100 scale, higher = more zoomed in)
 let maxZoom = 100; // Maximum zoom level 
@@ -28,7 +29,10 @@ let onTrimChangeCallback = null; // ADDED: Callback for trim changes
  */
 function initWaveformControls(dependencies) {
     console.log('WaveformControls: Initializing...');
+    console.log('WaveformControls: Dependencies received:', dependencies);
+    
     ipcRendererBindingsModule = dependencies.ipcRendererBindings;
+    console.log('WaveformControls: ipcRendererBindings set:', !!ipcRendererBindingsModule);
 
     console.log('WaveformControls (DEBUG init): typeof dependencies.onTrimChange:', typeof dependencies.onTrimChange); // New Log
     if (dependencies.onTrimChange) {
@@ -58,7 +62,14 @@ function cacheWaveformDOMElements() {
     wfCurrentTime = document.getElementById('wfCurrentTime');
     wfTotalDuration = document.getElementById('wfTotalDuration');
     wfRemainingTime = document.getElementById('wfRemainingTime');
-    console.log('WaveformControls: DOM elements cached.');
+    
+    console.log('WaveformControls: DOM elements cached:');
+    console.log('  waveformDisplayDiv:', waveformDisplayDiv ? 'Found' : 'NOT FOUND');
+    console.log('  wfSetStartBtn:', wfSetStartBtn ? 'Found' : 'NOT FOUND');
+    console.log('  wfSetEndBtn:', wfSetEndBtn ? 'Found' : 'NOT FOUND');
+    console.log('  wfCurrentTime:', wfCurrentTime ? 'Found' : 'NOT FOUND');
+    console.log('  wfTotalDuration:', wfTotalDuration ? 'Found' : 'NOT FOUND');
+    console.log('  wfRemainingTime:', wfRemainingTime ? 'Found' : 'NOT FOUND');
 }
 
 // Function to reset zoom to show the entire track
@@ -71,7 +82,10 @@ function resetZoom() {
 }
 
 function bindWaveformControlEventsListeners() {
-    if (wfPlayPauseBtn) wfPlayPauseBtn.addEventListener('click', () => {
+    console.log('WaveformControls: Starting to bind event listeners...');
+    
+    if (wfPlayPauseBtn) {
+        wfPlayPauseBtn.addEventListener('click', () => {
         console.log('WaveformControls: wfPlayPauseBtn clicked.'); // New Log
         if (wavesurferInstance) {
             const trimRegion = wsRegions ? wsRegions.getRegions().find(r => r.id === 'trimRegion') : null;
@@ -99,7 +113,14 @@ function bindWaveformControlEventsListeners() {
             }
         }
     });
-    if (wfStopBtn) wfStopBtn.addEventListener('click', () => {
+        console.log('WaveformControls: Play/Pause button listener bound');
+    } else {
+        console.warn('WaveformControls: wfPlayPauseBtn not found, cannot bind event');
+    }
+    
+    if (wfStopBtn) {
+        wfStopBtn.addEventListener('click', () => {
+            console.log('WaveformControls: wfStopBtn clicked.');
         if (wavesurferInstance) {
             wavesurferInstance.pause();
             const trimRegion = wsRegions ? wsRegions.getRegions().find(r => r.id === 'trimRegion') : null;
@@ -117,8 +138,30 @@ function bindWaveformControlEventsListeners() {
             waveformIsStoppedAtTrimStart = (trimRegion && Math.abs(seekToTime - trimRegion.start) < 0.01);
         }
     });
-    if (wfSetStartBtn) wfSetStartBtn.addEventListener('click', () => handleSetTrimStart()); // Call internal handler
-    if (wfSetEndBtn) wfSetEndBtn.addEventListener('click', () => handleSetTrimEnd());     // Call internal handler
+        console.log('WaveformControls: Stop button listener bound');
+    } else {
+        console.warn('WaveformControls: wfStopBtn not found, cannot bind event');
+    }
+    
+    if (wfSetStartBtn) {
+        wfSetStartBtn.addEventListener('click', () => {
+            console.log('WaveformControls: SET START BUTTON CLICKED!');
+            handleSetTrimStart();
+        }); // Call internal handler
+        console.log('WaveformControls: Set Start button listener bound');
+    } else {
+        console.warn('WaveformControls: wfSetStartBtn not found, cannot bind event');
+    }
+    
+    if (wfSetEndBtn) {
+        wfSetEndBtn.addEventListener('click', () => {
+            console.log('WaveformControls: SET END BUTTON CLICKED!');
+            handleSetTrimEnd();
+        });     // Call internal handler
+        console.log('WaveformControls: Set End button listener bound');
+    } else {
+        console.warn('WaveformControls: wfSetEndBtn not found, cannot bind event');
+    }
     
     // Add zoom functionality with mouse wheel
     if (waveformDisplayDiv) {
@@ -207,12 +250,29 @@ function _handlePlaybackEndReached() {
 
 // --- Core Waveform Logic (to be moved/populated) ---
 
+// Performance optimization: debounce waveform initialization
+let waveformInitTimeout = null;
+const WAVEFORM_INIT_DEBOUNCE_MS = 100;
+
 async function initializeWaveformInternal(cue) {
     if (!waveformDisplayDiv || !cue || !cue.filePath) { // Simplified check, type check done by caller
         _destroyWaveformInternal(); // Use internal destroy
         return;
     }
 
+    // Clear any pending initialization to avoid duplicate operations
+    if (waveformInitTimeout) {
+        clearTimeout(waveformInitTimeout);
+        waveformInitTimeout = null;
+    }
+
+    // Debounce waveform initialization to prevent rapid successive calls
+    waveformInitTimeout = setTimeout(async () => {
+        await _performWaveformInitialization(cue);
+    }, WAVEFORM_INIT_DEBOUNCE_MS);
+}
+
+async function _performWaveformInitialization(cue) {
     _destroyWaveformInternal(); 
     if (waveformDisplayDiv) {
         waveformDisplayDiv.style.display = 'block';
@@ -236,97 +296,321 @@ async function initializeWaveformInternal(cue) {
             audioUrl = normalizedPath.startsWith('/') ? 'file://' + normalizedPath : 'file:///' + normalizedPath;
         }
 
-        // Create wavesurfer instance with direct audio loading (the "fallback" method is now primary)
-        wavesurferInstance = WaveSurfer.create({
+        // Performance optimization: Use progressive loading for large files
+        const isLargeFile = await _checkIfLargeAudioFile(audioUrl);
+        
+        // Create wavesurfer instance with optimized settings
+        const waveformConfig = {
             container: waveformDisplayDiv,
             waveColor: 'rgb(85, 85, 85)',
-            progressColor: 'rgb(120, 120, 120)', // Changed to lighter gray to make it visible but not too dark
+            progressColor: 'rgb(120, 120, 120)',
             cursorColor: 'rgb(204, 204, 204)',
             height: 128,
+            // Performance optimizations
             partialRender: true, 
             autoCenter: false,
+            normalize: !isLargeFile, // Skip normalization for large files to improve performance
+            pixelRatio: window.devicePixelRatio || 1,
+            // Use lower quality for large files to improve performance
+            barWidth: isLargeFile ? 2 : 1,
+            barGap: isLargeFile ? 1 : 0,
             url: audioUrl,
-            plugins: [ WaveSurfer.Regions.create({ dragSelection: false, regionClass: 'wavesurfer-region' }) ]
-        });
+            plugins: [ WaveSurfer.Regions.create({ 
+                dragSelection: false, 
+                regionClass: 'wavesurfer-region'
+            }) ]
+        };
 
-        // Initialize wsRegions reference
-        if (wavesurferInstance.plugins && wavesurferInstance.plugins.length > 0) {
-            wsRegions = wavesurferInstance.plugins[0]; 
-        } else { 
-            console.error('WaveformControls: Could not get Regions plugin!'); 
+        // Add progress callback for large files
+        if (isLargeFile) {
+            waveformConfig.progressColor = 'rgba(120, 120, 120, 0.8)';
         }
 
-        // Reset zoom level to default
-        zoomLevel = 0;
+        console.log('WaveformControls: Creating WaveSurfer instance with optimized config:', waveformConfig);
 
-        // Attach event listeners
-        if (wavesurferInstance) {
-            console.log('WaveformControls: Attaching WaveSurfer event listeners.');
-            
-            wavesurferInstance.on('ready', () => {
-                console.log('WaveformControls: WaveSurfer instance READY.');
-                const totalDuration = wavesurferInstance.getDuration();
-                
-                // Set initial time displays
-                if (wfCurrentTime) wfCurrentTime.textContent = formatWaveformTime(0);
-                if (wfRemainingTime && totalDuration) wfRemainingTime.textContent = formatWaveformTime(totalDuration);
-
-                // Load any existing regions from the cue data
-                loadRegionsFromCueInternal(cue); 
-
-                // Check if trimRegion exists
-                const allRegions = wsRegions ? wsRegions.getRegions() : {}; 
-                const currentTrimRegionForCheck = allRegions['trimRegion'];
-
-                if (!currentTrimRegionForCheck && wfTotalDuration && totalDuration) {
-                    wfTotalDuration.textContent = formatWaveformTime(totalDuration);
-                    console.log(`WaveformControls (Ready): No trim region, wfTotalDuration set to full: ${formatWaveformTime(totalDuration)}`);
-                } else if (currentTrimRegionForCheck && wfTotalDuration) {
-                    console.log(`WaveformControls (Ready): Trim region exists. wfTotalDuration should be: ${wfTotalDuration.textContent}`);
-                }
-
-                const playPauseImgOnReady = wfPlayPauseBtn ? wfPlayPauseBtn.querySelector('img') : null;
-                if (playPauseImgOnReady) playPauseImgOnReady.src = '../../assets/icons/play.png';
-                
-                // Reset zoom to ensure entire track is visible
-                resetZoom();
-            });
-            
-            wavesurferInstance.on('audioprocess', (currentTime) => {
-                if (wfCurrentTime) wfCurrentTime.textContent = formatWaveformTime(currentTime);
-                const totalDur = wavesurferInstance.getDuration();
-                if (wfRemainingTime) wfRemainingTime.textContent = formatWaveformTime(currentTime - totalDur); // Negative for remaining
-
-                // Check if playback has reached the end of a trim region
-                const allRegionsForAudioProcess = wsRegions ? wsRegions.getRegions() : {};
-                const trimRegionForAudioProcess = allRegionsForAudioProcess['trimRegion'];
-
-                if (trimRegionForAudioProcess && wavesurferInstance.isPlaying()) {
-                    const tolerance = 0.05; 
-                    if (currentTime >= (trimRegionForAudioProcess.end - tolerance)) {
-                        console.log(`WaveformControls: Audioprocess - Current time ${currentTime} reached/passed trimRegion.end ${trimRegionForAudioProcess.end}. Handling end.`);
-                        _handlePlaybackEndReached();
+        // Create instance in a non-blocking way
+        await new Promise((resolve, reject) => {
+            // Use setTimeout to allow UI to update
+            setTimeout(() => {
+                try {
+                    console.log('WaveformControls: About to create WaveSurfer instance...');
+                    wavesurferInstance = WaveSurfer.create(waveformConfig);
+                    console.log('WaveformControls: WaveSurfer instance created:', wavesurferInstance);
+                    
+                    // Get regions plugin reference immediately after creation
+                    console.log('WaveformControls: Looking for regions plugin...');
+                    wsRegions = wavesurferInstance.getActivePlugins().find(plugin => 
+                        plugin.constructor.name === 'RegionsPlugin' || 
+                        plugin.constructor.name.includes('Region')
+                    );
+                    
+                    if (!wsRegions) {
+                        console.warn('WaveformControls: Regions plugin not found in active plugins');
+                        console.log('WaveformControls: Active plugins:', wavesurferInstance.getActivePlugins().map(p => p.constructor.name));
+                        
+                        // Try alternative approaches to get regions
+                        wsRegions = wavesurferInstance.plugins?.find(plugin => 
+                            plugin.constructor.name === 'RegionsPlugin' ||
+                            plugin.constructor.name.includes('Region')
+                        );
+                        console.log('WaveformControls: Alternative plugin search result:', wsRegions);
+                        
+                        // Try using the first plugin if only one exists
+                        if (!wsRegions && wavesurferInstance.getActivePlugins().length === 1) {
+                            wsRegions = wavesurferInstance.getActivePlugins()[0];
+                            console.log('WaveformControls: Using first available plugin as regions:', wsRegions);
+                        }
+                        
+                        // Try accessing via registry if available
+                        if (!wsRegions && wavesurferInstance.plugins) {
+                            console.log('WaveformControls: All plugins:', wavesurferInstance.plugins);
+                            wsRegions = Object.values(wavesurferInstance.plugins).find(plugin => 
+                                plugin && typeof plugin.addRegion === 'function'
+                            );
+                            console.log('WaveformControls: Plugin with addRegion method:', wsRegions);
+                        }
                     }
+                    
+                    console.log('WaveformControls: Regions plugin found:', wsRegions ? 'Yes' : 'No');
+                    if (wsRegions) {
+                        console.log('WaveformControls: Regions plugin type:', wsRegions.constructor.name);
+                        console.log('WaveformControls: Regions plugin methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(wsRegions)));
+                    }
+                    
+                    // Set up event listeners for performance monitoring
+                    wavesurferInstance.on('load', () => {
+                        console.log('WaveformControls: Waveform loaded successfully');
+                        resolve();
+                    });
+                    
+                    wavesurferInstance.on('error', (error) => {
+                        console.error('WaveformControls: WaveSurfer error:', error);
+                        reject(error);
+                    });
+                    
+                    // Performance optimization: Show loading progress for large files
+                    if (isLargeFile) {
+                        wavesurferInstance.on('loading', (percent) => {
+                            if (waveformDisplayDiv) {
+                                const progressBar = waveformDisplayDiv.querySelector('.waveform-progress');
+                                if (progressBar) {
+                                    progressBar.style.width = `${percent}%`;
+        } else { 
+                                    // Create progress bar if it doesn't exist
+                                    const progressContainer = document.createElement('div');
+                                    progressContainer.className = 'waveform-progress-container';
+                                    progressContainer.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px;';
+                                    
+                                    const progressBar = document.createElement('div');
+                                    progressBar.className = 'waveform-progress';
+                                    progressBar.style.cssText = `width: ${percent}%; height: 100%; background: rgb(120, 120, 120); border-radius: 2px; transition: width 0.3s ease;`;
+                                    
+                                    progressContainer.appendChild(progressBar);
+                                    waveformDisplayDiv.appendChild(progressContainer);
+                                }
+                            }
+                        });
+                    }
+                    
+                } catch (error) {
+                    reject(error);
                 }
-                
-                // This function call updates any other UI that needs to stay in sync with the current playback time
+            }, 0);
+        });
+
+        // Additional optimizations after successful creation
+        if (wavesurferInstance) {
+            // Set up performance-optimized event handlers
+            _setupOptimizedWaveformEvents(cue);
+            
+            // Clean up progress bar if it exists
+            const progressContainer = waveformDisplayDiv.querySelector('.waveform-progress-container');
+            if (progressContainer) {
+                progressContainer.remove();
+            }
+            
+            console.log('WaveformControls: Waveform initialization completed successfully');
+        }
+
+    } catch (error) {
+        console.error('WaveformControls: Error initializing waveform:', error);
+        if (waveformDisplayDiv) {
+            waveformDisplayDiv.innerHTML = '<p style="color:red; text-align:center; padding-top: 40px;">Critical error during waveform initialization.</p>';
+        }
+    }
+}
+
+// Helper function to check if audio file is large (for performance optimization)
+async function _checkIfLargeAudioFile(audioUrl) {
+    try {
+        // Try to get file size if possible
+        if (typeof electronAPIForPreload !== 'undefined' && electronAPIForPreload.getFileSize) {
+            const fileSize = await electronAPIForPreload.getFileSize(audioUrl);
+            return fileSize > 50 * 1024 * 1024; // 50MB threshold
+        }
+        
+        // Fallback: assume it's large if we can't check
+        return false;
+    } catch (error) {
+        console.warn('WaveformControls: Unable to check file size:', error);
+        return false;
+    }
+}
+
+// Optimized event handling for waveform
+function _setupOptimizedWaveformEvents(cue) {
+    console.log('WaveformControls: _setupOptimizedWaveformEvents called');
+    console.log('WaveformControls: wavesurferInstance exists:', !!wavesurferInstance);
+    console.log('WaveformControls: wsRegions exists:', !!wsRegions);
+    
+    if (!wavesurferInstance) return;
+    
+    // wsRegions should already be set during WaveSurfer creation
+    if (!wsRegions) {
+        console.warn('WaveformControls: wsRegions not available in _setupOptimizedWaveformEvents');
+        return;
+    }
+    
+    // Throttle seek events to prevent excessive calls
+    let seekTimeout = null;
+    
+    // Initialize time displays once waveform is ready
+    const updateInitialTimeDisplays = () => {
+        console.log('WaveformControls: updateInitialTimeDisplays called');
+        
+        // CRITICAL: Check if instance still exists before calling methods
+        if (!wavesurferInstance) {
+            console.warn('WaveformControls: updateInitialTimeDisplays called but wavesurferInstance is null, skipping');
+            return;
+        }
+        
+        const duration = wavesurferInstance.getDuration();
+        console.log('WaveformControls: Duration:', duration);
+        if (wfTotalDuration && duration > 0) {
+            wfTotalDuration.textContent = formatWaveformTime(duration);
+            console.log('WaveformControls: Set total duration to:', formatWaveformTime(duration));
+        }
+        if (wfCurrentTime) {
+            wfCurrentTime.textContent = formatWaveformTime(0);
+            console.log('WaveformControls: Set current time to: 0:00.0');
+        }
+        if (wfRemainingTime) {
+            wfRemainingTime.textContent = formatWaveformTime(-duration);
+            console.log('WaveformControls: Set remaining time to:', formatWaveformTime(-duration));
+        }
+    };
+    
+    // Set up time display updates during playback
+    wavesurferInstance.on('audioprocess', (currentTime) => {
+        if (!wavesurferInstance) return; // Guard against race conditions
+        console.log('WaveformControls: audioprocess event - currentTime:', currentTime);
                 syncPlaybackTimeWithUI(currentTime);
             });
             
-            wavesurferInstance.on('seek', () => {
-                const currentTime = wavesurferInstance.getCurrentTime();
-                if (wfCurrentTime) wfCurrentTime.textContent = formatWaveformTime(currentTime);
-                const totalDur = wavesurferInstance.getDuration();
-                if (wfRemainingTime) wfRemainingTime.textContent = formatWaveformTime(currentTime - totalDur); // Negative for remaining
-                
-                // Also sync UI when user seeks
+    // Update time displays on seek
+    wavesurferInstance.on('seek', (seekProgress) => {
+        if (!wavesurferInstance) return; // Guard against race conditions
+        const duration = wavesurferInstance.getDuration();
+        const currentTime = seekProgress * duration;
+        console.log('WaveformControls: seek event - seekProgress:', seekProgress, 'currentTime:', currentTime);
+        syncPlaybackTimeWithUI(currentTime);
+    });
+    
+    // Update time displays when playback position changes
+    wavesurferInstance.on('timeupdate', (currentTime) => {
+        if (!wavesurferInstance) return; // Guard against race conditions
+        console.log('WaveformControls: timeupdate event - currentTime:', currentTime);
                 syncPlaybackTimeWithUI(currentTime);
             });
             
+    // Initialize time displays when ready
+    wavesurferInstance.on('ready', () => {
+        console.log('WaveformControls: ready event fired');
+        updateInitialTimeDisplays();
+        
+        // Load regions from cue data after waveform is ready
+        if (cue) {
+            console.log('WaveformControls: Loading regions from cue:', cue);
+            loadRegionsFromCueInternal(cue);
+        }
+    });
+    
+    // Handle clicks for seeking
+    wavesurferInstance.on('click', (relativeX) => {
+        if (seekTimeout) {
+            clearTimeout(seekTimeout);
+        }
+        
+        seekTimeout = setTimeout(() => {
+            if (!wavesurferInstance) return; // Guard against race conditions
+            
+            const duration = wavesurferInstance.getDuration();
+            const seekTime = relativeX * duration;
+            
+            if (seekTime >= 0 && seekTime <= duration) {
+                console.log('WaveformControls: Seeking to', seekTime);
+                // Update time displays immediately for better responsiveness
+                syncPlaybackTimeWithUI(seekTime);
+                
+                if (typeof seekInAudioController === 'function') {
+                    seekInAudioController(cue.id, seekTime);
+                }
+            }
+        }, 50); // 50ms debounce
+    });
+    
+    // Region event handlers
+    if (wsRegions) {
+        console.log('WaveformControls: Setting up region event handlers...');
+        
+        // Handle when regions are created
+        wsRegions.on('region-created', (region) => {
+            if (!wavesurferInstance || !wsRegions || isDestroyingWaveform) return;
+            console.log('WaveformControls: Region created event fired:', region.id);
+            updateTrimInputsFromRegionInternal(region);
+        });
+        
+        // Handle when regions are updated (dragged/resized)
+        wsRegions.on('region-updated', (region) => {
+            if (!wavesurferInstance || !wsRegions || isDestroyingWaveform) return;
+            console.log('WaveformControls: Region updated event fired:', region.id);
+            updateTrimInputsFromRegionInternal(region);
+        });
+        
+        // Handle when region update ends (final position)
+        wsRegions.on('region-update-end', (region) => {
+            if (!wavesurferInstance || !wsRegions || isDestroyingWaveform) return;
+            console.log('WaveformControls: Region update ended event fired:', region.id);
+            updateTrimInputsFromRegionInternal(region);
+        });
+        
+        // Handle when regions are removed
+        wsRegions.on('region-removed', (region) => {
+            if (!wavesurferInstance || !wsRegions || isDestroyingWaveform) return;
+            console.log('WaveformControls: Region removed event fired:', region.id);
+            updateTrimInputsFromRegionInternal(null);
+        });
+        
+        // Handle region click events
+        wsRegions.on('region-clicked', (region, event) => {
+            if (!wavesurferInstance || !wsRegions || isDestroyingWaveform) return;
+            console.log('WaveformControls: Region clicked event fired:', region.id);
+            // Optionally seek to region start on click
+            const duration = wavesurferInstance.getDuration();
+            if (duration > 0) {
+                wavesurferInstance.seekTo(region.start / duration);
+            }
+        });
+        
+        console.log('WaveformControls: Region event handlers setup completed');
+    } else {
+        console.warn('WaveformControls: wsRegions not available, cannot setup region events');
+    }
+    
+    // Handle playback state changes
             wavesurferInstance.on('play', () => { 
                 const playPauseImg = wfPlayPauseBtn ? wfPlayPauseBtn.querySelector('img') : null;
                 if (playPauseImg) playPauseImg.src = '../../assets/icons/pause.png';
-                waveformIsStoppedAtTrimStart = false;
             });
             
             wavesurferInstance.on('pause', () => { 
@@ -338,81 +622,64 @@ async function initializeWaveformInternal(cue) {
                 _handlePlaybackEndReached();
             });
             
-            wavesurferInstance.on('region-out', (region) => {
-                console.log(`WaveformControls: 'region-out' event fired for region ID: ${region.id}, Start: ${region.start}, End: ${region.end}`);
-                if (region.id === 'trimRegion') {
-                    console.log(`  'region-out' is for trimRegion. Is playing? ${wavesurferInstance.isPlaying()}`);
-                    if (wavesurferInstance.isPlaying()) {
-                        console.log('  Pausing playback due to trimRegion-out.');
-                        wavesurferInstance.pause();
-                    }
-                }
-            });
-            
-            wavesurferInstance.on('region-created', (region) => {
-                console.log('WaveformControls: Region created:', region.id, 'Start:', region.start.toFixed(3), 'End:', region.end.toFixed(3));
-                if (region.id === 'trimRegion') {
-                    updateTrimInputsFromRegionInternal(region); // Update sidebar inputs
-                }
-                // Style the regions after creation
-                setTimeout(() => {
-                    styleRegionsInternal();
-                }, 0);
-            });
-            
-            wavesurferInstance.on('region-updated', (region) => {
-                console.log('WaveformControls: Region updated:', region.id, 'Start:', region.start.toFixed(3), 'End:', region.end.toFixed(3)); // Log with toFixed
-                if (region.id === 'trimRegion') {
-                    updateTrimInputsFromRegionInternal(region); // Notify sidebar & trigger save
-                }
-                // Style the regions after update
-                setTimeout(() => {
-                    styleRegionsInternal();
-                }, 0);
-            });
-            
-            // Re-add the region-removed event handler
-            wavesurferInstance.on('region-removed', (region) => {
-                console.log('WaveformControls: Region removed:', region.id);
-                // Style the regions after removal
-                setTimeout(() => {
-                    styleRegionsInternal();
-                }, 0);
-            });
-        } else {
-             console.error('WaveformControls: wavesurferInstance is null after creation logic. Cannot attach event listeners.');
-             if (waveformDisplayDiv) waveformDisplayDiv.innerHTML = '<p style="color:red; text-align:center; padding-top: 40px;">Failed to initialize waveform logic.</p>';
-        }
-    } catch (error) {
-        console.error('Error initializing waveform:', error);
-        if (waveformDisplayDiv) waveformDisplayDiv.innerHTML = '<p style="color:red; text-align:center; padding-top: 40px;">Critical error.</p>';
-    }
+    console.log('WaveformControls: Event listeners setup completed');
 }
 
 // Function to sync playback time with other UI elements
 function syncPlaybackTimeWithUI(currentTime) {
-    // Update the current time display
+    if (!wavesurferInstance) {
+        console.warn('WaveformControls: syncPlaybackTimeWithUI called but wavesurferInstance is null');
+        return;
+    }
+    
+    const totalDuration = wavesurferInstance.getDuration();
+    if (totalDuration === null || totalDuration === undefined || isNaN(totalDuration)) {
+        console.warn('WaveformControls: syncPlaybackTimeWithUI - invalid duration, skipping');
+        return;
+    }
+    
+    // Update the current time display (always show original time)
     if (wfCurrentTime) {
         wfCurrentTime.textContent = formatWaveformTime(currentTime);
     }
     
-    // Update the remaining time display
-    if (wfRemainingTime && wavesurferInstance) {
-        const totalDuration = wavesurferInstance.getDuration();
-        wfRemainingTime.textContent = formatWaveformTime(currentTime - totalDuration);
+    // Update the total duration display (always show original duration, not trimmed)
+    if (wfTotalDuration) {
+        wfTotalDuration.textContent = formatWaveformTime(totalDuration);
     }
     
-    // If we need to sync with another part of the UI in the future, 
-    // add that code here
+    // Update the remaining time display (original duration - current time)
+    if (wfRemainingTime) {
+        const remainingTime = Math.max(0, totalDuration - currentTime);
+        wfRemainingTime.textContent = '-' + formatWaveformTime(remainingTime);
+    }
 }
 
 function _destroyWaveformInternal() {
+    console.log('WaveformControls: _destroyWaveformInternal called');
+    isDestroyingWaveform = true; // CRITICAL: Set flag to prevent callback loops
+    
     if (wavesurferInstance) {
-        try { wavesurferInstance.destroy(); } catch (e) { console.warn("WaveformControls: Error destroying wavesurfer:", e); }
-        wavesurferInstance = null; wsRegions = null;
+        try { 
+            wavesurferInstance.destroy(); 
+            console.log('WaveformControls: wavesurferInstance destroyed successfully');
+        } catch (e) { 
+            console.warn("WaveformControls: Error destroying wavesurfer:", e); 
+        }
+        wavesurferInstance = null; 
+        wsRegions = null;
         currentLiveTrimRegion = null; // ADDED: Reset live region
     }
-    if (waveformDisplayDiv) { waveformDisplayDiv.innerHTML = ''; /* Keep display style managed by caller */ }
+    if (waveformDisplayDiv) { 
+        waveformDisplayDiv.innerHTML = ''; 
+        console.log('WaveformControls: waveformDisplayDiv cleared');
+    }
+    
+    // Reset flag after a delay to allow any pending events to finish
+    setTimeout(() => {
+        isDestroyingWaveform = false;
+        console.log('WaveformControls: destruction flag reset');
+    }, 100);
 }
 
 function loadRegionsFromCueInternal(cue) {
@@ -454,16 +721,32 @@ function loadRegionsFromCueInternal(cue) {
 }
 
 function handleSetTrimStart() {
-    if (!wavesurferInstance || !wsRegions) return;
+    console.log('WaveformControls: handleSetTrimStart called');
+    console.log('WaveformControls: wavesurferInstance exists:', !!wavesurferInstance);
+    console.log('WaveformControls: wsRegions exists:', !!wsRegions);
+    
+    if (!wavesurferInstance || !wsRegions) {
+        console.error('WaveformControls: Cannot set trim start - missing wavesurferInstance or wsRegions');
+        return;
+    }
+    
     const currentTime = wavesurferInstance.getCurrentTime();
     console.log('WaveformControls: handleSetTrimStart - FORCING REMOVE/ADD. Current time:', currentTime);
 
     // Attempt to remove existing region with id 'trimRegion'
     const regions = wsRegions.getRegions(); 
+    console.log('WaveformControls: Current regions:', regions);
     const oldRegionInstance = Array.isArray(regions) ? regions.find(r => r.id === 'trimRegion') : (regions ? regions['trimRegion'] : null);
+    console.log('WaveformControls: Old region instance:', oldRegionInstance);
+    
     if (oldRegionInstance && typeof oldRegionInstance.remove === 'function') {
-        try { oldRegionInstance.remove(); console.log('Force-removed old trimRegion (start)'); } 
-        catch (e) { console.warn('Error force-removing old trimRegion (start):', e); }
+        try { 
+            oldRegionInstance.remove(); 
+            console.log('Force-removed old trimRegion (start)'); 
+        } 
+        catch (e) { 
+            console.warn('Error force-removing old trimRegion (start):', e); 
+        }
     } else if (oldRegionInstance) {
         console.warn('Old trimRegion found but no remove method (start)');
         // Potentially try wsRegions.clearRegions() if desperate, but that clears all regions.
@@ -474,14 +757,17 @@ function handleSetTrimStart() {
 
     // Define new region boundaries
     const totalDur = wavesurferInstance.getDuration();
+    console.log('WaveformControls: Total duration:', totalDur);
     let newStart = currentTime;
     let newEnd = totalDur; // Default to full duration if an old end isn't available or makes sense
     
     // If we had an old region, try to use its end time, otherwise full duration or a small increment.
     if (oldRegionInstance && oldRegionInstance.end !== undefined) {
         newEnd = oldRegionInstance.end;
+        console.log('WaveformControls: Using old region end:', newEnd);
     } else {
         newEnd = totalDur > 0 ? totalDur : currentTime + 0.1;
+        console.log('WaveformControls: Using total duration as end:', newEnd);
     }
 
     if (newEnd <= newStart) {
@@ -500,6 +786,8 @@ function handleSetTrimStart() {
     }
 
     console.log('Force Add: New region (start). Start:', newStart.toFixed(3), ', end:', newEnd.toFixed(3));
+    
+    try {
     currentLiveTrimRegion = wsRegions.addRegion({
         id: 'trimRegion',
         start: newStart,
@@ -508,6 +796,9 @@ function handleSetTrimStart() {
         drag: true,
         resize: true,
     });
+        
+        console.log('WaveformControls: Region creation result:', currentLiveTrimRegion);
+        
     if (currentLiveTrimRegion) {
         console.log(`WFC_DEBUG SetStart: Region added. Start: ${currentLiveTrimRegion.start.toFixed(3)}, End: ${currentLiveTrimRegion.end.toFixed(3)}`);
         if (typeof onTrimChangeCallback === 'function') {
@@ -519,6 +810,9 @@ function handleSetTrimStart() {
         }
     } else {
         console.warn('WFC_DEBUG SetStart: wsRegions.addRegion did not return a region.');
+        }
+    } catch (error) {
+        console.error('WaveformControls: Error creating region:', error);
     }
     // 'region-created' event should fire here, which also calls updateTrimInputsFromRegionInternal
 }
@@ -596,6 +890,13 @@ function handleSetTrimEnd() {
 // Added function to notify sidebars module
 function notifyCuePropertiesPanelOfTrimChange(trimStart, trimEnd) {
     console.log(`WaveformControls (notifyCuePropertiesPanelOfTrimChange): CALLED. Start: ${trimStart}, End: ${trimEnd}`);
+    
+    // CRITICAL: Prevent callback loops during waveform destruction
+    if (isDestroyingWaveform) {
+        console.log('WaveformControls (notifyCuePropertiesPanelOfTrimChange): Skipping callback - waveform is being destroyed');
+        return;
+    }
+    
     if (onTrimChangeCallback) { // ADDED: Use the callback
         console.log('WaveformControls (notifyCuePropertiesPanelOfTrimChange): Calling onTrimChangeCallback (sidebars.handleCuePropertyChangeFromWaveform)');
         onTrimChangeCallback(trimStart, trimEnd); // This updates sidebar inputs & triggers save
@@ -603,25 +904,18 @@ function notifyCuePropertiesPanelOfTrimChange(trimStart, trimEnd) {
         console.warn('WaveformControls (notifyCuePropertiesPanelOfTrimChange): onTrimChangeCallback is not defined. Cannot update sidebar inputs or trigger save.');
     }
 
-    // Update the total duration display within the waveform panel itself
-    if (wfTotalDuration) {
-        const trimmedDuration = trimEnd - trimStart;
-        const formattedTrimmedDuration = formatWaveformTime(trimmedDuration);
-        // console.log(`WaveformControls (notifyCuePropertiesPanelOfTrimChange): wfTotalDuration is valid. Calculated trimmedDuration: ${trimmedDuration}, Formatted: ${formattedTrimmedDuration}`); // Log before setting
-        if (trimmedDuration >= 0) {
-            wfTotalDuration.textContent = formattedTrimmedDuration;
-            console.log(`WaveformControls (notifyCuePropertiesPanelOfTrimChange): Updated wfTotalDuration to trimmed duration: ${formattedTrimmedDuration}`);
-        } else {
-            wfTotalDuration.textContent = formatWaveformTime(0);
-            console.log(`WaveformControls (notifyCuePropertiesPanelOfTrimChange): Updated wfTotalDuration to 0 (negative trim duration).`);
-        }
-    } else {
-        console.error('WaveformControls (notifyCuePropertiesPanelOfTrimChange): wfTotalDuration DOM element is NULL or UNDEFINED!');
-    }
-    // wfCurrentTime and wfRemainingTime are updated by 'audioprocess' or 'seek'
+    // NOTE: Do NOT update wfTotalDuration here - waveform bottom times should always show original time
+    // The trimmed duration will be reflected in the cue button times via the callback above
+    // wfCurrentTime and wfRemainingTime are updated by 'audioprocess' or 'seek' events and show original times
 }
 
 function updateTrimInputsFromRegionInternal(region) {
+    // CRITICAL: Prevent callback loops during waveform destruction
+    if (isDestroyingWaveform) {
+        console.log('WaveformControls (updateTrimInputsFromRegionInternal): Skipping update - waveform is being destroyed');
+        return;
+    }
+    
     if (region && region.id === 'trimRegion') {
         console.log(`WaveformControls (updateTrimInputsFromRegionInternal): CALLED for trimRegion. ID: ${region.id}, Start: ${region.start.toFixed(3)}, End: ${region.end.toFixed(3)}`);
         notifyCuePropertiesPanelOfTrimChange(region.start, region.end);
@@ -676,12 +970,21 @@ function styleRegionsInternal() {
  * @param {object} cue - The cue object.
  */
 async function showWaveformForCue(cue) {
-    if (!waveformDisplayDiv) { console.error("WaveformControls: DOM not cached."); return; }
+    console.log('WaveformControls: showWaveformForCue called with cue:', cue);
+    
+    if (!waveformDisplayDiv) { 
+        console.error("WaveformControls: DOM not cached - waveformDisplayDiv not found."); 
+        return; 
+    }
+    
     if (!cue || !cue.filePath || (cue.type && cue.type === 'playlist')) {
+        console.log('WaveformControls: Hiding waveform - no cue, no filePath, or playlist type');
         _destroyWaveformInternal(); 
         if(waveformDisplayDiv) waveformDisplayDiv.style.display = 'none';
         return;
     }
+    
+    console.log('WaveformControls: Initializing waveform for cue:', cue.id, 'filePath:', cue.filePath);
     return initializeWaveformInternal(cue);
 }
 
@@ -712,6 +1015,46 @@ function getCurrentTrimTimes() {
 }
 
 // --- Public API / Exports ---
+
+// Test function for debugging - can be called from console: window.waveformTest()
+window.waveformTest = function() {
+    console.log('=== WAVEFORM TEST ===');
+    console.log('wavesurferInstance exists:', !!wavesurferInstance);
+    console.log('wsRegions exists:', !!wsRegions);
+    console.log('onTrimChangeCallback exists:', !!onTrimChangeCallback);
+    
+    if (wavesurferInstance) {
+        console.log('Waveform duration:', wavesurferInstance.getDuration());
+        console.log('Waveform current time:', wavesurferInstance.getCurrentTime());
+        
+        if (wsRegions) {
+            console.log('Current regions:', wsRegions.getRegions());
+            
+            // Try to create a test region
+            try {
+                const testRegion = wsRegions.addRegion({
+                    id: 'test-region',
+                    start: 1.0,
+                    end: 3.0,
+                    color: 'rgba(255, 0, 0, 0.3)',
+                    drag: true,
+                    resize: true
+                });
+                console.log('Test region created:', testRegion);
+            } catch (error) {
+                console.error('Error creating test region:', error);
+            }
+        }
+    }
+    
+    // Test DOM elements
+    console.log('DOM Elements:');
+    console.log('  wfSetStartBtn:', !!wfSetStartBtn);
+    console.log('  wfSetEndBtn:', !!wfSetEndBtn);
+    console.log('  wfCurrentTime:', !!wfCurrentTime);
+    console.log('  wfTotalDuration:', !!wfTotalDuration);
+    console.log('  wfRemainingTime:', !!wfRemainingTime);
+};
 
 export {
     initWaveformControls as init, // Export initWaveformControls as init

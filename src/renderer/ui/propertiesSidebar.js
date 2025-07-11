@@ -42,35 +42,40 @@ function getEffectiveWingType(appConfig) {
         return null;
     }
     const globalMixerType = appConfig.mixerType;
-    const wingModel = appConfig.wingModelType;
-    console.log(`[PropertiesSidebar getEffectiveWingType] globalMixerType: ${globalMixerType}, wingModel: ${wingModel}`);
+    console.log(`[PropertiesSidebar getEffectiveWingType] globalMixerType: ${globalMixerType}`);
 
     if (globalMixerType === 'behringer_wing_compact') {
-        console.log('[PropertiesSidebar getEffectiveWingType] Detected behringer_wing_compact directly.');
+        console.log('[PropertiesSidebar getEffectiveWingType] Detected behringer_wing_compact.');
         return 'behringer_wing_compact';
     }
-    // This was an early exit that might be problematic. Let the next block handle generic 'behringer_wing'.
-    // if (globalMixerType === 'behringer_wing_full') return 'behringer_wing_full'; 
-
-    if (globalMixerType === 'behringer_wing') {
-        if (wingModel === 'compact') {
-            console.log('[PropertiesSidebar getEffectiveWingType] Detected behringer_wing with model compact.');
-            return 'behringer_wing_compact';
-        }
-        if (wingModel === 'full') {
-            console.log('[PropertiesSidebar getEffectiveWingType] Detected behringer_wing with model full.');
+    
+    if (globalMixerType === 'behringer_wing_full') {
+        console.log('[PropertiesSidebar getEffectiveWingType] Detected behringer_wing_full.');
             return 'behringer_wing_full';
         }
-        console.log('[PropertiesSidebar getEffectiveWingType] Defaulting behringer_wing to full (model was:', wingModel, ')');
-        return 'behringer_wing_full'; // Default for "behringer_wing" if model is unspecified or unexpected
-    }
+
     console.log('[PropertiesSidebar getEffectiveWingType] No specific WING type matched. Returning null. globalMixerType:', globalMixerType);
     return null;
 }
 
 function populateGenericDropdown(selectElement, start, end, prefix = '', currentValStr, placeholderText = "-- Select --") {
-    if (!selectElement) return;
+    console.log('[PropertiesSidebar populateGenericDropdown] Called with:', {
+        selectElement: selectElement ? selectElement.id : 'NULL',
+        start,
+        end,
+        prefix,
+        currentValStr,
+        placeholderText
+    });
+    
+    if (!selectElement) {
+        console.log('[PropertiesSidebar populateGenericDropdown] selectElement is null, returning');
+        return;
+    }
+    
     const preservedValue = selectElement.value;
+    console.log('[PropertiesSidebar populateGenericDropdown] preservedValue:', preservedValue);
+    
     selectElement.innerHTML = '';
 
     if (placeholderText) {
@@ -88,35 +93,55 @@ function populateGenericDropdown(selectElement, start, end, prefix = '', current
         selectElement.appendChild(option);
     }
 
+    console.log('[PropertiesSidebar populateGenericDropdown] Options created:', 
+        Array.from(selectElement.options).map(opt => ({value: opt.value, text: opt.textContent})));
+
     if (currentValStr && Array.from(selectElement.options).some(opt => opt.value === currentValStr)) {
+        console.log('[PropertiesSidebar populateGenericDropdown] Setting value to currentValStr:', currentValStr);
         selectElement.value = currentValStr;
     } else if (placeholderText) {
+        console.log('[PropertiesSidebar populateGenericDropdown] Setting value to placeholder (empty)');
         selectElement.value = ""; // Default to placeholder if no currentValStr or preservedValue matches
     } else if (preservedValue && Array.from(selectElement.options).some(opt => opt.value === preservedValue)) {
+        console.log('[PropertiesSidebar populateGenericDropdown] Setting value to preservedValue:', preservedValue);
         selectElement.value = preservedValue;
     } else if (selectElement.options.length > 0) {
+        console.log('[PropertiesSidebar populateGenericDropdown] Setting value to first option');
         selectElement.selectedIndex = 0; // Fallback to the first option if no other condition met
     }
+    
+    console.log('[PropertiesSidebar populateGenericDropdown] Final value:', selectElement.value);
 }
 
 function populateWingDropdowns(targetMixerType, currentButtonIdString = null, forcePlaceholder = false) {
+    console.log('[PropertiesSidebar populateWingDropdowns] Called with:', {
+        targetMixerType,
+        currentButtonIdString,
+        forcePlaceholder
+    });
+    
     let layerVal = null, buttonVal = null, rowVal = null;
     const placeholder = "-- Select --"; // Or "None", "Not Assigned"
 
     if (currentButtonIdString && !forcePlaceholder) {
         const parts = currentButtonIdString.split('_');
+        console.log('[PropertiesSidebar populateWingDropdowns] Parsing currentButtonIdString:', currentButtonIdString, 'parts:', parts);
         if (parts.length >= 1) layerVal = parts[0];
         if (parts.length >= 2) buttonVal = parts[1];
         if (parts.length === 3 && targetMixerType === 'behringer_wing_full') rowVal = parts[2];
+        console.log('[PropertiesSidebar populateWingDropdowns] Parsed values:', { layerVal, buttonVal, rowVal });
     }
 
     if (targetMixerType === 'behringer_wing_compact') {
+        console.log('[PropertiesSidebar populateWingDropdowns] Populating Wing Compact dropdowns');
         populateGenericDropdown(propWingCompactLayer, 1, 4, 'layer', layerVal, placeholder);
         populateGenericDropdown(propWingCompactButton, 1, 4, 'button', buttonVal, placeholder);
     } else if (targetMixerType === 'behringer_wing_full') {
+        console.log('[PropertiesSidebar populateWingDropdowns] Populating Wing Full dropdowns');
         populateGenericDropdown(propWingFullLayer, 1, 16, 'layer', layerVal, placeholder);
         populateGenericDropdown(propWingFullButton, 1, 4, 'button', buttonVal, placeholder);
         if (propWingFullRow) {
+            console.log('[PropertiesSidebar populateWingDropdowns] Populating Wing Full Row dropdown');
             const preservedRowValue = propWingFullRow.value;
             propWingFullRow.innerHTML = ''; // Clear existing options
             const rowPlaceholder = document.createElement('option');
@@ -135,12 +160,22 @@ function populateWingDropdowns(targetMixerType, currentButtonIdString = null, fo
             propWingFullRow.appendChild(bdOption);
 
             if (rowVal && (rowVal === 'bu' || rowVal === 'bd') && !forcePlaceholder) {
+                console.log('[PropertiesSidebar populateWingDropdowns] Setting Row to:', rowVal);
                 propWingFullRow.value = rowVal;
             } else {
+                console.log('[PropertiesSidebar populateWingDropdowns] Setting Row to placeholder');
                 propWingFullRow.value = ""; // Default to placeholder
             }
+        } else {
+            console.log('[PropertiesSidebar populateWingDropdowns] propWingFullRow is null!');
         }
     }
+    
+    console.log('[PropertiesSidebar populateWingDropdowns] Final dropdown values:', {
+        layer: targetMixerType === 'behringer_wing_full' ? propWingFullLayer?.value : propWingCompactLayer?.value,
+        button: targetMixerType === 'behringer_wing_full' ? propWingFullButton?.value : propWingCompactButton?.value,
+        row: targetMixerType === 'behringer_wing_full' ? propWingFullRow?.value : 'N/A'
+    });
 }
 
 function updateDuckingControlsVisibility(isTrigger) {
@@ -175,17 +210,35 @@ function handleWingTriggerEnabledChange() {
         if (effectiveWingType === 'behringer_wing_compact' && wingCompactConfigDiv) {
             wingCompactConfigDiv.style.display = 'block';
             const cue = activePropertiesCueId ? cueStore.getCueById(activePropertiesCueId) : null;
-            const shouldForcePlaceholder = !cue || !cue.wingTrigger || !cue.wingTrigger.enabled || !cue.wingTrigger.wingLayer;
-            populateWingDropdowns('behringer_wing_compact', cue?.wingTrigger?.userButton, shouldForcePlaceholder);
+            let currentButtonId = null;
+            
+            // Check new mixerButtonAssignment structure first
+            if (cue?.mixerButtonAssignment?.mixerType === effectiveWingType && cue.mixerButtonAssignment.buttonId) {
+                currentButtonId = cue.mixerButtonAssignment.buttonId;
+            }
+            // Legacy wingTrigger support
+            else if (cue?.wingTrigger?.enabled && cue.wingTrigger.userButton) {
+                currentButtonId = cue.wingTrigger.userButton;
+            }
+            
+            const shouldForcePlaceholder = !currentButtonId;
+            populateWingDropdowns('behringer_wing_compact', currentButtonId, shouldForcePlaceholder);
         } else if (effectiveWingType === 'behringer_wing_full' && wingFullSizeConfigDiv) {
             wingFullSizeConfigDiv.style.display = 'block';
             const cue = activePropertiesCueId ? cueStore.getCueById(activePropertiesCueId) : null;
-            let userButtonString = null;
-            if (cue?.wingTrigger?.enabled && cue.wingTrigger.wingLayer && cue.wingTrigger.wingButton && cue.wingTrigger.wingRow) {
-                 userButtonString = `${cue.wingTrigger.wingLayer}_${cue.wingTrigger.wingButton}_${cue.wingTrigger.wingRow}`;
+            let currentButtonId = null;
+            
+            // Check new mixerButtonAssignment structure first
+            if (cue?.mixerButtonAssignment?.mixerType === effectiveWingType && cue.mixerButtonAssignment.buttonId) {
+                currentButtonId = cue.mixerButtonAssignment.buttonId;
             }
-            const shouldForcePlaceholder = !userButtonString;
-            populateWingDropdowns('behringer_wing_full', userButtonString, shouldForcePlaceholder);
+            // Legacy wingTrigger support
+            else if (cue?.wingTrigger?.enabled && cue.wingTrigger.userButton) {
+                currentButtonId = cue.wingTrigger.userButton;
+            }
+            
+            const shouldForcePlaceholder = !currentButtonId;
+            populateWingDropdowns('behringer_wing_full', currentButtonId, shouldForcePlaceholder);
         }
     } else {
         if (effectiveWingType === 'behringer_wing_compact') populateWingDropdowns('behringer_wing_compact', null, true);
@@ -435,8 +488,8 @@ function openPropertiesSidebar(cue) {
     if(propRetriggerBehaviorSelect) propRetriggerBehaviorSelect.value = cue.retriggerBehavior !== undefined ? cue.retriggerBehavior : (appConfig.defaultRetriggerBehavior || 'restart');
 
     if (propEnableDuckingCheckbox) propEnableDuckingCheckbox.checked = !!cue.enableDucking;
-    if (propDuckingLevelInput) propDuckingLevelInput.value = cue.duckingLevel !== undefined ? cue.duckingLevel : 20;
-    if (propDuckingLevelValueSpan) propDuckingLevelValueSpan.textContent = cue.duckingLevel !== undefined ? cue.duckingLevel : 20;
+    if (propDuckingLevelInput) propDuckingLevelInput.value = cue.duckingLevel !== undefined ? cue.duckingLevel : 80;
+    if (propDuckingLevelValueSpan) propDuckingLevelValueSpan.textContent = cue.duckingLevel !== undefined ? cue.duckingLevel : 80;
     if (propIsDuckingTriggerCheckbox) {
         propIsDuckingTriggerCheckbox.checked = !!cue.isDuckingTrigger;
         updateDuckingControlsVisibility(propIsDuckingTriggerCheckbox.checked);
@@ -446,13 +499,16 @@ function openPropertiesSidebar(cue) {
     let currentButtonIdForDropdown = null;
     let wingTriggerEnabledForCue = false;
 
+    // Check new mixerButtonAssignment structure first
     if (cue.mixerButtonAssignment && cue.mixerButtonAssignment.mixerType && cue.mixerButtonAssignment.buttonId) {
         if (cue.mixerButtonAssignment.mixerType === effectiveWingType || 
             (cue.mixerButtonAssignment.mixerType === 'behringer_wing' && effectiveWingType === 'behringer_wing_full')) {
             currentButtonIdForDropdown = cue.mixerButtonAssignment.buttonId;
             wingTriggerEnabledForCue = true;
         }
-    } else if (cue.wingTrigger && cue.wingTrigger.enabled && cue.wingTrigger.userButton) {
+    } 
+    // Legacy wingTrigger support (for backward compatibility)
+    else if (cue.wingTrigger && cue.wingTrigger.enabled && cue.wingTrigger.userButton) {
         console.warn(`PropertiesSidebar: Cue ${cue.id} using legacy wingTrigger. Attempting to adapt.`);
         const parts = cue.wingTrigger.userButton.split('_');
         let legacyMatchesCurrentType = false;
@@ -680,60 +736,96 @@ function handleRemovePlaylistItem(event) {
 
 async function handleSaveCueProperties() {
     console.log('[PropertiesSidebar] handleSaveCueProperties CALLED. Active Cue ID:', activePropertiesCueId);
-    if (!activePropertiesCueId) {
-        console.warn('[PropertiesSidebar] handleSaveCueProperties: No activePropertiesCueId, exiting.');
-        return;
-    }
+    if (!activePropertiesCueId) return;
+
     const existingCue = cueStore.getCueById(activePropertiesCueId);
     if (!existingCue) {
-        console.warn('[PropertiesSidebar] handleSaveCueProperties: Existing cue not found for ID:', activePropertiesCueId, ', exiting.');
+        console.error('[PropertiesSidebar] handleSaveCueProperties: Could not find cue with ID:', activePropertiesCueId);
         return;
     }
 
-    // --- WING TRIGGER LOGIC --- Get current selections
-    let wingConfig = {
-        enabled: propWingTriggerEnabled ? propWingTriggerEnabled.checked : false,
-        assignedMidiCC: (existingCue.wingTrigger && existingCue.wingTrigger.assignedMidiCC !== undefined) ? existingCue.wingTrigger.assignedMidiCC : null,
-        label: '',
-        wingLayer: null,
-        wingButton: null,
-        wingRow: null,
-        mixerType: null // Will be set if type is valid
-    };
-
-    const appConfig = uiCore.getCurrentAppConfig ? uiCore.getCurrentAppConfig() : {};
+    const appConfig = uiCore.getCurrentAppConfig();
     const effectiveWingType = getEffectiveWingType(appConfig);
+
+    let mixerButtonAssignment = null;
 
     if (propWingTriggerEnabled && propWingTriggerEnabled.checked && effectiveWingType && appConfig.mixerIntegrationEnabled) {
         let selectedLayer = null, selectedButton = null, selectedRow = null;
+        let mixerType = null;
 
         if (effectiveWingType === 'behringer_wing_compact') {
             if (propWingCompactLayer) selectedLayer = propWingCompactLayer.value;
             if (propWingCompactButton) selectedButton = propWingCompactButton.value;
-            wingConfig.mixerType = 'behringer_wing_compact';
+            mixerType = 'behringer_wing_compact';
         } else if (effectiveWingType === 'behringer_wing_full') {
             if (propWingFullLayer) selectedLayer = propWingFullLayer.value;
             if (propWingFullButton) selectedButton = propWingFullButton.value;
             if (propWingFullRow) selectedRow = propWingFullRow.value;
-            wingConfig.mixerType = 'behringer_wing_full';
+            mixerType = 'behringer_wing_full';
+        }
+
+        // Debug: Log the selected values
+        console.log('[PropertiesSidebar] Wing trigger values:', {
+            selectedLayer,
+            selectedButton, 
+            selectedRow,
+            effectiveWingType,
+            wingTriggerEnabled: propWingTriggerEnabled?.checked
+        });
+
+        // Debug: Log the actual dropdown elements and their options
+            if (effectiveWingType === 'behringer_wing_full') {
+            console.log('[PropertiesSidebar] Wing Full Layer dropdown:', {
+                element: propWingFullLayer,
+                value: propWingFullLayer?.value,
+                selectedIndex: propWingFullLayer?.selectedIndex,
+                options: propWingFullLayer ? Array.from(propWingFullLayer.options).map(opt => ({value: opt.value, text: opt.textContent})) : 'NULL'
+            });
+            console.log('[PropertiesSidebar] Wing Full Button dropdown:', {
+                element: propWingFullButton,
+                value: propWingFullButton?.value,
+                selectedIndex: propWingFullButton?.selectedIndex,
+                options: propWingFullButton ? Array.from(propWingFullButton.options).map(opt => ({value: opt.value, text: opt.textContent})) : 'NULL'
+            });
+            console.log('[PropertiesSidebar] Wing Full Row dropdown:', {
+                element: propWingFullRow,
+                value: propWingFullRow?.value,
+                selectedIndex: propWingFullRow?.selectedIndex,
+                options: propWingFullRow ? Array.from(propWingFullRow.options).map(opt => ({value: opt.value, text: opt.textContent})) : 'NULL'
+            });
         }
 
         // Check if actual selections were made (not placeholders)
-        if (selectedLayer && selectedButton && (effectiveWingType !== 'behringer_wing_full' || selectedRow)) {
-            wingConfig.enabled = true; // Truly enabled only if selections are valid
-            wingConfig.label = (propCueNameInput ? propCueNameInput.value : existingCue.name).substring(0, 16); // Max 16 chars for WING
-            wingConfig.wingLayer = selectedLayer;
-            wingConfig.wingButton = selectedButton;
-            if (effectiveWingType === 'behringer_wing_full') {
-                wingConfig.wingRow = selectedRow;
+        const validLayer = selectedLayer && selectedLayer !== "-- Select --" && !selectedLayer.startsWith("--");
+        const validButton = selectedButton && selectedButton !== "-- Select --" && !selectedButton.startsWith("--");
+        const validRow = selectedRow && selectedRow !== "-- Select --" && !selectedRow.startsWith("--");
+
+        // Debug: Log validation results
+        console.log('[PropertiesSidebar] Validation results:', {
+            validLayer,
+            validButton,
+            validRow,
+            needsRow: effectiveWingType === 'behringer_wing_full'
+        });
+
+        if (validLayer && validButton && (effectiveWingType !== 'behringer_wing_full' || validRow)) {
+            let buttonId;
+            if (effectiveWingType === 'behringer_wing_compact') {
+                buttonId = `${selectedLayer}_${selectedButton}`;
+            } else if (effectiveWingType === 'behringer_wing_full') {
+                buttonId = `${selectedLayer}_${selectedButton}_${selectedRow}`;
             }
-        } else {
-            wingConfig.enabled = false; // If any part is placeholder, it's not fully enabled
-        }
+
+            mixerButtonAssignment = {
+                mixerType: mixerType,
+                buttonId: buttonId
+            };
+
+            console.log('[PropertiesSidebar] Created mixerButtonAssignment:', mixerButtonAssignment);
     } else {
-        wingConfig.enabled = false; // Checkbox not checked or no effective type/integration disabled
+            console.log('[PropertiesSidebar] Invalid Wing selection - not creating mixerButtonAssignment');
     }
-    // --- END WING TRIGGER LOGIC ---
+    }
 
     let updatedCueData = {
         id: activePropertiesCueId,
@@ -754,12 +846,25 @@ async function handleSaveCueProperties() {
         enableDucking: propEnableDuckingCheckbox ? propEnableDuckingCheckbox.checked : existingCue.enableDucking,
         duckingLevel: propDuckingLevelInput ? parseInt(propDuckingLevelInput.value, 10) : existingCue.duckingLevel,
         isDuckingTrigger: propIsDuckingTriggerCheckbox ? propIsDuckingTriggerCheckbox.checked : existingCue.isDuckingTrigger,
-        wingTrigger: wingConfig // Use the fully processed wingConfig
+        mixerButtonAssignment: mixerButtonAssignment // Use the new mixerButtonAssignment structure
     };
 
-    // Remove the old mixerButtonAssignment as wingTrigger is now the source of truth
-    if (updatedCueData.hasOwnProperty('mixerButtonAssignment')) {
-        delete updatedCueData.mixerButtonAssignment;
+    // Keep wingTrigger for backward compatibility but mark as disabled when using mixerButtonAssignment
+    if (mixerButtonAssignment) {
+        updatedCueData.wingTrigger = {
+            enabled: false,
+            userButton: null,
+            mixerType: mixerButtonAssignment.mixerType,
+            assignedMidiCC: existingCue.wingTrigger ? existingCue.wingTrigger.assignedMidiCC : null
+        };
+    } else {
+        // If no mixer button assignment, ensure wingTrigger is disabled
+        updatedCueData.wingTrigger = {
+            enabled: false,
+            userButton: null,
+            mixerType: existingCue.wingTrigger ? existingCue.wingTrigger.mixerType : 'behringer_wing',
+            assignedMidiCC: null
+        };
     }
 
     try {
@@ -813,7 +918,17 @@ function handleCuePropertyChangeFromWaveform(trimStart, trimEnd) {
     if (!activePropertiesCueId) return;
     currentWaveformTrimStart = trimStart;
     currentWaveformTrimEnd = trimEnd;
+    
+    // Set flag to prevent properties sidebar refresh loop
+    window._waveformTrimUpdateInProgress = true;
+    
     debouncedSaveCueProperties();
+    
+    // Clear flag after giving enough time for the save and cue update cycle to complete
+    setTimeout(() => {
+        window._waveformTrimUpdateInProgress = false;
+        console.log('PropertiesSidebar: Cleared waveform trim update flag');
+    }, 1000); // Give enough time for the debounced save + IPC + cue update cycle
 }
 
 function highlightPlayingPlaylistItemInSidebar(cueId, playlistItemId) {
@@ -848,7 +963,7 @@ function refreshPlaylistPropertiesView(cueIdToRefresh) {
             console.warn('[PropertiesSidebar refreshPlaylistPropertiesView] Could not find active cue data in store for ID:', activePropertiesCueId);
         }
     } else {
-        console.log('[PropertiesSidebar refreshPlaylistPropertiesView] Cue to refresh (', cueIdToRefresh, ') does not match active cue (', activePropertiesCueId, '). No action.');
+        console.log('[PropertiesSidebar refreshPlaylistPropertiesView] Cue to refresh (', cueIdToRefresh, ') does not match active cue ( ', activePropertiesCueId, '). No action.');
     }
 }
 

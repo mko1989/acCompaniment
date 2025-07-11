@@ -76,6 +76,10 @@ function sendPlaybackTimeUpdate(cueId, soundInstance, playingState, currentItemN
         // For now, if 'paused' override with no sound, currentTimeSec remains 0 unless playingState has it
         if (status === 'paused' && playingState.lastSeekPosition !== undefined) {
             currentTimeSec = playingState.lastSeekPosition;
+        } else if (status === 'stopped') {
+            // CRITICAL FIX: For stopped cues, reset to 0 and ensure we calculate correct idle duration
+            currentTimeSec = 0;
+            console.log(`[CUE_DURATION_DEBUG ${cueId}] Status is 'stopped', reset currentTimeSec to 0`);
         }
     }
 
@@ -91,8 +95,11 @@ function sendPlaybackTimeUpdate(cueId, soundInstance, playingState, currentItemN
         let itemEffectiveDuration = -1; // For logging if complex trim is applied
 
         if (cue.trimStartTime && cue.trimStartTime > 0) {
+            // For stopped cues, don't adjust currentTimeSec based on seek position
+            if (status !== 'stopped') {
             const originalSeek = soundInstance ? soundInstance.seek() : currentTimeSec;
             currentTimeSec = Math.max(0, originalSeek - cue.trimStartTime);
+            }
             
             // Use initialCueKnownDuration if available, otherwise preTrimTotalDurationSec (which might itself be from knownDuration or playingState.duration)
             let sourceDurationForTrimCalc = (initialCueKnownDuration > 0 ? initialCueKnownDuration : preTrimTotalDurationSec);
@@ -148,7 +155,7 @@ function sendPlaybackTimeUpdate(cueId, soundInstance, playingState, currentItemN
         fadeTotalDurationMs: playingState ? playingState.fadeTotalDurationMs || 0 : 0
     };
     
-    // console.log('AudioPlaybackIPCEmitter sending:', payload);
+    console.log(`[IPC_DEBUG] AudioPlaybackIPCEmitter sending to 'playback-time-update':`, {cueId, currentTimeSec, status});
     ipcBindings.send('playback-time-update', payload);
 }
 

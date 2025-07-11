@@ -24,14 +24,17 @@ const DEFAULT_CONFIG = {
   defaultLoopSingleCue: false,
   defaultRetriggerBehavior: 'restart', // 'restart', 'pause_resume', 'stop', 'do_nothing', 'fade_out_and_stop', 'fade_stop_restart'
   defaultStopAllBehavior: 'stop', // 'stop' or 'fade_out_and_stop'
+  defaultStopAllFadeOutTime: 1500, // Default fade out time for stop all in milliseconds
   audioOutputDeviceId: 'default',
   theme: 'system', // 'light', 'dark', or 'system'
-  // Mixer Integration Settings
+  // HTTP Remote Control Settings
+  httpRemoteEnabled: true, // Enable/disable HTTP remote
+  httpRemotePort: 3000, // Port for HTTP remote server
+  // Mixer Integration Settings (DISABLED FOR ALPHA BUILD)
   mixerIntegrationEnabled: false,
-  mixerType: 'none', // e.g., 'none', 'behringer_wing', 'behringer_wing_compact'
+  mixerType: 'none', // e.g., 'none', 'behringer_wing_compact', 'behringer_wing_full'
   wingIpAddress: '', // Specific to Behringer WING (both models)
   localIpAddress: '', // IP address of this machine for the mixer to send to
-  wingModelType: 'behringer_wing_compact', // 'behringer_wing_compact' or 'behringer_wing' (full_size)
   recentWorkspaces: [], // Ensure recentWorkspaces is part of DEFAULT_CONFIG
 };
 

@@ -44,15 +44,56 @@ function loadCuesFromFile() {
       const data = fs.readFileSync(currentCuesFilePath, 'utf-8');
       let loadedCues = JSON.parse(data);
       if (Array.isArray(loadedCues)) {
-        cues = loadedCues.map(cue => ({
-          ...cue,
-          // Ensure wingTrigger exists with defaults
-          wingTrigger: cue.wingTrigger ? { enabled: false, userButton: null, mixerType: cue.wingTrigger.mixerType || 'behringer_wing', ...cue.wingTrigger } : { enabled: false, userButton: null, mixerType: 'behringer_wing' },
-          // Ensure ducking properties exist with defaults
-          enableDucking: cue.enableDucking !== undefined ? cue.enableDucking : false,
-          duckingLevel: cue.duckingLevel !== undefined ? cue.duckingLevel : 20,
-          isDuckingTrigger: cue.isDuckingTrigger !== undefined ? cue.isDuckingTrigger : false,
-        }));
+        cues = loadedCues.map(cue => {
+          const migratedCue = {
+            ...cue,
+            // Ensure ducking properties exist with defaults
+            enableDucking: cue.enableDucking !== undefined ? cue.enableDucking : false,
+            duckingLevel: cue.duckingLevel !== undefined ? cue.duckingLevel : 80,
+            isDuckingTrigger: cue.isDuckingTrigger !== undefined ? cue.isDuckingTrigger : false,
+          };
+
+          // Migrate old wingTrigger to new mixerButtonAssignment structure
+          if (cue.wingTrigger && cue.wingTrigger.enabled && cue.wingTrigger.userButton && !cue.mixerButtonAssignment) {
+            console.log(`CueManager: Migrating wingTrigger to mixerButtonAssignment for cue ${cue.id}`);
+            const wingTrigger = cue.wingTrigger;
+            let mixerType = wingTrigger.mixerType || 'behringer_wing';
+            
+            // Convert old mixer types to new structure
+            if (mixerType === 'behringer_wing') {
+              // Default to full if not specified
+              mixerType = 'behringer_wing_full';
+            }
+            
+            migratedCue.mixerButtonAssignment = {
+              mixerType: mixerType,
+              buttonId: wingTrigger.userButton
+            };
+            
+            // Keep wingTrigger for backward compatibility but mark as disabled
+            migratedCue.wingTrigger = { 
+              enabled: false, 
+              userButton: null, 
+              mixerType: mixerType,
+              migrated: true // Flag to indicate this was migrated
+            };
+          } else {
+            // Ensure wingTrigger exists with defaults
+            migratedCue.wingTrigger = cue.wingTrigger ? 
+              { enabled: false, userButton: null, mixerType: cue.wingTrigger.mixerType || 'behringer_wing', ...cue.wingTrigger } : 
+              { enabled: false, userButton: null, mixerType: 'behringer_wing' };
+          }
+
+          return migratedCue;
+        });
+        
+        // Check if any cues were migrated and save if so
+        const migratedCues = cues.filter(cue => cue.wingTrigger && cue.wingTrigger.migrated);
+        if (migratedCues.length > 0) {
+          console.log(`CueManager: ${migratedCues.length} cues were migrated from wingTrigger to mixerButtonAssignment. Saving changes.`);
+          saveCuesToFile(true); // Save silently to avoid unnecessary broadcasts during loading
+        }
+        
         // Clean up any lingering midiTrigger and oscTrigger properties from old files
         cues.forEach(cue => {
           if (cue.hasOwnProperty('midiTrigger')) {
@@ -385,7 +426,7 @@ async function addOrUpdateProcessedCue(cueData, workspacePath) {
       //             { enabled: false, layer: 'A', button: '1' },
       // Ducking Properties
       enableDucking: cueData.enableDucking !== undefined ? cueData.enableDucking : false,
-      duckingLevel: cueData.duckingLevel !== undefined ? cueData.duckingLevel : 20,
+      duckingLevel: cueData.duckingLevel !== undefined ? cueData.duckingLevel : 80,
       isDuckingTrigger: cueData.isDuckingTrigger !== undefined ? cueData.isDuckingTrigger : false,
     };
 
@@ -396,11 +437,53 @@ async function addOrUpdateProcessedCue(cueData, workspacePath) {
           item.id = generateUUID();
         }
         // If item.knownDuration is missing or invalid, leave it as is (or ensure it's 0).
-        // The initialize() function or a cue-duration-update IPC should provide the correct duration later.
+        // Duration will be detected below if missing.
         if (item.knownDuration === undefined || item.knownDuration === null || typeof item.knownDuration !== 'number' || item.knownDuration <= 0) {
           item.knownDuration = 0; // Default to 0 if not a valid positive number
         }
       });
+    }
+
+    // IMMEDIATE DURATION DETECTION: Detect audio file durations for new cues
+    let durationsDetected = false;
+    
+    // For single file cues: detect duration if missing and file path exists
+    if (baseCue.type === 'single_file' && baseCue.filePath && (!baseCue.knownDuration || baseCue.knownDuration <= 0)) {
+      console.log(`CueManager: Detecting duration for new single file cue ${baseCue.id} - Path: ${baseCue.filePath}`);
+      try {
+        const duration = await getAudioFileDuration(baseCue.filePath);
+        if (duration && duration > 0) {
+          baseCue.knownDuration = duration;
+          durationsDetected = true;
+          console.log(`CueManager: Detected knownDuration ${duration} for cue ${baseCue.id}`);
+        } else {
+          console.warn(`CueManager: Could not detect duration for ${baseCue.filePath}`);
+        }
+      } catch (error) {
+        console.error(`CueManager: Error detecting duration for ${baseCue.filePath}:`, error);
+      }
+    }
+    
+    // For playlist cues: detect durations for items with missing durations
+    if (baseCue.type === 'playlist' && baseCue.playlistItems) {
+      for (let i = 0; i < baseCue.playlistItems.length; i++) {
+        const item = baseCue.playlistItems[i];
+        if (item.path && (!item.knownDuration || item.knownDuration <= 0)) {
+          console.log(`CueManager: Detecting duration for playlist item ${item.path} in cue ${baseCue.id}`);
+          try {
+            const itemDuration = await getAudioFileDuration(item.path);
+            if (itemDuration && itemDuration > 0) {
+              baseCue.playlistItems[i].knownDuration = itemDuration;
+              durationsDetected = true;
+              console.log(`CueManager: Detected knownDuration ${itemDuration} for item ${item.path} in cue ${baseCue.id}`);
+            } else {
+              console.warn(`CueManager: Could not detect duration for playlist item ${item.path}`);
+            }
+          } catch (error) {
+            console.error(`CueManager: Error detecting duration for playlist item ${item.path}:`, error);
+          }
+        }
+      }
     }
 
     if (isNew) {
@@ -411,6 +494,12 @@ async function addOrUpdateProcessedCue(cueData, workspacePath) {
 
     // Save and notify (unless silentUpdate is true)
     saveCuesToFile();
+    
+    // If durations were detected, send update to renderer
+    if (durationsDetected && mainWindowRef && mainWindowRef.webContents && !mainWindowRef.webContents.isDestroyed()) {
+        console.log(`CueManager: Sending 'cues-updated-from-main' to renderer due to duration detection for cue ${baseCue.id}`);
+        mainWindowRef.webContents.send('cues-updated-from-main', getCues());
+    }
 
     // Return a copy of the processed cue from the array
     return { ...cues[existingCueIndex !== -1 ? existingCueIndex : cues.length - 1] };

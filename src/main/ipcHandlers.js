@@ -45,13 +45,10 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
     }
     // --- END DIAGNOSTIC LOG ---
 
+    // Note: mixerIntegrationManager is already initialized in main.js before IPC handlers are set up
+    // We don't need to initialize it again here, just verify it's available
     if (mixerIntegrationManagerRef && typeof mixerIntegrationManagerRef.initialize === 'function') {
-        if (oscListenerRef) {
-            mixerIntegrationManagerRef.initialize(appConfigManagerRef.getConfig(), mainWindowRef, cueManagerRef, oscListenerRef);
-            console.log("IPC_HANDLERS_INIT: mixerIntegrationManager initialized with oscListenerRef.");
-        } else {
-            console.error("IPC_HANDLERS_INIT: oscListenerRef is not available, cannot initialize mixerIntegrationManager correctly.");
-        }
+        console.log("IPC_HANDLERS_INIT: mixerIntegrationManager is available and already initialized in main.js.");
     } else if (mixerIntegrationManagerRef) {
         console.error("IPC_HANDLERS_INIT: mixerIntegrationManagerRef exists, but its initialize function is missing.");
     } else {
@@ -95,7 +92,62 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
         }
     });
 
+    // CRITICAL FIX: Add handler for cue-status-update to send cued state to HTTP remote
+    ipcMain.on('cue-status-update', (event, { cueId, status, details }) => {
+        console.log(`IPC: Cue status update: ${cueId} - ${status}`, details);
+        
+        // Send cued state updates to HTTP remote
+        if (httpServerRef && typeof httpServerRef.broadcastToRemotes === 'function' && status === 'cued_next') {
+            const currentCue = cueManagerRef ? cueManagerRef.getCueById(cueId) : null;
+            if (currentCue) {
+                console.log(`HTTP_SERVER: Sending cued state update for playlist ${cueId} to remote`);
+                const { calculateEffectiveTrimmedDurationSec } = require('./utils/timeUtils');
+                
+                let cuedDurationS = 0;
+                let originalKnownDurationS = 0;
+                let nextItemName = null;
+                
+                if (currentCue.type === 'playlist' && currentCue.playlistItems && currentCue.playlistItems.length > 0) {
+                    // For cued playlists, calculate duration of the next item
+                    const nextItem = details && details.nextItem ? 
+                        currentCue.playlistItems.find(item => item.name === details.nextItem) || currentCue.playlistItems[0] :
+                        currentCue.playlistItems[0];
+                    
+                    cuedDurationS = calculateEffectiveTrimmedDurationSec(nextItem);
+                    originalKnownDurationS = nextItem.knownDuration || 0;
+                    nextItemName = nextItem.name || 'Next Item';
+                } else {
+                    cuedDurationS = calculateEffectiveTrimmedDurationSec(currentCue);
+                    originalKnownDurationS = currentCue.knownDuration || 0;
+                }
+                
+                const cuedUpdate = {
+                    type: 'remote_cue_update',
+                    cue: {
+                        id: cueId,
+                        name: currentCue.name,
+                        type: currentCue.type,
+                        status: 'cued', // Convert 'cued_next' to 'cued' for remote
+                        currentTimeS: 0,
+                        currentItemDurationS: cuedDurationS,
+                        currentItemRemainingTimeS: cuedDurationS,
+                        playlistItemName: null, // Not currently playing
+                        nextPlaylistItemName: nextItemName,
+                        knownDurationS: originalKnownDurationS
+                    }
+                };
+                httpServerRef.broadcastToRemotes(cuedUpdate);
+            }
+        }
+    });
+
     ipcMain.on('playback-time-update', (event, payload) => {
+        // Relay the message back to the renderer for UI updates
+        if (mainWindowRef && mainWindowRef.webContents && !mainWindowRef.webContents.isDestroyed()) {
+            mainWindowRef.webContents.send('playback-time-update-from-main', payload);
+        }
+        
+        // Broadcast to external clients (Companion and remote control)
         if (websocketServerRef && typeof websocketServerRef.broadcastPlaybackTimeUpdate === 'function') {
             websocketServerRef.broadcastPlaybackTimeUpdate(payload);
         }
@@ -121,6 +173,50 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
                 }
             };
             httpServerRef.broadcastToRemotes(remoteCueUpdate);
+            
+            // CRITICAL FIX: When a cue stops, send idle duration updates for all other cues
+            // This prevents other cues from showing zeros when one cue stops
+            if (payload.status === 'stopped' && cueManagerRef) {
+                console.log(`HTTP_SERVER: Cue ${payload.cueId} stopped, sending idle duration updates for all cues to remote`);
+                const { calculateEffectiveTrimmedDurationSec } = require('./utils/timeUtils');
+                const allCues = cueManagerRef.getCues();
+                
+                allCues.forEach(cue => {
+                    if (cue.id !== payload.cueId) { // Don't update the cue that just stopped (already handled above)
+                        let idleDurationS = 0;
+                        let originalKnownDurationS = 0;
+                        
+                        if (cue.type === 'single_file') {
+                            idleDurationS = calculateEffectiveTrimmedDurationSec(cue);
+                            originalKnownDurationS = cue.knownDuration || 0;
+                        } else if (cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0) {
+                            const firstItem = cue.playlistItems[0];
+                            idleDurationS = calculateEffectiveTrimmedDurationSec(firstItem);
+                            originalKnownDurationS = firstItem.knownDuration || 0;
+                        } else {
+                            idleDurationS = cue.knownDuration || 0;
+                            originalKnownDurationS = cue.knownDuration || 0;
+                        }
+                        
+                        const idleUpdate = {
+                            type: 'remote_cue_update',
+                            cue: {
+                                id: cue.id,
+                                name: cue.name,
+                                type: cue.type,
+                                status: 'stopped',
+                                currentTimeS: 0,
+                                currentItemDurationS: idleDurationS,
+                                currentItemRemainingTimeS: idleDurationS,
+                                playlistItemName: (cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0) ? cue.playlistItems[0].name : null,
+                                nextPlaylistItemName: null,
+                                knownDurationS: originalKnownDurationS
+                            }
+                        };
+                        httpServerRef.broadcastToRemotes(idleUpdate);
+                    }
+                });
+            }
         }
     });
 
@@ -130,6 +226,14 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
         return config;
     });
     console.log("IPC_HANDLERS_INIT: Handler for 'get-initial-config' explicitly registered.");
+
+    ipcMain.handle('get-http-remote-info', async () => {
+        if (httpServerRef && typeof httpServerRef.getRemoteInfo === 'function') {
+            return httpServerRef.getRemoteInfo();
+        }
+        return { enabled: false, port: 3000, interfaces: [] };
+    });
+    console.log("IPC_HANDLERS_INIT: Handler for 'get-http-remote-info' explicitly registered.");
 
     ipcMain.handle('save-app-config', async (event, config) => {
         console.log(`IPC_HANDLER: 'save-app-config' received with config:`, JSON.stringify(config));
@@ -178,15 +282,35 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
                 console.error('Electron defaultSession not available to get media devices.');
                 return [];
             }
-            const devices = await session.defaultSession.getMediaDevices();
-            const audioOutputDevices = devices.filter(device => device.kind === 'audiooutput');
-            return audioOutputDevices.map(device => ({
-                deviceId: device.deviceId,
-                label: device.label || `Unknown Audio Device ${device.deviceId.substring(0, 8)}`
-            }));
+            
+            // Use the correct Electron API for getting media devices
+            const { systemPreferences } = require('electron');
+            
+            // For macOS/Windows, we can get audio devices differently
+            if (process.platform === 'darwin') {
+                // On macOS, we can use systemPreferences to get media access
+                try {
+                    const hasAccess = await systemPreferences.askForMediaAccess('microphone');
+                    console.log('Audio device access granted:', hasAccess);
+                } catch (err) {
+                    console.log('Could not request audio access:', err.message);
+                }
+            }
+            
+            // Return a default device since the old API is deprecated
+            // In newer Electron versions, audio device selection should be handled differently
+            return [
+                { deviceId: 'default', label: 'Default Audio Output' },
+                { deviceId: 'system', label: 'System Audio Output' }
+            ];
+            
         } catch (error) {
             console.error('Error fetching audio output devices:', error);
-            return [];
+            // Return default options as fallback
+            return [
+                { deviceId: 'default', label: 'Default Audio Output' },
+                { deviceId: 'system', label: 'System Audio Output' }
+            ];
         }
     });
     console.log("IPC_HANDLERS_INIT: Handler for 'get-audio-output-devices' explicitly registered.");
@@ -206,19 +330,30 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
 
             // BEGINNING OF ADDED MIXER INTEGRATION LOGIC
             if (mixerIntegrationManagerRef && processedCue) {
-                if (processedCue.wingTrigger && processedCue.wingTrigger.mixerType === 'behringer_wing') {
-                    if (processedCue.wingTrigger.enabled) {
-                        console.log(`IPC_HANDLER: 'add-or-update-cue' - Cue ${processedCue.id} has Wing trigger enabled. Attempting to set up Wing button.`);
-                        // Ensure setupWingButton and clearWingButton are implemented in mixerIntegrationManagerRef
+                // Check for new mixerButtonAssignment structure
+                if (processedCue.mixerButtonAssignment && processedCue.mixerButtonAssignment.buttonId) {
+                    console.log(`IPC_HANDLER: 'add-or-update-cue' - Cue ${processedCue.id} has mixer button assignment. Setting up button.`);
+                    // Convert mixerButtonAssignment to wingTrigger format for compatibility with existing mixer modules
+                    const wingTriggerData = {
+                        enabled: true,
+                        mixerType: processedCue.mixerButtonAssignment.mixerType,
+                        userButton: processedCue.mixerButtonAssignment.buttonId
+                    };
+                    
                         if (typeof mixerIntegrationManagerRef.setupWingButton === 'function') {
                             try {
-                                const wingResult = await mixerIntegrationManagerRef.setupWingButton(processedCue.id, processedCue.wingTrigger);
+                            const wingResult = await mixerIntegrationManagerRef.setupWingButton(processedCue.id, wingTriggerData);
                                 if (wingResult && wingResult.success && wingResult.assignedMidiCC !== undefined) {
-                                    // If setupWingButton assigns a MIDI CC, we need to save this back to the cue.
-                                    const updatedCueWithMidi = { ...processedCue, wingTrigger: { ...processedCue.wingTrigger, assignedMidiCC: wingResult.assignedMidiCC } };
-                                    // Silently update the cue in cueManager without re-broadcasting, 
-                                    // as the primary cue data is already saved. This is just for the CC.
-                                    await cueManagerRef.addOrUpdateProcessedCue(updatedCueWithMidi, true); // true to indicate a silent update if supported
+                                // Update the wingTrigger with the assigned MIDI CC for backward compatibility
+                                const updatedCueWithMidi = { 
+                                    ...processedCue, 
+                                    wingTrigger: { 
+                                        ...processedCue.wingTrigger, 
+                                        assignedMidiCC: wingResult.assignedMidiCC,
+                                        enabled: true
+                                    } 
+                                };
+                                await cueManagerRef.addOrUpdateProcessedCue(updatedCueWithMidi, true);
                                     console.log(`IPC_HANDLER: Wing button setup for cue ${processedCue.id} successful. Assigned MIDI CC: ${wingResult.assignedMidiCC}. Cue updated with CC.`);
                                 } else if (wingResult && !wingResult.success) {
                                     console.error(`IPC_HANDLER: Failed to set up Wing button for cue ${processedCue.id}: ${wingResult.error}`);
@@ -229,12 +364,10 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
                         } else {
                             console.warn('IPC_HANDLER: mixerIntegrationManagerRef.setupWingButton is not a function.');
                         }
-                    } else {
+                } else if (processedCue.wingTrigger && processedCue.wingTrigger.enabled === false) {
                         console.log(`IPC_HANDLER: 'add-or-update-cue' - Cue ${processedCue.id} has Wing trigger disabled. Attempting to clear Wing button.`);
                         if (typeof mixerIntegrationManagerRef.clearWingButton === 'function') {
                             try {
-                                // We might need to retrieve the previously assignedMidiCC if clearWingButton needs it
-                                // For now, assume wingTriggerData is enough or clearWingButton handles finding the CC.
                                 await mixerIntegrationManagerRef.clearWingButton(processedCue.wingTrigger);
                                 // Also, nullify assignedMidiCC in the cue data
                                 const updatedCueNoMidi = { ...processedCue, wingTrigger: { ...processedCue.wingTrigger, assignedMidiCC: null } };
@@ -245,7 +378,6 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
                             }
                         } else {
                             console.warn('IPC_HANDLER: mixerIntegrationManagerRef.clearWingButton is not a function.');
-                        }
                     }
                 }
             }
@@ -401,6 +533,10 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
             }
             if (mixerIntegrationManagerRef && typeof mixerIntegrationManagerRef.updateSettings === 'function') {
                 mixerIntegrationManagerRef.updateSettings(newConfig);
+            }
+            // Update HTTP server with new config (for port changes, etc.)
+            if (httpServerRef && typeof httpServerRef.updateConfig === 'function') {
+                httpServerRef.updateConfig(newConfig);
             }
         });
     } else {

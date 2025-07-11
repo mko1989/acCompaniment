@@ -40,7 +40,7 @@ function _handleCuesUpdated(updatedCues) {
                 wingTrigger: cue.wingTrigger ? { ...DEFAULT_WING_TRIGGER, mixerType: cue.wingTrigger.mixerType || 'behringer_wing', ...cue.wingTrigger } : { ...DEFAULT_WING_TRIGGER },
                 enableDucking: cue.enableDucking !== undefined ? cue.enableDucking : false,
                 isDuckingTrigger: cue.isDuckingTrigger !== undefined ? cue.isDuckingTrigger : false,
-                duckingLevel: cue.duckingLevel !== undefined ? cue.duckingLevel : 20,
+                duckingLevel: cue.duckingLevel !== undefined ? cue.duckingLevel : 80,
             };
             console.log(`CueStore (_handleCuesUpdated MAP): Mapped cue ID ${cue.id}. Renderer version:`, JSON.parse(JSON.stringify(newMappedCue)));
             return newMappedCue;
@@ -50,7 +50,11 @@ function _handleCuesUpdated(updatedCues) {
 
         // Refresh properties sidebar if it's open for a playlist that might have changed
         // sidebarsAPI should be uiHandles.propertiesSidebarModule from init
+        // CRITICAL: Skip refresh if update is from waveform trim to prevent infinite loops
         if (sidebarsAPI && typeof sidebarsAPI.getActivePropertiesCueId === 'function' && typeof sidebarsAPI.openPropertiesSidebar === 'function') {
+            if (window._waveformTrimUpdateInProgress) {
+                console.log('CueStore (_handleCuesUpdated): Skipping properties sidebar refresh - waveform trim update in progress');
+            } else {
             const activeCueId = sidebarsAPI.getActivePropertiesCueId();
             if (activeCueId) {
                 const activeCue = cues.find(c => c.id === activeCueId);
@@ -58,6 +62,7 @@ function _handleCuesUpdated(updatedCues) {
                     console.log(`CueStore (_handleCuesUpdated): Active cue ${activeCueId} found, re-opening/refreshing properties view.`);
                     // Re-open properties sidebar to refresh its content with potentially updated cue data
                     sidebarsAPI.openPropertiesSidebar(activeCue);
+                    }
                 }
             }
         }

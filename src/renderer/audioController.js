@@ -257,14 +257,37 @@ function getPlaybackTimes(cueId) {
         if (cueStoreRef) { // Try cueStore again as a last resort for some basic info
             const cue = cueStoreRef.getCueById(cueId);
             if (cue) {
+                // CRITICAL FIX: Apply trim calculations in second fallback too
+                const originalKnownDuration = cue.knownDuration || 0;
+                const trimStartTime = cue.trimStartTime || 0;
+                const trimEndTime = cue.trimEndTime;
+                let effectiveDuration;
+                
+                if (trimEndTime && trimEndTime > trimStartTime) {
+                    effectiveDuration = trimEndTime - trimStartTime;
+                } else if (trimEndTime && trimEndTime <= trimStartTime && trimEndTime > 0) {
+                    effectiveDuration = 0;
+                    console.warn(`AudioController: Cue ${cue.id} has invalid trim (end <= start) in fallback. Duration set to 0.`);
+                } else if (trimStartTime > 0) {
+                    effectiveDuration = originalKnownDuration - trimStartTime;
+                } else if (trimEndTime && trimEndTime > 0 && trimEndTime < originalKnownDuration) {
+                    effectiveDuration = trimEndTime;
+                } else {
+                    effectiveDuration = originalKnownDuration;
+                }
+                effectiveDuration = Math.max(0, effectiveDuration);
+                
                  let nextItemNameFallback = null;
                 if (cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0) {
                     nextItemNameFallback = cue.playlistItems[0]?.name || 'Item 1';
                 }
+                
+                console.log(`AudioController: Second fallback calculated duration for cue ${cueId}: original=${originalKnownDuration}, trimmed=${effectiveDuration}, trimStart=${trimStartTime}, trimEnd=${trimEndTime}`);
+                
                 return {
-                    currentTime: 0, duration: cue.knownDuration || 0, currentTimeFormatted: '00:00', 
-                    durationFormatted: formatTimeMMSS(cue.knownDuration || 0), 
-                    remainingTime: cue.knownDuration || 0, remainingTimeFormatted: formatTimeMMSS(cue.knownDuration || 0),
+                    currentTime: 0, duration: effectiveDuration, currentTimeFormatted: '00:00', 
+                    durationFormatted: formatTimeMMSS(effectiveDuration), 
+                    remainingTime: effectiveDuration, remainingTimeFormatted: formatTimeMMSS(effectiveDuration),
                     isPlaying: false, isPaused: false, 
                     isCued: cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0, // Only cued if it's a playlist with items
                     currentPlaylistItemName: null, nextPlaylistItemName: nextItemNameFallback, 

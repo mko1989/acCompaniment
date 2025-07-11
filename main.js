@@ -96,7 +96,8 @@ async function createWindow() {
     await mainWindow.loadFile(path.join(__dirname, 'src', 'renderer', 'index.html'));
     console.log('MAIN_JS: createWindow - mainWindow.loadFile complete'); // LOG 7
 
-    if (isDev) {
+    // DevTools are now only opened in development mode if explicitly requested
+    if (isDev && process.env.OPEN_DEV_TOOLS) {
       mainWindow.webContents.openDevTools();
       console.log('MAIN_JS: createWindow - DevTools opened'); // LOG 8
     }
@@ -129,9 +130,10 @@ async function createWindow() {
     mixerIntegrationManager.initialize(currentConfig, mainWindow, cueManager);
     console.log('MAIN_JS: createWindow - After mixerIntegrationManager.initialize'); // LOG 21
 
-    // Added: Initialize httpServer
+    // Added: Initialize httpServer with app config
     console.log('MAIN_JS: createWindow - Before httpServer.initialize');
-    httpServer.initialize(cueManager, mainWindow);
+    const currentAppConfig = appConfigManager.getConfig();
+    httpServer.initialize(cueManager, mainWindow, currentAppConfig);
     console.log('MAIN_JS: createWindow - After httpServer.initialize');
 
     console.log('MAIN_JS: About to initialize IPC Handlers. cueManager type:', typeof cueManager, 'cueManager keys:', cueManager ? Object.keys(cueManager) : 'undefined'); // LOG 22

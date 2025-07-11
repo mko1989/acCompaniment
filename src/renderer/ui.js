@@ -318,15 +318,24 @@ async function populateAudioOutputDevicesDropdown() { ... }
 // --- Workspace Change Handling ---
 async function handleWorkspaceChange() {
     console.log('UI Core: Workspace did change. Reloading cues and app config.');
-    // Stop all audio before changing workspace context to prevent issues
-    if (audioControllerModule && typeof audioControllerModule.stopAll === 'function') {
-        // Get current stop behavior from the config that's *about to be replaced*
+    
+    // Comprehensive cleanup before changing workspace context to prevent memory leaks
+    if (audioControllerModule && typeof audioControllerModule.cleanupAllResources === 'function') {
+        console.log('UI Core: Performing comprehensive cleanup before workspace change');
+        audioControllerModule.cleanupAllResources({ 
+            source: 'workspace_change',
+            forceUnload: true 
+        });
+    } else if (audioControllerModule && typeof audioControllerModule.stopAll === 'function') {
+        // Fallback to stopAll if cleanupAllResources is not available
+        console.log('UI Core: Performing fallback cleanup before workspace change');
         const currentEffectiveConfig = appConfigUIModuleInternal.getCurrentAppConfig(); 
         audioControllerModule.stopAll({ 
             behavior: currentEffectiveConfig.defaultStopAllBehavior || 'stop',
-            forceNoFade: true // Ensure immediate stop before context switch
+            forceCleanup: true // Use force cleanup if available
         });
     }
+    
     propertiesSidebar.hidePropertiesSidebar(); // Close properties sidebar as cue context is changing
 
     // Reload application configuration from the new workspace via appConfigUI module
@@ -478,7 +487,7 @@ function updateCueButtonTimeDisplay(data) {
         // console.warn('[UI_CORE_DEBUG] cueGrid.updateCueButtonTime is not available.');
         return;
     }
-    // console.log('[UI_CORE_DEBUG] updateCueButtonTimeDisplay called with:', data);
+    console.log(`[UI_TIME_DEBUG] updateCueButtonTimeDisplay called for cueId: ${data.cueId}, currentTimeSec: ${data.currentTimeSec}, status: ${data.status}`);
 
     // Ensure data contains necessary fields. Defaulting fade states to false if not present.
     const cueId = data.cueId;
@@ -487,11 +496,18 @@ function updateCueButtonTimeDisplay(data) {
     const fadeTimeRemainingMs = data.fadeTimeRemainingMs || 0;
 
     if (cueId) {
-        // We pass null for 'elements' because updateCueButtonTime can fetch them by cueId.
-        // The primary purpose here is to update times and fading status.
-        // The actual time values (currentTimeFormatted, etc.) will be fetched by updateCueButtonTime itself
-        // using audioController.getPlaybackTimes(). This IPC is more of a trigger with fading state.
-        cueGrid.updateCueButtonTime(cueId, null, isFadingIn, isFadingOut, fadeTimeRemainingMs);
+        // Use the time data directly from the IPC message instead of calling audioController.getPlaybackTimes()
+        // This ensures we get real-time updates without additional function call overhead
+        const timeData = {
+            currentTimeFormatted: data.currentTimeFormatted || '00:00',
+            currentTime: data.currentTimeSec || 0,
+            duration: data.totalDurationSec || 0,
+            durationFormatted: data.totalDurationFormatted || '00:00',
+            remainingTime: data.remainingTimeSec || 0,
+            remainingTimeFormatted: data.remainingTimeFormatted || '00:00'
+        };
+        
+        cueGrid.updateCueButtonTimeWithData(cueId, timeData, null, isFadingIn, isFadingOut, fadeTimeRemainingMs);
     } else {
         // console.warn('[UI_CORE_DEBUG] updateCueButtonTimeDisplay: cueId missing in data', data);
     }

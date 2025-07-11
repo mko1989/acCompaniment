@@ -340,6 +340,52 @@ function updateCueButtonTime(cueId, elements = null, isFadingIn = false, isFadin
         console.warn(`[CueGrid UpdateCueButtonTime] cueId: ${cueId}, getPlaybackTimes returned null. Using default display values.`);
     }
 
+    _updateButtonTimeDisplay(button, localElements, displayCurrentTimeFormatted, displayCurrentTime, displayItemDuration, displayItemDurationFormatted, displayItemRemainingTime, displayItemRemainingTimeFormatted, isFadingIn, isFadingOut, fadeTimeRemainingMs);
+}
+
+// New function that uses time data directly from IPC instead of calling audioController.getPlaybackTimes()
+function updateCueButtonTimeWithData(cueId, timeData, elements = null, isFadingIn = false, isFadingOut = false, fadeTimeRemainingMs = 0) {
+    console.log(`[CueGrid UpdateCueButtonTimeWithData] cueId: ${cueId}, timeData:`, timeData);
+
+    if (!cueStore) {
+        console.warn(`updateCueButtonTimeWithData: cueStore not ready for cue ${cueId}`);
+        return;
+    }
+
+    const cueFromStore = cueStore.getCueById(cueId);
+    if (!cueFromStore) {
+        return;
+    }
+
+    const button = document.getElementById(`cue-btn-${cueId}`);
+    if (!button) {
+        return;
+    }
+
+    let localElements = elements;
+    if (!localElements) {
+        localElements = {
+            current: button.querySelector(`#cue-time-current-${cueId}`),
+            total: button.querySelector(`#cue-time-total-${cueId}`),
+            remaining: button.querySelector(`#cue-time-remaining-${cueId}`),
+            separator: button.querySelector(`#cue-time-separator-${cueId}`)
+        };
+    }
+
+    // Use the provided time data directly
+    const displayCurrentTimeFormatted = timeData.currentTimeFormatted || "00:00";
+    const displayCurrentTime = timeData.currentTime || 0;
+    const displayItemDuration = timeData.duration || 0;
+    const displayItemDurationFormatted = timeData.durationFormatted || "00:00";
+    const displayItemRemainingTime = timeData.remainingTime || 0;
+    const displayItemRemainingTimeFormatted = timeData.remainingTimeFormatted || "";
+
+    _updateButtonTimeDisplay(button, localElements, displayCurrentTimeFormatted, displayCurrentTime, displayItemDuration, displayItemDurationFormatted, displayItemRemainingTime, displayItemRemainingTimeFormatted, isFadingIn, isFadingOut, fadeTimeRemainingMs);
+}
+
+// Helper function to update the button display (extracted from original updateCueButtonTime)
+function _updateButtonTimeDisplay(button, localElements, displayCurrentTimeFormatted, displayCurrentTime, displayItemDuration, displayItemDurationFormatted, displayItemRemainingTime, displayItemRemainingTimeFormatted, isFadingIn, isFadingOut, fadeTimeRemainingMs) {
+
     if (localElements.current) localElements.current.textContent = displayCurrentTimeFormatted;
     if (localElements.separator) localElements.separator.textContent = (displayCurrentTime > 0 || displayItemDuration > 0) ? ' / ' : '';
     if (localElements.total) {
@@ -369,7 +415,7 @@ function updateCueButtonTime(cueId, elements = null, isFadingIn = false, isFadin
             button.classList.remove('fading-out');
         }
 
-        if (localElements.current) localElements.current.textContent = `Fading: ${Math.round(fadeTimeRemainingMs / 100) / 10}s`;
+        if (localElements.current) localElements.current.textContent = `Fading: ${(fadeTimeRemainingMs / 1000).toFixed(1)}s`;
         if (localElements.separator) localElements.separator.textContent = '';
         if (localElements.total) localElements.total.textContent = '';
         if (localElements.remaining) {
@@ -407,5 +453,6 @@ export {
     renderCues,
     updateButtonPlayingState, // Keep this exported if audioController calls it directly
     // updateCueButtonTime is mostly internal to renderCues now, but export if needed elsewhere
-    updateCueButtonTime 
+    updateCueButtonTime,
+    updateCueButtonTimeWithData // New function for direct time data updates from IPC
 }; 

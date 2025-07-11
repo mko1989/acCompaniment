@@ -5,7 +5,7 @@ let wingSubscriptionServer = null; // For receiving subscription data from WING
 let wingCompactSubscriptionKeepAliveInterval = null;
 
 const WING_COMPACT_DEFAULT_REMOTE_PORT = 2223; // WING's listening port for commands
-const WING_COMPACT_SUBSCRIPTION_LOCAL_LISTEN_PORT = 23456; // Port our app listens on for WING subscriptions
+const WING_COMPACT_SUBSCRIPTION_LOCAL_LISTEN_PORT = 23457; // Port our app listens on for WING Compact subscriptions
 const WING_COMPACT_SUBSCRIPTION_KEEP_ALIVE_MS = 8000;
 
 let currentWingCompactConfig = {};
