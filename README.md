@@ -75,6 +75,8 @@ Download the latest release from the [Releases](../../releases) page for your op
 6. **Remote Control:** Enable HTTP remote control in settings to access the web interface
 
 #### Main workspace (red in show mode, gray in edit mode)
+<img width="1195" height="782" alt="Screenshot 2025-07-11 at 22 15 53" src="https://github.com/user-attachments/assets/a20d35d7-4578-4073-9304-8b46c461ecdb" />
+
 <img width="666" height="541" alt="Screenshot 2025-07-11 at 18 09 11" src="https://github.com/user-attachments/assets/696e765b-4912-4258-9b9c-0f9083d57e2a" />
 
 #### Buttons
