@@ -34,6 +34,10 @@ let currentWaveformTrimStart = 0;
 let currentWaveformTrimEnd = 0;
 let debouncedSaveCueProperties;
 
+// Debounce highlighting to prevent multiple rapid calls during re-renders
+let highlightTimeout = null;
+let lastHighlightCall = { cueId: null, playlistItemId: null };
+
 // --- Helper Functions (Specific to Properties or shared & simple enough to keep) ---
 function getEffectiveWingType(appConfig) {
     console.log('[PropertiesSidebar getEffectiveWingType] appConfig received:', JSON.parse(JSON.stringify(appConfig || {})));
@@ -570,6 +574,12 @@ function hidePropertiesSidebar() {
 
 function renderPlaylistInProperties() {
     if (!propPlaylistItemsUl || !ipcRendererBindingsModule) return;
+    
+    // Remember which item was highlighted before re-rendering
+    const currentlyHighlightedItem = propPlaylistItemsUl.querySelector('.playlist-item-playing');
+    const highlightedItemId = currentlyHighlightedItem ? currentlyHighlightedItem.dataset.itemId : null;
+    console.log(`[PropertiesSidebar] renderPlaylistInProperties: preserving highlight for itemId=${highlightedItemId}`);
+    
     propPlaylistItemsUl.innerHTML = '';
     stagedPlaylistItems.forEach((item, index) => {
         const li = document.createElement('li');
@@ -602,6 +612,22 @@ function renderPlaylistInProperties() {
         li.appendChild(removeButton);
         propPlaylistItemsUl.appendChild(li);
     });
+    
+    // Restore highlighting after re-rendering if there was a highlighted item
+    if (highlightedItemId) {
+        console.log(`[PropertiesSidebar] renderPlaylistInProperties: restoring highlight for itemId=${highlightedItemId}`);
+        // Use requestAnimationFrame to ensure DOM is ready
+        requestAnimationFrame(() => {
+            const itemToHighlight = propPlaylistItemsUl.querySelector(`li[data-item-id="${highlightedItemId}"]`);
+            if (itemToHighlight) {
+                itemToHighlight.classList.add('playlist-item-playing');
+                console.log(`[PropertiesSidebar] renderPlaylistInProperties: successfully restored highlight`);
+            } else {
+                console.warn(`[PropertiesSidebar] renderPlaylistInProperties: could not find item to restore highlight`);
+            }
+        });
+    }
+    
     if (stagedPlaylistItems.length === 0 && propPlaylistFilePathDisplay) {
         propPlaylistFilePathDisplay.textContent = 'Playlist is empty. Drag files here or click Add Files.';
     } else if (propPlaylistFilePathDisplay) {
@@ -940,6 +966,28 @@ function highlightPlayingPlaylistItemInSidebar(cueId, playlistItemId) {
     
     if (!activePropertiesCueId || activePropertiesCueId !== cueId || !propPlaylistItemsUl) {
         console.log(`[PropertiesSidebar] Highlighting skipped - conditions not met`);
+        return;
+    }
+    
+    // Debounce rapid successive calls (common during re-renders)
+    if (highlightTimeout) {
+        clearTimeout(highlightTimeout);
+    }
+    
+    // Store the call parameters for the debounced execution
+    lastHighlightCall = { cueId, playlistItemId };
+    
+    highlightTimeout = setTimeout(() => {
+        _performHighlighting(lastHighlightCall.cueId, lastHighlightCall.playlistItemId);
+        highlightTimeout = null;
+    }, 50); // 50ms debounce
+}
+
+function _performHighlighting(cueId, playlistItemId) {
+    console.log(`[PropertiesSidebar] _performHighlighting executing: cueId=${cueId}, playlistItemId=${playlistItemId}`);
+    
+    if (!activePropertiesCueId || activePropertiesCueId !== cueId || !propPlaylistItemsUl) {
+        console.log(`[PropertiesSidebar] _performHighlighting skipped - conditions changed`);
         return;
     }
     
