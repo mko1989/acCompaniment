@@ -634,6 +634,10 @@ function _handlePlaylistEnd(cueId, errorOccurred = false) {
         } else { // No loop, playlist truly ends
             delete currentlyPlaying[cueId];
             if (cueGridAPIRef) cueGridAPIRef.updateButtonPlayingState(cueId, false);
+            // Clear playlist highlighting in properties sidebar
+            if (sidebarsAPIRef && typeof sidebarsAPIRef.highlightPlayingPlaylistItemInSidebar === 'function') {
+                sidebarsAPIRef.highlightPlayingPlaylistItemInSidebar(cueId, null);
+            }
             if (ipcBindingsRef) ipcBindingsRef.send('cue-status-update', { cueId: cueId, status: 'stopped', details: { reason: 'playlist_ended_naturally_no_loop' } });
             
             console.log(`AudioPlaybackManager: _handlePlaylistEnd (play_through) for ${cueId}. Attempting to check for ducking trigger.`);
@@ -1141,29 +1145,45 @@ function getPlaybackState(cueId) {
         let nextPlaylistItemName = null;
         
         if (playingState.isPlaylist && playingState.originalPlaylistItems) {
-            // Cache playlist item names to avoid repeated lookups
-            const currentIndex = playingState.currentPlaylistItemIndex;
-            if (currentIndex >= 0 && currentIndex < playingState.originalPlaylistItems.length) {
-                currentPlaylistItemName = playingState.originalPlaylistItems[currentIndex]?.name || `Item ${currentIndex + 1}`;
+            // Get current item name - use shuffle order if shuffled
+            const currentLogicalIndex = playingState.currentPlaylistItemIndex;
+            let currentOriginalIndex = currentLogicalIndex;
+            
+            if (mainCueFromState.shuffle && playingState.shufflePlaybackOrder && playingState.shufflePlaybackOrder.length > currentLogicalIndex) {
+                currentOriginalIndex = playingState.shufflePlaybackOrder[currentLogicalIndex];
             }
             
-            // Calculate next item name efficiently
-            let nextIndex = currentIndex + 1;
+            if (currentOriginalIndex >= 0 && currentOriginalIndex < playingState.originalPlaylistItems.length) {
+                const currentItem = playingState.originalPlaylistItems[currentOriginalIndex];
+                currentPlaylistItemName = currentItem?.name || currentItem?.path?.split(/[\\\/]/).pop() || `Item ${currentOriginalIndex + 1}`;
+            }
+            
+            // Calculate next item name - use shuffle order if shuffled
+            let nextLogicalIndex = currentLogicalIndex + 1;
+            let nextOriginalIndex = nextLogicalIndex;
+            
             if (mainCueFromState.shuffle && playingState.shufflePlaybackOrder) {
-                nextIndex = playingState.currentPlaylistItemIndex + 1;
-                if (nextIndex < playingState.shufflePlaybackOrder.length) {
-                    const nextOriginalIndex = playingState.shufflePlaybackOrder[nextIndex];
-                        nextPlaylistItemName = playingState.originalPlaylistItems[nextOriginalIndex]?.name || `Item ${nextOriginalIndex + 1}`;
+                if (nextLogicalIndex < playingState.shufflePlaybackOrder.length) {
+                    nextOriginalIndex = playingState.shufflePlaybackOrder[nextLogicalIndex];
+                } else if (mainCueFromState.loop && playingState.shufflePlaybackOrder.length > 0) {
+                    // Loop back to first item in shuffle order
+                    nextOriginalIndex = playingState.shufflePlaybackOrder[0];
+                } else {
+                    nextOriginalIndex = -1; // No next item
+                }
+            } else {
+                if (nextLogicalIndex >= playingState.originalPlaylistItems.length) {
+                    if (mainCueFromState.loop) {
+                        nextOriginalIndex = 0; // Loop back to first item
+                    } else {
+                        nextOriginalIndex = -1; // No next item
                     }
-            } else if (nextIndex < playingState.originalPlaylistItems.length) {
-                nextPlaylistItemName = playingState.originalPlaylistItems[nextIndex]?.name || `Item ${nextIndex + 1}`;
+                }
             }
             
-            // Handle loop case
-            if (!nextPlaylistItemName && mainCueFromState.loop) {
-                const firstIndex = mainCueFromState.shuffle && playingState.shufflePlaybackOrder ? 
-                    playingState.shufflePlaybackOrder[0] : 0;
-                nextPlaylistItemName = playingState.originalPlaylistItems[firstIndex]?.name || `Item ${firstIndex + 1}`;
+            if (nextOriginalIndex >= 0 && nextOriginalIndex < playingState.originalPlaylistItems.length) {
+                const nextItem = playingState.originalPlaylistItems[nextOriginalIndex];
+                nextPlaylistItemName = nextItem?.name || nextItem?.path?.split(/[\\\/]/).pop() || `Item ${nextOriginalIndex + 1}`;
             }
         }
 

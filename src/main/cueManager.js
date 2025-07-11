@@ -416,7 +416,7 @@ async function addOrUpdateProcessedCue(cueData, workspacePath) {
       playlistItems: cueData.playlistItems || [],
       shuffle: cueData.shuffle || false, // for playlists
       repeatOne: cueData.repeatOne || false, // for playlists
-      playlistPlayMode: cueData.playlistPlayMode || 'continue_to_next', // 'continue_to_next' or 'stop_and_cue_next'
+      playlistPlayMode: cueData.playlistPlayMode || 'continue', // 'continue' or 'stop_and_cue_next'
       // Trim specific properties
       trimStartTime: cueData.trimStartTime || 0,
       trimEndTime: cueData.trimEndTime || 0,

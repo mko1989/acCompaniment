@@ -880,8 +880,11 @@ async function handleSaveCueProperties() {
 async function handleDeleteCueProperties() {
     if (!activePropertiesCueId || !cueStore || !audioController) return;
     if (confirm('Are you sure you want to delete this cue?')) {
-        if (audioController.isPlaying(activePropertiesCueId)) {
-            audioController.stop(activePropertiesCueId, false);
+        if (audioController.default && audioController.default.isPlaying && audioController.default.isPlaying(activePropertiesCueId)) {
+            // Stop the cue if it's playing
+            if (audioController.default.toggle) {
+                audioController.default.toggle(activePropertiesCueId, false, 'stop');
+            }
         }
         await cueStore.deleteCue(activePropertiesCueId);
         hidePropertiesSidebar();

@@ -1,6 +1,6 @@
 {
   "name": "accompaniment",
-  "version": "0.0.4-alpha",
+  "version": "0.0.5-alpha",
   "description": "A soundboard app",
   "main": "main.js",
   "scripts": {
@@ -8,7 +8,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "postinstall": "electron-rebuild",
     "pack": "electron-builder --dir",
-    "dist": "NODE_ENV=production electron-builder --mac --win"
+    "dist": "NODE_ENV=production electron-builder --mac --win",
+    "dist:mac": "NODE_ENV=production electron-builder --mac",
+    "dist:win": "NODE_ENV=production electron-builder --win"
   },
   "keywords": [
     "electron",
@@ -48,13 +50,14 @@
       "target": [
         {
           "target": "dmg",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
+          "arch": ["universal"]
         }
       ],
-        "icon": "assets/icons/icon.ico"
+      "icon": "assets/icons/icon.png",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": null,
+      "entitlementsInherit": null
     },
     "win": {
       "target": "nsis",
