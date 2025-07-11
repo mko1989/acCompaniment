@@ -22,34 +22,56 @@
 *   **Integration & Control:**
     *   **Bitfocus Companion:** Seamless integration via a dedicated Companion module (`companion-module-highpass-accompaniment`) for remote triggering of cues and receiving feedback (cue status, playback times).
     *   **Behringer WING Mixer:** Direct OSC integration for configuring user-assignable buttons on the WING mixer to trigger cues and receive feedback from the mixer.
-    *   **General OSC & MIDI Input:** (Planned) Configure cues to be triggered by generic OSC messages or MIDI notes/CCs.
+    *   **HTTP Remote Control:** Built-in web interface for remote control via any web browser.
 *   **User Interface:**
     *   Clear and intuitive grid-based layout for cue buttons.
     *   Real-time display of cue status (idle, playing, paused, cued next).
     *   Display of current playback time, total duration, and remaining time on cue buttons.
     *   Dedicated sidebars for cue properties and application configuration.
-    *   Theme support (light/dark/system).
+    *   Dark theme optimized for live performance environments.
 *   **Easter Egg:**
-    *   A fun, hidden 16-bit style game, "Elmer Fudd's Pig Roundup," accessible through a developer button or via an inactivity trigger in a blank workspace.
+    *   A fun, hidden 16-bit style game, "Elmer Fudd's Pig Roundup," accessible through Ctrl+Alt+P.
+
+## System Requirements
+
+*   **Operating System:** Windows 10/11, macOS 10.15+, or Linux (Ubuntu 18.04+)
+*   **Memory:** 4GB RAM minimum, 8GB recommended
+*   **Storage:** 200MB for application, additional space for audio files
+*   **Audio:** Compatible audio output device
 
 ## Getting Started
 
 ### Prerequisites
 
-*   Node.js and npm (or yarn) installed.
+*   Node.js 18+ and npm (for development builds)
 
 ### Installation & Running
 
-1.  **Clone the repository (if applicable) or navigate to the `acCompaniment` directory.**
+#### For End Users
+Download the latest release from the [Releases](../../releases) page for your operating system.
+
+#### For Developers
+1.  **Clone the repository:**
+    ```bash
+    git clone <repository-url>
+    cd acCompaniment
+    ```
 2.  **Install dependencies:**
     ```bash
-    cd path/to/your/workspace/acCompaniment
     npm install
     ```
 3.  **Run the application:**
     ```bash
     npm start
     ```
+
+## Usage
+
+1. **Adding Cues:** Drag and drop audio files onto the main grid area to create cues
+2. **Playing Cues:** Click on any cue button to start playback
+3. **Edit Mode:** Hold Shift while clicking to edit cue properties
+4. **Stop All:** Use the red "Don't Panic" button to stop all playing cues
+5. **Remote Control:** Enable HTTP remote control in settings to access the web interface
 
 ## Development
 
@@ -64,12 +86,37 @@ The application is built using Electron. Key technologies include:
 
 ### Project Structure
 
-Refer to `PROJECT_STRUCTURE.md` in the workspace root for a detailed breakdown of the application's file and directory layout.
+The project follows a standard Electron structure:
+- `main.js` - Main Electron process
+- `src/main/` - Main process modules
+- `src/renderer/` - Renderer process (UI) modules
+- `assets/` - Application icons and resources
 
-### Key Scripts (from `package.json`)
+### Available Scripts
 
-*   `npm start`: Starts the Electron application.
-*   (Add other relevant scripts here, e.g., for building, linting, testing, if they exist)
+*   `npm start` - Start the Electron application in development mode
+*   `npm run pack` - Package the application (without creating installers)
+*   `npm run dist` - Build distributables for all platforms
+*   `npm run dist:mac` - Build macOS distributable
+*   `npm run dist:win` - Build Windows distributable
+
+### Building for Distribution
+
+To create distributable packages:
+
+```bash
+# Install dependencies
+npm install
+
+# Build for all platforms
+npm run dist
+
+# Or build for specific platform
+npm run dist:mac    # macOS
+npm run dist:win    # Windows
+```
+
+Built packages will be available in the `dist/` directory.
 
 ## Companion Module Integration
 
@@ -81,10 +128,38 @@ To control acCompaniment from Bitfocus Companion:
 4.  Configure the IP address and port if necessary (defaults usually work if Companion and acCompaniment are on the same machine).
 5.  Actions, variables, and feedbacks will become available in Companion to control and monitor cues.
 
+## Troubleshooting
+
+### Common Issues
+
+**Audio not playing:**
+- Check that the correct audio output device is selected in Settings
+- Verify audio files are in supported formats (MP3, WAV, M4A, etc.)
+
+**Cues not appearing:**
+- Ensure audio files are being dropped in the main grid area
+- Check that files are not corrupted
+
+**Remote control not working:**
+- Verify HTTP remote control is enabled in Settings
+- Check firewall settings if accessing from another device
+
+**Performance issues:**
+- Close unnecessary applications
+- Reduce the number of simultaneous playing cues
+- Use lower quality audio files if needed
+
+### Getting Help
+
+If you encounter issues not covered here, please check the [Issues](../../issues) page or create a new issue with:
+- Your operating system and version
+- Steps to reproduce the problem
+- Any error messages
+
 ## Contributing
 
-(Details on how to contribute, if applicable - e.g., pull requests, issue reporting guidelines)
+Contributions are welcome! Please feel free to submit pull requests or open issues for bugs and feature requests.
 
 ## License
 
-(Specify your project's license, e.g., MIT, GPL, etc. If not yet decided, you can put "To be determined" or leave blank for now.) 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 

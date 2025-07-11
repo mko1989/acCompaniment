@@ -39,6 +39,25 @@ function renderCues() {
     cueGridContainer.innerHTML = ''; 
     const cues = cueStore.getAllCues();
 
+    // Check if there are no cues and show empty state message
+    if (!cues || cues.length === 0) {
+        const emptyStateMessage = document.createElement('div');
+        emptyStateMessage.className = 'empty-state-message';
+        emptyStateMessage.innerHTML = `
+            <div class="empty-state-content">
+                <h3>No cues yet</h3>
+                <p>Drag and drop audio files here to create cues</p>
+            </div>
+        `;
+        cueGridContainer.appendChild(emptyStateMessage);
+        
+        // Still initialize drag drop for the empty container
+        if (dragDrop && typeof dragDrop.initializeCueButtonDragDrop === 'function') {
+            dragDrop.initializeCueButtonDragDrop(cueGridContainer);
+        }
+        return;
+    }
+
     cues.forEach(cue => {
         const button = document.createElement('div');
         button.className = 'cue-button';

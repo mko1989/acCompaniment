@@ -226,3 +226,33 @@
     background-color: var(--cue-fading-in-bg, #2a8fa5);
 }
 
+/* Empty State Message */
+.empty-state-message {
+    grid-column: 1 / -1; /* Span all columns */
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 20px;
+    margin-top: 0;
+}
+
+.empty-state-content {
+    padding: 30px;
+    text-align: center;
+    color: var(--text-secondary-color);
+    max-width: 300px;
+}
+
+.empty-state-content h3 {
+    margin: 0 0 10px 0;
+    color: var(--text-color);
+    font-size: 1.2em;
+    font-weight: normal;
+}
+
+.empty-state-content p {
+    margin: 0;
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+
