@@ -190,7 +190,7 @@ If you encounter issues not covered here, please check the [Issues](../../issues
 Contributions are welcome! Please feel free to submit pull requests or open issues for bugs and feature requests.
 
 If you like it consider buying me a coffee 
-https://ko-fi.com/mko1989
+<script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script><script type='text/javascript'>kofiwidget2.init('Buy me Ko-fi', '#72a4f2', 'S6S21HW40I');kofiwidget2.draw();</script> 
 
 ## License
 
