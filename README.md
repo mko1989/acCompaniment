@@ -1,6 +1,6 @@
 # acCompaniment Soundboard
 
-**acCompaniment** is a professional soundboard application built with Electron, designed for live performance, broadcasting, and advanced audio cue management. It offers robust control over audio playback, extensive customization options, and integration capabilities with external hardware and software, including Behringer WING mixers and Bitfocus Companion.
+**acCompaniment** is a professional soundboard application built with Electron, designed for live performance, broadcasting, and advanced audio cue management. It offers robust control over audio playback, extensive customization options, and integration capabilities with Bitfocus Companion.
 
 ## Features
 
@@ -21,7 +21,6 @@
     *   Option to automatically load the last opened workspace.
 *   **Integration & Control:**
     *   **Bitfocus Companion:** Seamless integration via a dedicated Companion module (`companion-module-highpass-accompaniment`) for remote triggering of cues and receiving feedback (cue status, playback times).
-    *   **Behringer WING Mixer:** Direct OSC integration for configuring user-assignable buttons on the WING mixer to trigger cues and receive feedback from the mixer.
     *   **HTTP Remote Control:** Built-in web interface for remote control via any web browser.
 *   **User Interface:**
     *   Clear and intuitive grid-based layout for cue buttons.
@@ -30,11 +29,11 @@
     *   Dedicated sidebars for cue properties and application configuration.
     *   Dark theme optimized for live performance environments.
 *   **Easter Egg:**
-    *   A fun, hidden 16-bit style game, "Elmer Fudd's Pig Roundup," accessible through Ctrl+Alt+P.
+    *   A fun, hidden 16-bit style game, "Happy Pig!" accessible through Ctrl+Alt+P.
 
 ## System Requirements
 
-*   **Operating System:** Windows 10/11, macOS 10.15+, or Linux (Ubuntu 18.04+)
+*   **Operating System:** Windows 10/11, macOS 10.15+
 *   **Memory:** 4GB RAM minimum, 8GB recommended
 *   **Storage:** 200MB for application, additional space for audio files
 *   **Audio:** Compatible audio output device
