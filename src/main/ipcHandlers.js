@@ -278,39 +278,19 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
                 console.warn('Attempted to get media devices before app was ready.');
                 return [];
             }
-            if (!session.defaultSession) {
-                console.error('Electron defaultSession not available to get media devices.');
-                return [];
-            }
             
-            // Use the correct Electron API for getting media devices
-            const { systemPreferences } = require('electron');
+            // For a soundboard app, audio output device enumeration should be handled 
+            // in the renderer process using navigator.mediaDevices.enumerateDevices()
+            // This avoids permission issues and provides better device information
+            console.log('Audio output device enumeration delegated to renderer process');
             
-            // For macOS/Windows, we can get audio devices differently
-            if (process.platform === 'darwin') {
-                // On macOS, we can use systemPreferences to get media access
-                try {
-                    const hasAccess = await systemPreferences.askForMediaAccess('microphone');
-                    console.log('Audio device access granted:', hasAccess);
-                } catch (err) {
-                    console.log('Could not request audio access:', err.message);
-                }
-            }
-            
-            // Return a default device since the old API is deprecated
-            // In newer Electron versions, audio device selection should be handled differently
-            return [
-                { deviceId: 'default', label: 'Default Audio Output' },
-                { deviceId: 'system', label: 'System Audio Output' }
-            ];
+            // Return empty array - the renderer will handle actual device enumeration
+            // This prevents duplicates and permission issues
+            return [];
             
         } catch (error) {
-            console.error('Error fetching audio output devices:', error);
-            // Return default options as fallback
-            return [
-                { deviceId: 'default', label: 'Default Audio Output' },
-                { deviceId: 'system', label: 'System Audio Output' }
-            ];
+            console.error('Error in get-audio-output-devices handler:', error);
+            return [];
         }
     });
     console.log("IPC_HANDLERS_INIT: Handler for 'get-audio-output-devices' explicitly registered.");

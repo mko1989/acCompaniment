@@ -1443,6 +1443,7 @@ publicAPIManagerInstance = {
     stopAllCues,
     seekInCue,
     getPlaybackState, // To get current time, duration, playing status etc.
+    getCurrentlyPlayingInstances: () => currentlyPlaying, // Expose currently playing instances for device switching
     // Ducking functions are internal, triggered by playback events, not directly exposed in public API for audioController
     _cleanupSoundInstance, // Export the cleanup utility function
     cleanupAllResources, // Export the comprehensive cleanup function

@@ -285,11 +285,11 @@ export function createPlaybackInstance(
                 let fadeTimeRemainingMs = 0;
 
                 if (latestGlobalState.isFadingIn) {
-                    isFadingIn = true;
+                            isFadingIn = true;
                     const fadeElapsed = now - latestGlobalState.fadeStartTime;
                     fadeTimeRemainingMs = Math.max(0, latestGlobalState.fadeTotalDurationMs - fadeElapsed);
                 } else if (latestGlobalState.isFadingOut) {
-                    isFadingOut = true;
+                            isFadingOut = true;
                     const fadeElapsed = now - latestGlobalState.fadeStartTime;
                     fadeTimeRemainingMs = Math.max(0, latestGlobalState.fadeTotalDurationMs - fadeElapsed);
                 }
@@ -306,13 +306,13 @@ export function createPlaybackInstance(
                     if (audioControllerContext.cueGridAPI && audioControllerContext.cueGridAPI.updateCueButtonTime) {
                         // Use updateCueButtonTime directly for smoother fade timer updates
                         audioControllerContext.cueGridAPI.updateCueButtonTime(
-                            cueId, 
+                        cueId, 
                             null, // elements 
-                            isFadingIn, 
-                            isFadingOut, 
-                            fadeTimeRemainingMs
-                        );
-                    }
+                        isFadingIn, 
+                        isFadingOut, 
+                        fadeTimeRemainingMs
+                    );
+                }
                 }
                 
                 // Performance optimization: Only send detailed state updates periodically for non-fade data

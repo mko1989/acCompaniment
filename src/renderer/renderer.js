@@ -72,6 +72,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     await audioController.default.init(cueStore, electronAPI, uiHandles.cueGridModule, uiHandles.propertiesSidebarModule);
     console.log('Renderer: AudioController initialized.');
 
+    // Connect AudioController to AppConfigUI for device changes
+    console.log('Renderer: Connecting AudioController to AppConfigUI...');
+    appConfigUI.setAudioControllerRef(audioController.default);
+    console.log('Renderer: AudioController connected to AppConfigUI.');
+
     // Update AudioController with the configuration obtained from AppConfigUI
     if (initialAppConfig && audioController.default && typeof audioController.default.updateAppConfig === 'function') {
         console.log('Renderer: Passing initialAppConfig to audioController.default.updateAppConfig.');

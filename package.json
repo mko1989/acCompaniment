@@ -1,6 +1,6 @@
 {
   "name": "accompaniment",
-  "version": "0.0.5-alpha",
+  "version": "0.0.6-alpha",
   "description": "A soundboard app",
   "main": "main.js",
   "scripts": {
@@ -58,8 +58,8 @@
       "icon": "assets/icons/icon.png",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
-      "entitlements": null,
-      "entitlementsInherit": null
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "win": {
       "target": "nsis",
