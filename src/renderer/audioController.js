@@ -21,6 +21,9 @@ let localSidebarsAPI = null;
 
 let audioControllerInitialized = false;
 
+// Store the current audio output device ID
+let currentAudioOutputDeviceId = 'default';
+
 // Call this function to initialize the module with dependencies
 async function init(cs, ipcRendererBindingsInstance, cgAPI, sbAPI) {
     console.log('AudioController: init sequence started.');
@@ -50,7 +53,8 @@ async function init(cs, ipcRendererBindingsInstance, cgAPI, sbAPI) {
             ipcBindings: ipcBindings,
             cueGridAPI: cgAPI, 
             sidebarsAPI: sbAPI,
-            getAppConfigFunc: getAppConfig // Pass the local getter
+            getAppConfigFunc: getAppConfig, // Pass the local getter
+            audioController: { getCurrentAudioOutputDeviceId } // Pass audioController functions
         });
         console.log('AudioController: playbackManagerModule.init() called successfully.');
 
@@ -96,6 +100,13 @@ function getAppConfig() {
 
 function _updateInternalAppConfig(newConfig) {
     internalAppConfigState = { ...newConfig };
+    
+    // Update the current audio output device ID if it changed
+    if (newConfig.audioOutputDeviceId !== undefined) {
+        currentAudioOutputDeviceId = newConfig.audioOutputDeviceId;
+        console.log(`AudioController: Updated current audio output device ID to: ${currentAudioOutputDeviceId}`);
+    }
+    
     appConfigInitialized = true;
     console.log("AudioController: Internal app config updated and marked as initialized.", internalAppConfigState);
     // No need to propagate to playbackManager here; it uses getAppConfigFuncRef when needed
@@ -352,69 +363,123 @@ function updateAppConfig(newConfig) {
 async function setAudioOutputDevice(deviceId) {
     console.log(`AudioController: Attempting to set audio output device to: ${deviceId}`);
     
+    // Map 'default' to empty string for Web Audio API
+    const sinkId = (deviceId === 'default') ? '' : deviceId;
+    
     let success = false;
     let errorMessage = null;
+    let successfulSwitches = 0;
+    let failedSwitches = 0;
     
-    // For Web Audio API (which Howler.js uses), we need to set the device on the AudioContext
-    // The global Howler.ctx is the main AudioContext used by all Howler instances
-    if (Howler.ctx && typeof Howler.ctx.setSinkId === 'function') {
-        try {
-            await Howler.ctx.setSinkId(deviceId);
-            console.log(`AudioController: Successfully set global Howler AudioContext to device ${deviceId}`);
-            success = true;
-        } catch (error) {
-            console.error(`AudioController: Error setting AudioContext device ${deviceId}:`, error);
-            errorMessage = error.message;
-            if (error.name === 'NotFoundError') {
-                errorMessage = `Audio device not found. Please select another device.`;
-            } else if (error.name === 'NotAllowedError') {
-                errorMessage = `Permission denied to use this audio device.`;
+    // Store the current state of all playing/paused sounds before switching
+    const soundStates = {};
+    if (playbackManagerModule && playbackManagerModule.getCurrentlyPlayingInstances) {
+        const currentlyPlaying = playbackManagerModule.getCurrentlyPlayingInstances();
+        for (const [cueId, playingState] of Object.entries(currentlyPlaying)) {
+            if (playingState.sound) {
+                soundStates[cueId] = {
+                    isPlaying: playingState.sound.playing(),
+                    isPaused: playingState.isPaused,
+                    currentTime: playingState.sound.seek(),
+                    volume: playingState.sound.volume(),
+                    cue: getGlobalCueById(cueId)
+                };
             }
         }
-    } else {
-        console.warn('AudioController: AudioContext.setSinkId is not available. Cannot change audio output device.');
-        errorMessage = 'Audio device switching is not supported in this browser.';
     }
     
-    // For currently playing sounds, we need to restart them to use the new device
-    // This is because existing sound instances may still be using the old device
-    if (success && playbackManagerModule && typeof playbackManagerModule.getCurrentlyPlayingInstances === 'function') {
-        const currentlyPlaying = playbackManagerModule.getCurrentlyPlayingInstances();
-        const cueIds = Object.keys(currentlyPlaying);
+    // For HTML5 Audio (which is used by default in this app), we need to set the device 
+    // on each individual audio element, not the global AudioContext
+    if (Object.keys(soundStates).length > 0) {
+        console.log(`AudioController: Setting audio output device on ${Object.keys(soundStates).length} active sounds`);
         
-        if (cueIds.length > 0) {
-            console.log(`AudioController: Restarting ${cueIds.length} currently playing sounds to use new device`);
-            
-            // Store the current playback state for each sound
-            const playbackStates = {};
-            
-            for (const cueId of cueIds) {
+        for (const [cueId, state] of Object.entries(soundStates)) {
+            if (playbackManagerModule && playbackManagerModule.getCurrentlyPlayingInstances) {
+                const currentlyPlaying = playbackManagerModule.getCurrentlyPlayingInstances();
                 const playingState = currentlyPlaying[cueId];
-                if (playingState && playingState.sound && playingState.sound.playing()) {
-                    playbackStates[cueId] = {
-                        currentTime: playingState.sound.seek(),
-                        volume: playingState.sound.volume(),
-                        rate: playingState.sound.rate(),
-                        isPlaying: true
-                    };
-                    console.log(`AudioController: Stored state for cue ${cueId}: time=${playbackStates[cueId].currentTime}s`);
+                
+                if (playingState && playingState.sound) {
+                    try {
+                        // Get the underlying HTML5 Audio element from Howler
+                        const sound = playingState.sound;
+                        
+                        // Howler.js exposes the underlying audio nodes
+                        // For HTML5 Audio, we need to access the audio element
+                        if (sound._sounds && sound._sounds.length > 0) {
+                            const audioNode = sound._sounds[0]._node;
+                            if (audioNode && typeof audioNode.setSinkId === 'function') {
+                                console.log(`AudioController: Setting sink ID on HTML5 Audio element for cue ${cueId}`);
+                                await audioNode.setSinkId(sinkId);
+                                successfulSwitches++;
+                                console.log(`AudioController: Successfully set device for cue ${cueId}`);
+                            } else {
+                                console.warn(`AudioController: setSinkId not available on audio element for cue ${cueId}`);
+                                failedSwitches++;
+                            }
+                        } else {
+                            console.warn(`AudioController: No audio nodes found for cue ${cueId}`);
+                            failedSwitches++;
+                        }
+                    } catch (error) {
+                        console.error(`AudioController: Failed to set device for cue ${cueId}:`, error);
+                        failedSwitches++;
+                        
+                        // Handle specific error types
+                        if (error.name === 'NotFoundError') {
+                            errorMessage = `Audio device not found: ${deviceId}`;
+                        } else if (error.name === 'NotAllowedError') {
+                            errorMessage = `Permission denied for audio device: ${deviceId}`;
+                        } else {
+                            errorMessage = error.message;
+                        }
+                    }
                 }
             }
-            
-            // Wait a moment for the device change to take effect
-            await new Promise(resolve => setTimeout(resolve, 100));
-            
-            // The new device will be used automatically for new sound instances
-            // Existing instances should now use the new device since we set it on the global context
-            console.log(`AudioController: Device switching complete. New sounds will use device ${deviceId}`);
+        }
+        
+        success = successfulSwitches > 0;
+        
+        if (successfulSwitches > 0) {
+            console.log(`AudioController: Successfully switched ${successfulSwitches} sounds to device ${deviceId}`);
+        }
+        if (failedSwitches > 0) {
+            console.warn(`AudioController: Failed to switch ${failedSwitches} sounds to device ${deviceId}`);
+        }
+    } else {
+        // No active sounds, but we can still try to set the global context for future sounds
+        console.log(`AudioController: No active sounds, setting global Howler AudioContext for future sounds`);
+        
+        if (Howler.ctx && typeof Howler.ctx.setSinkId === 'function') {
+            try {
+                await Howler.ctx.setSinkId(sinkId);
+                console.log(`AudioController: Successfully set global Howler AudioContext to device ${deviceId}`);
+                success = true;
+            } catch (error) {
+                console.error(`AudioController: Failed to set global Howler AudioContext to device ${deviceId}:`, error);
+                errorMessage = error.message;
+                
+                // Handle specific error types
+                if (error.name === 'NotFoundError') {
+                    errorMessage = `Audio device not found: ${deviceId}`;
+                } else if (error.name === 'NotAllowedError') {
+                    errorMessage = `Permission denied for audio device: ${deviceId}`;
+                }
+            }
+        } else {
+            console.warn('AudioController: setSinkId not supported on AudioContext or Howler.ctx not available');
+            // For future sounds, we'll need to handle this when they're created
+            success = true; // Don't fail if there are no active sounds
         }
     }
     
     if (success) {
+        // Store the current device ID for future sounds
+        currentAudioOutputDeviceId = deviceId;
         console.log(`AudioController: Successfully set audio output device to ${deviceId}`);
+        return { success: true, message: `Audio output switched to device: ${deviceId}` };
     } else {
-        console.error(`AudioController: Failed to set audio output device: ${errorMessage}`);
-        throw new Error(errorMessage);
+        console.error(`AudioController: Failed to set audio output device to ${deviceId}: ${errorMessage}`);
+        return { success: false, error: errorMessage || 'Audio device switching failed' };
     }
 }
 
@@ -448,6 +513,11 @@ function playCueByIdFromMain(cueId, source = 'unknown') {
     }
 }
 
+// Function to get the current audio output device ID
+function getCurrentAudioOutputDeviceId() {
+    return currentAudioOutputDeviceId;
+}
+
 export default {
     init,
     setUIRefs,
@@ -465,6 +535,7 @@ export default {
     isCued,
     updateAppConfig: _updateInternalAppConfig, // Expose the internal updater
     setAudioOutputDevice,
+    getCurrentAudioOutputDeviceId,
     playCueByIdFromMain // Make sure this is exported if called from IPC
     // getCurrentlyPlayingPlaylistItemName, // REMOVED
     // getNextPlaylistItemName, // REMOVED

@@ -1,6 +1,6 @@
 {
   "name": "accompaniment",
-  "version": "0.0.6-alpha",
+  "version": "0.1.0-alpha",
   "description": "A soundboard app",
   "main": "main.js",
   "scripts": {
@@ -59,7 +59,13 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist"
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": null,
+        "NSCameraUsageDescription": null,
+        "NSBluetoothAlwaysUsageDescription": null,
+        "NSBluetoothPeripheralUsageDescription": null
+      }
     },
     "win": {
       "target": "nsis",

@@ -16,6 +16,7 @@ let ipcBindingsRef;
 let cueGridAPIRef;
 let sidebarsAPIRef;
 let getAppConfigFuncRef; // Changed from currentAppConfigRef
+let audioControllerRef; // Reference to audioController for device switching
 
 // State variables
 let currentlyPlaying = {}; // cueId: { sound: Howl_instance, cue: cueData, isPaused: boolean, ... }
@@ -98,6 +99,7 @@ function init(dependencies) {
     ipcBindingsRef = dependencies.ipcBindings;
     // cueGridAPIRef and sidebarsAPIRef are set via setUIRefs
     getAppConfigFuncRef = dependencies.getAppConfigFunc; // Store the getter function
+    audioControllerRef = dependencies.audioController; // Store the audioController reference
 
     // Initialize logging system
     const appConfig = getAppConfigFuncRef ? getAppConfigFuncRef() : {};
@@ -187,6 +189,12 @@ function play(cue, isResume = false) {
             const fullCueData = getGlobalCueByIdRef(cueId);
             if (fullCueData && fullCueData.isDuckingTrigger) {
                  _applyDucking(cueId);
+            }
+
+            // CRITICAL FIX: Ensure UI is updated when resuming from pause
+            if (cueGridAPIRef && cueGridAPIRef.updateButtonPlayingState) {
+                console.log(`AudioPlaybackManager: Explicitly updating UI for resumed cue ${cueId}`);
+                cueGridAPIRef.updateButtonPlayingState(cueId, true);
             }
 
         } else if (existingState.isPlaylist) {
@@ -454,23 +462,24 @@ function _proceedWithPlayback(cueId, playingState, filePath, currentItemName, ac
         playingState.sound = null; 
     }
 
-        // Prepare context for instance handler
-    const instanceHandlerContext = {
-        currentlyPlaying, 
-        playbackIntervals, 
-        ipcBindings: ipcBindingsRef,
-        cueGridAPI: cueGridAPIRef,
-        sidebarsAPI: sidebarsAPIRef,
-        sendPlaybackTimeUpdate: sendPlaybackTimeUpdateRef,
-        _handlePlaylistEnd, 
-        _playTargetItem,    
-        getGlobalCueById: getGlobalCueByIdRef, 
-        _applyDucking, 
+                // Prepare context for instance handler
+        const instanceHandlerContext = {
+            currentlyPlaying, 
+            playbackIntervals, 
+            ipcBindings: ipcBindingsRef,
+            cueGridAPI: cueGridAPIRef,
+            sidebarsAPI: sidebarsAPIRef,
+            sendPlaybackTimeUpdate: sendPlaybackTimeUpdateRef,
+            _handlePlaylistEnd, 
+            _playTargetItem,    
+            getGlobalCueById: getGlobalCueByIdRef, 
+            _applyDucking, 
             _revertDucking,
             _cleanupSoundInstance, // Add the cleanup utility to the context
             getAppConfigFunc: getAppConfigFuncRef, // Add app config function for performance optimizations
-            _updateCurrentCueForCompanion // Add current cue priority function
-    };
+            _updateCurrentCueForCompanion, // Add current cue priority function
+            audioControllerRef: audioControllerRef // Add audioController reference for device switching
+        };
     
         log.debug(`Creating playback instance for ${cueId} with file: ${filePath}`);
         
@@ -762,6 +771,17 @@ function pause(cueId) {
             console.log(`AudioPlaybackManager: Paused cue ${cueId} is a ducking trigger. Reverting ducking.`);
             _revertDucking(cueId);
         }
+
+        // CRITICAL FIX: Ensure UI is updated even if onpause handler doesn't fire
+        if (cueGridAPIRef && cueGridAPIRef.updateButtonPlayingState) {
+            console.log(`AudioPlaybackManager: Explicitly updating UI for paused cue ${cueId}`);
+            cueGridAPIRef.updateButtonPlayingState(cueId, false);
+        }
+        
+        // Send IPC status update for paused state
+        if (ipcBindingsRef && typeof ipcBindingsRef.send === 'function') {
+            ipcBindingsRef.send('cue-status-update', { cueId: cueId, status: 'paused', details: {} });
+        }
     }
 }
 
@@ -1017,7 +1037,8 @@ function toggleCue(cueIdToToggle, fromCompanion = false, retriggerBehaviorOverri
     }
     
     const playingState = currentlyPlaying[cueIdToToggle];
-    const retriggerBehavior = retriggerBehaviorOverride || cue.retriggerBehavior || 'toggle_pause_play';
+    const appConfig = getAppConfigFuncRef ? getAppConfigFuncRef() : {};
+    const retriggerBehavior = retriggerBehaviorOverride || cue.retriggerBehavior || appConfig.defaultRetriggerBehavior || 'toggle_pause_play';
     
     console.log(`AudioPlaybackManager: Toggle for cue ${cueIdToToggle}. Retrigger behavior: ${retriggerBehavior}. fromCompanion: ${fromCompanion}`);
     
@@ -1031,33 +1052,38 @@ function toggleCue(cueIdToToggle, fromCompanion = false, retriggerBehaviorOverri
             _playTargetItem(cueIdToToggle, playingState.currentPlaylistItemIndex, false);
         } else if (playingState.isPaused) {
             // Standard pause (not a cued playlist item) or other playlist modes: retrigger behavior applies
-                console.log(`AudioPlaybackManager: Toggle - Cue ${cueIdToToggle} is PAUSED (or not a specifically cued playlist item). Applying retrigger: ${retriggerBehavior}`);
-                switch (retriggerBehavior) {
-                    case 'restart':
+            console.log(`AudioPlaybackManager: Toggle - Cue ${cueIdToToggle} is PAUSED (or not a specifically cued playlist item). Applying retrigger: ${retriggerBehavior}`);
+            switch (retriggerBehavior) {
+                case 'restart':
                     // Clear any existing pending restart to prevent conflicts
                     if (pendingRestarts[cueIdToToggle]) {
                         clearTimeout(pendingRestarts[cueIdToToggle]);
                         delete pendingRestarts[cueIdToToggle];
                     }
                     
-                        stop(cueIdToToggle, false, fromCompanion, true); // Stop immediately (isRetriggerStop=true)
+                    stop(cueIdToToggle, false, fromCompanion, true); // Stop immediately (isRetriggerStop=true)
                     // Increased delay for better state cleanup
                     pendingRestarts[cueIdToToggle] = setTimeout(() => { 
                         play(cue, false); 
                         delete pendingRestarts[cueIdToToggle];
                     }, 150); // Increased from 50ms to 150ms
-                        break;
-                    case 'stop':
-                        stop(cueIdToToggle, false, fromCompanion, true); // Stop immediately
-                        break;
-                    case 'fade_out_and_stop':
-                         stop(cueIdToToggle, true, fromCompanion, true); // Fade out and stop
-                        break;
-                    case 'toggle_pause_play': // If paused, play
-                    default: // Default is resume
+                    break;
+                case 'stop':
+                    stop(cueIdToToggle, false, fromCompanion, true); // Stop immediately
+                    break;
+                case 'fade_out_and_stop':
+                    stop(cueIdToToggle, true, fromCompanion, true); // Fade out and stop
+                    break;
+                case 'do_nothing':
+                case 'do_nothing_if_playing':
+                    console.log(`AudioPlaybackManager: Toggle - Cue ${cueIdToToggle} retrigger behavior is '${retriggerBehavior}'. No action taken.`);
+                    break; // Do nothing
+                case 'pause':
+                case 'toggle_pause_play': // If paused, play
+                default: // Default is resume
                     play(cue, true); // Resume
                     break;
-                }
+            }
         } else {
             // Cue is playing
             console.log(`AudioPlaybackManager: Toggle - Cue ${cueIdToToggle} is PLAYING. Applying retrigger: ${retriggerBehavior}`);
@@ -1082,13 +1108,19 @@ function toggleCue(cueIdToToggle, fromCompanion = false, retriggerBehaviorOverri
                 case 'fade_out_and_stop':
                     stop(cueIdToToggle, true, fromCompanion, true);
                     break;
+                case 'do_nothing':
+                case 'do_nothing_if_playing':
+                    console.log(`AudioPlaybackManager: Toggle - Cue ${cueIdToToggle} retrigger behavior is '${retriggerBehavior}'. No action taken.`);
+                    break; // Do nothing
+                case 'pause':
                 case 'toggle_pause_play': // If playing, pause
                 default: // Default is pause
                     pause(cueIdToToggle);
                     break;
             }
         }
-    } else { // Cue is NOT currently playing
+    } else {
+        // Cue is NOT currently playing
         console.log(`AudioPlaybackManager: Toggle - Cue ${cueIdToToggle} not currently playing. Starting fresh.`);
         
         // Clear any lingering pending restart before starting fresh
@@ -1202,24 +1234,20 @@ function getPlaybackState(cueId) {
         let durationFormatted = '00:00';
         
         if (formatTimeMMSSRef) {
-            // Cache formatted times to avoid repeated formatting
-            const currentTimeKey = `${cueId}_current_${times.currentTime}`;
-            const durationKey = `${cueId}_duration_${displayDuration}`;
-            
-            if (!playingState._lastCurrentTimeKey || playingState._lastCurrentTimeKey !== currentTimeKey) {
+            if (times.currentTime !== PERFORMANCE_CACHE.lastCurrentTime) {
+                PERFORMANCE_CACHE.lastCurrentTime = times.currentTime;
                 currentTimeFormatted = formatTimeMMSSRef(times.currentTime);
-                playingState._lastCurrentTimeFormatted = currentTimeFormatted;
-                playingState._lastCurrentTimeKey = currentTimeKey;
+                PERFORMANCE_CACHE.lastCurrentTimeFormatted = currentTimeFormatted;
             } else {
-                currentTimeFormatted = playingState._lastCurrentTimeFormatted || '00:00';
+                currentTimeFormatted = PERFORMANCE_CACHE.lastCurrentTimeFormatted;
             }
             
-            if (!playingState._lastDurationKey || playingState._lastDurationKey !== durationKey) {
+            if (displayDuration !== PERFORMANCE_CACHE.lastDuration) {
+                PERFORMANCE_CACHE.lastDuration = displayDuration;
                 durationFormatted = formatTimeMMSSRef(displayDuration);
-                playingState._lastDurationFormatted = durationFormatted;
-                playingState._lastDurationKey = durationKey;
+                PERFORMANCE_CACHE.lastDurationFormatted = durationFormatted;
             } else {
-                durationFormatted = playingState._lastDurationFormatted || '00:00';
+                durationFormatted = PERFORMANCE_CACHE.lastDurationFormatted;
             }
         }
 
@@ -1227,7 +1255,7 @@ function getPlaybackState(cueId) {
         let currentPlaylistItemName = null;
         let nextPlaylistItemName = null;
         
-        if (playingState.isPlaylist && playingState.originalPlaylistItems) {
+        if (playingState.isPlaylist) {
             // Get current item name - use shuffle order if shuffled
             const currentLogicalIndex = playingState.currentPlaylistItemIndex;
             let currentOriginalIndex = currentLogicalIndex;
@@ -1364,6 +1392,27 @@ function getPlaybackState(cueId) {
             
             return response;
         }
+        
+        // Handle other non-playing states (like paused single files)
+        response.isPlaying = false;
+        response.isPaused = playingState.isPaused;
+        response.isPlaylist = false;
+        response.volume = mainCueFromState.volume !== undefined ? mainCueFromState.volume : 1.0;
+        response.currentTime = 0;
+        response.currentTimeFormatted = '00:00';
+        response.duration = mainCueFromState.knownDuration || 0;
+        response.durationFormatted = formatTimeMMSSRef ? formatTimeMMSSRef(mainCueFromState.knownDuration || 0) : '00:00';
+        response.isFadingIn = false;
+        response.isFadingOut = false;
+        response.isDucked = false;
+        response.activeDuckingTriggerId = null;
+        response.isCuedNext = false;
+        response.isCued = false;
+        response.itemBaseDuration = mainCueFromState.knownDuration || 0;
+        response.currentPlaylistItemName = null;
+        response.nextPlaylistItemName = null;
+        
+        return response;
     }
     
     return null;

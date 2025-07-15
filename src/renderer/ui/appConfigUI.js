@@ -505,7 +505,7 @@ async function loadAudioOutputDevices() {
     }
 
     try {
-        console.log('AppConfigUI: Loading audio output devices using Web Audio API...');
+        console.log('AppConfigUI: Loading audio output devices...');
         
         // Clear existing options
         configAudioOutputDeviceSelect.innerHTML = '';
@@ -516,53 +516,44 @@ async function loadAudioOutputDevices() {
         defaultOption.textContent = 'System Default';
         configAudioOutputDeviceSelect.appendChild(defaultOption);
 
-        // Check if navigator.mediaDevices is available
-        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
-            console.warn('AppConfigUI: navigator.mediaDevices.enumerateDevices not available. Using default only.');
-            return;
-        }
-
-        // Enumerate devices without requesting permissions
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        console.log('AppConfigUI: Enumerated devices:', devices);
-
-        // Filter for audio output devices
-        const audioOutputDevices = devices.filter(device => device.kind === 'audiooutput');
-        console.log('AppConfigUI: Found audio output devices:', audioOutputDevices);
-
-        // Add each audio output device to the select
-        audioOutputDevices.forEach((device, index) => {
-            const option = document.createElement('option');
-            option.value = device.deviceId;
-            
-            // Use device label if available, otherwise create a generic label
-            if (device.label) {
-                option.textContent = device.label;
-            } else {
-                // If no label (due to permissions), create a generic name
-                option.textContent = `Audio Output Device ${index + 1}`;
+        // Try to enumerate audio devices
+        if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                console.log('AppConfigUI: Enumerated devices:', devices);
+                
+                // Filter to only audio output devices
+                const audioOutputDevices = devices.filter(device => device.kind === 'audiooutput');
+                console.log('AppConfigUI: Audio output devices found:', audioOutputDevices.length);
+                
+                audioOutputDevices.forEach(device => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.textContent = device.label || `Audio Output Device ${device.deviceId.substring(0, 8)}...`;
+                    configAudioOutputDeviceSelect.appendChild(option);
+                });
+                
+                if (audioOutputDevices.length > 0) {
+                    console.log('AppConfigUI: Added', audioOutputDevices.length, 'audio output devices to selection');
+                } else {
+                    console.log('AppConfigUI: No additional audio output devices found, using system default only');
+                }
+            } catch (deviceError) {
+                console.warn('AppConfigUI: Error enumerating devices:', deviceError);
+                console.log('AppConfigUI: Falling back to system default only');
             }
-            
-            configAudioOutputDeviceSelect.appendChild(option);
-        });
+        } else {
+            console.warn('AppConfigUI: navigator.mediaDevices.enumerateDevices not available');
+        }
 
         // Set the selected value based on current config
         if (currentAppConfig && currentAppConfig.audioOutputDeviceId) {
-            const optionExists = Array.from(configAudioOutputDeviceSelect.options).some(
-                option => option.value === currentAppConfig.audioOutputDeviceId
-            );
-            if (optionExists) {
-                configAudioOutputDeviceSelect.value = currentAppConfig.audioOutputDeviceId;
-            } else {
-                console.warn('AppConfigUI: Configured audio device not found, falling back to default');
-                configAudioOutputDeviceSelect.value = 'default';
-            }
+            configAudioOutputDeviceSelect.value = currentAppConfig.audioOutputDeviceId;
         } else {
             configAudioOutputDeviceSelect.value = 'default';
         }
 
-        console.log('AppConfigUI: Audio output devices loaded. Selected:', configAudioOutputDeviceSelect.value);
-        console.log('AppConfigUI: Available options:', Array.from(configAudioOutputDeviceSelect.options).map(opt => ({ value: opt.value, text: opt.textContent })));
+        console.log('AppConfigUI: Audio output device selection completed. Selected:', configAudioOutputDeviceSelect.value);
 
     } catch (error) {
         console.error('AppConfigUI: Error loading audio output devices:', error);

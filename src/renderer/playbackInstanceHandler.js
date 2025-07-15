@@ -43,6 +43,28 @@ export function createPlaybackInstance(
             console.log(`PlaybackInstanceHandler: For filePath: "${filePath}", Howler sound.duration() returned: ${soundDuration} (type: ${typeof soundDuration})`);
             playingState.duration = soundDuration; // Store duration on the playingState
 
+            // Set audio output device for this sound instance
+            if (audioControllerContext.audioControllerRef && 
+                audioControllerContext.audioControllerRef.getCurrentAudioOutputDeviceId) {
+                const deviceId = audioControllerContext.audioControllerRef.getCurrentAudioOutputDeviceId();
+                if (deviceId && deviceId !== 'default') {
+                    console.log(`PlaybackInstanceHandler: Setting audio output device to ${deviceId} for cue ${cueId}`);
+                    
+                    // Set the sink ID on the HTML5 Audio element
+                    if (sound._sounds && sound._sounds.length > 0) {
+                        const audioNode = sound._sounds[0]._node;
+                        if (audioNode && typeof audioNode.setSinkId === 'function') {
+                            const sinkId = deviceId === 'default' ? '' : deviceId;
+                            audioNode.setSinkId(sinkId).then(() => {
+                                console.log(`PlaybackInstanceHandler: Successfully set device for cue ${cueId}`);
+                            }).catch(error => {
+                                console.warn(`PlaybackInstanceHandler: Failed to set device for cue ${cueId}:`, error);
+                            });
+                        }
+                    }
+                }
+            }
+
             // Inform UI/CueStore about the discovered duration for persistence
             if (ipcBindings && typeof ipcBindings.send === 'function') {
                 const payload = { cueId, duration: soundDuration };

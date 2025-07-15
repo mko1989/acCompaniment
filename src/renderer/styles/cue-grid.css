@@ -145,8 +145,8 @@
 
 /* Cue Button States */
 .cue-button.playing {
-    background-color: var(--cue-playing-bg);
-    color: white;
+    background-color: var(--cue-playing-bg, #4CAF50);
+    border-color: var(--cue-playing-border, #45a049);
 }
 .cue-button.playing .cue-status-indicator,
 .cue-button.playing .now-playing-item,
@@ -161,8 +161,8 @@
 }
 
 .cue-button.paused {
-    background-color: var(--cue-paused-bg);
-    color: white;
+    background-color: var(--cue-paused-bg, #FF9800);
+    border-color: var(--cue-paused-border, #e68900);
 }
 .cue-button.paused .cue-status-indicator,
 .cue-button.paused .now-playing-item,
@@ -177,8 +177,8 @@
 }
 
 .cue-button.cued {
-    background-color: var(--cue-cued-bg);
-    color: white;
+    background-color: var(--cue-cued-bg, #2196F3);
+    border-color: var(--cue-cued-border, #1976D2);
 }
 .cue-button.cued .cue-status-indicator,
 .cue-button.cued .now-playing-item,

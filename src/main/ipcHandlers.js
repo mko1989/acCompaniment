@@ -221,7 +221,7 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
     });
 
     ipcMain.handle('get-initial-config', async () => {
-        const config = appConfigManager.getConfig();
+        const config = appConfigManagerRef.getConfig();
         console.log('[IPC get-initial-config] Sending config to renderer:', config);
         return config;
     });
@@ -238,7 +238,7 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
     ipcMain.handle('save-app-config', async (event, config) => {
         console.log(`IPC_HANDLER: 'save-app-config' received with config:`, JSON.stringify(config));
         try {
-            const result = appConfigManager.updateConfig(config);
+            const result = appConfigManagerRef.updateConfig(config);
             if (result && result.saved) {
                 console.log('IPC_HANDLER: appConfigManager.updateConfig successful and config saved.');
                 return { success: true, config: result.config };
@@ -475,7 +475,7 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
     });
 
     ipcMain.handle('get-config-path', () => {
-        return appConfigManager.getConfigPath(); 
+        return appConfigManagerRef.getConfigPath(); 
     });
 
     ipcMain.on('set-theme', (event, theme) => {
@@ -627,9 +627,9 @@ function handleThemeChange(theme, win, nativeTheme) {
         win.webContents.send('theme-updated', nativeTheme.shouldUseDarkColors ? 'dark' : 'light');
     }
     // Save the theme choice to config
-    const currentConfig = appConfigManager.getConfig();
+    const currentConfig = appConfigManagerRef.getConfig();
     if (currentConfig.theme !== theme) {
-        appConfigManager.updateConfig({ theme: theme });
+        appConfigManagerRef.updateConfig({ theme: theme });
     }
 }
 

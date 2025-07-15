@@ -239,7 +239,7 @@ function updateButtonPlayingState(cueId, isPlaying, statusTextArg = null, isCued
                 }
                 if (playlistInfoHTML) nameHTML += `<br>${playlistInfoHTML}`;
             }
-        } else if (actualIsCued) { // Covers idle playlists (where nextItemName is set) and explicitly cued items
+        } else if (actualIsCued) {
             button.classList.add('cued');
             statusIconSrc = '../../assets/icons/play.png'; // Show play icon for cued state
             statusIconAlt = 'Cued';
