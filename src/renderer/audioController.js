@@ -491,25 +491,40 @@ const pause = (cueId) => playbackManagerModule?.pause(cueId);
 
 function playCueByIdFromMain(cueId, source = 'unknown') {
     console.log(`AudioController: playCueByIdFromMain called for cueId: ${cueId}, source: ${source}`);
+    
     if (!cueStoreRef) {
         console.error('AudioController: cueStoreRef is not available. Cannot process playCueByIdFromMain.');
         return;
     }
+    
+    console.log(`AudioController: Looking up cue with ID: ${cueId}`);
     const cue = cueStoreRef.getCueById(cueId);
-    if (cue) {
-        console.log(`AudioController: Triggering cue "${cue.name}" via playCueByIdFromMain (source: ${source}).`);
-        let determinedRetrigger = source === 'companion' ? (cue.retriggerActionCompanion || cue.retriggerAction || 'restart') : (cue.retriggerAction || 'restart');
-        console.log(`AudioController: Determined retriggerBehavior: '${determinedRetrigger}' for cue '${cue.name}' from source '${source}'`);
-        const isFromCompanionFlag = source === 'companion';
-        
-        // Call the audioController's own toggle method
-        if (typeof toggle === 'function') { // Check if the local toggle is available
-            toggle(cue.id, isFromCompanionFlag, determinedRetrigger); // Pass cue.id instead of cue
-        } else {
-            console.error('AudioController: Internal toggle function is not available for playCueByIdFromMain!');
+    
+    if (!cue) {
+        console.warn(`AudioController: Cue with ID ${cueId} not found in cueStoreRef.`);
+        return;
+    }
+    
+    console.log(`AudioController: Found cue "${cue.name}" (ID: ${cueId}) for source: ${source}`);
+    
+    let determinedRetrigger = source === 'companion' ? (cue.retriggerActionCompanion || cue.retriggerAction || 'restart') : (cue.retriggerAction || 'restart');
+    console.log(`AudioController: Determined retriggerBehavior: '${determinedRetrigger}' for cue '${cue.name}' from source '${source}'`);
+    
+    const isFromCompanionFlag = source === 'companion';
+    console.log(`AudioController: isFromCompanionFlag: ${isFromCompanionFlag}`);
+    
+    // Call the audioController's own toggle method
+    if (typeof toggle === 'function') {
+        console.log(`AudioController: Calling toggle function for cue ID: ${cue.id}`);
+        try {
+            toggle(cue.id, isFromCompanionFlag, determinedRetrigger);
+            console.log(`AudioController: Successfully called toggle for cue: ${cue.name} (ID: ${cue.id})`);
+        } catch (error) {
+            console.error(`AudioController: Error calling toggle for cue: ${cue.name} (ID: ${cue.id}):`, error);
         }
     } else {
-        console.warn(`AudioController: Cue with ID ${cueId} not found in cueStoreRef.`);
+        console.error('AudioController: Internal toggle function is not available for playCueByIdFromMain!');
+        console.error('AudioController: typeof toggle:', typeof toggle);
     }
 }
 

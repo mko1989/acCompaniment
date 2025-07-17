@@ -146,7 +146,7 @@ function clearCueConfigModalFields(appConfig) {
     
     if(modalFadeInTimeInput) modalFadeInTimeInput.value = appConfig.defaultFadeInTime;
     if(modalFadeOutTimeInput) modalFadeOutTimeInput.value = appConfig.defaultFadeOutTime;
-    if(modalLoopCheckbox) modalLoopCheckbox.checked = appConfig.defaultLoop;
+    if(modalLoopCheckbox) modalLoopCheckbox.checked = appConfig.defaultLoopSingleCue;
     
     if(modalTrimStartTimeInput) modalTrimStartTimeInput.value = '';
     if(modalTrimEndTimeInput) modalTrimEndTimeInput.value = '';
@@ -183,7 +183,7 @@ async function handleSaveNewCueFromModal() {
         volume: modalVolumeRangeInput ? parseFloat(modalVolumeRangeInput.value) : 1,
         fadeInTime: modalFadeInTimeInput ? parseFloat(modalFadeInTimeInput.value) || 0 : currentAppConfig.defaultFadeInTime,
         fadeOutTime: modalFadeOutTimeInput ? parseFloat(modalFadeOutTimeInput.value) || 0 : currentAppConfig.defaultFadeOutTime,
-        loop: modalLoopCheckbox ? modalLoopCheckbox.checked : currentAppConfig.defaultLoop,
+        loop: modalLoopCheckbox ? modalLoopCheckbox.checked : currentAppConfig.defaultLoopSingleCue,
         trimStartTime: (modalTrimStartTimeInput && modalTrimStartTimeInput.value !== '') ? parseFloat(modalTrimStartTimeInput.value) : null,
         trimEndTime: (modalTrimEndTimeInput && modalTrimEndTimeInput.value !== '') ? parseFloat(modalTrimEndTimeInput.value) : null,
         shuffle: false, 

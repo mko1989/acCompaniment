@@ -391,7 +391,7 @@ async function handleSingleFileDrop(filePath, dropTargetElement) {
                 volume: activeAppConfig.defaultVolume,
                 fadeInTime: activeAppConfig.defaultFadeInTime,
                 fadeOutTime: activeAppConfig.defaultFadeOutTime,
-                loop: activeAppConfig.defaultLoop,
+                loop: activeAppConfig.defaultLoopSingleCue,
                 retriggerBehavior: activeAppConfig.defaultRetriggerBehavior,
                 shuffle: false, repeatOne: false, trimStartTime: null, trimEndTime: null,
             };

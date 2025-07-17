@@ -327,7 +327,7 @@ function openPropertiesSidebar(cue) {
 
     if(propFadeInTimeInput) propFadeInTimeInput.value = cue.fadeInTime !== undefined ? cue.fadeInTime : (currentAppConfig.defaultFadeInTime || 0);
     if(propFadeOutTimeInput) propFadeOutTimeInput.value = cue.fadeOutTime !== undefined ? cue.fadeOutTime : (currentAppConfig.defaultFadeOutTime || 0);
-    if(propLoopCheckbox) propLoopCheckbox.checked = cue.loop !== undefined ? cue.loop : (currentAppConfig.defaultLoop || false);
+    if(propLoopCheckbox) propLoopCheckbox.checked = cue.loop !== undefined ? cue.loop : (currentAppConfig.defaultLoopSingleCue || false);
     
     if(propVolumeRangeInput) propVolumeRangeInput.value = cue.volume !== undefined ? cue.volume : (currentAppConfig.defaultVolume !== undefined ? currentAppConfig.defaultVolume : 1);
     if(propVolumeValueSpan) propVolumeValueSpan.textContent = parseFloat(propVolumeRangeInput.value).toFixed(2);

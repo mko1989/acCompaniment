@@ -36,7 +36,9 @@ export function createPlaybackInstance(
         src: [filePath],
         volume: mainCue.volume !== undefined ? mainCue.volume : 1,
         loop: playingState.isPlaylist ? false : (mainCue.loop || false),
-        html5: true, // Recommended for longer tracks and seeking
+        html5: false, // Use Web Audio API for better loop performance, especially on Windows
+        preload: true, // Preload for better loop performance
+        format: ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac'], // Specify supported formats
         onload: () => {
             console.log(`PlaybackInstanceHandler: Audio loaded: ${filePath} for cue: ${cueId} (item: ${currentItemNameForEvents})`);
             const soundDuration = sound.duration();
@@ -106,7 +108,6 @@ export function createPlaybackInstance(
             const fadeInDuration = playingState.isPlaylist ? 
                                    (playingState.originalPlaylistItems[actualItemIndexInOriginalList].fadeInTime !== undefined ? playingState.originalPlaylistItems[actualItemIndexInOriginalList].fadeInTime : (mainCue.fadeInTime !== undefined ? mainCue.fadeInTime : 0)) :
                                    (mainCue.fadeInTime !== undefined ? mainCue.fadeInTime : 0);
-
             if (fadeInDuration > 0 && !playingState.isPaused) {
                 console.log(`PlaybackInstanceHandler: Applying fade-in (${fadeInDuration}ms) for ${currentItemNameForEvents}`);
                 sound.fade(0, sound.volume(), fadeInDuration); // Fade from 0 to target volume
@@ -459,15 +460,18 @@ export function createPlaybackInstance(
                 console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Cue is a playlist. Calling _handlePlaylistEnd. Playlist Mode: ${mainCue.playlistPlayMode}`);
                 audioControllerContext._handlePlaylistEnd(cueId, errorOccurred);
             } else if (mainCue.loop) {
-                console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Single cue with loop=true. Replaying.`);
-                // For single looping cues, simply play again.
-                // No need to call _initializeAndPlayNew as the sound object is already loaded.
-                // Ensure seeking to start if trimStartTime is defined.
-                let effectiveStartTime = mainCue.trimStartTime || 0;
-                if (effectiveStartTime > 0) {
-                    sound.seek(effectiveStartTime);
+                console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Single cue with loop=true. Howler should handle looping automatically.`);
+                // IMPORTANT: Do NOT manually call sound.play() here!
+                // When loop: true is set on the Howler instance, it handles looping internally.
+                // Manual play() calls create overlapping instances, causing volume increase and distortion.
+                // The onend event might fire during internal loop transitions, but we should let Howler handle it.
+                
+                // Only seek to trimStartTime if specified, but don't manually restart playback
+                if (mainCue.trimStartTime && mainCue.trimStartTime > 0) {
+                    console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Seeking to trimStartTime ${mainCue.trimStartTime} for loop.`);
+                    sound.seek(mainCue.trimStartTime);
                 }
-                sound.play(); // Howler's own loop flag should handle this, but explicit play for safety.
+                // Note: We don't call sound.play() here because Howler's loop flag handles the restart
             } else {
                 // Single cue, not looping, and not a playlist - it just ended.
                 console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Single cue, no loop. Processing complete.`);
@@ -906,8 +910,8 @@ export function createPlaybackInstance(
                                     src: [filePath],
                                     volume: mainCue.volume !== undefined ? mainCue.volume : 1,
                                     loop: mainCue.loop || false,
-                                    html5: false, // Try Web Audio instead of HTML5
-                                    format: ['mp3', 'wav', 'ogg', 'aac', 'm4a'] // Specify multiple formats
+                                    html5: true, // Try HTML5 Audio as fallback if Web Audio fails
+                                    format: ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac'] // Specify multiple formats
                                 });
                                 
                                 retrySound.once('load', () => {

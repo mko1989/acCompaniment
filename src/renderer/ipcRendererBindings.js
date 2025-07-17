@@ -233,15 +233,37 @@ function setupOtherListeners() {
     
     let triggerCueByIdFromMainInProgress = false;
     electronAPIInstance.on('trigger-cue-by-id-from-main', ({ cueId, source }) => {
-        if (triggerCueByIdFromMainInProgress) return;
+        console.log(`IPC Binding: Received 'trigger-cue-by-id-from-main' for cue: ${cueId}, source: ${source}`);
+        
+        if (triggerCueByIdFromMainInProgress) {
+            console.log(`IPC Binding: Ignoring duplicate 'trigger-cue-by-id-from-main' for cue: ${cueId} (already in progress)`);
+            return;
+        }
+        
         triggerCueByIdFromMainInProgress = true;
-        console.log(`IPC Binding: Received 'trigger-cue-by-id-from-main' for cue: ${cueId}, source: ${source}.`);
+        console.log(`IPC Binding: Processing 'trigger-cue-by-id-from-main' for cue: ${cueId}, source: ${source}`);
+        
         try {
-            if (audioControllerRef && typeof audioControllerRef.playCueByIdFromMain === 'function') {
-                audioControllerRef.playCueByIdFromMain(cueId, source);
+            if (!audioControllerRef) {
+                console.error(`IPC Binding: audioControllerRef is not available for cue: ${cueId}`);
+                return;
             }
+            
+            if (typeof audioControllerRef.playCueByIdFromMain !== 'function') {
+                console.error(`IPC Binding: audioControllerRef.playCueByIdFromMain is not a function for cue: ${cueId}`);
+                return;
+            }
+            
+            console.log(`IPC Binding: Calling audioControllerRef.playCueByIdFromMain for cue: ${cueId}`);
+            audioControllerRef.playCueByIdFromMain(cueId, source);
+            console.log(`IPC Binding: Successfully called audioControllerRef.playCueByIdFromMain for cue: ${cueId}`);
+        } catch (error) {
+            console.error(`IPC Binding: Error processing 'trigger-cue-by-id-from-main' for cue: ${cueId}:`, error);
         } finally {
-            setTimeout(() => { triggerCueByIdFromMainInProgress = false; }, 50);
+            setTimeout(() => { 
+                triggerCueByIdFromMainInProgress = false;
+                console.log(`IPC Binding: Reset triggerCueByIdFromMainInProgress flag for cue: ${cueId}`);
+            }, 50);
         }
     });
 

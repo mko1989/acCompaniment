@@ -27,9 +27,15 @@ const DEFAULT_CONFIG = {
   defaultStopAllFadeOutTime: 1500, // Default fade out time for stop all in milliseconds
   audioOutputDeviceId: 'default',
   theme: 'system', // 'light', 'dark', or 'system'
+  // WebSocket Server Settings for Companion
+  websocketEnabled: true, // Enable/disable WebSocket server for Companion
+  websocketPort: 8877, // Port for WebSocket server
   // HTTP Remote Control Settings
   httpRemoteEnabled: true, // Enable/disable HTTP remote
   httpRemotePort: 3000, // Port for HTTP remote server
+  // OSC Settings
+  oscEnabled: false, // Enable/disable OSC listener
+  oscPort: 54321, // Port for OSC listener
   // Mixer Integration Settings (DISABLED FOR ALPHA BUILD)
   mixerIntegrationEnabled: false,
   mixerType: 'none', // e.g., 'none', 'behringer_wing_compact', 'behringer_wing_full'
