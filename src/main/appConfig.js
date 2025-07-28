@@ -229,6 +229,11 @@ function getLocalIpAddresses() {
     return addresses;
 }
 
+// Function to get the current config file path
+function getConfigPath() {
+    return currentConfigFilePath;
+}
+
 // Ensure config is loaded when the module is required,
 // but paths are initialized lazily or explicitly.
 // loadConfig(); // Initial load can be done here or explicitly after app 'ready'.
@@ -247,5 +252,6 @@ module.exports = {
   DEFAULT_CONFIG,
   getDefaultConfig, // Exporting the function to get a fresh copy
   MAX_RECENT_WORKSPACES, // Export for main.js to know limit if needed elsewhere, though not strictly necessary
-  getLocalIpAddresses // Export the new function
+  getLocalIpAddresses, // Export the new function
+  getConfigPath // Export function to get config file path
 }; 

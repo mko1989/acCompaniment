@@ -217,12 +217,7 @@ h1 { /* from old h1 */
 
 /* #controls no longer exists, merged into #topBar/#globalControls */
 
-#addCueButton { /* Style for add cue button in globalControls, if different needed */
-    background-color: #3498db; /* Original blue */
-}
-#addCueButton:hover {
-    background-color: #2980b9;
-}
+
 
 #cueGridContainer {
     display: grid;

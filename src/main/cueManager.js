@@ -633,6 +633,11 @@ function triggerCueByWingPhysicalButton(physicalButtonId, mixerType, value) {
     }
 }
 
+// Function to get the default cues file path
+function getDefaultCuesPath() {
+    return path.join(app.getPath('userData'), CUES_FILE_NAME);
+}
+
 module.exports = {
   initialize,
   setCuesDirectory, // New
@@ -650,5 +655,6 @@ module.exports = {
   triggerCueById, // Export the new function
   triggerCueByMixerButtonId, // Export the new function
   triggerCueByWingCC,                // Added
-  triggerCueByWingPhysicalButton     // Added
+  triggerCueByWingPhysicalButton,    // Added
+  getDefaultCuesPath                 // Added for menu functionality
 }; 

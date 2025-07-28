@@ -23,28 +23,23 @@ button:active, .btn:active {
     background-color: #777;
 }
 
+/* General icon styling for buttons */
+.btn-icon {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+}
+
 /* Config Toggle Button (now in sidebar) */
 #configToggleBtn {
     background-color: var(--button-secondary-bg);
     border: 1px solid var(--button-secondary-border);
     color: var(--text-color);
     padding: 8px; /* Adjusted padding */
-    /* Icons within this button */
-}
-#configToggleBtn .btn-icon {
-    width: 20px;
-    height: 20px;
-    object-fit: contain;
 }
 
 
 /* Global Controls Buttons in Top Bar */
-#globalControls #addCueButton { 
-    background-color: var(--button-primary-bg);
-}
-#globalControls #addCueButton:hover {
-    background-color: var(--button-primary-hover-bg);
-}
 
 /* Specific styles for Stop All and Mode Toggle buttons using their IDs directly for higher specificity if needed */
 #stopAllButton {

@@ -1,8 +1,11 @@
 #appContainer {
     display: flex;
+    flex-direction: column; /* Changed to column to accommodate bottom panel */
     flex-grow: 1;
     width: 100%;
+    height: 100vh; /* Ensure full height */
     transition: background-color 0.3s ease;
+    overflow: hidden; /* Prevent scrolling at app level */
 }
 
 #appContainer.edit-mode {
@@ -11,6 +14,154 @@
 
 #appContainer.show-mode {
     background-color: #330000; /* Darker maroon for show mode */
+}
+
+/* Main horizontal layout container */
+#mainLayoutContainer {
+    display: flex;
+    flex-grow: 1;
+    width: 100%;
+    min-height: 0; /* Allow shrinking when bottom panel expands */
+    transition: height 0.3s ease;
+}
+
+/* Bottom waveform panel */
+#bottomWaveformPanel {
+    height: 0;
+    width: 100%;
+    background-color: #1a1a1a;
+    border-top: 1px solid var(--border-color);
+    transition: height 0.3s ease;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    position: relative; /* Ensure proper stacking */
+    z-index: 10; /* Ensure it's above other content */
+}
+
+#bottomWaveformPanel.expanded {
+    height: 400px !important; /* Slightly increased normal size to avoid scrolling */
+    min-height: 400px !important; /* Ensure minimum height */
+    max-height: 47vh !important; /* Never take more than 47% of screen */
+}
+
+#bottomWaveformPanel.large {
+    height: 450px !important; /* Large size is what normal used to be */
+    min-height: 450px !important; /* Ensure minimum height */
+    max-height: 55vh !important; /* Never take more than 55% of screen */
+}
+
+/* Bottom panel header */
+.bottom-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 15px;
+    background-color: #252526;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-color);
+    font-weight: bold;
+    font-size: 0.9em;
+}
+
+.bottom-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.bottom-panel-controls {
+    display: flex;
+    gap: 8px;
+}
+
+/* Bottom panel content */
+.bottom-panel-content {
+    flex-grow: 1;
+    padding: 10px 15px; /* Reduced top/bottom padding */
+    overflow-y: auto; /* Allow scrolling if content is too tall */
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* Allow shrinking */
+}
+
+/* Expanded waveform display - styling moved to waveform.css */
+
+/* Expanded waveform controls */
+#expandedWaveformControls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.expanded-controls-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+}
+
+.expanded-wf-control-btn {
+    width: 40px;
+    height: 40px;
+    background-color: #4f4f4f;
+    border: 1px solid #666;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease;
+}
+
+.expanded-wf-control-btn:hover {
+    background-color: #5a5a5a;
+}
+
+.expanded-wf-control-btn .btn-icon {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+
+.expanded-wf-control-btn.play-pause {
+    width: 50px;
+    height: 50px;
+}
+
+.expanded-wf-control-btn.play-pause .btn-icon {
+    width: 28px;
+    height: 28px;
+}
+
+/* Time display for expanded waveform */
+#expandedWaveformTimeDisplay {
+    text-align: center;
+    font-size: 1.1em;
+    color: #cccccc;
+    margin-top: 10px;
+}
+
+/* Size toggle buttons */
+.size-toggle-btn {
+    background-color: #444;
+    border: 1px solid #666;
+    color: #ccc;
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.8em;
+    transition: background-color 0.2s ease;
+}
+
+.size-toggle-btn:hover {
+    background-color: #555;
+}
+
+.size-toggle-btn.active {
+    background-color: var(--button-primary-bg);
+    color: white;
 }
 
 /* Left Config Sidebar */

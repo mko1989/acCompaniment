@@ -23,7 +23,6 @@ let isUIModuleFullyInitialized = false; // NEW FLAG
 
 // Core DOM Elements (not managed by sub-modules yet)
 let appContainer;
-let addCueButton; // The one in the top bar
 let modeToggleBtn;
 let stopAllButton;
 
@@ -243,20 +242,24 @@ function updateModeUI() {
         if (modeToggleBtn) {
             modeToggleBtn.classList.add('show-mode-active');
             modeToggleBtn.classList.remove('edit-mode-active');
-            // modeToggleBtn.textContent = 'Enter Edit Mode'; // Text content is now handled by CSS or direct HTML
-            modeToggleBtn.style.backgroundImage = "url('../../assets/icons/edit.png')"; 
+            // Change the icon source instead of background image
+            const modeToggleIcon = document.getElementById('modeToggleIcon');
+            if (modeToggleIcon) {
+                modeToggleIcon.src = '../../assets/icons/edit.png';
+            }
         }
-        // if (modeToggleBtnTextSpan) modeToggleBtnTextSpan.textContent = 'Enter Edit Mode'; // Text update removed
     } else { // 'edit'
         appContainer.classList.remove('show-mode');
         appContainer.classList.add('edit-mode');
         if (modeToggleBtn) {
             modeToggleBtn.classList.remove('show-mode-active');
             modeToggleBtn.classList.add('edit-mode-active');
-            // modeToggleBtn.textContent = 'Enter Show Mode'; // Text content is now handled by CSS or direct HTML
-            modeToggleBtn.style.backgroundImage = "url('../../assets/icons/show_light.png')"; 
+            // Change the icon source instead of background image
+            const modeToggleIcon = document.getElementById('modeToggleIcon');
+            if (modeToggleIcon) {
+                modeToggleIcon.src = '../../assets/icons/show_light.png';
+            }
         }
-        // if (modeToggleBtnTextSpan) modeToggleBtnTextSpan.textContent = 'Enter Show Mode'; // Text update removed
     }
     
     console.log(`UI Mode Updated: Effective mode is now ${effectiveMode}`);

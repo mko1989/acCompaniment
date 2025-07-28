@@ -9,11 +9,42 @@ let waveformIsStoppedAtTrimStart = false;
 let zoomLevel = 0; // Start at minimum zoom (0-100 scale, higher = more zoomed in)
 let maxZoom = 100; // Maximum zoom level 
 let minZoom = 0; // Minimum zoom level
+let currentAudioFilePath = null; // Store the current audio file path
+let playStartPosition = 0; // Track where play was started for stop behavior
+
+// Bottom panel state
+let isBottomPanelExpanded = false;
+let bottomPanelSize = 'normal'; // 'normal' or 'large'
+let expandedWaveformCanvas = null;
+let expandedAnimationId = null;
+let currentExpandedCue = null;
+let expandedZoomLevel = 0; // Zoom level for expanded waveform
 
 // DOM Elements
 let waveformDisplayDiv;
 let wfPlayPauseBtn, wfStopBtn, wfSetStartBtn, wfSetEndBtn, wfSoloBtn;
 let wfCurrentTime, wfTotalDuration, wfRemainingTime;
+
+// DOM elements for bottom panel
+let bottomWaveformPanel;
+let bottomPanelCueName;
+let normalSizeBtn;
+let largeSizeBtn;
+let collapseBottomPanelBtn;
+let expandWaveformBtn;
+let expandedWaveformDisplay;
+let expandedWaveformControls;
+let expandedWfSetStartBtn;
+let expandedWfSetEndBtn;
+let expandedWfPlayPauseBtn;
+let expandedWfStopBtn;
+let expandedWfClearTrimBtn;
+let expandedWfCurrentTime;
+let expandedWfTotalDuration;
+let expandedWfRemainingTime;
+
+// Main waveform clear button
+let wfClearTrimBtn;
 
 // Dependencies from other modules (will be set in init)
 let ipcRendererBindingsModule;
@@ -59,9 +90,28 @@ function cacheWaveformDOMElements() {
     wfSetStartBtn = document.getElementById('wfSetStartBtn');
     wfSetEndBtn = document.getElementById('wfSetEndBtn');
     wfSoloBtn = document.getElementById('wfSoloBtn');
+    wfClearTrimBtn = document.getElementById('wfClearTrimBtn');
     wfCurrentTime = document.getElementById('wfCurrentTime');
     wfTotalDuration = document.getElementById('wfTotalDuration');
     wfRemainingTime = document.getElementById('wfRemainingTime');
+    
+    // Cache bottom panel DOM elements
+    bottomWaveformPanel = document.getElementById('bottomWaveformPanel');
+    bottomPanelCueName = document.getElementById('bottomPanelCueName');
+    normalSizeBtn = document.getElementById('normalSizeBtn');
+    largeSizeBtn = document.getElementById('largeSizeBtn');
+    collapseBottomPanelBtn = document.getElementById('collapseBottomPanelBtn');
+    expandWaveformBtn = document.getElementById('expandWaveformBtn');
+    expandedWaveformDisplay = document.getElementById('expandedWaveformDisplay');
+    expandedWaveformControls = document.getElementById('expandedWaveformControls');
+    expandedWfSetStartBtn = document.getElementById('expandedWfSetStartBtn');
+    expandedWfSetEndBtn = document.getElementById('expandedWfSetEndBtn');
+    expandedWfPlayPauseBtn = document.getElementById('expandedWfPlayPauseBtn');
+    expandedWfStopBtn = document.getElementById('expandedWfStopBtn');
+    expandedWfClearTrimBtn = document.getElementById('expandedWfClearTrimBtn');
+    expandedWfCurrentTime = document.getElementById('expandedWfCurrentTime');
+    expandedWfTotalDuration = document.getElementById('expandedWfTotalDuration');
+    expandedWfRemainingTime = document.getElementById('expandedWfRemainingTime');
     
     console.log('WaveformControls: DOM elements cached:');
     console.log('  waveformDisplayDiv:', waveformDisplayDiv ? 'Found' : 'NOT FOUND');
@@ -81,6 +131,86 @@ function resetZoom() {
     }
 }
 
+// Function to reset expanded waveform zoom
+function resetExpandedZoom() {
+    if (expandedWaveformInstance) {
+        expandedZoomLevel = 0; // Reset to minimum zoom level
+        expandedWaveformInstance.zoom(1); // Minimum effective zoom for wavesurfer (0 would be invalid)
+        console.log('WaveformControls: Expanded zoom reset to default level (level 0)');
+    }
+}
+
+// Function to set up zoom functionality for expanded waveform
+function setupExpandedWaveformZoom() {
+    if (!expandedWaveformInstance || !expandedWaveformDisplay) {
+        console.warn('WaveformControls: Cannot setup zoom - missing expandedWaveformInstance or expandedWaveformDisplay');
+        return;
+    }
+    
+    console.log('WaveformControls: Setting up expanded waveform zoom functionality');
+    console.log('WaveformControls: expandedWaveformInstance exists:', !!expandedWaveformInstance);
+    console.log('WaveformControls: expandedWaveformDisplay exists:', !!expandedWaveformDisplay);
+    console.log('WaveformControls: expandedWaveformDisplay dimensions:', {
+        width: expandedWaveformDisplay.offsetWidth,
+        height: expandedWaveformDisplay.offsetHeight
+    });
+    
+    // Check if event listeners are already attached to prevent duplicates
+    if (expandedWaveformDisplay.hasAttribute('data-zoom-setup')) {
+        console.log('WaveformControls: Zoom already set up for this element');
+        return;
+    }
+    
+    // Add zoom functionality with mouse wheel
+    const wheelHandler = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Calculate new zoom level based on wheel direction
+        const direction = e.deltaY < 0 ? 1 : -1; // 1 = zoom in, -1 = zoom out
+        
+        // Variable zoom step based on current zoom level
+        let zoomStep;
+        if (expandedZoomLevel < 10) {
+            // Smaller steps at lower zoom levels (1 unit per step)
+            zoomStep = 1 * direction;
+        } else {
+            // Larger steps at higher zoom levels (5 units per step)
+            zoomStep = 5 * direction;
+        }
+        
+        // Update the zoom level
+        expandedZoomLevel += zoomStep;
+        
+        // Constrain zoom level between min and max values
+        expandedZoomLevel = Math.min(Math.max(expandedZoomLevel, minZoom), maxZoom);
+        
+        // Apply the zoom directly - wavesurfer zoom value = our zoom level
+        console.log(`WaveformControls: Setting expanded zoom to level ${expandedZoomLevel}`);
+        expandedWaveformInstance.zoom(expandedZoomLevel);
+        
+        console.log(`WaveformControls: Expanded zoom changed to ${expandedZoomLevel.toFixed(2)}`);
+        
+        // If zoomed all the way to minimum, reset to default zoom
+        if (expandedZoomLevel <= minZoom) {
+            resetExpandedZoom();
+        }
+    };
+    
+    const dblClickHandler = (e) => {
+        resetExpandedZoom();
+    };
+    
+    // Add the event listeners
+    expandedWaveformDisplay.addEventListener('wheel', wheelHandler);
+    expandedWaveformDisplay.addEventListener('dblclick', dblClickHandler);
+    
+    // Mark as set up to prevent duplicate listeners
+    expandedWaveformDisplay.setAttribute('data-zoom-setup', 'true');
+    
+    console.log('WaveformControls: Expanded zoom event listeners added');
+}
+
 function bindWaveformControlEventsListeners() {
     console.log('WaveformControls: Starting to bind event listeners...');
     
@@ -97,19 +227,26 @@ function bindWaveformControlEventsListeners() {
                 if (wavesurferInstance.isPlaying()) {
                     wavesurferInstance.pause(); // If playing, just pause it regardless of position
                 } else {
-                    // If paused, decide where to play from
+                    // If paused, decide where to play from and track play start position
                     if (currentTime < trimRegion.start || currentTime >= trimRegion.end) {
                         console.log('WaveformControls: Playhead outside trim region or at/after end. Seeking to region start.');
                         if (duration > 0) wavesurferInstance.seekTo(trimRegion.start / duration);
+                        playStartPosition = trimRegion.start; // Track where we start playing from
                         wavesurferInstance.play();
                     } else {
                         // Playhead is within the trim region, play from current position
+                        playStartPosition = currentTime; // Track where we start playing from
                         wavesurferInstance.play(); 
                     }
                 }
             } else {
                 // No trim region, just play/pause normally
-                wavesurferInstance.playPause();
+                if (wavesurferInstance.isPlaying()) {
+                    wavesurferInstance.pause();
+                } else {
+                    playStartPosition = currentTime; // Track where we start playing from
+                    wavesurferInstance.play();
+                }
             }
         }
     });
@@ -121,23 +258,34 @@ function bindWaveformControlEventsListeners() {
     if (wfStopBtn) {
         wfStopBtn.addEventListener('click', () => {
             console.log('WaveformControls: wfStopBtn clicked.');
-        if (wavesurferInstance) {
-            wavesurferInstance.pause();
-            const trimRegion = wsRegions ? wsRegions.getRegions().find(r => r.id === 'trimRegion') : null;
-            const duration = wavesurferInstance.getDuration();
-            let seekToTime = 0; 
-            if (trimRegion) {
-                seekToTime = trimRegion.start;
-            }
-            if (duration > 0) {
-                wavesurferInstance.seekTo(seekToTime / duration);
-            }
-            const playPauseImg = wfPlayPauseBtn ? wfPlayPauseBtn.querySelector('img') : null;
-            if (playPauseImg) playPauseImg.src = '../../assets/icons/play.png';
+            if (wavesurferInstance) {
+                const wasPlaying = wavesurferInstance.isPlaying();
+                wavesurferInstance.pause();
+                
+                const duration = wavesurferInstance.getDuration();
+                let seekToTime = 0;
+                
+                if (wasPlaying) {
+                    // If audio was playing, go back to where play was started
+                    seekToTime = playStartPosition;
+                    console.log('WaveformControls: Audio was playing, returning to play start position:', seekToTime);
+                } else {
+                    // If audio was not playing, go to position 0
+                    seekToTime = 0;
+                    playStartPosition = 0; // Reset play start position
+                    console.log('WaveformControls: Audio was not playing, going to position 0');
+                }
+                
+                if (duration > 0) {
+                    wavesurferInstance.seekTo(seekToTime / duration);
+                }
+                
+                const playPauseImg = wfPlayPauseBtn ? wfPlayPauseBtn.querySelector('img') : null;
+                if (playPauseImg) playPauseImg.src = '../../assets/icons/play.png';
 
-            waveformIsStoppedAtTrimStart = (trimRegion && Math.abs(seekToTime - trimRegion.start) < 0.01);
-        }
-    });
+                waveformIsStoppedAtTrimStart = false; // Reset this flag
+            }
+        });
         console.log('WaveformControls: Stop button listener bound');
     } else {
         console.warn('WaveformControls: wfStopBtn not found, cannot bind event');
@@ -161,6 +309,179 @@ function bindWaveformControlEventsListeners() {
         console.log('WaveformControls: Set End button listener bound');
     } else {
         console.warn('WaveformControls: wfSetEndBtn not found, cannot bind event');
+    }
+    
+    if (wfClearTrimBtn) {
+        wfClearTrimBtn.addEventListener('click', () => {
+            console.log('WaveformControls: CLEAR TRIM BUTTON CLICKED!');
+            handleClearTrim();
+            // Sync the expanded waveform visually after trim clear
+            setTimeout(() => {
+                syncExpandedWaveformVisuals();
+                syncTrimRegions();
+            }, 100);
+        });
+        console.log('WaveformControls: Clear trim button listener bound');
+    } else {
+        console.warn('WaveformControls: wfClearTrimBtn not found, cannot bind event');
+    }
+    
+    // Bind expand waveform button
+    if (expandWaveformBtn) {
+        expandWaveformBtn.addEventListener('click', expandBottomPanel);
+        console.log('WaveformControls: Expand waveform button listener bound');
+    } else {
+        console.warn('WaveformControls: expandWaveformBtn not found, cannot bind event');
+    }
+    
+    // Bind bottom panel controls
+    if (collapseBottomPanelBtn) {
+        collapseBottomPanelBtn.addEventListener('click', collapseBottomPanel);
+        console.log('WaveformControls: Collapse bottom panel button listener bound');
+    }
+    
+    if (normalSizeBtn) {
+        normalSizeBtn.addEventListener('click', () => setBottomPanelSize('normal'));
+        console.log('WaveformControls: Normal size button listener bound');
+    }
+    
+    if (largeSizeBtn) {
+        largeSizeBtn.addEventListener('click', () => setBottomPanelSize('large'));
+        console.log('WaveformControls: Large size button listener bound');
+    }
+    
+    // Bind expanded waveform controls (sync with main waveform)
+    if (expandedWfPlayPauseBtn) {
+        expandedWfPlayPauseBtn.addEventListener('click', () => {
+            // Control the main waveform (which drives the audio), sync visual to expanded
+            if (wavesurferInstance) {
+                const trimRegion = wsRegions ? wsRegions.getRegions().find(r => r.id === 'trimRegion') : null;
+                const currentTime = wavesurferInstance.getCurrentTime();
+                const duration = wavesurferInstance.getDuration();
+
+                if (trimRegion) {
+                    if (wavesurferInstance.isPlaying()) {
+                        wavesurferInstance.pause();
+                    } else {
+                        if (currentTime < trimRegion.start || currentTime >= trimRegion.end) {
+                            if (duration > 0) wavesurferInstance.seekTo(trimRegion.start / duration);
+                            playStartPosition = trimRegion.start; // Track where we start playing from
+                            wavesurferInstance.play();
+                        } else {
+                            playStartPosition = currentTime; // Track where we start playing from
+                            wavesurferInstance.play();
+                        }
+                    }
+                } else {
+                    if (wavesurferInstance.isPlaying()) {
+                        wavesurferInstance.pause();
+                    } else {
+                        playStartPosition = currentTime; // Track where we start playing from
+                        wavesurferInstance.play();
+                    }
+                }
+                
+                // Sync the expanded waveform visually
+                syncExpandedWaveformVisuals();
+            }
+        });
+        console.log('WaveformControls: Expanded play/pause button listener bound');
+    }
+    
+    if (expandedWfStopBtn) {
+        expandedWfStopBtn.addEventListener('click', () => {
+            // Control the main waveform (which drives the audio), sync visual to expanded  
+            if (wavesurferInstance) {
+                const wasPlaying = wavesurferInstance.isPlaying();
+                wavesurferInstance.pause();
+                
+                const duration = wavesurferInstance.getDuration();
+                let seekToTime = 0;
+                
+                if (wasPlaying) {
+                    // If audio was playing, go back to where play was started
+                    seekToTime = playStartPosition;
+                    console.log('WaveformControls: Expanded stop - Audio was playing, returning to play start position:', seekToTime);
+                } else {
+                    // If audio was not playing, go to position 0
+                    seekToTime = 0;
+                    playStartPosition = 0; // Reset play start position
+                    console.log('WaveformControls: Expanded stop - Audio was not playing, going to position 0');
+                }
+                
+                if (duration > 0) {
+                    wavesurferInstance.seekTo(seekToTime / duration);
+                }
+                
+                // Update play button icons
+                const playPauseImg = wfPlayPauseBtn ? wfPlayPauseBtn.querySelector('img') : null;
+                if (playPauseImg) playPauseImg.src = '../../assets/icons/play.png';
+                
+                const expandedPlayPauseImg = expandedWfPlayPauseBtn ? expandedWfPlayPauseBtn.querySelector('img') : null;
+                if (expandedPlayPauseImg) expandedPlayPauseImg.src = '../../assets/icons/play.png';
+                
+                // Sync the expanded waveform visually
+                syncExpandedWaveformVisuals();
+            }
+        });
+        console.log('WaveformControls: Expanded stop button listener bound');
+    }
+    
+    if (expandedWfSetStartBtn) {
+        expandedWfSetStartBtn.addEventListener('click', () => {
+            console.log('WaveformControls: EXPANDED SET START BUTTON CLICKED!');
+            handleSetTrimStart();
+            // Sync the expanded waveform visually after trim change immediately and with retries
+            syncExpandedWaveformVisuals();
+            syncTrimRegions();
+            setTimeout(() => {
+                syncExpandedWaveformVisuals();
+                syncTrimRegions();
+            }, 100);
+            // Additional sync after a longer delay to ensure it persists
+            setTimeout(() => {
+                syncTrimRegions();
+            }, 500);
+        });
+        console.log('WaveformControls: Expanded set start button listener bound');
+    }
+    
+    if (expandedWfSetEndBtn) {
+        expandedWfSetEndBtn.addEventListener('click', () => {
+            console.log('WaveformControls: EXPANDED SET END BUTTON CLICKED!');
+            handleSetTrimEnd();
+            // Sync the expanded waveform visually after trim change immediately and with retries
+            syncExpandedWaveformVisuals();
+            syncTrimRegions();
+            setTimeout(() => {
+                syncExpandedWaveformVisuals();
+                syncTrimRegions();
+            }, 100);
+            // Additional sync after a longer delay to ensure it persists
+            setTimeout(() => {
+                syncTrimRegions();
+            }, 500);
+        });
+        console.log('WaveformControls: Expanded set end button listener bound');
+    }
+    
+    if (expandedWfClearTrimBtn) {
+        expandedWfClearTrimBtn.addEventListener('click', () => {
+            console.log('WaveformControls: EXPANDED CLEAR TRIM BUTTON CLICKED!');
+            handleClearTrim();
+            // Sync the expanded waveform visually after trim clear immediately and with retries
+            syncExpandedWaveformVisuals();
+            syncTrimRegions();
+            setTimeout(() => {
+                syncExpandedWaveformVisuals();
+                syncTrimRegions();
+            }, 100);
+            // Additional sync after a longer delay to ensure it persists
+            setTimeout(() => {
+                syncTrimRegions();
+            }, 500);
+        });
+        console.log('WaveformControls: Expanded clear trim button listener bound');
     }
     
     // Add zoom functionality with mouse wheel
@@ -295,6 +616,10 @@ async function _performWaveformInitialization(cue) {
             let normalizedPath = cue.filePath.replace(/\\/g, '/');
             audioUrl = normalizedPath.startsWith('/') ? 'file://' + normalizedPath : 'file:///' + normalizedPath;
         }
+        
+        // Store the current audio URL for use in expanded waveform
+        currentAudioFilePath = audioUrl;
+        console.log('WaveformControls: Stored current audio URL:', currentAudioFilePath);
 
         // Performance optimization: Use progressive loading for large files
         const isLargeFile = await _checkIfLargeAudioFile(audioUrl);
@@ -669,6 +994,7 @@ function _destroyWaveformInternal() {
         wavesurferInstance = null; 
         wsRegions = null;
         currentLiveTrimRegion = null; // ADDED: Reset live region
+        currentAudioFilePath = null; // Clear the stored audio file path
     }
     if (waveformDisplayDiv) { 
         waveformDisplayDiv.innerHTML = ''; 
@@ -710,7 +1036,7 @@ function loadRegionsFromCueInternal(cue) {
             id: 'trimRegion', 
             start: trimStart, 
             end: trimEnd, 
-            color: 'rgba(100, 149, 237, 0.3)', 
+            color: 'rgba(0, 0, 0, 0)', // Transparent - no visual overlay
             drag: true, 
             resize: true 
         });
@@ -792,7 +1118,7 @@ function handleSetTrimStart() {
         id: 'trimRegion',
         start: newStart,
         end: newEnd,
-        color: 'rgba(100, 149, 237, 0.3)', 
+        color: 'rgba(0, 0, 0, 0)', // Transparent - no visual overlay
         drag: true,
         resize: true,
     });
@@ -868,7 +1194,7 @@ function handleSetTrimEnd() {
         id: 'trimRegion',
         start: newStart,
         end: newEnd,
-        color: 'rgba(100, 149, 237, 0.3)', 
+        color: 'rgba(0, 0, 0, 0)', // Transparent - no visual overlay
         drag: true,
         resize: true,
     });
@@ -885,6 +1211,38 @@ function handleSetTrimEnd() {
         console.warn('WFC_DEBUG SetEnd: wsRegions.addRegion did not return a region.');
     }
     // 'region-created' event should fire here, which also calls updateTrimInputsFromRegionInternal
+}
+
+function handleClearTrim() {
+    console.log('WaveformControls: handleClearTrim called');
+    
+    if (!wavesurferInstance || !wsRegions) {
+        console.warn('WaveformControls: Cannot clear trim - missing wavesurferInstance or wsRegions');
+        return;
+    }
+    
+    // Remove all trim regions
+    const regions = wsRegions.getRegions();
+    const trimRegion = Array.isArray(regions) ? regions.find(r => r.id === 'trimRegion') : (regions ? regions['trimRegion'] : null);
+    
+    if (trimRegion && typeof trimRegion.remove === 'function') {
+        try {
+            trimRegion.remove();
+            console.log('WaveformControls: Trim region removed');
+            currentLiveTrimRegion = null;
+            
+            // Notify that the trim has been cleared (full duration)
+            const totalDuration = wavesurferInstance.getDuration();
+            if (typeof onTrimChangeCallback === 'function') {
+                onTrimChangeCallback(0, totalDuration);
+                console.log('WaveformControls: Notified callback of trim clear');
+            }
+        } catch (error) {
+            console.error('WaveformControls: Error removing trim region:', error);
+        }
+    } else {
+        console.log('WaveformControls: No trim region found to clear');
+    }
 }
 
 // Added function to notify sidebars module
@@ -954,8 +1312,8 @@ function styleRegionsInternal() {
     if (trimRegion && trimRegion.element) {
         trimRegion.element.style.zIndex = '3';
         
-        // Update the trimRegion color to make it more visible (no darkening effect)
-        trimRegion.color = 'rgba(100, 149, 237, 0.3)';
+        // Update the trimRegion color to be transparent (no visual overlay)
+        trimRegion.color = 'rgba(0, 0, 0, 0)';
         trimRegion.update();
     }
     
@@ -1056,10 +1414,713 @@ window.waveformTest = function() {
     console.log('  wfRemainingTime:', !!wfRemainingTime);
 };
 
+// --- Bottom Panel Functions ---
+
+/**
+ * Expands the bottom waveform panel for enhanced editing
+ */
+function expandBottomPanel() {
+    if (!wavesurferInstance) {
+        console.warn('WaveformControls: No waveform instance available, cannot expand bottom panel');
+        return;
+    }
+    
+    if (!currentAudioFilePath) {
+        console.warn('WaveformControls: No audio file loaded, cannot expand bottom panel');
+        return;
+    }
+    
+    console.log('WaveformControls: Expanding bottom panel');
+    console.log('WaveformControls: Current audio file path:', currentAudioFilePath);
+    console.log('WaveformControls: Main waveform instance:', wavesurferInstance);
+    
+    // Debug: Check if main waveform has trim regions
+    if (wsRegions) {
+        const mainRegions = wsRegions.getRegions();
+        const trimRegion = Array.isArray(mainRegions) ? 
+            mainRegions.find(r => r.id === 'trimRegion') : 
+            (mainRegions ? mainRegions['trimRegion'] : null);
+        console.log('WaveformControls: Main waveform trim region:', trimRegion ? {
+            start: trimRegion.start,
+            end: trimRegion.end
+        } : 'None');
+    } else {
+        console.log('WaveformControls: No wsRegions available in main waveform');
+    }
+    
+    // Clean up any existing expanded waveform first
+    if (expandedWaveformInstance) {
+        try {
+            expandedWaveformInstance.destroy();
+        } catch (error) {
+            console.warn('WaveformControls: Error destroying previous expanded waveform:', error);
+        }
+        expandedWaveformInstance = null;
+    }
+    
+    // Clear the display
+    if (expandedWaveformDisplay) {
+        expandedWaveformDisplay.innerHTML = '';
+    }
+    
+    // Update panel state
+    isBottomPanelExpanded = true;
+    
+    // Update UI
+    if (bottomWaveformPanel) {
+        // Force show the panel with correct height
+        const panelHeight = bottomPanelSize === 'large' ? 450 : 400;
+        bottomWaveformPanel.style.height = panelHeight + 'px';
+        bottomWaveformPanel.style.display = 'flex';
+        bottomWaveformPanel.classList.add('expanded');
+        
+        // Update panel title with current cue info
+        if (bottomPanelCueName) {
+            bottomPanelCueName.textContent = 'Waveform Editor';
+        }
+        
+        // Update size buttons
+        updateSizeButtons();
+        
+        // Create expanded waveform
+        createExpandedWaveform();
+    } else {
+        console.error('WaveformControls: bottomWaveformPanel not found');
+    }
+}
+
+/**
+ * Collapses the bottom waveform panel
+ */
+function collapseBottomPanel() {
+    console.log('WaveformControls: Collapsing bottom panel');
+    
+    // Update panel state
+    isBottomPanelExpanded = false;
+    
+    // Clean up expanded waveform if it exists
+    if (expandedWaveformInstance) {
+        try {
+            expandedWaveformInstance.destroy();
+        } catch (error) {
+            console.warn('WaveformControls: Error destroying expanded waveform:', error);
+        }
+        expandedWaveformInstance = null;
+    }
+    
+    // Clean up regions reference
+    if (window.expandedWsRegions) {
+        // Try to clear any remaining regions
+        try {
+            const regions = window.expandedWsRegions.getRegions();
+            const cutStartRegion = regions.find(r => r.id === 'expandedCutStart');
+            const cutEndRegion = regions.find(r => r.id === 'expandedCutEnd');
+            
+            if (cutStartRegion) cutStartRegion.remove();
+            if (cutEndRegion) cutEndRegion.remove();
+        } catch (error) {
+            console.warn('WaveformControls: Error cleaning up regions:', error);
+        }
+        
+        window.expandedWsRegions = null;
+    }
+    
+    // Clear the expanded waveform display completely
+    if (expandedWaveformDisplay) {
+        expandedWaveformDisplay.innerHTML = '';
+        expandedWaveformDisplay.style.height = '0px';
+        // Remove zoom setup marker so it can be set up again
+        expandedWaveformDisplay.removeAttribute('data-zoom-setup');
+    }
+    
+    // Update UI - force hide the panel
+    if (bottomWaveformPanel) {
+        bottomWaveformPanel.classList.remove('expanded', 'large');
+        bottomWaveformPanel.style.height = '0px'; // Force collapse
+        bottomWaveformPanel.style.display = 'flex'; // Keep flex but collapsed
+        bottomWaveformPanel.style.overflow = 'hidden'; // Ensure nothing shows through
+    }
+    
+    console.log('WaveformControls: Cleaned up expanded waveform and sync listeners');
+}
+
+/**
+ * Sets the size of the bottom waveform panel
+ * @param {string} size - 'normal' or 'large'
+ */
+function setBottomPanelSize(size) {
+    console.log('WaveformControls: Setting bottom panel size to:', size);
+    
+    bottomPanelSize = size;
+    
+    if (bottomWaveformPanel) {
+        if (size === 'large') {
+            bottomWaveformPanel.classList.add('large');
+        } else {
+            bottomWaveformPanel.classList.remove('large');
+        }
+        
+        // Force the container height immediately
+        const panelHeight = size === 'large' ? 450 : 400;
+        bottomWaveformPanel.style.height = panelHeight + 'px';
+        console.log('WaveformControls: Forced bottom panel height to:', panelHeight + 'px');
+    }
+    
+    updateSizeButtons();
+    
+    // Update existing expanded waveform height if it exists
+    if (isBottomPanelExpanded && expandedWaveformInstance) {
+        const newHeight = size === 'large' ? 280 : 250;
+        console.log('WaveformControls: Updating expanded waveform height to:', newHeight);
+        
+        // Force the waveform display height
+        if (expandedWaveformDisplay) {
+            expandedWaveformDisplay.style.height = newHeight + 'px';
+        }
+        
+        // Update the WaveSurfer height
+        if (expandedWaveformInstance.setHeight) {
+            expandedWaveformInstance.setHeight(newHeight);
+        } else {
+            // Fallback: recreate if setHeight is not available
+            createExpandedWaveform();
+        }
+    }
+}
+
+/**
+ * Updates the size button states
+ */
+function updateSizeButtons() {
+    if (normalSizeBtn) {
+        normalSizeBtn.classList.toggle('active', bottomPanelSize === 'normal');
+    }
+    if (largeSizeBtn) {
+        largeSizeBtn.classList.toggle('active', bottomPanelSize === 'large');
+    }
+}
+
+/**
+ * Creates the expanded waveform in the bottom panel
+ */
+let expandedWaveformInstance = null;
+
+function createExpandedWaveform() {
+    if (!expandedWaveformDisplay || !wavesurferInstance) return;
+    
+    console.log('WaveformControls: Creating expanded waveform');
+    
+    try {
+        // Clean up existing expanded waveform
+        if (expandedWaveformInstance) {
+            expandedWaveformInstance.destroy();
+            expandedWaveformInstance = null;
+        }
+        
+        // Clear the expanded waveform display
+        expandedWaveformDisplay.innerHTML = '';
+        
+        // Ensure container is properly sized and visible
+        const waveformHeight = bottomPanelSize === 'large' ? 280 : 250;
+        expandedWaveformDisplay.style.height = waveformHeight + 'px';
+        expandedWaveformDisplay.style.width = '100%';
+        expandedWaveformDisplay.style.display = 'block';
+        
+        console.log('WaveformControls: Setting expanded waveform height to:', waveformHeight + 'px', 'for size:', bottomPanelSize);
+        
+        // Wait for DOM to update
+        setTimeout(() => {
+            createExpandedWaveformDelayed(waveformHeight);
+        }, 50);
+        
+    } catch (error) {
+        console.error('WaveformControls: Error in createExpandedWaveform:', error);
+        if (expandedWaveformDisplay) {
+            expandedWaveformDisplay.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #ff6b6b; font-size: 14px;">Failed to create expanded waveform</div>';
+        }
+    }
+}
+
+function createExpandedWaveformDelayed(waveformHeight) {
+    // Check container dimensions after DOM update
+    const containerRect = expandedWaveformDisplay.getBoundingClientRect();
+    console.log('WaveformControls: Container dimensions after setup:', containerRect.width, 'x', containerRect.height);
+    
+    if (containerRect.width === 0 || containerRect.height === 0) {
+        console.error('WaveformControls: Container has zero dimensions, cannot create waveform');
+        expandedWaveformDisplay.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #ff6b6b; font-size: 14px;">Container not ready</div>';
+        return;
+    }
+        
+    // Create simplified WaveSurfer instance
+    console.log('WaveformControls: Creating WaveSurfer instance with height:', waveformHeight);
+    
+    try {
+        expandedWaveformInstance = WaveSurfer.create({
+            container: expandedWaveformDisplay,
+            waveColor: 'rgb(85, 85, 85)', // Light gray same as smaller editor 
+            progressColor: 'rgb(120, 120, 120)', // Darker gray same as smaller editor
+            cursorColor: 'rgb(204, 204, 204)', // Light gray cursor same as smaller editor
+            height: waveformHeight,
+            normalize: true,
+            pixelRatio: 1,
+            barWidth: 2,
+            barGap: 1,
+            plugins: [
+                WaveSurfer.Regions.create({
+                    dragSelection: false // Disable drag selection but allow regions
+                })
+            ]
+        });
+        
+        console.log('WaveformControls: WaveSurfer instance created, loading audio...');
+        
+        // Load the audio file
+        if (currentAudioFilePath) {
+            expandedWaveformInstance.load(currentAudioFilePath);
+            console.log('WaveformControls: Audio loading initiated for:', currentAudioFilePath);
+        } else {
+            throw new Error('No audio file path available');
+        }
+        
+    } catch (error) {
+        console.error('WaveformControls: Error creating/loading WaveSurfer:', error);
+        expandedWaveformDisplay.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #ff6b6b; font-size: 14px;">Error: ' + error.message + '</div>';
+        return;
+    }
+    // Set up event listeners for the expanded waveform
+    setupExpandedWaveformEvents();
+}
+
+function setupExpandedWaveformEvents() {
+    if (!expandedWaveformInstance) return;
+    
+    console.log('WaveformControls: Setting up expanded waveform event listeners');
+    
+    // Handle ready event
+    expandedWaveformInstance.on('ready', () => {
+        console.log('WaveformControls: Expanded waveform ready');
+        
+        // Debug: Check if waveform canvas exists and set up zoom
+        setTimeout(() => {
+            const canvas = expandedWaveformDisplay.querySelector('canvas');
+            if (canvas) {
+                console.log('WaveformControls: SUCCESS - Canvas found after ready event:', canvas.width, 'x', canvas.height);
+                console.log('WaveformControls: Canvas is visible:', canvas.offsetWidth > 0 && canvas.offsetHeight > 0);
+                
+                // Set up zoom functionality for expanded waveform
+                setupExpandedWaveformZoom();
+            } else {
+                console.error('WaveformControls: ERROR - No canvas found after ready event!');
+                console.log('WaveformControls: Container HTML:', expandedWaveformDisplay.innerHTML);
+                console.log('WaveformControls: Container children:', expandedWaveformDisplay.children.length);
+            }
+        }, 100);
+        
+        // Set up regions for visual trim feedback with retry logic
+        setTimeout(() => {
+            console.log('WaveformControls: About to setup regions after 300ms delay');
+            const duration = expandedWaveformInstance.getDuration();
+            console.log('WaveformControls: Duration available at 300ms:', duration);
+            
+            if (duration && duration > 0) {
+                setupExpandedWaveformRegionsAfterReady();
+            } else {
+                console.log('WaveformControls: Duration not ready, retrying in 500ms');
+                setTimeout(() => {
+                    setupExpandedWaveformRegionsAfterReady();
+                }, 500);
+            }
+        }, 300);
+        
+        // Set up time display updates
+        expandedWaveformInstance.on('audioprocess', updateExpandedTimeDisplay);
+        expandedWaveformInstance.on('seek', updateExpandedTimeDisplay);
+        
+        // Handle clicks on expanded waveform for seeking (sync both waveforms)
+        expandedWaveformInstance.on('click', (relativeX) => {
+            if (!expandedWaveformInstance || !wavesurferInstance) return;
+            
+            const expandedDuration = expandedWaveformInstance.getDuration();
+            const clickTime = relativeX * expandedDuration;
+            
+            console.log('WaveformControls: Expanded waveform clicked at time:', clickTime);
+            
+            // Seek the main waveform (which controls audio)
+            const mainDuration = wavesurferInstance.getDuration();
+            if (mainDuration > 0) {
+                const seekPosition = clickTime / mainDuration;
+                wavesurferInstance.seekTo(seekPosition);
+                console.log('WaveformControls: Main waveform seeked to:', clickTime);
+            }
+            
+            // The main waveform sync will update the expanded waveform automatically
+        });
+        
+        // Sync with main waveform
+        setupWaveformSync();
+        
+        // Update time display initially
+        updateExpandedTimeDisplay();
+    });
+    
+    // Handle loading events
+    expandedWaveformInstance.on('loading', (percent) => {
+        console.log('WaveformControls: Loading progress:', percent + '%');
+    });
+    
+    // Handle load completion
+    expandedWaveformInstance.on('load', () => {
+        console.log('WaveformControls: Audio loaded successfully');
+    });
+    
+    // Handle errors
+    expandedWaveformInstance.on('error', (error) => {
+        console.error('WaveformControls: Expanded waveform error:', error);
+        expandedWaveformDisplay.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #ff6b6b; font-size: 14px;">Error: ' + (error.message || 'Unknown error') + '</div>';
+    });
+    
+}
+
+/**
+ * Sets up regions for visual trim feedback on the expanded waveform
+ */
+function setupExpandedWaveformRegions() {
+    if (!expandedWaveformInstance) return;
+    
+    console.log('WaveformControls: Setting up expanded waveform regions');
+    
+    // Set up regions after the waveform is ready - done in ready event handler
+    console.log('WaveformControls: Regions setup will be handled in ready event');
+}
+
+/**
+ * Sets up regions after the expanded waveform is ready and plugins are initialized
+ */
+function setupExpandedWaveformRegionsAfterReady() {
+    if (!expandedWaveformInstance) {
+        console.warn('WaveformControls: No expanded waveform instance for regions setup');
+        return;
+    }
+    
+    console.log('WaveformControls: Setting up expanded waveform regions after ready');
+    
+    // Try multiple approaches to get the regions plugin
+    let expandedWsRegions = null;
+    
+    try {
+        // Approach 1: Active plugins
+        const activePlugins = expandedWaveformInstance.getActivePlugins();
+        console.log('WaveformControls: Active plugins:', activePlugins.map(p => p.constructor.name));
+        
+        expandedWsRegions = activePlugins.find(plugin =>
+            plugin.constructor.name === 'RegionsPlugin' || 
+            plugin.constructor.name.includes('Region')
+        );
+        
+        // Approach 2: Check each active plugin for region methods
+        if (!expandedWsRegions) {
+            expandedWsRegions = activePlugins.find(plugin => 
+                plugin && (typeof plugin.add === 'function' || typeof plugin.addRegion === 'function')
+            );
+        }
+        
+        // Approach 3: Direct access
+        if (!expandedWsRegions) {
+            if (expandedWaveformInstance.regions) {
+                expandedWsRegions = expandedWaveformInstance.regions;
+            }
+        }
+        
+        console.log('WaveformControls: Found regions plugin:', !!expandedWsRegions);
+        
+        if (expandedWsRegions) {
+            // Store reference for later use
+            window.expandedWsRegions = expandedWsRegions;
+            
+            // Copy trim region from main waveform if it exists
+            if (wsRegions) {
+                const mainRegions = wsRegions.getRegions();
+                const trimRegion = Array.isArray(mainRegions) ? 
+                    mainRegions.find(r => r.id === 'trimRegion') : 
+                    (mainRegions ? mainRegions['trimRegion'] : null);
+                
+                if (trimRegion) {
+                    console.log('WaveformControls: Adding cut regions to expanded waveform:', {
+                        trimStart: trimRegion.start,
+                        trimEnd: trimRegion.end
+                    });
+                    
+                    try {
+                        // Use add method if available, otherwise addRegion
+                        const addMethod = expandedWsRegions.add || expandedWsRegions.addRegion;
+                        if (addMethod) {
+                            const totalDuration = expandedWaveformInstance.getDuration();
+                            console.log('WaveformControls: Initial setup - Total duration:', totalDuration);
+                            
+                            if (!totalDuration || totalDuration <= 0) {
+                                console.warn('WaveformControls: Invalid total duration during initial setup, cannot create cut regions');
+                                return;
+                            }
+                            
+                            // Add region from start to trim start (beginning cut region)
+                            if (trimRegion.start > 0) {
+                                addMethod.call(expandedWsRegions, {
+                                    id: 'expandedCutStart',
+                                    start: 0,
+                                    end: trimRegion.start,
+                                    color: 'rgba(85, 85, 85, 0.7)', // Dark gray with 70% opacity
+                                    resize: false, 
+                                    drag: false
+                                });
+                                console.log('WaveformControls: Added start cut region (0 to', trimRegion.start + ')');
+                            }
+                            
+                            // Add region from trim end to total duration (ending cut region)
+                            if (trimRegion.end < totalDuration) {
+                                addMethod.call(expandedWsRegions, {
+                                    id: 'expandedCutEnd',
+                                    start: trimRegion.end,
+                                    end: totalDuration,
+                                    color: 'rgba(85, 85, 85, 0.7)', // Dark gray with 70% opacity
+                                    resize: false, 
+                                    drag: false
+                                });
+                                console.log('WaveformControls: Added end cut region (' + trimRegion.end + ' to', totalDuration + ')');
+                            }
+                            
+                            console.log('WaveformControls: SUCCESS - Expanded cut regions added');
+                        } else {
+                            console.warn('WaveformControls: No add method found on regions plugin');
+                        }
+                    } catch (error) {
+                        console.error('WaveformControls: Error adding expanded cut regions:', error);
+                    }
+                } else {
+                    console.log('WaveformControls: No trim region in main waveform to copy');
+                }
+            } else {
+                console.log('WaveformControls: No main waveform regions available');
+            }
+        } else {
+            console.warn('WaveformControls: Could not find regions plugin in expanded waveform');
+        }
+        
+    } catch (error) {
+        console.error('WaveformControls: Error in regions setup:', error);
+    }
+}
+
+/**
+ * Syncs trim regions between main and expanded waveforms
+ */
+function syncTrimRegions() {
+    if (!wsRegions || !window.expandedWsRegions || !expandedWaveformInstance || !isBottomPanelExpanded) {
+        console.warn('WaveformControls: Cannot sync trim regions - missing dependencies:', {
+            wsRegions: !!wsRegions,
+            expandedWsRegions: !!window.expandedWsRegions,
+            expandedWaveformInstance: !!expandedWaveformInstance,
+            isBottomPanelExpanded: isBottomPanelExpanded
+        });
+        return;
+    }
+    
+    console.log('WaveformControls: Syncing cut regions');
+    
+    try {
+        // Clear existing expanded cut regions
+        const expandedRegions = window.expandedWsRegions.getRegions();
+        const oldStartRegion = expandedRegions.find(r => r.id === 'expandedCutStart');
+        const oldEndRegion = expandedRegions.find(r => r.id === 'expandedCutEnd');
+        
+        if (oldStartRegion) {
+            oldStartRegion.remove();
+        }
+        if (oldEndRegion) {
+            oldEndRegion.remove();
+        }
+        
+        // Get current trim region from main waveform
+        const mainRegions = wsRegions.getRegions();
+        const mainTrimRegion = Array.isArray(mainRegions) ? 
+            mainRegions.find(r => r.id === 'trimRegion') : 
+            (mainRegions ? mainRegions['trimRegion'] : null);
+        
+        if (mainTrimRegion) {
+            const totalDuration = expandedWaveformInstance.getDuration();
+            console.log('WaveformControls: Total duration for cut regions:', totalDuration);
+            console.log('WaveformControls: Main trim region:', {
+                start: mainTrimRegion.start,
+                end: mainTrimRegion.end
+            });
+            
+            if (!totalDuration || totalDuration <= 0) {
+                console.warn('WaveformControls: Invalid total duration, cannot create cut regions');
+                return;
+            }
+            
+            // Add cut region from start to trim start (beginning cut region)
+            if (mainTrimRegion.start > 0) {
+                window.expandedWsRegions.add({
+                    id: 'expandedCutStart',
+                    start: 0,
+                    end: mainTrimRegion.start,
+                    color: 'rgba(85, 85, 85, 0.7)', // Dark gray with 70% opacity
+                    resize: false,
+                    drag: false
+                });
+                console.log('WaveformControls: Synced start cut region (0 to', mainTrimRegion.start + ')');
+            }
+            
+            // Add cut region from trim end to total duration (ending cut region)
+            if (mainTrimRegion.end < totalDuration) {
+                window.expandedWsRegions.add({
+                    id: 'expandedCutEnd',
+                    start: mainTrimRegion.end,
+                    end: totalDuration,
+                    color: 'rgba(85, 85, 85, 0.7)', // Dark gray with 70% opacity
+                    resize: false,
+                    drag: false
+                });
+                console.log('WaveformControls: Synced end cut region (' + mainTrimRegion.end + ' to', totalDuration + ')');
+            }
+            
+            console.log('WaveformControls: Cut regions synced to expanded waveform');
+        } else {
+            console.log('WaveformControls: No trim region to sync (all regions cleared)');
+        }
+    } catch (error) {
+        console.error('WaveformControls: Error syncing cut regions:', error);
+    }
+}
+
+/**
+ * Syncs the visual state of the expanded waveform with the main waveform
+ */
+function syncExpandedWaveformVisuals() {
+    if (!wavesurferInstance || !expandedWaveformInstance || !isBottomPanelExpanded) {
+        return;
+    }
+    
+    console.log('WaveformControls: Syncing expanded waveform visuals');
+    
+    try {
+        // Sync playback position
+        const mainCurrentTime = wavesurferInstance.getCurrentTime();
+        const expandedDuration = expandedWaveformInstance.getDuration();
+        
+        if (expandedDuration > 0 && mainCurrentTime >= 0) {
+            const seekPosition = mainCurrentTime / expandedDuration;
+            expandedWaveformInstance.seekTo(seekPosition);
+            console.log('WaveformControls: Synced playback position to', mainCurrentTime);
+        }
+        
+        // Update time displays
+        updateExpandedTimeDisplay();
+        
+        // Sync trim regions for visual feedback
+        syncTrimRegions();
+        
+    } catch (error) {
+        console.error('WaveformControls: Error syncing expanded waveform visuals:', error);
+    }
+}
+
+/**
+ * Updates the expanded waveform time display
+ */
+function updateExpandedTimeDisplay() {
+    if (!expandedWaveformInstance || !isBottomPanelExpanded) return;
+    
+    const currentTime = expandedWaveformInstance.getCurrentTime();
+    const duration = expandedWaveformInstance.getDuration();
+    const remainingTime = duration - currentTime;
+    
+    if (expandedWfCurrentTime) {
+        expandedWfCurrentTime.textContent = formatWaveformTime(currentTime);
+    }
+    if (expandedWfTotalDuration) {
+        expandedWfTotalDuration.textContent = formatWaveformTime(duration);
+    }
+    if (expandedWfRemainingTime) {
+        expandedWfRemainingTime.textContent = formatWaveformTime(remainingTime);
+    }
+}
+
+/**
+ * Sets up synchronization between main and expanded waveforms
+ */
+function setupWaveformSync() {
+    if (!wavesurferInstance || !expandedWaveformInstance) return;
+    
+    console.log('WaveformControls: Setting up waveform sync');
+    
+    // Sync expanded waveform progress with main waveform
+    const syncProgress = () => {
+        if (!wavesurferInstance || !expandedWaveformInstance || !isBottomPanelExpanded) return;
+        
+        const mainCurrentTime = wavesurferInstance.getCurrentTime();
+        const expandedDuration = expandedWaveformInstance.getDuration();
+        
+        if (expandedDuration > 0) {
+            const seekPosition = mainCurrentTime / expandedDuration;
+            expandedWaveformInstance.seekTo(seekPosition);
+        }
+        
+        updateExpandedTimeDisplay();
+    };
+    
+    // Listen to main waveform events and sync expanded waveform
+    wavesurferInstance.on('audioprocess', syncProgress);
+    wavesurferInstance.on('seek', syncProgress);
+    wavesurferInstance.on('play', () => {
+        if (expandedWaveformInstance && isBottomPanelExpanded) {
+            // Don't actually play the expanded waveform audio, just sync the progress
+            console.log('WaveformControls: Main waveform playing, syncing expanded waveform');
+            
+            // Update play/pause button icons to show pause
+            const mainPlayPauseImg = wfPlayPauseBtn ? wfPlayPauseBtn.querySelector('img') : null;
+            if (mainPlayPauseImg) mainPlayPauseImg.src = '../../assets/icons/pause.png';
+            
+            const expandedPlayPauseImg = expandedWfPlayPauseBtn ? expandedWfPlayPauseBtn.querySelector('img') : null;
+            if (expandedPlayPauseImg) expandedPlayPauseImg.src = '../../assets/icons/pause.png';
+        }
+    });
+    wavesurferInstance.on('pause', () => {
+        if (expandedWaveformInstance && isBottomPanelExpanded) {
+            console.log('WaveformControls: Main waveform paused, syncing expanded waveform');
+            
+            // Update play/pause button icons to show play
+            const mainPlayPauseImg = wfPlayPauseBtn ? wfPlayPauseBtn.querySelector('img') : null;
+            if (mainPlayPauseImg) mainPlayPauseImg.src = '../../assets/icons/play.png';
+            
+            const expandedPlayPauseImg = expandedWfPlayPauseBtn ? expandedWfPlayPauseBtn.querySelector('img') : null;
+            if (expandedPlayPauseImg) expandedPlayPauseImg.src = '../../assets/icons/play.png';
+        }
+    });
+    
+    // Initial sync
+    syncProgress();
+}
+
+
+
+/**
+ * Checks if the bottom panel is currently expanded
+ * @returns {boolean}
+ */
+function getBottomPanelState() {
+    return isBottomPanelExpanded;
+}
+
 export {
     initWaveformControls as init, // Export initWaveformControls as init
     showWaveformForCue,
     hideAndDestroyWaveform,
     getCurrentTrimTimes,
-    formatWaveformTime
+    formatWaveformTime,
+    expandBottomPanel,
+    collapseBottomPanel,
+    setBottomPanelSize,
+    getBottomPanelState
 };
