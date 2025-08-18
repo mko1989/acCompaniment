@@ -7,7 +7,7 @@ let currentLiveTrimRegion = null; // ADDED: To store the live trimRegion object
 let isDestroyingWaveform = false; // ADDED: Flag to prevent callback loops during destruction
 let waveformIsStoppedAtTrimStart = false;
 let zoomLevel = 0; // Start at minimum zoom (0-100 scale, higher = more zoomed in)
-let maxZoom = 100; // Maximum zoom level 
+let maxZoom = 1000; // Maximum zoom level (increased for better zoom range) 
 let minZoom = 0; // Minimum zoom level
 let currentAudioFilePath = null; // Store the current audio file path
 let playStartPosition = 0; // Track where play was started for stop behavior
@@ -16,6 +16,7 @@ let playStartPosition = 0; // Track where play was started for stop behavior
 let isBottomPanelExpanded = false;
 let bottomPanelSize = 'normal'; // 'normal' or 'large'
 let expandedWaveformCanvas = null;
+let expandedWaveformInstance = null; // Expanded waveform WaveSurfer instance
 let expandedAnimationId = null;
 let currentExpandedCue = null;
 let expandedZoomLevel = 0; // Zoom level for expanded waveform
@@ -155,19 +156,44 @@ function setupExpandedWaveformZoom() {
         height: expandedWaveformDisplay.offsetHeight
     });
     
+    // Check if container is ready
+    if (expandedWaveformDisplay.offsetWidth === 0 || expandedWaveformDisplay.offsetHeight === 0) {
+        console.warn('WaveformControls: Container not ready for zoom setup, retrying...');
+        setTimeout(() => {
+            setupExpandedWaveformZoom();
+        }, 100);
+        return;
+    }
+    
     // Check if event listeners are already attached to prevent duplicates
     if (expandedWaveformDisplay.hasAttribute('data-zoom-setup')) {
         console.log('WaveformControls: Zoom already set up for this element');
         return;
     }
     
-    // Add zoom functionality with mouse wheel
+    // Clear any existing zoom event listeners first
+    cleanupExpandedZoomHandlers();
+    
+    // Add zoom functionality with mouse wheel - simplified and working version
     const wheelHandler = (e) => {
+        console.log('WaveformControls: ZOOM WHEEL EVENT TRIGGERED!', {
+            deltaY: e.deltaY,
+            target: e.target.tagName,
+            currentZoomLevel: expandedZoomLevel
+        });
+        
         e.preventDefault();
         e.stopPropagation();
         
+        // Ensure the expanded waveform instance is still valid
+        if (!expandedWaveformInstance || !expandedWaveformInstance.zoom) {
+            console.warn('WaveformControls: Expanded waveform instance invalid during zoom');
+            return;
+        }
+        
         // Calculate new zoom level based on wheel direction
         const direction = e.deltaY < 0 ? 1 : -1; // 1 = zoom in, -1 = zoom out
+        console.log('WaveformControls: Zoom direction:', direction === 1 ? 'IN' : 'OUT');
         
         // Variable zoom step based on current zoom level
         let zoomStep;
@@ -180,39 +206,157 @@ function setupExpandedWaveformZoom() {
         }
         
         // Update the zoom level
+        const oldZoomLevel = expandedZoomLevel;
         expandedZoomLevel += zoomStep;
         
         // Constrain zoom level between min and max values
         expandedZoomLevel = Math.min(Math.max(expandedZoomLevel, minZoom), maxZoom);
         
-        // Apply the zoom directly - wavesurfer zoom value = our zoom level
-        console.log(`WaveformControls: Setting expanded zoom to level ${expandedZoomLevel}`);
-        expandedWaveformInstance.zoom(expandedZoomLevel);
+        console.log(`WaveformControls: Zoom level change: ${oldZoomLevel} -> ${expandedZoomLevel} (step: ${zoomStep})`);
         
-        console.log(`WaveformControls: Expanded zoom changed to ${expandedZoomLevel.toFixed(2)}`);
-        
-        // If zoomed all the way to minimum, reset to default zoom
-        if (expandedZoomLevel <= minZoom) {
-            resetExpandedZoom();
+        // Apply the zoom - simplified approach
+        try {
+            if (expandedZoomLevel <= minZoom || expandedZoomLevel === 0) {
+                // Reset to default zoom
+                expandedWaveformInstance.zoom(1);
+                expandedZoomLevel = 0;
+                console.log('WaveformControls: Expanded zoom reset to default level');
+            } else {
+                // Simple zoom calculation that actually works
+                const actualZoomValue = Math.max(1, expandedZoomLevel);
+                expandedWaveformInstance.zoom(actualZoomValue);
+                console.log(`WaveformControls: Expanded zoom applied: ${expandedZoomLevel} -> ${actualZoomValue}`);
+            }
+        } catch (zoomError) {
+            console.error('WaveformControls: Error applying expanded zoom:', zoomError);
         }
     };
     
     const dblClickHandler = (e) => {
-        resetExpandedZoom();
+        console.log('WaveformControls: ZOOM DOUBLE-CLICK EVENT TRIGGERED!', {
+            target: e.target.tagName,
+            currentZoomLevel: expandedZoomLevel
+        });
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Ensure the expanded waveform instance is still valid
+        if (!expandedWaveformInstance || !expandedWaveformInstance.zoom) {
+            console.warn('WaveformControls: Expanded waveform instance invalid during double-click reset');
+            return;
+        }
+        
+        try {
+            resetExpandedZoom();
+            console.log('WaveformControls: Expanded zoom reset via double-click');
+        } catch (resetError) {
+            console.error('WaveformControls: Error resetting expanded zoom:', resetError);
+        }
     };
     
-    // Add the event listeners
-    expandedWaveformDisplay.addEventListener('wheel', wheelHandler);
+    // Store handlers on the element for potential cleanup
+    expandedWaveformDisplay._wheelHandler = wheelHandler;
+    expandedWaveformDisplay._dblClickHandler = dblClickHandler;
+    
+    // Add the event listeners with passive: false to allow preventDefault
+    expandedWaveformDisplay.addEventListener('wheel', wheelHandler, { passive: false });
     expandedWaveformDisplay.addEventListener('dblclick', dblClickHandler);
     
     // Mark as set up to prevent duplicate listeners
     expandedWaveformDisplay.setAttribute('data-zoom-setup', 'true');
     
-    console.log('WaveformControls: Expanded zoom event listeners added');
+    console.log('WaveformControls: Expanded zoom event listeners added to container');
+}
+
+// Helper function to clean up expanded zoom handlers
+function cleanupExpandedZoomHandlers() {
+    if (expandedWaveformDisplay) {
+        // Remove main handlers
+        if (expandedWaveformDisplay._wheelHandler) {
+            expandedWaveformDisplay.removeEventListener('wheel', expandedWaveformDisplay._wheelHandler);
+            delete expandedWaveformDisplay._wheelHandler;
+        }
+        if (expandedWaveformDisplay._dblClickHandler) {
+            expandedWaveformDisplay.removeEventListener('dblclick', expandedWaveformDisplay._dblClickHandler);
+            delete expandedWaveformDisplay._dblClickHandler;
+        }
+        
+        // Clean up canvas handlers
+        const canvasElements = expandedWaveformDisplay.querySelectorAll('canvas[data-zoom-setup]');
+        canvasElements.forEach(canvas => {
+            canvas.removeAttribute('data-zoom-setup');
+        });
+        
+        // Clean up wrapper handlers
+        const wrapper = expandedWaveformDisplay.querySelector('.wavesurfer[data-zoom-setup]');
+        if (wrapper) {
+            wrapper.removeAttribute('data-zoom-setup');
+        }
+        
+        expandedWaveformDisplay.removeAttribute('data-zoom-setup');
+        console.log('WaveformControls: Cleaned up existing zoom handlers');
+    }
+}
+
+// Simplified setup function
+function setupExpandedZoomAfterReady() {
+    if (!expandedWaveformInstance || !expandedWaveformDisplay) return;
+    
+    console.log('WaveformControls: Setting up zoom after ready event');
+    
+    let setupAttempts = 0;
+    const setupCanvasZoom = () => {
+        setupAttempts++;
+        console.log(`WaveformControls: Canvas zoom setup attempt ${setupAttempts}/3`);
+        
+        const canvasElements = expandedWaveformDisplay.querySelectorAll('canvas');
+        const waveSurferWrapper = expandedWaveformDisplay.querySelector('.wavesurfer');
+        
+        if (canvasElements.length > 0 || waveSurferWrapper) {
+            // Get handlers from the container
+            const wheelHandler = expandedWaveformDisplay._wheelHandler;
+            const dblClickHandler = expandedWaveformDisplay._dblClickHandler;
+            
+            if (wheelHandler && dblClickHandler) {
+                // Add listeners to canvas elements
+                canvasElements.forEach((canvas, index) => {
+                    if (!canvas.hasAttribute('data-zoom-setup')) {
+                        canvas.addEventListener('wheel', wheelHandler, { passive: false });
+                        canvas.addEventListener('dblclick', dblClickHandler);
+                        canvas.setAttribute('data-zoom-setup', 'true');
+                        console.log('WaveformControls: Added zoom to canvas', index);
+                    }
+                });
+                
+                // Add to WaveSurfer wrapper
+                if (waveSurferWrapper && !waveSurferWrapper.hasAttribute('data-zoom-setup')) {
+                    waveSurferWrapper.addEventListener('wheel', wheelHandler, { passive: false });
+                    waveSurferWrapper.addEventListener('dblclick', dblClickHandler);
+                    waveSurferWrapper.setAttribute('data-zoom-setup', 'true');
+                    console.log('WaveformControls: Added zoom to WaveSurfer wrapper');
+                }
+                
+                console.log('WaveformControls: Zoom setup complete');
+            } else {
+                console.warn('WaveformControls: No handlers available for canvas setup');
+            }
+        } else if (setupAttempts < 3) {
+            setTimeout(setupCanvasZoom, 300);
+        } else {
+            console.warn('WaveformControls: Could not find canvas elements for zoom setup');
+        }
+    };
+    
+    // Start canvas setup
+    setTimeout(setupCanvasZoom, 100);
 }
 
 function bindWaveformControlEventsListeners() {
     console.log('WaveformControls: Starting to bind event listeners...');
+    console.log('WaveformControls: Current DOM element states:');
+    console.log('  - wfSetStartBtn:', wfSetStartBtn ? 'Found' : 'NOT FOUND');
+    console.log('  - wfSetEndBtn:', wfSetEndBtn ? 'Found' : 'NOT FOUND');
     
     if (wfPlayPauseBtn) {
         wfPlayPauseBtn.addEventListener('click', () => {
@@ -294,32 +438,41 @@ function bindWaveformControlEventsListeners() {
     if (wfSetStartBtn) {
         wfSetStartBtn.addEventListener('click', () => {
             console.log('WaveformControls: SET START BUTTON CLICKED!');
-            handleSetTrimStart();
+            console.log('WaveformControls: About to call handleSetTrimStart()');
+            try {
+                handleSetTrimStart();
+                console.log('WaveformControls: handleSetTrimStart() completed successfully');
+            } catch (error) {
+                console.error('WaveformControls: Error in handleSetTrimStart():', error);
+            }
         }); // Call internal handler
         console.log('WaveformControls: Set Start button listener bound');
     } else {
-        console.warn('WaveformControls: wfSetStartBtn not found, cannot bind event');
+        console.error('WaveformControls: wfSetStartBtn not found, cannot bind event');
+        console.log('WaveformControls: DOM element by ID:', document.getElementById('wfSetStartBtn'));
     }
     
     if (wfSetEndBtn) {
         wfSetEndBtn.addEventListener('click', () => {
             console.log('WaveformControls: SET END BUTTON CLICKED!');
-            handleSetTrimEnd();
+            console.log('WaveformControls: About to call handleSetTrimEnd()');
+            try {
+                handleSetTrimEnd();
+                console.log('WaveformControls: handleSetTrimEnd() completed successfully');
+            } catch (error) {
+                console.error('WaveformControls: Error in handleSetTrimEnd():', error);
+            }
         });     // Call internal handler
         console.log('WaveformControls: Set End button listener bound');
     } else {
-        console.warn('WaveformControls: wfSetEndBtn not found, cannot bind event');
+        console.error('WaveformControls: wfSetEndBtn not found, cannot bind event');
+        console.log('WaveformControls: DOM element by ID:', document.getElementById('wfSetEndBtn'));
     }
     
     if (wfClearTrimBtn) {
         wfClearTrimBtn.addEventListener('click', () => {
             console.log('WaveformControls: CLEAR TRIM BUTTON CLICKED!');
             handleClearTrim();
-            // Sync the expanded waveform visually after trim clear
-            setTimeout(() => {
-                syncExpandedWaveformVisuals();
-                syncTrimRegions();
-            }, 100);
         });
         console.log('WaveformControls: Clear trim button listener bound');
     } else {
@@ -431,17 +584,38 @@ function bindWaveformControlEventsListeners() {
         expandedWfSetStartBtn.addEventListener('click', () => {
             console.log('WaveformControls: EXPANDED SET START BUTTON CLICKED!');
             handleSetTrimStart();
-            // Sync the expanded waveform visually after trim change immediately and with retries
-            syncExpandedWaveformVisuals();
-            syncTrimRegions();
-            setTimeout(() => {
+            // Enhanced sync with multiple retries to ensure persistence
+            const performSyncWithRetries = () => {
                 syncExpandedWaveformVisuals();
                 syncTrimRegions();
-            }, 100);
-            // Additional sync after a longer delay to ensure it persists
-            setTimeout(() => {
-                syncTrimRegions();
-            }, 500);
+                
+                // Immediate retry
+                setTimeout(() => {
+                    syncExpandedWaveformVisuals();
+                    syncTrimRegions();
+                }, 50);
+                
+                // Short delay retry (existing 100ms)
+                setTimeout(() => {
+                    syncExpandedWaveformVisuals();
+                    syncTrimRegions();
+                }, 100);
+                
+                // Medium delay retry (existing 500ms)
+                setTimeout(() => {
+                    syncTrimRegions();
+                }, 500);
+                
+                // Long delay retry for extra persistence
+                setTimeout(() => {
+                    if (isBottomPanelExpanded && window.expandedWsRegions) {
+                        syncTrimRegions();
+                        console.log('WaveformControls: Final sync retry for trim start');
+                    }
+                }, 1000);
+            };
+            
+            performSyncWithRetries();
         });
         console.log('WaveformControls: Expanded set start button listener bound');
     }
@@ -450,17 +624,38 @@ function bindWaveformControlEventsListeners() {
         expandedWfSetEndBtn.addEventListener('click', () => {
             console.log('WaveformControls: EXPANDED SET END BUTTON CLICKED!');
             handleSetTrimEnd();
-            // Sync the expanded waveform visually after trim change immediately and with retries
-            syncExpandedWaveformVisuals();
-            syncTrimRegions();
-            setTimeout(() => {
+            // Enhanced sync with multiple retries to ensure persistence
+            const performSyncWithRetries = () => {
                 syncExpandedWaveformVisuals();
                 syncTrimRegions();
-            }, 100);
-            // Additional sync after a longer delay to ensure it persists
-            setTimeout(() => {
-                syncTrimRegions();
-            }, 500);
+                
+                // Immediate retry
+                setTimeout(() => {
+                    syncExpandedWaveformVisuals();
+                    syncTrimRegions();
+                }, 50);
+                
+                // Short delay retry (existing 100ms)
+                setTimeout(() => {
+                    syncExpandedWaveformVisuals();
+                    syncTrimRegions();
+                }, 100);
+                
+                // Medium delay retry (existing 500ms)
+                setTimeout(() => {
+                    syncTrimRegions();
+                }, 500);
+                
+                // Long delay retry for extra persistence
+                setTimeout(() => {
+                    if (isBottomPanelExpanded && window.expandedWsRegions) {
+                        syncTrimRegions();
+                        console.log('WaveformControls: Final sync retry for trim end');
+                    }
+                }, 1000);
+            };
+            
+            performSyncWithRetries();
         });
         console.log('WaveformControls: Expanded set end button listener bound');
     }
@@ -469,17 +664,6 @@ function bindWaveformControlEventsListeners() {
         expandedWfClearTrimBtn.addEventListener('click', () => {
             console.log('WaveformControls: EXPANDED CLEAR TRIM BUTTON CLICKED!');
             handleClearTrim();
-            // Sync the expanded waveform visually after trim clear immediately and with retries
-            syncExpandedWaveformVisuals();
-            syncTrimRegions();
-            setTimeout(() => {
-                syncExpandedWaveformVisuals();
-                syncTrimRegions();
-            }, 100);
-            // Additional sync after a longer delay to ensure it persists
-            setTimeout(() => {
-                syncTrimRegions();
-            }, 500);
         });
         console.log('WaveformControls: Expanded clear trim button listener bound');
     }
@@ -893,6 +1077,14 @@ function _setupOptimizedWaveformEvents(cue) {
             if (!wavesurferInstance || !wsRegions || isDestroyingWaveform) return;
             console.log('WaveformControls: Region created event fired:', region.id);
             updateTrimInputsFromRegionInternal(region);
+            
+            // Apply cut overlays when trim region is created
+            if (region.id === 'trimRegion') {
+                setTimeout(() => {
+                    console.log('WaveformControls: Applying cut overlays after trim region created');
+                    styleRegionsInternal();
+                }, 100);
+            }
         });
         
         // Handle when regions are updated (dragged/resized)
@@ -900,6 +1092,14 @@ function _setupOptimizedWaveformEvents(cue) {
             if (!wavesurferInstance || !wsRegions || isDestroyingWaveform) return;
             console.log('WaveformControls: Region updated event fired:', region.id);
             updateTrimInputsFromRegionInternal(region);
+            
+            // Update cut overlays when trim region is updated
+            if (region.id === 'trimRegion') {
+                setTimeout(() => {
+                    console.log('WaveformControls: Updating cut overlays after trim region updated');
+                    styleRegionsInternal();
+                }, 50);
+            }
         });
         
         // Handle when region update ends (final position)
@@ -907,13 +1107,27 @@ function _setupOptimizedWaveformEvents(cue) {
             if (!wavesurferInstance || !wsRegions || isDestroyingWaveform) return;
             console.log('WaveformControls: Region update ended event fired:', region.id);
             updateTrimInputsFromRegionInternal(region);
+            
+            // Update cut overlays when trim region update ends
+            if (region.id === 'trimRegion') {
+                setTimeout(() => {
+                    console.log('WaveformControls: Finalizing cut overlays after trim region update ended');
+                    styleRegionsInternal();
+                }, 100);
+            }
         });
         
         // Handle when regions are removed
         wsRegions.on('region-removed', (region) => {
             if (!wavesurferInstance || !wsRegions || isDestroyingWaveform) return;
             console.log('WaveformControls: Region removed event fired:', region.id);
-            updateTrimInputsFromRegionInternal(null);
+            // Only treat as full-duration reset if the actual trim region was removed by the user.
+            if (region && region.id === 'trimRegion') {
+                updateTrimInputsFromRegionInternal(null);
+            } else {
+                // Ignore removal of non-trim overlay regions to avoid clobbering trims
+                console.log('WaveformControls: Non-trim region removed; ignoring for trim inputs.');
+            }
         });
         
         // Handle region click events
@@ -1031,15 +1245,20 @@ function loadRegionsFromCueInternal(cue) {
 
     if (trimStart > 0 || trimEnd < totalDuration) {
         console.log(`WaveformControls: Adding trimRegion from cue: Start=${trimStart}, End=${trimEnd}`);
-        // Store the returned region instance
+        // Store the returned region instance - NO INTERACTION (no drag/resize handles)
         currentLiveTrimRegion = wsRegions.addRegion({ 
             id: 'trimRegion', 
             start: trimStart, 
             end: trimEnd, 
             color: 'rgba(0, 0, 0, 0)', // Transparent - no visual overlay
-            drag: true, 
-            resize: true 
+            drag: false, // Disable drag to remove handles/lines
+            resize: false // Disable resize to remove handles/lines
         });
+        
+        // Apply cut overlays after creating the trim region
+        setTimeout(() => {
+            styleRegionsInternal();
+        }, 100);
     } else {
         console.log("WaveformControls: Cue trim is full duration, no trimRegion added initially.");
         styleRegionsInternal(); 
@@ -1119,8 +1338,8 @@ function handleSetTrimStart() {
         start: newStart,
         end: newEnd,
         color: 'rgba(0, 0, 0, 0)', // Transparent - no visual overlay
-        drag: true,
-        resize: true,
+        drag: false, // Disable drag to remove handles/lines
+        resize: false, // Disable resize to remove handles/lines
     });
         
         console.log('WaveformControls: Region creation result:', currentLiveTrimRegion);
@@ -1134,6 +1353,9 @@ function handleSetTrimStart() {
         } else {
             console.warn('WFC_DEBUG SetStart: onTrimChangeCallback is not a function here.');
         }
+        
+        // Apply cut overlays to main editor immediately after setting trim start
+        styleRegionsInternal();
     } else {
         console.warn('WFC_DEBUG SetStart: wsRegions.addRegion did not return a region.');
         }
@@ -1195,8 +1417,8 @@ function handleSetTrimEnd() {
         start: newStart,
         end: newEnd,
         color: 'rgba(0, 0, 0, 0)', // Transparent - no visual overlay
-        drag: true,
-        resize: true,
+        drag: false, // Disable drag to remove handles/lines
+        resize: false, // Disable resize to remove handles/lines
     });
     if (currentLiveTrimRegion) {
         console.log(`WFC_DEBUG SetEnd: Region added. Start: ${currentLiveTrimRegion.start.toFixed(3)}, End: ${currentLiveTrimRegion.end.toFixed(3)}`);
@@ -1207,6 +1429,9 @@ function handleSetTrimEnd() {
         } else {
             console.warn('WFC_DEBUG SetEnd: onTrimChangeCallback is not a function here.');
         }
+        
+        // Apply cut overlays to main editor immediately after setting trim end
+        styleRegionsInternal();
     } else {
         console.warn('WFC_DEBUG SetEnd: wsRegions.addRegion did not return a region.');
     }
@@ -1221,28 +1446,210 @@ function handleClearTrim() {
         return;
     }
     
-    // Remove all trim regions
-    const regions = wsRegions.getRegions();
-    const trimRegion = Array.isArray(regions) ? regions.find(r => r.id === 'trimRegion') : (regions ? regions['trimRegion'] : null);
+    // Immediate removal of all trim-related regions (trim region AND cut overlays)
+    const totalDuration = wavesurferInstance.getDuration();
     
-    if (trimRegion && typeof trimRegion.remove === 'function') {
-        try {
-            trimRegion.remove();
-            console.log('WaveformControls: Trim region removed');
-            currentLiveTrimRegion = null;
-            
-            // Notify that the trim has been cleared (full duration)
-            const totalDuration = wavesurferInstance.getDuration();
-            if (typeof onTrimChangeCallback === 'function') {
-                onTrimChangeCallback(0, totalDuration);
-                console.log('WaveformControls: Notified callback of trim clear');
-            }
-        } catch (error) {
-            console.error('WaveformControls: Error removing trim region:', error);
-        }
-    } else {
-        console.log('WaveformControls: No trim region found to clear');
+    // Clear main waveform regions immediately
+    clearAllCutOverlaysImmediate();
+    
+    // Clear expanded waveform regions immediately if expanded panel is open
+    if (isBottomPanelExpanded && window.expandedWsRegions) {
+        clearExpandedCutOverlaysImmediate();
     }
+    
+    // Reset the live trim region reference
+    currentLiveTrimRegion = null;
+    
+    // Notify that the trim has been cleared (full duration)
+    if (typeof onTrimChangeCallback === 'function') {
+        onTrimChangeCallback(0, totalDuration);
+        console.log('WaveformControls: Notified callback of trim clear');
+    }
+    
+    // Force visual refresh of both waveforms
+    forceWaveformRefresh();
+    
+    console.log('WaveformControls: Clear trim completed - all related regions removed immediately');
+}
+
+// Helper function to immediately clear all cut overlays from main waveform
+function clearAllCutOverlaysImmediate() {
+    if (!wsRegions) {
+        console.warn('WaveformControls: No wsRegions available for immediate clear');
+        return;
+    }
+    
+    console.log('WaveformControls: Clearing all cut overlays immediately');
+    
+    try {
+        const regions = wsRegions.getRegions();
+        const regionsArray = Array.isArray(regions) ? regions : Object.values(regions || {});
+        
+        // Remove all trim-related regions immediately
+        regionsArray.forEach(region => {
+            if (region && (region.id === 'trimRegion' || region.id === 'mainCutStart' || region.id === 'mainCutEnd')) {
+                try {
+                    if (typeof region.remove === 'function') {
+                        region.remove();
+                        console.log('WaveformControls: Immediately removed region:', region.id);
+                    }
+                } catch (removeError) {
+                    console.warn('WaveformControls: Error removing region immediately:', region.id, removeError);
+                }
+            }
+        });
+        
+        // Additional cleanup - try to remove any remaining regions by ID
+        try {
+            const remainingRegions = wsRegions.getRegions();
+            const remainingArray = Array.isArray(remainingRegions) ? remainingRegions : Object.values(remainingRegions || {});
+            const trimRelatedIds = ['trimRegion', 'mainCutStart', 'mainCutEnd'];
+            
+            remainingArray.forEach(region => {
+                if (region && trimRelatedIds.includes(region.id)) {
+                    try {
+                        region.remove();
+                        console.log('WaveformControls: Force removed remaining region:', region.id);
+                    } catch (e) {
+                        console.warn('WaveformControls: Could not force remove region:', region.id);
+                    }
+                }
+            });
+        } catch (cleanupError) {
+            console.warn('WaveformControls: Error in additional cleanup:', cleanupError);
+        }
+        
+    } catch (error) {
+        console.error('WaveformControls: Error in immediate clear:', error);
+    }
+}
+
+// Helper function to immediately clear expanded cut overlays
+function clearExpandedCutOverlaysImmediate() {
+    if (!window.expandedWsRegions) {
+        console.warn('WaveformControls: No expandedWsRegions available for immediate clear');
+        return;
+    }
+    
+    console.log('WaveformControls: Clearing expanded cut overlays immediately');
+    
+    try {
+        const regions = window.expandedWsRegions.getRegions();
+        const regionsArray = Array.isArray(regions) ? regions : Object.values(regions || {});
+        
+        regionsArray.forEach(region => {
+            if (region && (region.id === 'expandedCutStart' || region.id === 'expandedCutEnd')) {
+                try {
+                    if (typeof region.remove === 'function') {
+                        region.remove();
+                        console.log('WaveformControls: Immediately removed expanded region:', region.id);
+                    }
+                } catch (removeError) {
+                    console.warn('WaveformControls: Error removing expanded region immediately:', region.id, removeError);
+                }
+            }
+        });
+        
+        // Additional cleanup - try to remove any remaining expanded regions by ID
+        try {
+            const remainingRegions = window.expandedWsRegions.getRegions();
+            const remainingArray = Array.isArray(remainingRegions) ? remainingRegions : Object.values(remainingRegions || {});
+            const expandedTrimIds = ['expandedCutStart', 'expandedCutEnd'];
+            
+            remainingArray.forEach(region => {
+                if (region && expandedTrimIds.includes(region.id)) {
+                    try {
+                        region.remove();
+                        console.log('WaveformControls: Force removed remaining expanded region:', region.id);
+                    } catch (e) {
+                        console.warn('WaveformControls: Could not force remove expanded region:', region.id);
+                    }
+                }
+            });
+        } catch (cleanupError) {
+            console.warn('WaveformControls: Error in expanded additional cleanup:', cleanupError);
+        }
+        
+    } catch (error) {
+        console.error('WaveformControls: Error in expanded immediate clear:', error);
+    }
+}
+
+// Helper function to force visual refresh of both waveforms
+function forceWaveformRefresh() {
+    console.log('WaveformControls: Forcing waveform refresh');
+    
+    // Force main waveform refresh with multiple methods
+    if (wavesurferInstance) {
+        try {
+            // Method 1: drawBuffer
+            if (wavesurferInstance.drawBuffer) {
+                wavesurferInstance.drawBuffer();
+                console.log('WaveformControls: Main waveform drawBuffer called');
+            }
+            
+            // Method 2: drawer methods
+            if (wavesurferInstance.drawer) {
+                if (wavesurferInstance.drawer.redraw) {
+                    wavesurferInstance.drawer.redraw();
+                    console.log('WaveformControls: Main waveform drawer.redraw called');
+                }
+                if (wavesurferInstance.drawer.recenter) {
+                    wavesurferInstance.drawer.recenter();
+                    console.log('WaveformControls: Main waveform drawer.recenter called');
+                }
+            }
+            
+            // Method 3: Force container refresh
+            if (waveformDisplayDiv) {
+                const currentWidth = waveformDisplayDiv.style.width;
+                waveformDisplayDiv.style.width = '99.99%';
+                setTimeout(() => {
+                    waveformDisplayDiv.style.width = currentWidth || '100%';
+                }, 1);
+            }
+            
+        } catch (error) {
+            console.warn('WaveformControls: Error forcing main waveform refresh:', error);
+        }
+    }
+    
+    // Force expanded waveform refresh with multiple methods
+    if (expandedWaveformInstance && isBottomPanelExpanded) {
+        try {
+            // Method 1: drawBuffer
+            if (expandedWaveformInstance.drawBuffer) {
+                expandedWaveformInstance.drawBuffer();
+                console.log('WaveformControls: Expanded waveform drawBuffer called');
+            }
+            
+            // Method 2: drawer methods
+            if (expandedWaveformInstance.drawer) {
+                if (expandedWaveformInstance.drawer.redraw) {
+                    expandedWaveformInstance.drawer.redraw();
+                    console.log('WaveformControls: Expanded waveform drawer.redraw called');
+                }
+                if (expandedWaveformInstance.drawer.recenter) {
+                    expandedWaveformInstance.drawer.recenter();
+                    console.log('WaveformControls: Expanded waveform drawer.recenter called');
+                }
+            }
+            
+            // Method 3: Force container refresh
+            if (expandedWaveformDisplay) {
+                const currentWidth = expandedWaveformDisplay.style.width;
+                expandedWaveformDisplay.style.width = '99.99%';
+                setTimeout(() => {
+                    expandedWaveformDisplay.style.width = currentWidth || '100%';
+                }, 1);
+            }
+            
+        } catch (error) {
+            console.warn('WaveformControls: Error forcing expanded waveform refresh:', error);
+        }
+    }
+    
+    console.log('WaveformControls: Waveform refresh completed');
 }
 
 // Added function to notify sidebars module
@@ -1281,8 +1688,8 @@ function updateTrimInputsFromRegionInternal(region) {
         const allRegions = wsRegions.getRegions();
         if (!allRegions['trimRegion']) { // Check if 'trimRegion' specifically is gone
             console.log('WaveformControls (updateTrimInputsFromRegionInternal): trimRegion removed. Effective trim is full duration.');
-            const totalDuration = wavesurferInstance ? wavesurferInstance.getDuration() : 0;
-            notifyCuePropertiesPanelOfTrimChange(0, totalDuration); 
+            // Notify with undefined end to mean "play to end" rather than forcing end to duration.
+            notifyCuePropertiesPanelOfTrimChange(0, undefined);
         }
     } else {
         console.log('WaveformControls (updateTrimInputsFromRegionInternal): called with non-trimRegion or no region change relevant to trim inputs.', region ? region.id : 'no region', wsRegions ? Object.keys(wsRegions.getRegions()) : 'no wsRegions');
@@ -1296,28 +1703,173 @@ function styleRegionsInternal() {
         console.warn("WaveformControls: styleRegionsInternal - wsRegions or wavesurferInstance not ready.");
         return;
     }
-    const allCurrentRegions = wsRegions.getRegions();
-    console.log("WaveformControls: styleRegionsInternal invoked. Current regions before styling:", allCurrentRegions.map(r => r.id));
+    
+    // Get regions using the same approach as other functions
+    let allCurrentRegions = wsRegions.getRegions();
+    const regionsArray = Array.isArray(allCurrentRegions) ? allCurrentRegions : Object.values(allCurrentRegions || {});
+    console.log("WaveformControls: styleRegionsInternal invoked. Current regions before styling:", regionsArray.map(r => r.id));
 
-    // Remove any existing dimming regions
-    allCurrentRegions.forEach(reg => {
-        if (reg.id !== 'trimRegion') {
-            console.log(`WaveformControls: Removing old dimming region: ${reg.id}`);
-            try { reg.remove(); } catch (e) { console.warn(`WaveformControls: Minor error removing ${reg.id}`, e); }
+    // ALWAYS remove any existing cut overlay regions first
+    console.log("WaveformControls: Looking for existing cut overlay regions to remove...");
+    regionsArray.forEach(reg => {
+        if (reg && (reg.id === 'mainCutStart' || reg.id === 'mainCutEnd')) {
+            console.log(`WaveformControls: Removing old cut overlay region: ${reg.id}`);
+            try { 
+                if (typeof reg.remove === 'function') {
+                    reg.remove(); 
+                    console.log(`WaveformControls: Successfully removed cut overlay: ${reg.id}`);
+                } else {
+                    console.warn(`WaveformControls: Cut overlay ${reg.id} has no remove function`);
+                }
+            } catch (e) { 
+                console.error(`WaveformControls: Error removing cut overlay ${reg.id}:`, e); 
+            }
         }
     });
     
-    // Set the trimRegion to be more visible if it exists
-    const trimRegion = wsRegions.getRegions().find(r => r.id === 'trimRegion');
-    if (trimRegion && trimRegion.element) {
-        trimRegion.element.style.zIndex = '3';
-        
-        // Update the trimRegion color to be transparent (no visual overlay)
-        trimRegion.color = 'rgba(0, 0, 0, 0)';
-        trimRegion.update();
+    // Immediately check for any remaining cut overlays after removal attempt
+    const recheckRegions = wsRegions.getRegions();
+    const recheckArray = Array.isArray(recheckRegions) ? recheckRegions : Object.values(recheckRegions || {});
+    const remainingCutOverlays = recheckArray.filter(r => r && (r.id === 'mainCutStart' || r.id === 'mainCutEnd'));
+    if (remainingCutOverlays.length > 0) {
+        console.warn("WaveformControls: Cut overlays still exist after removal attempt:", remainingCutOverlays.map(r => r.id));
+        // Force remove any remaining
+        remainingCutOverlays.forEach(reg => {
+            try {
+                if (typeof reg.remove === 'function') {
+                    reg.remove();
+                    console.log(`WaveformControls: Force removed persistent cut overlay: ${reg.id}`);
+                }
+            } catch (e) {
+                console.error(`WaveformControls: Failed to force remove cut overlay ${reg.id}:`, e);
+            }
+        });
+    } else {
+        console.log("WaveformControls: Cut overlay removal successful - none remaining");
     }
     
-    console.log("WaveformControls: styleRegionsInternal completed. Current regions after styling:", wsRegions.getRegions().map(r => r.id));
+    // Get the current trim region
+    const updatedRegions = wsRegions.getRegions();
+    const updatedRegionsArray = Array.isArray(updatedRegions) ? updatedRegions : Object.values(updatedRegions || {});
+    const trimRegion = updatedRegionsArray.find(r => r && r.id === 'trimRegion');
+    
+    console.log('WaveformControls: Found trim region for styling:', !!trimRegion);
+    
+    if (trimRegion) {
+        console.log('WaveformControls: Trim region details:', {
+            start: trimRegion.start,
+            end: trimRegion.end,
+            hasElement: !!trimRegion.element
+        });
+        
+        if (trimRegion.element) {
+            trimRegion.element.style.zIndex = '3';
+            // Hide any visual elements from the trim region (handles, borders, etc.)
+            trimRegion.element.style.display = 'none';
+            trimRegion.element.style.visibility = 'hidden';
+            trimRegion.element.style.pointerEvents = 'none';
+        }
+        
+        // Keep the trimRegion transparent and hidden (no visual overlay on the kept area)
+        trimRegion.color = 'rgba(0, 0, 0, 0)';
+        if (typeof trimRegion.update === 'function') {
+            trimRegion.update();
+        }
+        
+        // Add cut region overlays like in the expanded editor
+        const totalDuration = wavesurferInstance.getDuration();
+        console.log('WaveformControls: Total duration for main editor overlays:', totalDuration);
+        
+        if (totalDuration && totalDuration > 0) {
+            console.log('WaveformControls: Adding cut overlays to main editor:', {
+                trimStart: trimRegion.start,
+                trimEnd: trimRegion.end,
+                totalDuration: totalDuration
+            });
+            
+            // Use consistent add method
+            const addMethod = wsRegions.add || wsRegions.addRegion;
+            if (!addMethod) {
+                console.error('WaveformControls: No add method available on main wsRegions');
+                return;
+            }
+            
+            // Add region from start to trim start (beginning cut region)
+            if (trimRegion.start > 0.001 && trimRegion.start <= totalDuration) {
+                try {
+                    console.log('WaveformControls: Creating main start cut region from 0 to', trimRegion.start);
+                    const startCutRegion = addMethod.call(wsRegions, {
+                        id: 'mainCutStart',
+                        start: 0,
+                        end: Math.min(trimRegion.start, totalDuration),
+                        color: 'rgba(85, 85, 85, 0.7)', // Dark gray with 70% opacity
+                        resize: false,
+                        drag: false
+                    });
+                    console.log('WaveformControls: Main start cut region created:', !!startCutRegion);
+                    
+                    // Force styling immediately if element exists
+                    if (startCutRegion && startCutRegion.element) {
+                        startCutRegion.element.style.zIndex = '2';
+                        startCutRegion.element.style.pointerEvents = 'none';
+                        startCutRegion.element.style.opacity = '0.7';
+                        console.log('WaveformControls: Applied styling to main start cut region element');
+                    }
+                } catch (startError) {
+                    console.error('WaveformControls: Error creating main start cut region:', startError);
+                }
+            } else {
+                console.log('WaveformControls: Skipping main start cut region (trimStart too small):', trimRegion.start);
+            }
+            
+            // Add region from trim end to total duration (ending cut region)
+            if (trimRegion.end < (totalDuration - 0.001) && trimRegion.end >= 0) {
+                try {
+                    console.log('WaveformControls: Creating main end cut region from', trimRegion.end, 'to', totalDuration);
+                    const endCutRegion = addMethod.call(wsRegions, {
+                        id: 'mainCutEnd',
+                        start: Math.max(trimRegion.end, 0),
+                        end: totalDuration,
+                        color: 'rgba(85, 85, 85, 0.7)', // Dark gray with 70% opacity
+                        resize: false,
+                        drag: false
+                    });
+                    console.log('WaveformControls: Main end cut region created:', !!endCutRegion);
+                    
+                    // Force styling immediately if element exists
+                    if (endCutRegion && endCutRegion.element) {
+                        endCutRegion.element.style.zIndex = '2';
+                        endCutRegion.element.style.pointerEvents = 'none';
+                        endCutRegion.element.style.opacity = '0.7';
+                        console.log('WaveformControls: Applied styling to main end cut region element');
+                    }
+                } catch (endError) {
+                    console.error('WaveformControls: Error creating main end cut region:', endError);
+                }
+            } else {
+                console.log('WaveformControls: Skipping main end cut region (trimEnd too large):', trimRegion.end, 'vs', totalDuration);
+            }
+            
+            // Force a visual refresh of the main waveform
+            setTimeout(() => {
+                if (wavesurferInstance && wavesurferInstance.drawBuffer) {
+                    try {
+                        wavesurferInstance.drawBuffer();
+                        console.log('WaveformControls: Forced main waveform redraw after styling');
+                    } catch (drawError) {
+                        console.warn('WaveformControls: Error forcing main waveform redraw:', drawError);
+                    }
+                }
+            }, 50);
+        }
+    } else {
+        console.log('WaveformControls: No trim region found for styling');
+    }
+    
+    // Get final regions state
+    const finalRegions = wsRegions.getRegions();
+    const finalRegionsArray = Array.isArray(finalRegions) ? finalRegions : Object.values(finalRegions || {});
+    console.log("WaveformControls: styleRegionsInternal completed. Current regions after styling:", finalRegionsArray.map(r => r ? r.id : 'null'));
 }
 
 // --- Public API ---
@@ -1361,13 +1913,31 @@ function hideAndDestroyWaveform() {
  */
 function getCurrentTrimTimes() {
     if (wavesurferInstance && wsRegions) {
-        const trimRegion = wsRegions.getRegions().find(r => r.id === 'trimRegion');
+        const regions = wsRegions.getRegions();
+        let trimRegion = null;
+        
+        // Handle both array and object formats
+        if (Array.isArray(regions)) {
+            trimRegion = regions.find(r => r && r.id === 'trimRegion');
+        } else if (regions && typeof regions === 'object') {
+            trimRegion = regions['trimRegion'];
+        }
+        
         if (trimRegion) {
+            console.log('WaveformControls (getCurrentTrimTimes): Found trimRegion:', {
+                start: trimRegion.start,
+                end: trimRegion.end
+            });
             return {
                 trimStartTime: trimRegion.start,
                 trimEndTime: trimRegion.end
             };
+        } else {
+            console.log('WaveformControls (getCurrentTrimTimes): No trimRegion found. Available regions:', 
+                Array.isArray(regions) ? regions.map(r => r.id) : Object.keys(regions || {}));
         }
+    } else {
+        console.log('WaveformControls (getCurrentTrimTimes): wavesurferInstance or wsRegions not available');
     }
     return null; 
 }
@@ -1420,19 +1990,28 @@ window.waveformTest = function() {
  * Expands the bottom waveform panel for enhanced editing
  */
 function expandBottomPanel() {
+    console.log('WaveformControls: expandBottomPanel called');
+    
     if (!wavesurferInstance) {
-        console.warn('WaveformControls: No waveform instance available, cannot expand bottom panel');
+        console.error('WaveformControls: No waveform instance available, cannot expand bottom panel');
+        console.log('WaveformControls: wavesurferInstance is:', wavesurferInstance);
         return;
     }
     
     if (!currentAudioFilePath) {
-        console.warn('WaveformControls: No audio file loaded, cannot expand bottom panel');
+        console.error('WaveformControls: No audio file loaded, cannot expand bottom panel');
+        console.log('WaveformControls: currentAudioFilePath is:', currentAudioFilePath);
         return;
     }
     
-    console.log('WaveformControls: Expanding bottom panel');
+    console.log('WaveformControls: ✅ Expanding bottom panel - prerequisites met');
     console.log('WaveformControls: Current audio file path:', currentAudioFilePath);
-    console.log('WaveformControls: Main waveform instance:', wavesurferInstance);
+    console.log('WaveformControls: Main waveform instance exists:', !!wavesurferInstance);
+    
+    // Debug DOM elements
+    console.log('WaveformControls: Checking DOM elements...');
+    console.log('WaveformControls: bottomWaveformPanel exists:', !!bottomWaveformPanel);
+    console.log('WaveformControls: expandedWaveformDisplay exists:', !!expandedWaveformDisplay);
     
     // Debug: Check if main waveform has trim regions
     if (wsRegions) {
@@ -1483,9 +2062,12 @@ function expandBottomPanel() {
         updateSizeButtons();
         
         // Create expanded waveform
+        console.log('WaveformControls: About to call createExpandedWaveform()');
         createExpandedWaveform();
+        console.log('WaveformControls: createExpandedWaveform() call completed');
     } else {
         console.error('WaveformControls: bottomWaveformPanel not found');
+        console.error('WaveformControls: Available elements:', Object.keys(document.getElementById('bottomWaveformPanel') || {}));
     }
 }
 
@@ -1508,16 +2090,25 @@ function collapseBottomPanel() {
         expandedWaveformInstance = null;
     }
     
-    // Clean up regions reference
+    // Clean up regions reference with enhanced error handling
     if (window.expandedWsRegions) {
         // Try to clear any remaining regions
         try {
             const regions = window.expandedWsRegions.getRegions();
-            const cutStartRegion = regions.find(r => r.id === 'expandedCutStart');
-            const cutEndRegion = regions.find(r => r.id === 'expandedCutEnd');
+            const regionsArray = Array.isArray(regions) ? regions : Object.values(regions || {});
             
-            if (cutStartRegion) cutStartRegion.remove();
-            if (cutEndRegion) cutEndRegion.remove();
+            regionsArray.forEach(region => {
+                if (region && (region.id === 'expandedCutStart' || region.id === 'expandedCutEnd')) {
+                    try {
+                        if (typeof region.remove === 'function') {
+                            region.remove();
+                            console.log('WaveformControls: Cleaned up region:', region.id);
+                        }
+                    } catch (removeError) {
+                        console.warn('WaveformControls: Error removing region during cleanup:', region.id, removeError);
+                    }
+                }
+            });
         } catch (error) {
             console.warn('WaveformControls: Error cleaning up regions:', error);
         }
@@ -1525,12 +2116,35 @@ function collapseBottomPanel() {
         window.expandedWsRegions = null;
     }
     
-    // Clear the expanded waveform display completely
+    // Clear the expanded waveform display completely with enhanced zoom cleanup
     if (expandedWaveformDisplay) {
+        // Remove stored event handlers
+        if (expandedWaveformDisplay._wheelHandler) {
+            expandedWaveformDisplay.removeEventListener('wheel', expandedWaveformDisplay._wheelHandler);
+            delete expandedWaveformDisplay._wheelHandler;
+            console.log('WaveformControls: Removed wheel handler during cleanup');
+        }
+        if (expandedWaveformDisplay._dblClickHandler) {
+            expandedWaveformDisplay.removeEventListener('dblclick', expandedWaveformDisplay._dblClickHandler);
+            delete expandedWaveformDisplay._dblClickHandler;
+            console.log('WaveformControls: Removed dblclick handler during cleanup');
+        }
+        
+        // Clean up canvas event listeners too
+        const canvasElements = expandedWaveformDisplay.querySelectorAll('canvas');
+        canvasElements.forEach((canvas, index) => {
+            if (canvas.hasAttribute('data-zoom-setup')) {
+                canvas.removeAttribute('data-zoom-setup');
+                console.log('WaveformControls: Cleaned up canvas zoom setup', index);
+            }
+        });
+        
         expandedWaveformDisplay.innerHTML = '';
         expandedWaveformDisplay.style.height = '0px';
         // Remove zoom setup marker so it can be set up again
         expandedWaveformDisplay.removeAttribute('data-zoom-setup');
+        
+        console.log('WaveformControls: Expanded waveform display cleaned up');
     }
     
     // Update UI - force hide the panel
@@ -1603,12 +2217,20 @@ function updateSizeButtons() {
 /**
  * Creates the expanded waveform in the bottom panel
  */
-let expandedWaveformInstance = null;
 
 function createExpandedWaveform() {
-    if (!expandedWaveformDisplay || !wavesurferInstance) return;
+    console.log('WaveformControls: 🔧 createExpandedWaveform() called');
+    console.log('WaveformControls: expandedWaveformDisplay exists:', !!expandedWaveformDisplay);
+    console.log('WaveformControls: wavesurferInstance exists:', !!wavesurferInstance);
     
-    console.log('WaveformControls: Creating expanded waveform');
+    if (!expandedWaveformDisplay || !wavesurferInstance) {
+        console.error('WaveformControls: Cannot create expanded waveform - missing requirements');
+        console.error('WaveformControls: expandedWaveformDisplay:', expandedWaveformDisplay);
+        console.error('WaveformControls: wavesurferInstance:', wavesurferInstance);
+        return;
+    }
+    
+    console.log('WaveformControls: ✅ Creating expanded waveform - requirements met');
     
     try {
         // Clean up existing expanded waveform
@@ -1642,54 +2264,158 @@ function createExpandedWaveform() {
 }
 
 function createExpandedWaveformDelayed(waveformHeight) {
+    console.log('WaveformControls: 🚀 createExpandedWaveformDelayed() called with height:', waveformHeight);
+    
     // Check container dimensions after DOM update
     const containerRect = expandedWaveformDisplay.getBoundingClientRect();
     console.log('WaveformControls: Container dimensions after setup:', containerRect.width, 'x', containerRect.height);
+    console.log('WaveformControls: Container element:', expandedWaveformDisplay);
+    console.log('WaveformControls: Container innerHTML before creation:', expandedWaveformDisplay.innerHTML);
     
     if (containerRect.width === 0 || containerRect.height === 0) {
         console.error('WaveformControls: Container has zero dimensions, cannot create waveform');
         expandedWaveformDisplay.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #ff6b6b; font-size: 14px;">Container not ready</div>';
         return;
     }
+    
+    // Verify WaveSurfer is available
+    if (typeof WaveSurfer === 'undefined') {
+        console.error('WaveformControls: WaveSurfer is not available for expanded waveform');
+        expandedWaveformDisplay.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #ff6b6b; font-size: 14px;">WaveSurfer not loaded</div>';
+        return;
+    }
         
-    // Create simplified WaveSurfer instance
+    // Create simplified WaveSurfer instance with enhanced configuration
     console.log('WaveformControls: Creating WaveSurfer instance with height:', waveformHeight);
+    console.log('WaveformControls: Audio file path:', currentAudioFilePath);
     
     try {
-        expandedWaveformInstance = WaveSurfer.create({
+        // Enhanced WaveSurfer configuration for better reliability
+        const waveformConfig = {
             container: expandedWaveformDisplay,
             waveColor: 'rgb(85, 85, 85)', // Light gray same as smaller editor 
             progressColor: 'rgb(120, 120, 120)', // Darker gray same as smaller editor
             cursorColor: 'rgb(204, 204, 204)', // Light gray cursor same as smaller editor
             height: waveformHeight,
             normalize: true,
-            pixelRatio: 1,
+            pixelRatio: window.devicePixelRatio || 1,
             barWidth: 2,
             barGap: 1,
+            // Force immediate rendering
+            hideScrollbar: false,
+            autoCenter: false,
+            // Add debugging
+            interact: true,
             plugins: [
                 WaveSurfer.Regions.create({
                     dragSelection: false // Disable drag selection but allow regions
                 })
             ]
-        });
+        };
         
-        console.log('WaveformControls: WaveSurfer instance created, loading audio...');
+        console.log('WaveformControls: WaveSurfer config:', waveformConfig);
+        console.log('WaveformControls: About to call WaveSurfer.create()...');
         
-        // Load the audio file
+        expandedWaveformInstance = WaveSurfer.create(waveformConfig);
+        
+        console.log('WaveformControls: ✅ WaveSurfer instance created successfully:', !!expandedWaveformInstance);
+        console.log('WaveformControls: Instance type:', typeof expandedWaveformInstance);
+        if (expandedWaveformInstance) {
+            console.log('WaveformControls: Instance methods available:', Object.getOwnPropertyNames(expandedWaveformInstance.__proto__));
+        }
+        
+        // Verify the instance was created properly
+        if (!expandedWaveformInstance) {
+            throw new Error('WaveSurfer instance creation returned null/undefined');
+        }
+        
+        // Set up event listeners BEFORE loading audio
+        setupExpandedWaveformEvents();
+        
+        // Load the audio file with verification
         if (currentAudioFilePath) {
-            expandedWaveformInstance.load(currentAudioFilePath);
-            console.log('WaveformControls: Audio loading initiated for:', currentAudioFilePath);
+            console.log('WaveformControls: Loading audio file:', currentAudioFilePath);
+            
+            // Add loading progress tracking
+            expandedWaveformInstance.on('loading', (percent) => {
+                console.log('WaveformControls: Expanded waveform loading progress:', percent + '%');
+                
+                // Update container to show loading progress
+                if (percent < 100) {
+                    expandedWaveformDisplay.style.position = 'relative';
+                    if (!expandedWaveformDisplay.querySelector('.loading-overlay')) {
+                        const loadingOverlay = document.createElement('div');
+                        loadingOverlay.className = 'loading-overlay';
+                        loadingOverlay.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ccc; font-size: 14px; z-index: 100;';
+                        loadingOverlay.textContent = `Loading... ${Math.round(percent)}%`;
+                        expandedWaveformDisplay.appendChild(loadingOverlay);
+                    } else {
+                        expandedWaveformDisplay.querySelector('.loading-overlay').textContent = `Loading... ${Math.round(percent)}%`;
+                    }
+                }
+            });
+            
+            expandedWaveformInstance.on('ready', () => {
+                console.log('WaveformControls: Expanded waveform ready event fired');
+                
+                // Remove loading overlay
+                const loadingOverlay = expandedWaveformDisplay.querySelector('.loading-overlay');
+                if (loadingOverlay) {
+                    loadingOverlay.remove();
+                }
+                
+                // Check if canvas was created and set up zoom
+                setTimeout(() => {
+                    const canvas = expandedWaveformDisplay.querySelector('canvas');
+                    const waveSurferDiv = expandedWaveformDisplay.querySelector('.wavesurfer');
+                    console.log('WaveformControls: After ready - Canvas found:', !!canvas);
+                    console.log('WaveformControls: After ready - WaveSurfer div found:', !!waveSurferDiv); 
+                    console.log('WaveformControls: After ready - Container HTML:', expandedWaveformDisplay.innerHTML.substring(0, 300));
+                    
+                    if (canvas) {
+                        console.log('WaveformControls: Canvas dimensions:', canvas.width, 'x', canvas.height);
+                        console.log('WaveformControls: Canvas visible:', canvas.offsetWidth > 0 && canvas.offsetHeight > 0);
+                        
+                        // Set up zoom functionality now that canvas exists
+                        console.log('WaveformControls: Setting up zoom on confirmed canvas');
+                        // First set up the main zoom handlers on the container
+                        setupExpandedWaveformZoom();
+                        // Then set up handlers on canvas elements
+                        setupExpandedZoomAfterReady();
+                        
+
+                    } else {
+                        console.error('WaveformControls: No canvas found after ready event - zoom will not work');
+                        console.log('WaveformControls: Available elements:', Array.from(expandedWaveformDisplay.children).map(el => el.tagName + '.' + el.className));
+                    }
+                }, 100);
+            });
+            
+            expandedWaveformInstance.on('error', (error) => {
+                console.error('WaveformControls: Expanded waveform error:', error);
+                expandedWaveformDisplay.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #ff6b6b; font-size: 14px;">Error: ' + (error.message || 'Unknown error') + '</div>';
+            });
+            
+            // Load the audio
+            console.log('WaveformControls: About to load audio:', currentAudioFilePath);
+            try {
+                expandedWaveformInstance.load(currentAudioFilePath);
+                console.log('WaveformControls: ✅ Audio loading initiated successfully');
+            } catch (loadError) {
+                console.error('WaveformControls: Error during audio load:', loadError);
+                throw loadError;
+            }
+            
         } else {
             throw new Error('No audio file path available');
         }
         
     } catch (error) {
         console.error('WaveformControls: Error creating/loading WaveSurfer:', error);
+        console.error('WaveformControls: Error stack:', error.stack);
         expandedWaveformDisplay.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #ff6b6b; font-size: 14px;">Error: ' + error.message + '</div>';
         return;
     }
-    // Set up event listeners for the expanded waveform
-    setupExpandedWaveformEvents();
 }
 
 function setupExpandedWaveformEvents() {
@@ -1701,37 +2427,31 @@ function setupExpandedWaveformEvents() {
     expandedWaveformInstance.on('ready', () => {
         console.log('WaveformControls: Expanded waveform ready');
         
-        // Debug: Check if waveform canvas exists and set up zoom
-        setTimeout(() => {
-            const canvas = expandedWaveformDisplay.querySelector('canvas');
-            if (canvas) {
-                console.log('WaveformControls: SUCCESS - Canvas found after ready event:', canvas.width, 'x', canvas.height);
-                console.log('WaveformControls: Canvas is visible:', canvas.offsetWidth > 0 && canvas.offsetHeight > 0);
-                
-                // Set up zoom functionality for expanded waveform
-                setupExpandedWaveformZoom();
-            } else {
-                console.error('WaveformControls: ERROR - No canvas found after ready event!');
-                console.log('WaveformControls: Container HTML:', expandedWaveformDisplay.innerHTML);
-                console.log('WaveformControls: Container children:', expandedWaveformDisplay.children.length);
-            }
-        }, 100);
+        // Zoom setup is now handled in the ready event after canvas is confirmed
         
-        // Set up regions for visual trim feedback with retry logic
-        setTimeout(() => {
-            console.log('WaveformControls: About to setup regions after 300ms delay');
+        // Set up regions for visual trim feedback with enhanced retry logic
+        let regionSetupAttempts = 0;
+        const maxRegionSetupAttempts = 5;
+        
+        const attemptRegionSetup = () => {
+            regionSetupAttempts++;
+            console.log(`WaveformControls: Region setup attempt ${regionSetupAttempts}/${maxRegionSetupAttempts}`);
+            
             const duration = expandedWaveformInstance.getDuration();
-            console.log('WaveformControls: Duration available at 300ms:', duration);
+            console.log('WaveformControls: Duration available:', duration);
             
             if (duration && duration > 0) {
                 setupExpandedWaveformRegionsAfterReady();
+            } else if (regionSetupAttempts < maxRegionSetupAttempts) {
+                console.log(`WaveformControls: Duration not ready, retrying in ${200 * regionSetupAttempts}ms`);
+                setTimeout(attemptRegionSetup, 200 * regionSetupAttempts);
             } else {
-                console.log('WaveformControls: Duration not ready, retrying in 500ms');
-                setTimeout(() => {
-                    setupExpandedWaveformRegionsAfterReady();
-                }, 500);
+                console.warn('WaveformControls: Failed to set up regions after maximum attempts');
             }
-        }, 300);
+        };
+        
+        // Start first attempt after a brief delay
+        setTimeout(attemptRegionSetup, 300);
         
         // Set up time display updates
         expandedWaveformInstance.on('audioprocess', updateExpandedTimeDisplay);
@@ -1805,6 +2525,13 @@ function setupExpandedWaveformRegionsAfterReady() {
     
     console.log('WaveformControls: Setting up expanded waveform regions after ready');
     
+    // Verify the expanded waveform is actually ready
+    const totalDuration = expandedWaveformInstance.getDuration();
+    if (!totalDuration || totalDuration <= 0) {
+        console.warn('WaveformControls: Expanded waveform not ready yet, duration:', totalDuration);
+        return;
+    }
+    
     // Try multiple approaches to get the regions plugin
     let expandedWsRegions = null;
     
@@ -1835,8 +2562,31 @@ function setupExpandedWaveformRegionsAfterReady() {
         console.log('WaveformControls: Found regions plugin:', !!expandedWsRegions);
         
         if (expandedWsRegions) {
-            // Store reference for later use
+            // Store reference for later use with persistence
             window.expandedWsRegions = expandedWsRegions;
+            
+            // Add event listeners to track region changes for persistence
+            try {
+                if (expandedWsRegions.on) {
+                    expandedWsRegions.on('region-created', (region) => {
+                        console.log('WaveformControls: Expanded region created:', region.id);
+                        if (region.id === 'expandedCutStart' || region.id === 'expandedCutEnd') {
+                            // Force visual styling for cut regions
+                            if (region.element) {
+                                region.element.style.zIndex = '2';
+                                region.element.style.pointerEvents = 'none';
+                                region.element.style.opacity = '0.7';
+                            }
+                        }
+                    });
+                    
+                    expandedWsRegions.on('region-removed', (region) => {
+                        console.log('WaveformControls: Expanded region removed:', region.id);
+                    });
+                }
+            } catch (eventError) {
+                console.warn('WaveformControls: Could not set up region event listeners:', eventError);
+            }
             
             // Copy trim region from main waveform if it exists
             if (wsRegions) {
@@ -1848,48 +2598,74 @@ function setupExpandedWaveformRegionsAfterReady() {
                 if (trimRegion) {
                     console.log('WaveformControls: Adding cut regions to expanded waveform:', {
                         trimStart: trimRegion.start,
-                        trimEnd: trimRegion.end
+                        trimEnd: trimRegion.end,
+                        totalDuration: totalDuration
                     });
                     
                     try {
                         // Use add method if available, otherwise addRegion
                         const addMethod = expandedWsRegions.add || expandedWsRegions.addRegion;
                         if (addMethod) {
-                            const totalDuration = expandedWaveformInstance.getDuration();
                             console.log('WaveformControls: Initial setup - Total duration:', totalDuration);
                             
-                            if (!totalDuration || totalDuration <= 0) {
-                                console.warn('WaveformControls: Invalid total duration during initial setup, cannot create cut regions');
-                                return;
-                            }
-                            
-                            // Add region from start to trim start (beginning cut region)
-                            if (trimRegion.start > 0) {
-                                addMethod.call(expandedWsRegions, {
+                            // Add region from start to trim start (beginning cut region) with enhanced validation
+                            if (trimRegion.start > 0.001 && trimRegion.start <= totalDuration) {
+                                const startRegionConfig = {
                                     id: 'expandedCutStart',
                                     start: 0,
-                                    end: trimRegion.start,
+                                    end: Math.min(trimRegion.start, totalDuration),
                                     color: 'rgba(85, 85, 85, 0.7)', // Dark gray with 70% opacity
                                     resize: false, 
                                     drag: false
-                                });
-                                console.log('WaveformControls: Added start cut region (0 to', trimRegion.start + ')');
+                                };
+                                
+                                const startRegion = addMethod.call(expandedWsRegions, startRegionConfig);
+                                console.log('WaveformControls: Added start cut region (0 to', startRegionConfig.end + ')');
+                                
+                                // Force styling immediately if element exists
+                                if (startRegion && startRegion.element) {
+                                    startRegion.element.style.zIndex = '2';
+                                    startRegion.element.style.pointerEvents = 'none';
+                                    startRegion.element.style.opacity = '0.7';
+                                }
                             }
                             
-                            // Add region from trim end to total duration (ending cut region)
-                            if (trimRegion.end < totalDuration) {
-                                addMethod.call(expandedWsRegions, {
+                            // Add region from trim end to total duration (ending cut region) with enhanced validation
+                            if (trimRegion.end < (totalDuration - 0.001) && trimRegion.end >= 0) {
+                                const endRegionConfig = {
                                     id: 'expandedCutEnd',
-                                    start: trimRegion.end,
+                                    start: Math.max(trimRegion.end, 0),
                                     end: totalDuration,
                                     color: 'rgba(85, 85, 85, 0.7)', // Dark gray with 70% opacity
                                     resize: false, 
                                     drag: false
-                                });
-                                console.log('WaveformControls: Added end cut region (' + trimRegion.end + ' to', totalDuration + ')');
+                                };
+                                
+                                const endRegion = addMethod.call(expandedWsRegions, endRegionConfig);
+                                console.log('WaveformControls: Added end cut region (' + endRegionConfig.start + ' to', endRegionConfig.end + ')');
+                                
+                                // Force styling immediately if element exists
+                                if (endRegion && endRegion.element) {
+                                    endRegion.element.style.zIndex = '2';
+                                    endRegion.element.style.pointerEvents = 'none';
+                                    endRegion.element.style.opacity = '0.7';
+                                }
                             }
                             
-                            console.log('WaveformControls: SUCCESS - Expanded cut regions added');
+                            console.log('WaveformControls: SUCCESS - Expanded cut regions added with persistence');
+                            
+                            // Force a visual refresh after region creation
+                            setTimeout(() => {
+                                if (expandedWaveformInstance && expandedWaveformInstance.drawBuffer) {
+                                    try {
+                                        expandedWaveformInstance.drawBuffer();
+                                        console.log('WaveformControls: Forced waveform redraw after region setup');
+                                    } catch (drawError) {
+                                        console.warn('WaveformControls: Error forcing waveform redraw:', drawError);
+                                    }
+                                }
+                            }, 100);
+                            
                         } else {
                             console.warn('WaveformControls: No add method found on regions plugin');
                         }
@@ -1928,16 +2704,36 @@ function syncTrimRegions() {
     console.log('WaveformControls: Syncing cut regions');
     
     try {
-        // Clear existing expanded cut regions
-        const expandedRegions = window.expandedWsRegions.getRegions();
-        const oldStartRegion = expandedRegions.find(r => r.id === 'expandedCutStart');
-        const oldEndRegion = expandedRegions.find(r => r.id === 'expandedCutEnd');
-        
-        if (oldStartRegion) {
-            oldStartRegion.remove();
+        // Ensure expanded waveform is ready before syncing
+        const totalDuration = expandedWaveformInstance.getDuration();
+        if (!totalDuration || totalDuration <= 0) {
+            console.warn('WaveformControls: Expanded waveform not ready for region sync, retrying...');
+            // Retry after a delay
+            setTimeout(() => {
+                syncTrimRegions();
+            }, 200);
+            return;
         }
-        if (oldEndRegion) {
-            oldEndRegion.remove();
+        
+        // Clear existing expanded cut regions with better error handling
+        try {
+            const expandedRegions = window.expandedWsRegions.getRegions();
+            const regionsArray = Array.isArray(expandedRegions) ? expandedRegions : Object.values(expandedRegions || {});
+            
+            regionsArray.forEach(region => {
+                if (region && (region.id === 'expandedCutStart' || region.id === 'expandedCutEnd')) {
+                    try {
+                        if (typeof region.remove === 'function') {
+                            region.remove();
+                            console.log('WaveformControls: Removed old cut region:', region.id);
+                        }
+                    } catch (removeError) {
+                        console.warn('WaveformControls: Error removing region:', region.id, removeError);
+                    }
+                }
+            });
+        } catch (clearError) {
+            console.warn('WaveformControls: Error clearing existing regions:', clearError);
         }
         
         // Get current trim region from main waveform
@@ -1947,45 +2743,78 @@ function syncTrimRegions() {
             (mainRegions ? mainRegions['trimRegion'] : null);
         
         if (mainTrimRegion) {
-            const totalDuration = expandedWaveformInstance.getDuration();
             console.log('WaveformControls: Total duration for cut regions:', totalDuration);
             console.log('WaveformControls: Main trim region:', {
                 start: mainTrimRegion.start,
                 end: mainTrimRegion.end
             });
             
-            if (!totalDuration || totalDuration <= 0) {
-                console.warn('WaveformControls: Invalid total duration, cannot create cut regions');
+            // Use consistent add method
+            const addMethod = window.expandedWsRegions.add || window.expandedWsRegions.addRegion;
+            if (!addMethod) {
+                console.error('WaveformControls: No add method available on expanded regions');
                 return;
             }
             
-            // Add cut region from start to trim start (beginning cut region)
-            if (mainTrimRegion.start > 0) {
-                window.expandedWsRegions.add({
-                    id: 'expandedCutStart',
-                    start: 0,
-                    end: mainTrimRegion.start,
-                    color: 'rgba(85, 85, 85, 0.7)', // Dark gray with 70% opacity
-                    resize: false,
-                    drag: false
-                });
-                console.log('WaveformControls: Synced start cut region (0 to', mainTrimRegion.start + ')');
+            // Add cut region from start to trim start (beginning cut region) with delay
+            if (mainTrimRegion.start > 0.001) { // Small threshold to avoid zero-width regions
+                try {
+                    const startRegion = addMethod.call(window.expandedWsRegions, {
+                        id: 'expandedCutStart',
+                        start: 0,
+                        end: mainTrimRegion.start,
+                        color: 'rgba(85, 85, 85, 0.7)', // Dark gray with 70% opacity
+                        resize: false,
+                        drag: false
+                    });
+                    console.log('WaveformControls: Created start cut region (0 to', mainTrimRegion.start + ')');
+                    
+                    // Force redraw of the region
+                    if (startRegion && startRegion.element) {
+                        startRegion.element.style.zIndex = '2';
+                        startRegion.element.style.pointerEvents = 'none'; // Prevent interference with interactions
+                    }
+                } catch (startError) {
+                    console.error('WaveformControls: Error creating start cut region:', startError);
+                }
             }
             
-            // Add cut region from trim end to total duration (ending cut region)
-            if (mainTrimRegion.end < totalDuration) {
-                window.expandedWsRegions.add({
-                    id: 'expandedCutEnd',
-                    start: mainTrimRegion.end,
-                    end: totalDuration,
-                    color: 'rgba(85, 85, 85, 0.7)', // Dark gray with 70% opacity
-                    resize: false,
-                    drag: false
-                });
-                console.log('WaveformControls: Synced end cut region (' + mainTrimRegion.end + ' to', totalDuration + ')');
+            // Add cut region from trim end to total duration (ending cut region) with delay
+            if (mainTrimRegion.end < (totalDuration - 0.001)) { // Small threshold to avoid zero-width regions
+                try {
+                    const endRegion = addMethod.call(window.expandedWsRegions, {
+                        id: 'expandedCutEnd',
+                        start: mainTrimRegion.end,
+                        end: totalDuration,
+                        color: 'rgba(85, 85, 85, 0.7)', // Dark gray with 70% opacity
+                        resize: false,
+                        drag: false
+                    });
+                    console.log('WaveformControls: Created end cut region (' + mainTrimRegion.end + ' to', totalDuration + ')');
+                    
+                    // Force redraw of the region
+                    if (endRegion && endRegion.element) {
+                        endRegion.element.style.zIndex = '2';
+                        endRegion.element.style.pointerEvents = 'none'; // Prevent interference with interactions
+                    }
+                } catch (endError) {
+                    console.error('WaveformControls: Error creating end cut region:', endError);
+                }
             }
             
             console.log('WaveformControls: Cut regions synced to expanded waveform');
+            
+            // Force a visual refresh of the expanded waveform after a brief delay
+            setTimeout(() => {
+                if (expandedWaveformInstance && expandedWaveformInstance.drawBuffer) {
+                    try {
+                        expandedWaveformInstance.drawBuffer();
+                    } catch (drawError) {
+                        console.warn('WaveformControls: Error forcing waveform redraw:', drawError);
+                    }
+                }
+            }, 50);
+            
         } else {
             console.log('WaveformControls: No trim region to sync (all regions cleared)');
         }

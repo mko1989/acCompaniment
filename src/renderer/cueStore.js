@@ -42,6 +42,14 @@ function _handleCuesUpdated(updatedCues) {
                 isDuckingTrigger: cue.isDuckingTrigger !== undefined ? cue.isDuckingTrigger : false,
                 duckingLevel: cue.duckingLevel !== undefined ? cue.duckingLevel : 80,
             };
+            // Ensure trim defaults are respected: start defaults to 0, end remains undefined if not set
+            if (newMappedCue.trimStartTime === undefined || newMappedCue.trimStartTime === null) {
+                newMappedCue.trimStartTime = 0;
+            }
+            if (newMappedCue.trimEndTime === 0) {
+                // Interpret 0 end as unset; use undefined so UI shows "End" and playback calculates correctly
+                delete newMappedCue.trimEndTime;
+            }
             console.log(`CueStore (_handleCuesUpdated MAP): Mapped cue ID ${cue.id}. Renderer version:`, JSON.parse(JSON.stringify(newMappedCue)));
             return newMappedCue;
         });

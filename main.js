@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu, dialog, screen, nativeTheme } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, dialog, screen, nativeTheme, session } = require('electron');
 const path = require('node:path');
 const fs = require('fs-extra'); // For file system operations
 
@@ -341,6 +341,19 @@ function getMenuTemplate(mainWindow, cueManager, workspaceManager, appConfigMana
 // --- Electron App Lifecycle Events ---
 app.whenReady().then(async () => {
   console.log('MAIN_JS: App is ready, starting createWindow...');
+
+  // Block microphone/camera permission prompts unless explicitly allowed later
+  try {
+    session.defaultSession.setPermissionRequestHandler((wc, permission, callback, details) => {
+      if (permission === 'media') {
+        console.log('Permission request (media) blocked by default. Details:', details);
+        return callback(false);
+      }
+      callback(false);
+    });
+  } catch (e) {
+    console.warn('Failed to set permission request handler:', e);
+  }
   await createWindow();
   console.log('MAIN_JS: createWindow has completed.');
 

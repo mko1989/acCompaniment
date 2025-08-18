@@ -29,7 +29,8 @@ export function createPlaybackInstance(
         sendPlaybackTimeUpdate,
         _handlePlaylistEnd,
         _playTargetItem, // For error recovery
-        _applyDucking
+        _applyDucking,
+        allSoundInstances
     } = audioControllerContext;
 
     const sound = new Howl({
@@ -126,25 +127,38 @@ export function createPlaybackInstance(
             console.log(`[TIME_UPDATE_DEBUG ${cueId}] onplay: Fired for ${filePath}. isResumeForSeekAndFade: ${isResumeForSeekAndFade}`);
             
             // === Enhanced race condition protection START ===
-            // Check if this sound instance is stale or conflicting with a newer instance
-            const currentGlobalState = audioControllerContext.currentlyPlaying[cueId];
+            let currentGlobalState = null;
             
-            // If no global state exists, this sound instance is likely stale
-            if (!currentGlobalState) {
-                console.warn(`[RETRIGGER_DEBUG ${cueId}] onplay: No global state found for cue. This sound instance may be stale. Stopping.`);
-                if (sound.playing()) {
-                    sound.stop();
+            // Skip race condition checks for independent instances (multiple instance mode)
+            if (!playingState.isIndependentInstance) {
+                // Check if this sound instance is stale or conflicting with a newer instance
+                currentGlobalState = audioControllerContext.currentlyPlaying[cueId];
+                
+                // If no global state exists, this sound instance is likely stale
+                if (!currentGlobalState) {
+                    console.warn(`[RETRIGGER_DEBUG ${cueId}] onplay: No global state found for cue. This sound instance may be stale. Stopping.`);
+                    if (sound.playing()) {
+                        sound.stop();
+                    }
+                    return; 
                 }
-                return; 
-            }
-            
-            // If there's already a different sound instance in the global state, this one is stale
-            if (currentGlobalState.sound && currentGlobalState.sound !== sound) {
-                console.warn(`[RETRIGGER_DEBUG ${cueId}] onplay: Different sound instance already exists in global state. This instance is stale. Stopping.`);
-                if (sound.playing()) {
-                    sound.stop();
+                
+                // If there's already a different sound instance in the global state, this one is stale
+                if (currentGlobalState.sound && currentGlobalState.sound !== sound) {
+                    console.warn(`[RETRIGGER_DEBUG ${cueId}] onplay: Different sound instance already exists in global state. This instance is stale. Stopping.`);
+                    if (sound.playing()) {
+                        sound.stop();
+                    }
+                    return;
                 }
-                return;
+                
+                // Additional check: if the playingState passed to this function is different from current global state
+                if (playingState !== currentGlobalState) {
+                    console.warn(`[RETRIGGER_DEBUG ${cueId}] onplay: playingState from closure differs from current global state. This may be a stale instance.`);
+                    // Don't immediately stop - allow it to proceed but log the warning
+                }
+            } else {
+                console.log(`[RETRIGGER_DEBUG ${cueId}] onplay: Independent instance - skipping race condition checks.`);
             }
             
             // If this sound instance was marked for stopping with fade as part of retrigger behavior
@@ -155,19 +169,30 @@ export function createPlaybackInstance(
                 }
                 return; 
             }
-            
-            // Additional check: if the playingState passed to this function is different from current global state
-            if (playingState !== currentGlobalState) {
-                console.warn(`[RETRIGGER_DEBUG ${cueId}] onplay: playingState from closure differs from current global state. This may be a stale instance.`);
-                // Don't immediately stop - allow it to proceed but log the warning
-            }
             // === Enhanced race condition protection END ===
 
             playingState.sound = sound; // IMPORTANT: Update the sound reference in the shared playingState
             playingState.isPaused = false;
             
-            // Update current cue priority for Companion
-            if (audioControllerContext._updateCurrentCueForCompanion) {
+            // Track all sound instances for stop all functionality
+            const soundId = sound._id || `${cueId}_${Date.now()}_${Math.random()}`;
+            sound._acSoundId = soundId; // Store our custom ID on the sound
+            if (allSoundInstances) {
+                allSoundInstances[soundId] = { sound, cueId, playingState };
+                console.log(`[STOP_ALL_DEBUG] Registered sound instance ${soundId} for cue ${cueId}. Total instances: ${Object.keys(allSoundInstances).length}`);
+            }
+            
+            // Update global state only for managed instances, not independent instances
+            if (!playingState.isIndependentInstance) {
+                audioControllerContext.currentlyPlaying[cueId] = playingState;
+            }
+            
+            // Update current cue priority for Companion 
+            // For independent instances, only update if no managed instance exists
+            const shouldUpdateCompanion = !playingState.isIndependentInstance || 
+                                        !audioControllerContext.currentlyPlaying[cueId];
+            
+            if (shouldUpdateCompanion && audioControllerContext._updateCurrentCueForCompanion) {
                 audioControllerContext._updateCurrentCueForCompanion();
             }
 
@@ -371,7 +396,12 @@ export function createPlaybackInstance(
                 }
             }
 
-            if (ipcBindings && typeof ipcBindings.send === 'function') {
+            // Send status updates for UI feedback 
+            // For independent instances, only send if no managed instance exists
+            const shouldSendUIUpdates = !playingState.isIndependentInstance || 
+                                      !audioControllerContext.currentlyPlaying[cueId];
+            
+            if (shouldSendUIUpdates && ipcBindings && typeof ipcBindings.send === 'function') {
                 let statusDetails = {};
                 if (playingState.isPlaylist) {
                     statusDetails = {
@@ -379,26 +409,35 @@ export function createPlaybackInstance(
                         playlistItemName: currentItemNameForEvents
                     };
                 }
-                console.log(`[TIME_UPDATE_DEBUG ${cueId}] onplay: Sending cue-status-update (playing).`);
+                console.log(`[TIME_UPDATE_DEBUG ${cueId}] onplay: Sending cue-status-update (playing). IsIndependent: ${playingState.isIndependentInstance}`);
                 ipcBindings.send('cue-status-update', { cueId: cueId, status: 'playing', details: statusDetails });
             }
 
-            if (!playingState.isPlaylist && mainCue.trimEndTime > 0 && mainCue.trimEndTime > (mainCue.trimStartTime || 0)) {
-                const currentSeek = sound.seek() || 0;
-                const effectiveTrimStart = mainCue.trimStartTime || 0;
-                const remainingDuration = (mainCue.trimEndTime - Math.max(currentSeek, effectiveTrimStart)) * 1000;
+            // Get the latest cue data from the store to ensure we have current trim values
+            if (!playingState.isPlaylist) {
+                const currentCue = (audioControllerContext && typeof audioControllerContext.getGlobalCueById === 'function')
+                    ? audioControllerContext.getGlobalCueById(cueId)
+                    : mainCue;
+                const latestTrimEndTime = currentCue.trimEndTime || mainCue.trimEndTime;
+                const latestTrimStartTime = currentCue.trimStartTime || mainCue.trimStartTime || 0;
+                
+                if (latestTrimEndTime > 0 && latestTrimEndTime > latestTrimStartTime) {
+                    const currentSeek = sound.seek() || 0;
+                    const remainingDuration = (latestTrimEndTime - Math.max(currentSeek, latestTrimStartTime)) * 1000;
 
-                if (remainingDuration > 0) {
-                    if (playingState.trimEndTimer) clearTimeout(playingState.trimEndTimer);
-                    playingState.trimEndTimer = setTimeout(() => {
-                        if (currentlyPlaying[cueId] && currentlyPlaying[cueId].sound === sound) {
-                            console.log(`PlaybackInstanceHandler: Reached trimEnd for cue: ${cueId} (item: ${filePath})`);
-                            sound.stop();
-                        }
-                    }, remainingDuration);
-                } else if (currentSeek >= mainCue.trimEndTime) {
-                     console.log(`PlaybackInstanceHandler: Current seek ${currentSeek} is past trimEnd ${mainCue.trimEndTime} for cue: ${cueId}. Stopping.`);
-                     sound.stop();
+                    if (remainingDuration > 0) {
+                        if (playingState.trimEndTimer) clearTimeout(playingState.trimEndTimer);
+                        playingState.trimEndTimer = setTimeout(() => {
+                            if (currentlyPlaying[cueId] && currentlyPlaying[cueId].sound === sound) {
+                                console.log(`PlaybackInstanceHandler: Reached trimEnd for cue: ${cueId} (item: ${filePath}). TrimEnd: ${latestTrimEndTime}`);
+                                sound.stop();
+                            }
+                        }, remainingDuration);
+                        console.log(`PlaybackInstanceHandler: Set trim end timer for ${remainingDuration}ms. Current seek: ${currentSeek}, Trim end: ${latestTrimEndTime}`);
+                    } else if (currentSeek >= latestTrimEndTime) {
+                         console.log(`PlaybackInstanceHandler: Current seek ${currentSeek} is past trimEnd ${latestTrimEndTime} for cue: ${cueId}. Stopping.`);
+                         sound.stop();
+                    }
                 }
             }
         },
@@ -486,6 +525,13 @@ export function createPlaybackInstance(
         },
         onstop: (soundId) => {
             console.log(`[TIME_UPDATE_DEBUG ${cueId}] onstop: Fired for ${filePath}. Sound ID: ${soundId}`);
+            
+            // Remove from all sound instances tracking
+            if (sound._acSoundId && allSoundInstances && allSoundInstances[sound._acSoundId]) {
+                delete allSoundInstances[sound._acSoundId];
+                console.log(`[STOP_ALL_DEBUG] Removed sound instance ${sound._acSoundId} for cue ${cueId}. Remaining instances: ${Object.keys(allSoundInstances).length}`);
+            }
+            
             // Ensure this specific sound instance is the one we expect to stop.
             // This helps prevent a stale onstop from an old sound instance (e.g., after a quick restart)
             // from incorrectly clearing the state of a NEW sound instance.

@@ -8,9 +8,10 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "postinstall": "electron-rebuild",
     "pack": "electron-builder --dir",
-    "dist": "NODE_ENV=production electron-builder --mac --win",
+    "dist": "NODE_ENV=production electron-builder --mac --win --linux",
     "dist:mac": "NODE_ENV=production electron-builder --mac",
-    "dist:win": "NODE_ENV=production electron-builder --win"
+    "dist:win": "NODE_ENV=production electron-builder --win",
+    "dist:linux": "NODE_ENV=production electron-builder --linux"
   },
   "keywords": [
     "electron",
@@ -70,6 +71,20 @@
     "win": {
       "target": "nsis",
       "icon": "assets/icons/icon.ico"
+    },
+    "linux": {
+      "category": "Audio",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64", "arm64"]
+        },
+        {
+          "target": "deb",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "icon": "assets/icons/icon.png"
     },
     "files": [
       "**/*",

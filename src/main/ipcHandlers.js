@@ -302,6 +302,11 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
         }
         try {
             console.log(`IPC_HANDLER: 'add-or-update-cue' received cue data for ID: ${cueData.id || 'new cue'}`);
+            console.log(`IPC_HANDLER: 'add-or-update-cue' received trim properties: trimStartTime=${cueData.trimStartTime}, trimEndTime=${cueData.trimEndTime}`);
+            console.log(`IPC_HANDLER: 'add-or-update-cue' all received properties:`, Object.keys(cueData));
+            // Temporarily log the full cueData object for debugging
+            console.log(`IPC_HANDLER: 'add-or-update-cue' full cueData:`, JSON.stringify(cueData, null, 2));
+            
             const processedCue = await cueManagerRef.addOrUpdateProcessedCue(cueData);
             if (mainWindowRef && mainWindowRef.webContents && !mainWindowRef.webContents.isDestroyed()) {
                  console.log('IPC Handlers: Sending cues-updated-from-main after add-or-update-cue.');

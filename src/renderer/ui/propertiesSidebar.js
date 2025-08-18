@@ -476,7 +476,8 @@ function openPropertiesSidebar(cue) {
         if(propPlaylistItemsUl) propPlaylistItemsUl.innerHTML = '';
         stagedPlaylistItems = [];
         currentWaveformTrimStart = cue.trimStartTime || 0;
-        currentWaveformTrimEnd = cue.trimEndTime || 0;
+        // Keep undefined/null if not explicitly set so waveform shows full length
+        currentWaveformTrimEnd = (cue.trimEndTime !== undefined && cue.trimEndTime !== null) ? cue.trimEndTime : undefined;
         if (cue.filePath) {
             waveformControls.showWaveformForCue(cue);
         }
@@ -553,7 +554,7 @@ function openPropertiesSidebar(cue) {
     if (propTrimConfig && !isPlaylist) {
         propTrimConfig.style.display = 'block';
         if (propTrimStartTimeInput) propTrimStartTimeInput.value = formatWaveformTime(cue.trimStartTime || 0);
-        if (propTrimEndTimeInput) propTrimEndTimeInput.value = cue.trimEndTime ? formatWaveformTime(cue.trimEndTime) : 'End';
+        if (propTrimEndTimeInput) propTrimEndTimeInput.value = (cue.trimEndTime !== undefined && cue.trimEndTime !== null) ? formatWaveformTime(cue.trimEndTime) : 'End';
     } else if (propTrimConfig) {
         propTrimConfig.style.display = 'none';
     }
@@ -853,6 +854,14 @@ async function handleSaveCueProperties() {
     }
     }
 
+    // Normalize trim values before saving
+    let normalizedTrimStart = currentWaveformTrimStart || 0;
+    let normalizedTrimEnd = (currentWaveformTrimEnd !== undefined && currentWaveformTrimEnd !== null) ? currentWaveformTrimEnd : undefined;
+    if (normalizedTrimEnd !== undefined && normalizedTrimEnd <= normalizedTrimStart) {
+        // Invalid or zero-length; treat as "no end trim"
+        normalizedTrimEnd = undefined;
+    }
+
     let updatedCueData = {
         id: activePropertiesCueId,
         name: propCueNameInput ? propCueNameInput.value : existingCue.name,
@@ -867,8 +876,8 @@ async function handleSaveCueProperties() {
         shuffle: (propCueTypeSelect && propCueTypeSelect.value === 'playlist' && propShufflePlaylistCheckbox) ? propShufflePlaylistCheckbox.checked : existingCue.shuffle,
         repeatOne: (propCueTypeSelect && propCueTypeSelect.value === 'playlist' && propRepeatOnePlaylistItemCheckbox) ? propRepeatOnePlaylistItemCheckbox.checked : existingCue.repeatOne,
         playlistPlayMode: (propCueTypeSelect && propCueTypeSelect.value === 'playlist' && propPlaylistPlayModeSelect) ? propPlaylistPlayModeSelect.value : existingCue.playlistPlayMode,
-        trimStartTime: currentWaveformTrimStart,
-        trimEndTime: currentWaveformTrimEnd,
+        trimStartTime: normalizedTrimStart,
+        trimEndTime: normalizedTrimEnd,
         enableDucking: propEnableDuckingCheckbox ? propEnableDuckingCheckbox.checked : existingCue.enableDucking,
         duckingLevel: propDuckingLevelInput ? parseInt(propDuckingLevelInput.value, 10) : existingCue.duckingLevel,
         isDuckingTrigger: propIsDuckingTriggerCheckbox ? propIsDuckingTriggerCheckbox.checked : existingCue.isDuckingTrigger,
@@ -951,6 +960,11 @@ function handleCuePropertyChangeFromWaveform(trimStart, trimEnd) {
     // Set flag to prevent properties sidebar refresh loop
     window._waveformTrimUpdateInProgress = true;
     
+    // CRITICAL: Save immediately so playback uses fresh trim values
+    // (bypass debounce to avoid race when user hits play right after trimming)
+    handleSaveCueProperties();
+    
+    // Also schedule a debounced save as a safety net for any subsequent UI updates
     debouncedSaveCueProperties();
     
     // Clear flag after giving enough time for the save and cue update cycle to complete

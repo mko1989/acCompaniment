@@ -29,7 +29,17 @@ let mainWindowRef; // To store mainWindow reference for IPC
 // If dirPath is null, resets to default userData path.
 function setCuesDirectory(dirPath) {
   if (dirPath) {
-    currentCuesFilePath = path.join(dirPath, CUES_FILE_NAME);
+    try {
+      // If a full file path was provided (e.g., ends with .json), use it directly
+      if (typeof dirPath === 'string' && path.extname(dirPath).toLowerCase() === '.json') {
+        currentCuesFilePath = dirPath;
+      } else {
+        currentCuesFilePath = path.join(dirPath, CUES_FILE_NAME);
+      }
+    } catch (e) {
+      console.warn('Cues file path resolution failed, falling back to userData. Input:', dirPath, 'Error:', e);
+      currentCuesFilePath = path.join(app.getPath('userData'), CUES_FILE_NAME);
+    }
   } else {
     currentCuesFilePath = path.join(app.getPath('userData'), CUES_FILE_NAME);
   }
@@ -381,6 +391,11 @@ async function getAudioFileDuration(filePath) {
 async function addOrUpdateProcessedCue(cueData, workspacePath) {
     console.log(`[CueManager] addOrUpdateProcessedCue received raw cueData. ID: ${cueData.id}, Name: ${cueData.name}`);
     console.log(`[CueManager] Ducking properties received: isDuckingTrigger=${cueData.isDuckingTrigger}, duckingLevel=${cueData.duckingLevel}, enableDucking=${cueData.enableDucking}`);
+    console.log(`[CueManager] Trim properties received: trimStartTime=${cueData.trimStartTime}, trimEndTime=${cueData.trimEndTime}`);
+    console.log(`[CueManager] All received cueData properties:`, Object.keys(cueData));
+    
+    // Log the full cueData object for complete debugging (temporarily)
+    console.log(`[CueManager] Full cueData object:`, JSON.stringify(cueData, null, 2));
 
     const cueId = cueData.id || await generateUUID(); // Generate UUID if not provided
     const existingCueIndex = cues.findIndex(c => c.id === cueId);
@@ -418,8 +433,10 @@ async function addOrUpdateProcessedCue(cueData, workspacePath) {
       repeatOne: cueData.repeatOne || false, // for playlists
       playlistPlayMode: cueData.playlistPlayMode || 'continue', // 'continue' or 'stop_and_cue_next'
       // Trim specific properties
-      trimStartTime: cueData.trimStartTime || 0,
-      trimEndTime: cueData.trimEndTime || 0,
+      // Use explicit checks so that an unset end trim is treated as undefined ("play to end")
+      // rather than 0, which some renderer logic interprets as a literal zero-second end.
+      trimStartTime: (cueData.trimStartTime !== undefined && cueData.trimStartTime !== null) ? cueData.trimStartTime : 0,
+      trimEndTime: (cueData.trimEndTime !== undefined && cueData.trimEndTime !== null) ? cueData.trimEndTime : undefined,
       // X32/X-Air specific - REMOVED
       // x32Trigger: cueData.x32Trigger ? 
       //             { enabled: false, layer: 'A', button: '1', ...cueData.x32Trigger } :
@@ -429,6 +446,10 @@ async function addOrUpdateProcessedCue(cueData, workspacePath) {
       duckingLevel: cueData.duckingLevel !== undefined ? cueData.duckingLevel : 80,
       isDuckingTrigger: cueData.isDuckingTrigger !== undefined ? cueData.isDuckingTrigger : false,
     };
+
+    // Debug logging for the constructed baseCue
+    console.log(`[CueManager] Constructed baseCue trim properties: trimStartTime=${baseCue.trimStartTime}, trimEndTime=${baseCue.trimEndTime}`);
+    console.log(`[CueManager] Constructed baseCue knownDuration: ${baseCue.knownDuration}`);
 
     // Ensure playlist items have unique IDs and knownDurations if not present
     if (baseCue.type === 'playlist' && baseCue.playlistItems) {
@@ -488,8 +509,10 @@ async function addOrUpdateProcessedCue(cueData, workspacePath) {
 
     if (isNew) {
       cues.push(baseCue);
+      console.log(`[CueManager] Added new cue to array. Final trim properties: trimStartTime=${baseCue.trimStartTime}, trimEndTime=${baseCue.trimEndTime}`);
     } else {
       cues[existingCueIndex] = baseCue;
+      console.log(`[CueManager] Updated existing cue in array. Final trim properties: trimStartTime=${baseCue.trimStartTime}, trimEndTime=${baseCue.trimEndTime}`);
     }
 
     // Save and notify (unless silentUpdate is true)

@@ -198,7 +198,7 @@ function getPlaybackTimes(cueId) {
             if (cue) {
                 const originalKnownDuration = cue.knownDuration || 0;
                 const trimStartTime = cue.trimStartTime || 0;
-                const trimEndTime = cue.trimEndTime;
+                const trimEndTime = (cue.trimEndTime !== undefined && cue.trimEndTime !== null) ? cue.trimEndTime : undefined;
                 let effectiveDuration;
                 if (trimEndTime && trimEndTime > trimStartTime) {
                     effectiveDuration = trimEndTime - trimStartTime;
@@ -271,7 +271,7 @@ function getPlaybackTimes(cueId) {
                 // CRITICAL FIX: Apply trim calculations in second fallback too
                 const originalKnownDuration = cue.knownDuration || 0;
                 const trimStartTime = cue.trimStartTime || 0;
-                const trimEndTime = cue.trimEndTime;
+                const trimEndTime = (cue.trimEndTime !== undefined && cue.trimEndTime !== null) ? cue.trimEndTime : undefined;
                 let effectiveDuration;
                 
                 if (trimEndTime && trimEndTime > trimStartTime) {
