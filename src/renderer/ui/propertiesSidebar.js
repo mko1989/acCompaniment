@@ -297,7 +297,8 @@ function cachePropertiesSidebarDOMElements() {
     saveCuePropertiesButton = document.getElementById('saveCuePropertiesButton');
     deleteCuePropertiesButton = document.getElementById('deleteCuePropertiesButton');
     propShufflePlaylistCheckbox = document.getElementById('propShufflePlaylist');
-    propRepeatOnePlaylistItemCheckbox = document.getElementById('propRepeatOnePlaylistItemCheckbox');
+    // Align with HTML id
+    propRepeatOnePlaylistItemCheckbox = document.getElementById('propRepeatOnePlaylistItem');
     propRetriggerBehaviorSelect = document.getElementById('propRetriggerBehavior');
     propPlaylistPlayModeSelect = document.getElementById('propPlaylistPlayModeSelect');
     propVolumeSlider = document.getElementById('propVolume');

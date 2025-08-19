@@ -21,7 +21,7 @@ let mixerIntegrationManagerRef = null;
 let audioPlaybackIPCRef = null;
 let openEasterEggGameWindowCallback = null; // Added to store the function
 
-function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, wsServer, oscLstnr, httpServerInstance, mixrIntMgr, openEasterEggGameFunc) {
+function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, wsServer, _oscLstnr, httpServerInstance, mixrIntMgr, openEasterEggGameFunc) {
     appRef = application; // Store app
     mainWindowRef = mainWin;
     cueManagerRef = cueMgrModule; 
@@ -29,11 +29,11 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
     workspaceManagerRef = wsMgr; 
     websocketServerRef = wsServer;
     httpServerRef = httpServerInstance; // Added: Store httpServer reference
-    oscListenerRef = oscLstnr; // Store oscListener
+    // Generic OSC listener removed
     mixerIntegrationManagerRef = mixrIntMgr; // Store mixerIntegrationManager
     openEasterEggGameWindowCallback = openEasterEggGameFunc; // Store the passed function
 
-    console.log("IPC_HANDLERS_INIT: Initializing with references (inactivity reset callback REMOVED).");
+    console.log("IPC_HANDLERS_INIT: Initializing.");
     // --- DIAGNOSTIC LOG --- 
     console.log("IPC_HANDLERS_INIT: cueManagerModule type:", typeof cueManagerRef);
     if (cueManagerRef) {
@@ -505,7 +505,7 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
         return { success: false, error: 'Mixer integration manager not available or updateCueMixerTrigger not implemented.' };
     });
     
-    console.log("IPC_HANDLERS_INIT: Handler for 'get-or-generate-waveform-peaks' registered.");
+    // Handler for 'get-or-generate-waveform-peaks' registered
 
     if (appConfigManagerRef && typeof appConfigManagerRef.onConfigChange === 'function') {
         appConfigManagerRef.onConfigChange((newConfig, oldConfig) => {
@@ -513,9 +513,7 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
             if (mainWindowRef && mainWindowRef.webContents && !mainWindowRef.webContents.isDestroyed()) {
                 mainWindowRef.webContents.send('app-config-updated', newConfig);
             }
-            if (oscListenerRef && typeof oscListenerRef.updateConfig === 'function') {
-                oscListenerRef.updateConfig(newConfig, cueManagerRef, mixerIntegrationManagerRef);
-            }
+            // Generic OSC listener removed
             if (mixerIntegrationManagerRef && typeof mixerIntegrationManagerRef.updateSettings === 'function') {
                 mixerIntegrationManagerRef.updateSettings(newConfig);
             }

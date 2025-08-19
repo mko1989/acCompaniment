@@ -578,6 +578,17 @@ function _handlePlaylistEnd(cueId, errorOccurred = false) {
         return;
     }
 
+    // If configured to repeat the current item, immediately restart the same logical item
+    if (mainCue.repeatOne) {
+        const sameLogicalIdx = playingState.currentPlaylistItemIndex;
+        playingState.isPaused = false;
+        playingState.isCuedNext = false;
+        playingState.isCued = false;
+        playingState.sound = null;
+        setTimeout(() => _playTargetItem(cueId, sameLogicalIdx, false), 10);
+        return;
+    }
+
     if (mainCue.playlistPlayMode === 'stop_and_cue_next') {
         let nextLogicalIdx = playingState.currentPlaylistItemIndex + 1;
         const listLen = playingState.originalPlaylistItems.length;
@@ -1022,6 +1033,20 @@ function stopAllCues(options = { exceptCueId: null, useFade: true }) {
                 
                 if (fadeOutTime > 0) {
                     console.log(`[STOP_ALL_DEBUG] Applying ${fadeOutTime}ms fade to sound ${soundId}`);
+                    // Only visualize fade if this is the active state and the sound is actually playing (audible)
+                    const isActiveState = currentlyPlaying[cueId] && currentlyPlaying[cueId] === playingState;
+                    const isAudible = typeof sound.playing === 'function' && sound.playing() && sound.volume() > 0.0001;
+                    if (isActiveState && isAudible) {
+                        // Mark fading state for UI
+                        playingState.isFadingOut = true;
+                        playingState.isFadingIn = false;
+                        playingState.fadeTotalDurationMs = fadeOutTime;
+                        playingState.fadeStartTime = Date.now();
+                        // Prime UI update to reflect fade immediately
+                        if (cueGridAPIRef && cueGridAPIRef.updateCueButtonTime) {
+                            cueGridAPIRef.updateCueButtonTime(cueId, null, false, true, fadeOutTime);
+                        }
+                    }
                     sound.fade(sound.volume(), 0, fadeOutTime);
                     setTimeout(() => {
                         if (sound.playing()) {

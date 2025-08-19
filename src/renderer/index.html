@@ -87,18 +87,9 @@
                         </div>
                     </div>
 
-                    <h3>OSC Settings</h3>
-                    <div class="form-group">
-                        <label for="configOscEnabled">Enable OSC:</label>
-                        <input type="checkbox" id="configOscEnabled" name="configOscEnabled">
-                    </div>
-                    <div class="form-group" id="oscPortGroup">
-                        <label for="configOscPort">OSC Port:</label>
-                        <input type="number" id="configOscPort" name="configOscPort" value="54321" min="1" max="65535">
-                    </div>
+                    <!-- Generic OSC settings removed -->
 
                     <h3>Mixer Integration</h3>
-                    <p class="small-text">Allows external mixers to trigger cues and receive feedback.</p>
                     <div class="form-group">
                         <label for="configMixerIntegrationEnabled">Enable Mixer Integration:</label>
                         <input type="checkbox" id="configMixerIntegrationEnabled" name="configMixerIntegrationEnabled">
@@ -116,10 +107,7 @@
                         <input type="text" id="configWingIpAddress" name="configWingIpAddress" placeholder="192.168.1.100">
                     </div>
 
-                    <div class="form-group">
-                        <button id="saveAppConfigButton">Save Configuration</button>
-                        <button id="closeConfigSidebarButton">Close</button>
-                    </div>
+                    
                 </div>
             </div>
             
@@ -399,9 +387,9 @@
                 <h2>Multiple Files Dropped</h2>
                 <p>You've dropped multiple audio files. How would you like to add them?</p>
                 <div class="modal-actions">
-                    <button id="addAsSeparateCuesBtn">Add as Separate Cues</button>
-                    <button id="addAsPlaylistCueBtn">Add as Single Playlist Cue</button>
-                    <button id="cancelMultipleFilesDropBtn" class="cancel-button">Cancel</button>
+                    <button id="modalAddAsSeparateCues">Add as Separate Cues</button>
+                    <button id="modalAddAsPlaylistCue">Add as Single Playlist Cue</button>
+                    <button id="modalCancelMultipleFilesDrop" class="cancel-button">Cancel</button>
                 </div>
             </div>
         </div>

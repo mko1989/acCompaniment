@@ -1,6 +1,6 @@
 {
   "name": "accompaniment",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A soundboard app",
   "main": "main.js",
   "scripts": {
@@ -22,7 +22,9 @@
     "audiocues",
     "waveform"
   ],
-  "author": "",
+  "author": "Marcin Wardecki",
+  "homepage": "https://github.com/mko1989/acCompaniment/",
+  "email": "m.wardecki89@gmail.com",
   "license": "MIT",
   "devDependencies": {
     "electron": "^31.7.7",
@@ -73,7 +75,8 @@
       "icon": "assets/icons/icon.ico"
     },
     "linux": {
-      "category": "Audio",
+      "category": "AudioVideo",
+      "maintainer": "mko1989 <m.wardecki89@gmail.com>",
       "target": [
         {
           "target": "AppImage",

@@ -35,7 +35,7 @@ let configDefaultStopAllBehaviorSelect;
 let configDefaultStopAllFadeOutInput;
 let configDefaultStopAllFadeOutGroup;
 
-// OSC Settings
+// OSC Settings (generic) removed
 let configOscEnabledCheckbox;
 let configOscPortGroup;
 let configOscPortInput;
@@ -129,10 +129,10 @@ function cacheDOMElements() {
     configDefaultStopAllFadeOutInput = document.getElementById('defaultStopAllFadeOut');
     configDefaultStopAllFadeOutGroup = document.getElementById('defaultStopAllFadeOutGroup');
     
-    // OSC Settings
-    configOscEnabledCheckbox = document.getElementById('configOscEnabled');
-    configOscPortGroup = document.getElementById('oscPortGroup');
-    configOscPortInput = document.getElementById('configOscPort');
+    // Generic OSC UI removed
+    configOscEnabledCheckbox = null;
+    configOscPortGroup = null;
+    configOscPortInput = null;
 
     // Audio Settings
     configAudioOutputDeviceSelect = document.getElementById('configAudioOutputDevice');
@@ -142,7 +142,7 @@ function cacheDOMElements() {
     configHttpRemotePortGroup = document.getElementById('httpRemotePortGroup');
     configHttpRemotePortInput = document.getElementById('configHttpRemotePort');
     configHttpRemoteLinksGroup = document.getElementById('httpRemoteLinksGroup');
-    configHttpRemoteLinksDiv = document.getElementById('httpRemoteLinks');
+    configHttpRemoteLinksDiv = document.getElementById('httpRemoteLinksDiv');
 
     // Mixer Integration Elements
     configMixerIntegrationEnabledCheckbox = document.getElementById('configMixerIntegrationEnabled');
@@ -248,14 +248,7 @@ function bindEventListeners() {
         configDefaultStopAllFadeOutInput.addEventListener('change', handleAppConfigChange);
     }
     
-    if (configOscEnabledCheckbox) {
-        configOscEnabledCheckbox.addEventListener('change', () => {
-            handleOscEnabledChange();
-            handleAppConfigChange(); 
-        });
-    }
-    if (configOscPortInput) configOscPortInput.addEventListener('change', handleAppConfigChange);
-    if (configOscPortInput) configOscPortInput.addEventListener('blur', handleAppConfigChange); 
+    // Generic OSC UI removed
 
     if (configAudioOutputDeviceSelect) configAudioOutputDeviceSelect.addEventListener('change', handleAppConfigChange);
     
@@ -332,9 +325,7 @@ function populateConfigSidebar(config) {
         if (configDefaultStopAllBehaviorSelect) configDefaultStopAllBehaviorSelect.value = currentAppConfig.defaultStopAllBehavior || 'stop';
         if (configDefaultStopAllFadeOutInput) configDefaultStopAllFadeOutInput.value = currentAppConfig.defaultStopAllFadeOutTime || 1500;
         
-        // OSC Settings
-        if (configOscEnabledCheckbox) configOscEnabledCheckbox.checked = currentAppConfig.oscEnabled || false;
-        if (configOscPortInput) configOscPortInput.value = currentAppConfig.oscPort || 54321;
+        // OSC Settings not shown in UI
         
         // HTTP Remote Control Settings
         if (configHttpRemoteEnabledCheckbox) configHttpRemoteEnabledCheckbox.checked = currentAppConfig.httpRemoteEnabled !== false; // Default to true
@@ -363,7 +354,7 @@ function populateConfigSidebar(config) {
             }
         }
         
-        handleOscEnabledChange(); 
+        // Generic OSC removed
         handleHttpRemoteEnabledChange();
         handleMixerIntegrationEnabledChange(); 
         handleMixerTypeChange();
@@ -378,12 +369,7 @@ function populateConfigSidebar(config) {
     console.log('AppConfigUI: DOM elements updated.');
 }
 
-function handleOscEnabledChange() {
-    if (!configOscEnabledCheckbox || !configOscPortGroup) return;
-    const isEnabled = configOscEnabledCheckbox.checked;
-    configOscPortGroup.style.display = isEnabled ? 'block' : 'none';
-    console.log('AppConfigUI: OSC Enabled changed.');
-}
+// Generic OSC handling removed
 
 function handleHttpRemoteEnabledChange() {
     const isEnabled = configHttpRemoteEnabledCheckbox && configHttpRemoteEnabledCheckbox.checked;
@@ -439,21 +425,44 @@ async function loadHttpRemoteInfo() {
 
 // Global function for copy to clipboard
 window.copyToClipboard = async function(text, button) {
-    try {
-        await navigator.clipboard.writeText(text);
-        const originalText = button.textContent;
-        button.textContent = 'Copied!';
-        button.classList.add('copied');
+    const setBtn = (label, clsAdd, clsRemove) => {
+        if (!button) return;
+        const original = button.getAttribute('data-original-label') || button.textContent;
+        if (!button.getAttribute('data-original-label')) button.setAttribute('data-original-label', original);
+        button.textContent = label;
+        if (clsAdd) button.classList.add(clsAdd);
+        if (clsRemove) button.classList.remove(clsRemove);
         setTimeout(() => {
-            button.textContent = originalText;
-            button.classList.remove('copied');
+            button.textContent = original;
+            if (clsAdd) button.classList.remove(clsAdd);
         }, 2000);
+    };
+    try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+            setBtn('Copied!', 'copied');
+            return;
+        }
+    } catch (_) { /* fall through to legacy methods */ }
+
+    try {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        if (ok) {
+            setBtn('Copied!', 'copied');
+        } else {
+            setBtn('Failed');
+        }
     } catch (error) {
         console.error('Failed to copy to clipboard:', error);
-        button.textContent = 'Failed';
-        setTimeout(() => {
-            button.textContent = 'Copy';
-        }, 2000);
+        setBtn('Failed');
     }
 };
 
@@ -592,8 +601,7 @@ function gatherConfigFromUI() {
         defaultStopAllBehavior: configDefaultStopAllBehaviorSelect ? configDefaultStopAllBehaviorSelect.value : 'stop',
         defaultStopAllFadeOutTime: configDefaultStopAllFadeOutInput ? parseInt(configDefaultStopAllFadeOutInput.value) : 1500,
 
-        oscEnabled: configOscEnabledCheckbox ? configOscEnabledCheckbox.checked : false,
-        oscPort: configOscPortInput ? parseInt(configOscPortInput.value) : 54321,
+        // Generic OSC removed from saved config
         
         httpRemoteEnabled: configHttpRemoteEnabledCheckbox ? configHttpRemoteEnabledCheckbox.checked : true,
         httpRemotePort: configHttpRemotePortInput ? parseInt(configHttpRemotePortInput.value) : 3000,

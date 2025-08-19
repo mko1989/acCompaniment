@@ -13,8 +13,7 @@ console.log('MAIN_JS: Importing appConfigManager...');
 const appConfigManager = require('./src/main/appConfig');
 console.log('MAIN_JS: Importing workspaceManager...');
 const workspaceManager = require('./src/main/workspaceManager');
-console.log('MAIN_JS: Importing oscListener...');
-const oscListener = require('./src/main/oscListener');
+// Generic OSC listener removed
 console.log('MAIN_JS: Importing mixerIntegrationManager...');
 const mixerIntegrationManager = require('./src/main/mixerIntegrationManager');
 console.log('MAIN_JS: Importing httpServer...');
@@ -61,16 +60,13 @@ function openEasterEggGameWindow() {
 let isDev = process.env.NODE_ENV !== 'production';
 
 async function createWindow() {
-  console.log('MAIN_JS: createWindow START'); // LOG 1
+  console.log('MAIN_JS: createWindow START');
   try {
-    console.log('[MainCreateWindow] Config BEFORE initial appConfigManager.loadConfig():', JSON.parse(JSON.stringify(appConfigManager.getConfig())) ); // Config Log PRE-LOAD
-    console.log('MAIN_JS: createWindow - In try block, before appConfigManager.loadConfig()'); // LOG 2
+    // Reduced verbose logging
     appConfigManager.loadConfig();
-    console.log('[MainCreateWindow] Initial global config loaded (directly after loadConfig call):', JSON.parse(JSON.stringify(appConfigManager.getConfig())) ); // Config Log 1
-    console.log('MAIN_JS: createWindow - After appConfigManager.loadConfig()'); // LOG 3
+    
     const currentConfig = appConfigManager.getConfig(); // getConfig returns a copy
-    console.log('[MainCreateWindow] currentConfig variable after initial load and getConfig():', JSON.parse(JSON.stringify(currentConfig)) ); // Config Log 1.1
-    console.log('MAIN_JS: createWindow - After appConfigManager.getConfig()'); // LOG 4
+    
 
     mainWindow = new BrowserWindow({
       width: currentConfig.windowWidth || 1200, 
@@ -86,59 +82,52 @@ async function createWindow() {
       icon: path.join(__dirname, 'assets', 'icons', 'icon.png'),
       title: "acCompaniment"
     });
-    console.log('MAIN_JS: createWindow - BrowserWindow created'); // LOG 5
+    
 
     mainWindow.on('resize', saveWindowBounds);
     mainWindow.on('move', saveWindowBounds);
     mainWindow.on('close', saveWindowBounds); 
-    console.log('MAIN_JS: createWindow - Window event listeners set'); // LOG 6
+    
 
     await mainWindow.loadFile(path.join(__dirname, 'src', 'renderer', 'index.html'));
-    console.log('MAIN_JS: createWindow - mainWindow.loadFile complete'); // LOG 7
+    
 
     // DevTools are now only opened in development mode if explicitly requested
     if (isDev && process.env.OPEN_DEV_TOOLS) {
       mainWindow.webContents.openDevTools();
-      console.log('MAIN_JS: createWindow - DevTools opened'); // LOG 8
+      console.log('MAIN_JS: createWindow - DevTools opened');
     }
 
-    console.log('MAIN_JS: createWindow - Before cueManager.setCuesDirectory'); // LOG 9
+    // Initialize cue manager
     cueManager.setCuesDirectory(currentConfig.cuesFilePath);
-    console.log('MAIN_JS: createWindow - After cueManager.setCuesDirectory'); // LOG 10
+    
     await cueManager.initialize(websocketServer, mainWindow, httpServer);
-    console.log('MAIN_JS: createWindow - After cueManager.initialize'); // LOG 11
+    
 
-    console.log('[MainCreateWindow] Config BEFORE workspaceManager.initialize:', JSON.parse(JSON.stringify(appConfigManager.getConfig())) ); // Config Log PRE-WS_INIT
-    console.log('MAIN_JS: createWindow - Before workspaceManager.initialize'); // LOG 12
+    
     workspaceManager.initialize(appConfigManager, cueManager, mainWindow);
-    console.log('[MainCreateWindow] Config AFTER workspaceManager.initialize (from appConfigManager.getConfig()):', JSON.parse(JSON.stringify(appConfigManager.getConfig())) ); // Config Log 2
-    console.log('MAIN_JS: createWindow - After workspaceManager.initialize'); // LOG 13
+    
 
-    console.log('MAIN_JS: createWindow - Before websocketServer.setContext'); // LOG 14
+    
     websocketServer.setContext(mainWindow, cueManager);
-    console.log('MAIN_JS: createWindow - After websocketServer.setContext'); // LOG 15
+    
     await websocketServer.startServer(currentConfig.websocketPort, currentConfig.websocketEnabled);
-    console.log('MAIN_JS: createWindow - After websocketServer.startServer'); // LOG 16
 
-    // console.log('MAIN_JS: createWindow - Before oscListener.setContext'); // LOG 17
-    // oscListener.setContext(mainWindow, cueManager); // REMOVED - oscListener no longer uses direct context
-    // console.log('MAIN_JS: createWindow - After oscListener.setContext'); // LOG 18
-    oscListener.initializeOscListener(currentConfig.oscPort, currentConfig.oscEnabled);
-    console.log('MAIN_JS: createWindow - After oscListener.initializeOscListener'); // LOG 19
+    // Generic OSC listener initialization removed
 
-    console.log('MAIN_JS: createWindow - Before mixerIntegrationManager.initialize'); // LOG 20
+    
     mixerIntegrationManager.initialize(currentConfig, mainWindow, cueManager);
-    console.log('MAIN_JS: createWindow - After mixerIntegrationManager.initialize'); // LOG 21
+    
 
     // Added: Initialize httpServer with app config
-    console.log('MAIN_JS: createWindow - Before httpServer.initialize');
+    
     const currentAppConfig = appConfigManager.getConfig();
     httpServer.initialize(cueManager, mainWindow, currentAppConfig);
-    console.log('MAIN_JS: createWindow - After httpServer.initialize');
+    
 
-    console.log('MAIN_JS: About to initialize IPC Handlers. cueManager type:', typeof cueManager, 'cueManager keys:', cueManager ? Object.keys(cueManager) : 'undefined'); // LOG 22
-    initializeIpcHandlers(app, mainWindow, cueManager, appConfigManager, workspaceManager, websocketServer, oscListener, httpServer, mixerIntegrationManager, openEasterEggGameWindow);
-    console.log('MAIN_JS: createWindow - After initializeIpcHandlers'); // LOG 23
+    
+    initializeIpcHandlers(app, mainWindow, cueManager, appConfigManager, workspaceManager, websocketServer, null, httpServer, mixerIntegrationManager, openEasterEggGameWindow);
+    
 
     appConfigManager.addConfigChangeListener(async (newConfig) => {
       // ... existing code ...
@@ -146,17 +135,17 @@ async function createWindow() {
 
     const menu = Menu.buildFromTemplate(getMenuTemplate(mainWindow, cueManager, workspaceManager, appConfigManager));
     Menu.setApplicationMenu(menu);
-    console.log('MAIN_JS: createWindow - Menu created and set'); // LOG 26
+    
 
     // The theme should be applied based on the config potentially updated by workspaceManager.initialize
     const finalConfigForTheme = appConfigManager.getConfig();
     const themeToApply = finalConfigForTheme.theme || 'system'; 
-    console.log('Main: Applying theme from config on startup:', themeToApply);
+    
     handleThemeChange(themeToApply, mainWindow, nativeTheme);
-    console.log('MAIN_JS: createWindow - After handleThemeChange'); // LOG 28
+    
 
     if (mainWindow && mainWindow.webContents) {
-      console.log("MAIN_JS: createWindow - Attempting to send main-process-ready at the end of try block.");
+      
       mainWindow.webContents.send('main-process-ready');
     } else {
         console.error("MAIN_JS: DEBUG Cannot send main-process-ready, mainWindow or webContents is null at the end of try block.");
@@ -371,16 +360,16 @@ app.whenReady().then(async () => {
   // }
 
   app.on('activate', () => {
-    console.log('MAIN_JS: app.on(activate) - START'); // LOG C
+    console.log('MAIN_JS: app.on(activate) - START');
     if (BrowserWindow.getAllWindows().length === 0) {
-      console.log('MAIN_JS: app.on(activate) - No windows open, calling createWindow()'); // LOG D
+      console.log('MAIN_JS: app.on(activate) - No windows open, calling createWindow()');
       createWindow();
     }
-    console.log('MAIN_JS: app.on(activate) - END'); // LOG F
+    console.log('MAIN_JS: app.on(activate) - END');
   });
-  console.log('MAIN_JS: app.whenReady() - activate listener attached'); // LOG G
+  console.log('MAIN_JS: app.whenReady() - activate listener attached');
 });
-console.log('MAIN_JS: app.whenReady() listener attached'); // LOG H
+console.log('MAIN_JS: app.whenReady() listener attached');
 
 app.on('window-all-closed', () => {
   console.log('MAIN_JS: window-all-closed event');
@@ -388,7 +377,7 @@ app.on('window-all-closed', () => {
     app.quit();
   }
 });
-console.log('MAIN_JS: window-all-closed listener attached'); // LOG I
+console.log('MAIN_JS: window-all-closed listener attached');
 
 app.on('will-quit', () => {
   console.log('MAIN_JS: will-quit event. Ensuring config is saved.');
@@ -402,12 +391,12 @@ app.on('will-quit', () => {
   // globalShortcut.unregisterAll();
   // console.log('MAIN_JS: All global shortcuts unregistered.');
 });
-console.log('MAIN_JS: will-quit listener attached'); // LOG J
+console.log('MAIN_JS: will-quit listener attached');
 
 if (process.platform === 'darwin') {
   app.setName('acCompaniment Soundboard');
 }
-console.log('MAIN_JS: Script end'); // LOG K
+console.log('MAIN_JS: Script end');
 
 // Example: Listen for a message from renderer to open a new window
 ipcMain.on('open-new-window-example', () => {

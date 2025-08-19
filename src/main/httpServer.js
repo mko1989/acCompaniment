@@ -84,46 +84,43 @@ function initialize(cueMgr, mainWin, appConfig = null) {
         }
 
         ws.on('message', (message) => {
-            console.log('HTTP_SERVER_LOG: ws.on("message") START. Message:', message.toString()); // LOG A
+            // Reduced verbose logging
             try {
                 const parsedMessage = JSON.parse(message.toString());
-                console.log('HTTP_SERVER_LOG: Parsed message:', parsedMessage); // LOG B
 
                 if (parsedMessage.action === 'trigger_cue' && parsedMessage.cueId) {
                     const cueId = parsedMessage.cueId;
                     const now = Date.now();
-                    console.log(`HTTP_SERVER_LOG: 'trigger_cue' action for ${cueId} at ${now}.`); // LOG C
+                    
 
                     const lastTriggerTime = recentlyTriggeredCuesByRemote.get(cueId);
-                    console.log(`HTTP_SERVER_LOG: Debounce check - cueId: ${cueId}, now: ${now}, lastTriggerTime: ${lastTriggerTime}, REMOTE_TRIGGER_DEBOUNCE_MS: ${REMOTE_TRIGGER_DEBOUNCE_MS}`); // LOG D
+                    
 
                     if (lastTriggerTime && (now - lastTriggerTime < REMOTE_TRIGGER_DEBOUNCE_MS)) {
-                        console.log(`HTTP_SERVER_LOG: DEBOUNCED duplicate remote trigger_cue for ${cueId}. Difference: ${now - lastTriggerTime}ms. IGNORING.`); // LOG E
+                        
                         return; 
                     }
-                    console.log(`HTTP_SERVER_LOG: Debounce PASSED for ${cueId}.`); // LOG F
+                    
                     recentlyTriggeredCuesByRemote.set(cueId, now);
                     
                     // New Guard: Ensure IPC for this specific trigger event is sent only once
                     if (ipcSentForThisRemoteTrigger[cueId]) {
-                        console.log(`HTTP_SERVER_LOG: BLOCKING IPC send for ${cueId} - ipcSentForThisRemoteTrigger[${cueId}] is true. This message instance was already processed for IPC send.`);
+                        
                         // We still want the recentlyTriggeredCuesByRemote timeout to clear normally for the *next* distinct message.
                         // So, we just return from this execution path for THIS message.
                         return; 
                     }
                     ipcSentForThisRemoteTrigger[cueId] = true;
-                    console.log(`HTTP_SERVER_LOG: Set ipcSentForThisRemoteTrigger[${cueId}] = true.`);
+                    
 
                     // Clear the per-trigger IPC lock after a safe interval
                     setTimeout(() => {
                         delete ipcSentForThisRemoteTrigger[cueId]; 
-                        console.log(`HTTP_SERVER_LOG: Cleared ipcSentForThisRemoteTrigger flag for ${cueId} after 1000ms.`);
                     }, 1000); // 1 second, well after any potential duplicate processing of the same event
                     
                     // Original timeout for inter-message debounce
                     setTimeout(() => {
-                        const deleted = recentlyTriggeredCuesByRemote.delete(cueId);
-                        console.log(`HTTP_SERVER_LOG: Debounce map key ${cueId} (recentlyTriggeredCuesByRemote) deleted after timeout. Success: ${deleted}`); // LOG G
+                        recentlyTriggeredCuesByRemote.delete(cueId);
                     }, REMOTE_TRIGGER_DEBOUNCE_MS);
 
                     if (mainWindowRef && mainWindowRef.webContents) {
@@ -131,24 +128,20 @@ function initialize(cueMgr, mainWin, appConfig = null) {
                             cueId: parsedMessage.cueId,
                             source: 'remote_http' 
                         };
-                        console.log(`HTTP_SERVER_LOG: PRE-SEND IPC 'trigger-cue-by-id-from-main' for ${payload.cueId}. Payload:`, payload); // LOG H
                         mainWindowRef.webContents.send('trigger-cue-by-id-from-main', payload);
-                        console.log(`HTTP_SERVER_LOG: POST-SEND IPC 'trigger-cue-by-id-from-main' for ${payload.cueId}.`); // LOG I
+                        
                     } else {
-                        console.log(`HTTP_SERVER_LOG: mainWindowRef or webContents NOT AVAILABLE for IPC send. cueId: ${cueId}`); // LOG J
+                        
                     }
                 } else if (parsedMessage.action === 'stop_all_cues') {
-                    console.log('HTTP_SERVER_LOG: \'stop_all_cues\' action received.'); // LOG K
                     if (mainWindowRef && mainWindowRef.webContents) {
-                        console.log("HTTP_SERVER_LOG: PRE-SEND IPC 'stop-all-audio'."); // LOG L
                         mainWindowRef.webContents.send('stop-all-audio');
-                        console.log("HTTP_SERVER_LOG: POST-SEND IPC 'stop-all-audio'."); // LOG M
+                        
                     }
                 }
             } catch (error) {
                 console.error('HTTP_SERVER_LOG: Error in ws.on("message") handler:', error);
             }
-            console.log('HTTP_SERVER_LOG: ws.on("message") END.'); // LOG N
         });
 
         ws.on('close', () => {

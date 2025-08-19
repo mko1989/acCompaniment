@@ -154,16 +154,7 @@
         </button>
     </div>
     
-    <!-- Add diagnostic section -->
-    <div id="diagnosticSection" style="background: #2a2a2a; padding: 10px; margin: 10px 0; border-radius: 5px;">
-        <h3 style="color: #fff; margin: 0 0 10px 0; font-size: 14px;">Connection Diagnostics</h3>
-        <div id="connectionStatus" style="color: #ff6b6b; font-size: 12px;">Disconnected</div>
-        <div id="lastMessageTime" style="color: #ccc; font-size: 11px;">No messages received</div>
-        <div id="messageCount" style="color: #ccc; font-size: 11px;">Messages: 0</div>
-        <button id="testConnectionButton" style="background: #4CAF50; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 11px; margin-top: 5px;">Test Connection</button>
-        <button id="toggleDiagnosticButton" style="background: #2196F3; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 11px; margin-top: 5px;">Toggle Verbose Logging</button>
-        <button id="logDiagnosticButton" style="background: #9C27B0; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 11px; margin-top: 5px;">Log Diagnostic Info</button>
-    </div>
+    <!-- Diagnostic section removed -->
     
     <div id="cueGridRemote"></div>
 
@@ -180,17 +171,7 @@
         let isTriggeringCueLocked = false; // Global lock for cue triggering
         const CUE_TRIGGER_LOCK_MS = 500; // Lock duration
         
-        // Diagnostic variables
-        const connectionStatus = document.getElementById('connectionStatus');
-        const lastMessageTime = document.getElementById('lastMessageTime');
-        const messageCount = document.getElementById('messageCount');
-        const testConnectionButton = document.getElementById('testConnectionButton');
-        const toggleDiagnosticButton = document.getElementById('toggleDiagnosticButton');
-        const logDiagnosticButton = document.getElementById('logDiagnosticButton');
-        
-        let messageCounter = 0;
-        let verboseLogging = false;
-        let lastMessageTimestamp = null;
+        // Diagnostic UI removed
 
         // --- DEBOUNCE FUNCTION ---
         function debounce(func, delay) {
@@ -204,60 +185,19 @@
         // --- END DEBOUNCE FUNCTION ---
         
         // Diagnostic functions
-        function updateConnectionStatus(status, color) {
-            connectionStatus.textContent = status;
-            connectionStatus.style.color = color;
-        }
+        function noop() {}
         
-        function updateMessageInfo(message) {
-            messageCounter++;
-            lastMessageTimestamp = new Date();
-            messageCount.textContent = `Messages: ${messageCounter}`;
-            lastMessageTime.textContent = `Last: ${lastMessageTimestamp.toLocaleTimeString()}`;
-            
-            if (verboseLogging) {
-                console.log(`[DIAGNOSTIC] Message ${messageCounter}:`, message);
-            }
-        }
+        function updateMessageInfo(message) {}
         
-        function testConnection() {
-            if (ws.readyState === WebSocket.OPEN) {
-                console.log('[DIAGNOSTIC] Testing connection by sending ping...');
-                ws.send(JSON.stringify({ action: 'ping', timestamp: Date.now() }));
-                updateConnectionStatus('Testing...', '#FFA500');
-            } else {
-                console.log('[DIAGNOSTIC] WebSocket is not open, state:', ws.readyState);
-                const stateText = ws.readyState === WebSocket.CONNECTING ? 'Connecting' : 
-                                 ws.readyState === WebSocket.CLOSING ? 'Closing' : 
-                                 ws.readyState === WebSocket.CLOSED ? 'Closed' : 'Unknown';
-                updateConnectionStatus(`Connection Failed (${stateText})`, '#ff6b6b');
-            }
-        }
+        function testConnection() {}
         
-        function logDiagnosticInfo() {
-            console.log('[DIAGNOSTIC] === Connection Diagnostic Info ===');
-            console.log('[DIAGNOSTIC] WebSocket State:', ws.readyState);
-            console.log('[DIAGNOSTIC] WebSocket URL:', ws.url);
-            console.log('[DIAGNOSTIC] Messages Received:', messageCounter);
-            console.log('[DIAGNOSTIC] Last Message:', lastMessageTimestamp);
-            console.log('[DIAGNOSTIC] Platform:', navigator.platform);
-            console.log('[DIAGNOSTIC] User Agent:', navigator.userAgent);
-            console.log('[DIAGNOSTIC] Current Cues Count:', Object.keys(currentCues).length);
-            console.log('[DIAGNOSTIC] === End Diagnostic Info ===');
-        }
+        function logDiagnosticInfo() {}
         
-        // Event listeners for diagnostic buttons
-        testConnectionButton.addEventListener('click', testConnection);
-        toggleDiagnosticButton.addEventListener('click', () => {
-            verboseLogging = !verboseLogging;
-            toggleDiagnosticButton.textContent = verboseLogging ? 'Disable Verbose Logging' : 'Enable Verbose Logging';
-            console.log(`[DIAGNOSTIC] Verbose logging ${verboseLogging ? 'enabled' : 'disabled'}`);
-        });
-        logDiagnosticButton.addEventListener('click', logDiagnosticInfo);
+        // Diagnostic UI removed
 
         ws.onopen = () => {
             console.log('Connected to acCompaniment WebSocket');
-            updateConnectionStatus('Connected', '#4CAF50');
+            // Diagnostic UI removed
             ws.send(JSON.stringify({ action: 'request_all_cues_for_remote' }));
         };
 
@@ -271,7 +211,7 @@
                     if (message.payload && Array.isArray(message.payload)) {
                         message.payload.forEach(cue => currentCues[cue.id] = cue);
                         renderAllCuesRemote(message.payload);
-                        console.log(`[DIAGNOSTIC] Received ${message.payload.length} cues from server`);
+                        
                     } else {
                         console.error('[DIAGNOSTIC] Remote received all_cues but payload is missing or not an array:', message);
                         renderAllCuesRemote([]); // Render empty or handle error
@@ -280,7 +220,7 @@
                     if (currentCues[message.cue.id]) {
                         Object.assign(currentCues[message.cue.id], message.cue); // Update stored cue
                         updateCueButtonRemote(message.cue);
-                        console.log(`[DIAGNOSTIC] Updated cue ${message.cue.id} status: ${message.cue.status}`);
+                        
                     } else {
                         currentCues[message.cue.id] = message.cue; // Add if new
                         // Potentially re-render all or append new, for simplicity, could request all cues again
@@ -288,29 +228,26 @@
                         // To handle new cues appearing dynamically, we might need to re-render the grid or add intelligently.
                         // A simple approach for now:
                         ws.send(JSON.stringify({ action: 'request_all_cues_for_remote' }));
-                        console.log(`[DIAGNOSTIC] Added new cue ${message.cue.id}`);
+                        
                     }
                 } else if (message.action === 'pong') {
-                    console.log('[DIAGNOSTIC] Received pong response');
-                    updateConnectionStatus('Connection OK', '#4CAF50');
+                    
                 } else {
-                    console.log('[DIAGNOSTIC] Received unknown message:', message);
+                    
                 }
             } catch (error) {
-                console.error('[DIAGNOSTIC] Error parsing WebSocket message:', error);
-                console.error('[DIAGNOSTIC] Raw message:', event.data);
+                
+                
             }
         };
 
         ws.onclose = (event) => {
-            console.log('WebSocket connection closed. Code:', event.code, 'Reason:', event.reason);
-            updateConnectionStatus(`Disconnected (${event.code})`, '#ff6b6b');
+            
             cueGridRemote.innerHTML = `<p style="color: #ff6b6b; text-align: center;">Connection lost. Please refresh the page.</p>`;
         };
 
         ws.onerror = (error) => {
-            console.error('WebSocket Error:', error);
-            updateConnectionStatus('Connection Error', '#ff6b6b');
+            
             cueGridRemote.innerHTML = `<p style="color: #ff6b6b; text-align: center;">Connection error. Please refresh.</p>`;
         };
 

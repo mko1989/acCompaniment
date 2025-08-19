@@ -753,6 +753,15 @@ export function createPlaybackInstance(
                 // --- START DIAGNOSTIC LOGGING ---
                 console.log(`[FADE_STOP_DEBUG ${cueId}] onfade: acIsStoppingWithFade is TRUE, but currentVolume (${currentVolume}) is NOT < 0.001.`);
                 // --- END DIAGNOSTIC LOGGING ---
+                // If the sound is no longer playing and volume is near zero, ensure UI fade flags are cleared
+                if (!sound.playing() || currentVolume <= 0.001) {
+                    playingState.isFadingOut = false;
+                    playingState.fadeTotalDurationMs = 0;
+                    playingState.fadeStartTime = 0;
+                    if (cueGridAPI && typeof cueGridAPI.updateButtonPlayingState === 'function') {
+                        cueGridAPI.updateButtonPlayingState(cueId, false);
+                    }
+                }
             }
             
             if (playingState.isFadingIn) {
