@@ -100,6 +100,9 @@ Download the latest release from the [Releases](../../releases) page for your op
 <img width="350" height="318" alt="Screenshot 2025-07-11 at 18 08 03" src="https://github.com/user-attachments/assets/cd796ad5-f84f-4efc-92b9-4eb94bc968b2" />
 
 
+#### HTTP Web Remote
+<img width="582" height="480" alt="Screenshot 2025-08-19 at 12 49 01" src="https://github.com/user-attachments/assets/ce9e33ed-3bd9-4f59-be9b-f22c2d754d68" />
+
 
 
 ## Development
