@@ -415,30 +415,75 @@ export function createPlaybackInstance(
 
             // Get the latest cue data from the store to ensure we have current trim values
             if (!playingState.isPlaylist) {
-                const currentCue = (audioControllerContext && typeof audioControllerContext.getGlobalCueById === 'function')
-                    ? audioControllerContext.getGlobalCueById(cueId)
-                    : mainCue;
-                const latestTrimEndTime = currentCue.trimEndTime || mainCue.trimEndTime;
-                const latestTrimStartTime = currentCue.trimStartTime || mainCue.trimStartTime || 0;
-                
-                if (latestTrimEndTime > 0 && latestTrimEndTime > latestTrimStartTime) {
-                    const currentSeek = sound.seek() || 0;
-                    const remainingDuration = (latestTrimEndTime - Math.max(currentSeek, latestTrimStartTime)) * 1000;
+                const scheduleTrimEndEnforcement = () => {
+                    const currentCueForTimer = (audioControllerContext && typeof audioControllerContext.getGlobalCueById === 'function')
+                        ? audioControllerContext.getGlobalCueById(cueId)
+                        : mainCue;
+                    const latestTrimEndTime = currentCueForTimer.trimEndTime || mainCue.trimEndTime;
+                    const latestTrimStartTime = currentCueForTimer.trimStartTime || mainCue.trimStartTime || 0;
+                    const isLoopEnabled = !!(currentCueForTimer.loop || mainCue.loop);
 
-                    if (remainingDuration > 0) {
-                        if (playingState.trimEndTimer) clearTimeout(playingState.trimEndTimer);
-                        playingState.trimEndTimer = setTimeout(() => {
-                            if (currentlyPlaying[cueId] && currentlyPlaying[cueId].sound === sound) {
+                    if (latestTrimEndTime > 0 && latestTrimEndTime > latestTrimStartTime) {
+                        const currentSeek = sound.seek() || 0;
+                        const remainingDuration = (latestTrimEndTime - Math.max(currentSeek, latestTrimStartTime)) * 1000;
+
+                        if (remainingDuration > 0) {
+                            if (playingState.trimEndTimer) clearTimeout(playingState.trimEndTimer);
+                            playingState.trimEndTimer = setTimeout(() => {
+                                // Ensure this is still the active sound
+                                if (!(currentlyPlaying[cueId] && currentlyPlaying[cueId].sound === sound)) return;
+
                                 console.log(`PlaybackInstanceHandler: Reached trimEnd for cue: ${cueId} (item: ${filePath}). TrimEnd: ${latestTrimEndTime}`);
+
+                                if (isLoopEnabled) {
+                                    // Loop within the trimmed range: seek back to trim start and reschedule timer
+                                    try {
+                                        sound.seek(latestTrimStartTime || 0);
+                                        // If not playing due to internal state, ensure playback continues
+                                        if (!sound.playing()) {
+                                            sound.play();
+                                        }
+                                    } catch (e) {
+                                        console.warn(`PlaybackInstanceHandler: Error seeking to trimStart for loop on cue ${cueId}:`, e);
+                                    }
+
+                                    // Schedule next trim end enforcement for the next loop cycle
+                                    const nextDurationMs = (latestTrimEndTime - (latestTrimStartTime || 0)) * 1000;
+                                    if (playingState.trimEndTimer) clearTimeout(playingState.trimEndTimer);
+                                    playingState.trimEndTimer = setTimeout(() => {
+                                        // Re-enter enforcement
+                                        scheduleTrimEndEnforcement();
+                                    }, Math.max(10, nextDurationMs));
+                                    console.log(`PlaybackInstanceHandler: Looping within trim region. Next enforcement in ${nextDurationMs}ms.`);
+                                } else {
+                                    // Not looping, stop playback at trim end
+                                    sound.stop();
+                                }
+                            }, remainingDuration);
+                            console.log(`PlaybackInstanceHandler: Set trim end timer for ${remainingDuration}ms. Current seek: ${currentSeek}, Trim end: ${latestTrimEndTime}, loop: ${isLoopEnabled}`);
+                        } else if (currentSeek >= latestTrimEndTime) {
+                            console.log(`PlaybackInstanceHandler: Current seek ${currentSeek} is past trimEnd ${latestTrimEndTime} for cue: ${cueId}. ${isLoopEnabled ? 'Looping to trimStart.' : 'Stopping.'}`);
+                            if (isLoopEnabled) {
+                                try {
+                                    sound.seek(latestTrimStartTime || 0);
+                                    if (!sound.playing()) sound.play();
+                                    // After immediate seek, schedule next enforcement
+                                    const nextDurationMs = (latestTrimEndTime - (latestTrimStartTime || 0)) * 1000;
+                                    if (playingState.trimEndTimer) clearTimeout(playingState.trimEndTimer);
+                                    playingState.trimEndTimer = setTimeout(() => {
+                                        scheduleTrimEndEnforcement();
+                                    }, Math.max(10, nextDurationMs));
+                                } catch (e) {
+                                    console.warn(`PlaybackInstanceHandler: Error seeking to trimStart for loop on cue ${cueId}:`, e);
+                                }
+                            } else {
                                 sound.stop();
                             }
-                        }, remainingDuration);
-                        console.log(`PlaybackInstanceHandler: Set trim end timer for ${remainingDuration}ms. Current seek: ${currentSeek}, Trim end: ${latestTrimEndTime}`);
-                    } else if (currentSeek >= latestTrimEndTime) {
-                         console.log(`PlaybackInstanceHandler: Current seek ${currentSeek} is past trimEnd ${latestTrimEndTime} for cue: ${cueId}. Stopping.`);
-                         sound.stop();
+                        }
                     }
-                }
+                };
+
+                scheduleTrimEndEnforcement();
             }
         },
         onpause: () => {

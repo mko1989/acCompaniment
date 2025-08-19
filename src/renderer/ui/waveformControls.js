@@ -1013,6 +1013,20 @@ function _setupOptimizedWaveformEvents(cue) {
     wavesurferInstance.on('audioprocess', (currentTime) => {
         if (!wavesurferInstance) return; // Guard against race conditions
         console.log('WaveformControls: audioprocess event - currentTime:', currentTime);
+        // Enforce trim end during editor playback
+        try {
+            const trimRegion = wsRegions ? wsRegions.getRegions().find(r => r.id === 'trimRegion') : null;
+            if (trimRegion && typeof trimRegion.end === 'number') {
+                // Small epsilon to account for floating point and buffer timing
+                const epsilon = 0.005;
+                if (currentTime >= (trimRegion.end - epsilon)) {
+                    _handlePlaybackEndReached();
+                    return;
+                }
+            }
+        } catch (e) {
+            console.warn('WaveformControls: Error enforcing trim end during audioprocess:', e);
+        }
                 syncPlaybackTimeWithUI(currentTime);
             });
             
@@ -1029,6 +1043,19 @@ function _setupOptimizedWaveformEvents(cue) {
     wavesurferInstance.on('timeupdate', (currentTime) => {
         if (!wavesurferInstance) return; // Guard against race conditions
         console.log('WaveformControls: timeupdate event - currentTime:', currentTime);
+        // Redundant enforcement in case audioprocess is throttled
+        try {
+            const trimRegion = wsRegions ? wsRegions.getRegions().find(r => r.id === 'trimRegion') : null;
+            if (trimRegion && typeof trimRegion.end === 'number') {
+                const epsilon = 0.005;
+                if (currentTime >= (trimRegion.end - epsilon)) {
+                    _handlePlaybackEndReached();
+                    return;
+                }
+            }
+        } catch (e) {
+            console.warn('WaveformControls: Error enforcing trim end during timeupdate:', e);
+        }
                 syncPlaybackTimeWithUI(currentTime);
             });
             
@@ -1449,11 +1476,13 @@ function handleClearTrim() {
     // Immediate removal of all trim-related regions (trim region AND cut overlays)
     const totalDuration = wavesurferInstance.getDuration();
     
-    // Clear main waveform regions immediately
+    // Clear main waveform regions immediately (hard + targeted)
+    clearAllRegionsHard();
     clearAllCutOverlaysImmediate();
     
     // Clear expanded waveform regions immediately if expanded panel is open
-    if (isBottomPanelExpanded && window.expandedWsRegions) {
+    if (window.expandedWsRegions) {
+        clearExpandedRegionsHard();
         clearExpandedCutOverlaysImmediate();
     }
     
@@ -1469,7 +1498,69 @@ function handleClearTrim() {
     // Force visual refresh of both waveforms
     forceWaveformRefresh();
     
+    // Proactively sync expanded waveform to ensure overlays are gone
+    try {
+        if (expandedWaveformInstance) {
+            // Immediate sync
+            syncTrimRegions();
+            // Short retries to cover async plugin redraws
+            setTimeout(() => { if (expandedWaveformInstance) syncTrimRegions(); }, 50);
+            setTimeout(() => { if (expandedWaveformInstance) syncTrimRegions(); }, 150);
+        }
+    } catch (e) {
+        console.warn('WaveformControls: Error syncing expanded waveform after clear:', e);
+    }
+    
     console.log('WaveformControls: Clear trim completed - all related regions removed immediately');
+}
+
+// Resolve the expanded regions plugin robustly
+function resolveExpandedRegionsPlugin() {
+    if (window.expandedWsRegions) return window.expandedWsRegions;
+    if (!expandedWaveformInstance) return null;
+    try {
+        const active = expandedWaveformInstance.getActivePlugins ? expandedWaveformInstance.getActivePlugins() : [];
+        let plugin = Array.isArray(active) ? active.find(p => p && (typeof p.add === 'function' || typeof p.addRegion === 'function' || typeof p.getRegions === 'function')) : null;
+        if (!plugin && expandedWaveformInstance.plugins) {
+            const list = Array.isArray(expandedWaveformInstance.plugins) ? expandedWaveformInstance.plugins : Object.values(expandedWaveformInstance.plugins);
+            plugin = list.find(p => p && (typeof p.add === 'function' || typeof p.addRegion === 'function' || typeof p.getRegions === 'function')) || null;
+        }
+        if (!plugin && expandedWaveformInstance.regions) {
+            plugin = expandedWaveformInstance.regions;
+        }
+        if (plugin) {
+            window.expandedWsRegions = plugin;
+        }
+        return plugin || null;
+    } catch (e) {
+        console.warn('WaveformControls: Error resolving expanded regions plugin:', e);
+        return null;
+    }
+}
+
+// Helper function to hard-clear all regions from main waveform, including DOM remnants
+function clearAllRegionsHard() {
+    try {
+        if (wsRegions && typeof wsRegions.clearRegions === 'function') {
+            wsRegions.clearRegions();
+            console.log('WaveformControls: wsRegions.clearRegions() called');
+        }
+    } catch (e) {
+        console.warn('WaveformControls: Error calling wsRegions.clearRegions():', e);
+    }
+
+    // Remove any stray region elements from DOM
+    try {
+        if (waveformDisplayDiv) {
+            const regionEls = waveformDisplayDiv.querySelectorAll('.wavesurfer-region');
+            regionEls.forEach(el => el.remove());
+            if (regionEls.length) {
+                console.log('WaveformControls: Removed stray region DOM nodes:', regionEls.length);
+            }
+        }
+    } catch (e) {
+        console.warn('WaveformControls: Error removing region DOM nodes:', e);
+    }
 }
 
 // Helper function to immediately clear all cut overlays from main waveform
@@ -1526,7 +1617,8 @@ function clearAllCutOverlaysImmediate() {
 
 // Helper function to immediately clear expanded cut overlays
 function clearExpandedCutOverlaysImmediate() {
-    if (!window.expandedWsRegions) {
+    const plugin = resolveExpandedRegionsPlugin();
+    if (!plugin) {
         console.warn('WaveformControls: No expandedWsRegions available for immediate clear');
         return;
     }
@@ -1534,7 +1626,7 @@ function clearExpandedCutOverlaysImmediate() {
     console.log('WaveformControls: Clearing expanded cut overlays immediately');
     
     try {
-        const regions = window.expandedWsRegions.getRegions();
+        const regions = plugin.getRegions ? plugin.getRegions() : {};
         const regionsArray = Array.isArray(regions) ? regions : Object.values(regions || {});
         
         regionsArray.forEach(region => {
@@ -1552,7 +1644,7 @@ function clearExpandedCutOverlaysImmediate() {
         
         // Additional cleanup - try to remove any remaining expanded regions by ID
         try {
-            const remainingRegions = window.expandedWsRegions.getRegions();
+            const remainingRegions = plugin.getRegions ? plugin.getRegions() : {};
             const remainingArray = Array.isArray(remainingRegions) ? remainingRegions : Object.values(remainingRegions || {});
             const expandedTrimIds = ['expandedCutStart', 'expandedCutEnd'];
             
@@ -1572,6 +1664,37 @@ function clearExpandedCutOverlaysImmediate() {
         
     } catch (error) {
         console.error('WaveformControls: Error in expanded immediate clear:', error);
+    }
+}
+
+// Helper function to hard-clear all regions from expanded waveform, including DOM remnants
+function clearExpandedRegionsHard() {
+    const plugin = resolveExpandedRegionsPlugin();
+    try {
+        if (plugin && typeof plugin.clearRegions === 'function') {
+            plugin.clearRegions();
+            console.log('WaveformControls: expanded clearRegions() called');
+        } else if (plugin && plugin.getRegions) {
+            const regions = plugin.getRegions();
+            const arr = Array.isArray(regions) ? regions : Object.values(regions || {});
+            arr.forEach(r => { try { r && typeof r.remove === 'function' && r.remove(); } catch (_) {} });
+            console.log('WaveformControls: expanded regions removed via iteration');
+        }
+    } catch (e) {
+        console.warn('WaveformControls: Error clearing expanded regions:', e);
+    }
+
+    // Remove any stray region elements from DOM
+    try {
+        if (expandedWaveformDisplay) {
+            const regionEls = expandedWaveformDisplay.querySelectorAll('.wavesurfer-region');
+            regionEls.forEach(el => el.remove());
+            if (regionEls.length) {
+                console.log('WaveformControls: Removed stray expanded region DOM nodes:', regionEls.length);
+            }
+        }
+    } catch (e) {
+        console.warn('WaveformControls: Error removing expanded region DOM nodes:', e);
     }
 }
 
