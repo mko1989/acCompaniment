@@ -227,6 +227,21 @@
                         <input type="range" id="propVolume" name="propVolume" min="0" max="1" step="0.01" value="1">
                         <span id="propVolumeValue">1.00</span>
                     </div>
+
+                    <!-- Ducking Controls -->
+                    <div class="form-group">
+                        <label for="propIsDuckingTrigger">This cue triggers ducking:</label>
+                        <input type="checkbox" id="propIsDuckingTrigger" name="propIsDuckingTrigger">
+                    </div>
+                    <div class="form-group" id="enableDuckingGroup">
+                        <label for="propEnableDucking">Enable ducking for this cue (be affected by triggers):</label>
+                        <input type="checkbox" id="propEnableDucking" name="propEnableDucking">
+                    </div>
+                    <div class="form-group" id="duckingLevelGroup" style="display: none;">
+                        <label for="propDuckingLevel">Ducking level (% of original volume to keep):</label>
+                        <input type="range" id="propDuckingLevel" name="propDuckingLevel" min="0" max="100" step="1" value="80">
+                        <span id="propDuckingLevelValue">80</span>
+                    </div>
                     
                     <!-- Updated WING Mixer Trigger Section -->
                     <div id="wingTriggerSettings" style="display: none;">

@@ -578,14 +578,37 @@ function _handlePlaylistEnd(cueId, errorOccurred = false) {
         return;
     }
 
-    // If configured to repeat the current item, immediately restart the same logical item
+    // If configured to repeat the current item, stop and cue the SAME item (do not loop-play it)
     if (mainCue.repeatOne) {
         const sameLogicalIdx = playingState.currentPlaylistItemIndex;
-        playingState.isPaused = false;
-        playingState.isCuedNext = false;
-        playingState.isCued = false;
-        playingState.sound = null;
-        setTimeout(() => _playTargetItem(cueId, sameLogicalIdx, false), 10);
+        playingState.isPaused = true; // Explicitly paused
+        playingState.isCuedNext = true; // Mark that next trigger should play this item again
+        playingState.isCued = true; // General cued flag
+        playingState.sound = null; // Clear sound instance
+
+        // If this playlist was a ducking trigger, revert ducking now that it ended and is cued
+        const playlistCueDataRepeatOne = getGlobalCueByIdRef(cueId);
+        if (playlistCueDataRepeatOne && playlistCueDataRepeatOne.isDuckingTrigger) {
+            console.log(`AudioPlaybackManager: Playlist trigger ${cueId} (repeat_one mode) ended and is cued. Reverting ducking.`);
+            _revertDucking(cueId);
+        }
+
+        // Determine the original index and name of the cued (same) item
+        const listLenRepeat = playingState.originalPlaylistItems.length;
+        let cuedOriginalIdxRepeat = sameLogicalIdx;
+        if (mainCue.shuffle && playingState.shufflePlaybackOrder && playingState.shufflePlaybackOrder.length > sameLogicalIdx) {
+            cuedOriginalIdxRepeat = playingState.shufflePlaybackOrder[sameLogicalIdx];
+        }
+        let cuedNameRepeat = null;
+        if (cuedOriginalIdxRepeat >= 0 && cuedOriginalIdxRepeat < listLenRepeat) {
+            const itemRepeat = playingState.originalPlaylistItems[cuedOriginalIdxRepeat];
+            cuedNameRepeat = itemRepeat.name || itemRepeat.path.split(/[\\\/]/).pop();
+        }
+
+        // Update UI to indicate it's cued to the same item
+        if (cueGridAPIRef) cueGridAPIRef.updateButtonPlayingState(cueId, false, `Next: ${cuedNameRepeat || 'Item'}`, true);
+        if (ipcBindingsRef) ipcBindingsRef.send('cue-status-update', { cueId: cueId, status: 'cued_next', details: { reason: 'repeat_one_cued_same_item', nextItem: cuedNameRepeat } });
+
         return;
     }
 

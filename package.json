@@ -1,6 +1,6 @@
 {
   "name": "accompaniment",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "A soundboard app",
   "main": "main.js",
   "scripts": {
@@ -78,10 +78,6 @@
       "category": "AudioVideo",
       "maintainer": "mko1989 <m.wardecki89@gmail.com>",
       "target": [
-        {
-          "target": "AppImage",
-          "arch": ["x64", "arm64"]
-        },
         {
           "target": "deb",
           "arch": ["x64", "arm64"]
