@@ -21,11 +21,7 @@ let isInitialized = false; // Flag to indicate if init has completed
 //     value: null
 // };
 
-const DEFAULT_WING_TRIGGER = { // Added for consistency with main process
-    enabled: false,
-    userButton: null,
-    mixerType: 'behringer_wing' // Default mixerType for WING trigger
-};
+// DEFAULT_WING_TRIGGER - REMOVED
 
 // This is the actual handler function
 function _handleCuesUpdated(updatedCues) {
@@ -37,7 +33,7 @@ function _handleCuesUpdated(updatedCues) {
             console.log(`CueStore (_handleCuesUpdated MAP): Processing cue ID ${cue.id}. Main process version:`, JSON.parse(JSON.stringify(cue)));
             const newMappedCue = {
                 ...cue, // Spread the incoming cue first
-                wingTrigger: cue.wingTrigger ? { ...DEFAULT_WING_TRIGGER, mixerType: cue.wingTrigger.mixerType || 'behringer_wing', ...cue.wingTrigger } : { ...DEFAULT_WING_TRIGGER },
+                // wingTrigger: REMOVED
                 enableDucking: cue.enableDucking !== undefined ? cue.enableDucking : false,
                 isDuckingTrigger: cue.isDuckingTrigger !== undefined ? cue.isDuckingTrigger : false,
                 duckingLevel: cue.duckingLevel !== undefined ? cue.duckingLevel : 80,
@@ -63,13 +59,13 @@ function _handleCuesUpdated(updatedCues) {
             if (window._waveformTrimUpdateInProgress) {
                 console.log('CueStore (_handleCuesUpdated): Skipping properties sidebar refresh - waveform trim update in progress');
             } else {
-            const activeCueId = sidebarsAPI.getActivePropertiesCueId();
-            if (activeCueId) {
-                const activeCue = cues.find(c => c.id === activeCueId);
-                if (activeCue) { // No longer just for playlists, refresh for any active cue
-                    console.log(`CueStore (_handleCuesUpdated): Active cue ${activeCueId} found, re-opening/refreshing properties view.`);
-                    // Re-open properties sidebar to refresh its content with potentially updated cue data
-                    sidebarsAPI.openPropertiesSidebar(activeCue);
+                const activeCueId = sidebarsAPI.getActivePropertiesCueId();
+                if (activeCueId) {
+                    const activeCue = cues.find(c => c.id === activeCueId);
+                    if (activeCue) { // No longer just for playlists, refresh for any active cue
+                        console.log(`CueStore (_handleCuesUpdated): Active cue ${activeCueId} found, re-opening/refreshing properties view.`);
+                        // Re-open properties sidebar to refresh its content with potentially updated cue data
+                        sidebarsAPI.openPropertiesSidebar(activeCue);
                     }
                 }
             }
@@ -132,7 +128,7 @@ async function loadCuesFromServer() {
             cues = loadedCues.map(cue => ({
                 ...cue,
                 // midiTrigger: cue.midiTrigger ? { ...DEFAULT_MIDI_TRIGGER, ...cue.midiTrigger } : { ...DEFAULT_MIDI_TRIGGER }, // REMOVED
-                wingTrigger: cue.wingTrigger ? { ...DEFAULT_WING_TRIGGER, mixerType: cue.wingTrigger.mixerType || 'behringer_wing', ...cue.wingTrigger } : { ...DEFAULT_WING_TRIGGER },
+                // wingTrigger: REMOVED
                 // oscTrigger: cue.oscTrigger || { enabled: false, path: '' } // REMOVED
             }));
             // Clean up any lingering properties that might have been missed or from very old files
@@ -151,25 +147,9 @@ async function loadCuesFromServer() {
     }
 }
 
-// saveCuesToServer is likely obsolete if individual changes go through addOrUpdateCue / deleteCue
-// and full saves are handled by main process workspace logic.
-/*
-async function saveCuesToServer() {
-    if (!ipcBindings) {
-        console.error('CueStore: IPC bindings not initialized. Cannot save cues.');
-        return false;
-    }
-    try {
-        console.log('CueStore: Saving cues to main process...', cues);
-        await ipcBindings.saveCuesToMain(cues); // saveCuesToMain sends the ENTIRE cues array
-        console.log('CueStore: Cues successfully saved to server.');
-        return true;
-    } catch (error) {
-        console.error('CueStore: Error saving cues to server:', error);
-        return false;
-    }
-}
-*/
+// Note: saveCuesToServer function removed as it's obsolete.
+// Individual changes go through addOrUpdateCue/deleteCue and full saves
+// are handled by main process workspace logic.
 
 function getCueById(id) {
     return cues.find(cue => cue.id === id);
@@ -187,7 +167,13 @@ async function addOrUpdateCue(cueData) {
         return { success: false, error: 'IPC bindings not available for saving cue.', cue: null };
     }
     // Basic check for cueData validity, especially if it's a new cue (no ID yet)
-    if (!cueData || (!cueData.id && (!cueData.name && !cueData.filePath && (!cueData.playlistItems || cueData.playlistItems.length === 0)))) {
+    if (!cueData) {
+        console.error('CueStore: No cue data provided for add/update.');
+        return { success: false, error: 'No cue data provided.', cue: null };
+    }
+    
+    // For new cues (no ID), ensure we have either a name, filePath, or valid playlistItems
+    if (!cueData.id && !cueData.name && !cueData.filePath && (!cueData.playlistItems || cueData.playlistItems.length === 0)) {
         console.error('CueStore: Invalid or insufficient cue data for add/update.', cueData);
         return { success: false, error: 'Invalid or insufficient cue data provided.', cue: null };
     }
@@ -196,7 +182,7 @@ async function addOrUpdateCue(cueData) {
 
     const sanitizedCueData = {
         ...cueData,
-        wingTrigger: cueData.wingTrigger ? { ...DEFAULT_WING_TRIGGER, mixerType: cueData.wingTrigger.mixerType || 'behringer_wing', ...cueData.wingTrigger } : { ...DEFAULT_WING_TRIGGER },
+        // wingTrigger: REMOVED
     };
 
     console.log(`CueStore: Sending cue (ID: ${sanitizedCueData.id || 'new'}) to main process for add/update.`);

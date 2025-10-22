@@ -135,7 +135,7 @@ body {
 }
 
 #closePropertiesSidebarBtn {
-    position: absolute; /* Relative to sidebar-content if that's positioned */
+    position: absolute;
     top: 10px;
     right: 15px;
     font-size: 1.5em;
@@ -208,44 +208,37 @@ body {
     background-color: #C0392B;
 }
 
-/* Ensure existing modal and cue button styles don't conflict badly */
-/* Might need adjustments later */
-h1 { /* from old h1 */
+h1 {
     text-align: center;
     color: #2c3e50;
 }
 
-/* #controls no longer exists, merged into #topBar/#globalControls */
 
 
 
 #cueGridContainer {
     display: grid;
-    /* grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); */ /* Old version */
-    grid-template-columns: repeat(auto-fill, 150px); /* Solution A: Fixed width */
-    gap: 15px; /* Should set both row and column gap */
-    /* row-gap: 15px; */ /* Explicit, if needed */
-    /* column-gap: 15px; */ /* Explicit, if needed */
-    align-content: start; /* Pack rows to the top */
-    margin-top: 0; /* Was 20px, now mainContent has padding */
-    flex-grow: 1; /* Allow grid to take available space in mainContent */
+    grid-template-columns: repeat(auto-fill, 150px);
+    gap: 15px;
+    align-content: start;
+    margin-top: 0;
+    flex-grow: 1;
 }
 
 .cue-button {
-    padding: 10px; /* Reduced padding for potentially smaller buttons */
+    padding: 10px;
     background-color: #ecf0f1;
     border: 1px solid #bdc3c7;
     border-radius: 5px;
     text-align: center;
     cursor: pointer;
-    /* min-height: 80px; */ /* Removed fixed min-height */
-    aspect-ratio: 1 / 1; /* Make it square */
+    aspect-ratio: 1 / 1;
     display: flex;
     flex-direction: column;
-    justify-content: space-between; /* Adjust for status, name, time */
-    align-items: center; /* Center items horizontally like name */
-    position: relative; /* Important for absolute positioning of children like status indicator */
-    overflow: hidden; /* Prevent content from spilling out, e.g. long names */
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
 }
 
 .cue-status-indicator {
@@ -259,23 +252,6 @@ h1 { /* from old h1 */
     line-height: 1;
 }
 
-/* ---- NEW WING LINK LABEL STYLE ---- */
-.wing-link-label {
-    font-size: 0.6em; /* Even smaller text for the link */
-    color: #007bff;   /* Blue to indicate a link/special status */
-    position: absolute;
-    top: 2px;      /* Align with status indicator */
-    right: 2px;     /* Position to the top right */
-    padding: 1px 3px;
-    background-color: rgba(0,0,0,0.05);
-    border-radius: 3px;
-    line-height: 1;
-    max-width: 50%; /* Prevent it from overlapping status too much */
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-/* ---- END WING LINK LABEL STYLE ---- */
 
 .cue-button.playing .cue-status-indicator {
     color: #e6ffe6; /* Lighter green for text on dark green */
@@ -287,14 +263,13 @@ h1 { /* from old h1 */
 
 .cue-button-name-container {
     font-weight: bold;
-    /* margin-bottom: 4px; /* Adjusted by flex */
     word-break: break-word;
-    flex-grow: 1; /* Allow name to take up more space if needed */
+    flex-grow: 1;
     display: flex;
     flex-direction: column;
-    justify-content: center; /* Center name and now-playing within its container */
+    justify-content: center;
     align-items: center;
-    width: 100%; /* Ensure it takes full width for centering */
+    width: 100%;
 }
 
 .cue-button .now-playing-item {
@@ -307,13 +282,12 @@ h1 { /* from old h1 */
 
 .cue-time-display-container {
     font-size: 0.85em;
-    color: #555; /* Darker gray for better contrast on default button */
+    color: #555;
     width: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
     margin-top: 3px;
-    /* margin-bottom: 2px; /* Give it a bit of space at the bottom */
 }
 
 .cue-time-separator {
@@ -334,8 +308,7 @@ h1 { /* from old h1 */
 
 /* Fix for paused button hover */
 .cue-button.paused:hover {
-    background-color: #e67e00; /* Darker orange on hover */
-    /* Ensure other properties like text color are maintained if necessary */
+    background-color: #e67e00;
 }
 
 .cue-button.paused .now-playing-item,
@@ -363,28 +336,28 @@ h1 { /* from old h1 */
     color: white; /* Explicitly make remaining time white when playing */
 }
 .cue-button.playing:hover {
-    background-color: #27ae60; /* Darker green on hover */
+    background-color: #4CAF50; /* Lighter green on hover */
 }
 
 /* Style for when a cue is cued (e.g. playlist next item ready) */
 .cue-button.cued {
-    background-color: #3498db; /* Blue for cued */
+    background-color: #d97700; /* Muted Orange for cued */
     color: white;
 }
 
 .cue-button.cued:hover {
-    background-color: #2980b9; /* Darker blue on hover */
+    background-color: #c46a00; /* Darker muted orange on hover */
 }
 
 .cue-button.cued .cue-status-indicator,
-.cue-button.cued .now-playing-item, /* Though now-playing-item might not be used for cued */
-.cue-button.cued .next-playlist-item, /* Specifically for (Next: ...) text */
+.cue-button.cued .now-playing-item,
+.cue-button.cued .next-playlist-item,
 .cue-button.cued .cue-time-display-container {
-    color: #eaf2f8; /* Lighter blue/white for text on blue background */
+    color: #eaf2f8;
 }
 
 .cue-button.cued .cue-time-remaining {
-    color: #eaf2f8; /* Match other time elements in cued state */
+    color: #eaf2f8;
 }
 
 .cue-button.drop-target {
@@ -462,10 +435,9 @@ h1 { /* from old h1 */
 
 .close-button {
     color: #aaa;
-    /* float: right; */ /* Replaced by align-self or absolute positioning in sidebars */
     font-size: 28px;
     font-weight: bold;
-    align-self: flex-end; /* For modal's close button */
+    align-self: flex-end;
 }
 
 .close-button:hover,
@@ -478,7 +450,7 @@ h1 { /* from old h1 */
 #playlistConfig ul, #propPlaylistConfig ul {
     list-style-type: none;
     padding: 0;
-    max-height: 200px; /* Increased height */
+    max-height: 200px;
     overflow-y: auto;
     border: 1px solid #ccc;
     border-radius: 4px;
@@ -495,9 +467,8 @@ h1 { /* from old h1 */
     border-bottom: none;
 }
 
-/* Make sure the properties sidebar close button is positioned correctly */
 #propertiesSidebar .sidebar-content {
-    position: relative; /* Needed for absolute positioning of close button */
+    position: relative;
 }
 
 /* Properties Sidebar Playlist Item Styling */
@@ -536,18 +507,18 @@ h1 { /* from old h1 */
 
 /* Default style for playlist item duration */
 #propPlaylistItems li .playlist-item-duration {
-    color: #555; /* A visible default color, adjust as needed */
+    color: #555;
     font-size: 0.9em;
-    margin-left: 8px; /* Add some spacing */
-    white-space: nowrap; /* Prevent wrapping if too close to button */
+    margin-left: 8px;
+    white-space: nowrap;
 }
 
 #propPlaylistItems li .remove-playlist-item-btn {
-    width: 24px;  /* Fixed width */
-    height: 24px; /* Fixed height */
-    padding: 0;   /* Remove padding, rely on width/height and flex centering */
-    font-size: 1.2em; /* Adjust for '✕' size */
-    line-height: 1; /* For better centering of the text character */
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    font-size: 1.2em;
+    line-height: 1;
     background-color: #555;
     border: 1px solid #666;
     color: #eee;
@@ -555,9 +526,9 @@ h1 { /* from old h1 */
     flex-shrink: 0;
     border-radius: 3px;
     margin-left: 5px;
-    display: flex; /* For centering the '✕' */
-    align-items: center; /* For centering the '✕' */
-    justify-content: center; /* For centering the '✕' */
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* Visual feedback for playlist item drag-and-drop */
@@ -568,19 +539,19 @@ h1 { /* from old h1 */
 }
 
 #propPlaylistItems li.drag-over-playlist-item {
-    border-color: #2980b9; /* Highlight potential drop target */
-    background-color: #2c3e50; 
+    border-color: #2980b9;
+    background-color: #2c3e50;
 }
 
 /* Highlight for currently playing item in properties sidebar playlist */
 #propPlaylistItems li.playing-in-sidebar {
-    background-color: #27ae60; /* A green, similar to playing cue buttons */
+    background-color: #27ae60;
     border-color: #2ecc71;
 }
 
 #propPlaylistItems li.playing-in-sidebar .playlist-item-name,
 #propPlaylistItems li.playing-in-sidebar .playlist-item-drag-handle {
-    color: #ffffff; /* White text for better contrast on green */
+    color: #ffffff;
 }
 
 .stop-all-btn {
@@ -588,78 +559,23 @@ h1 { /* from old h1 */
 }
 
 .stop-all-btn:hover {
-    background-color: #c0392b; /* Darker red on hover */
+    background-color: #c0392b;
 }
 
-/* Specific styling for the multiple files drop modal content */
 #multipleFilesDropModalContent {
-    width: auto; /* Let content define width */
-    min-width: 300px; /* Ensure it's not too narrow */
-    max-width: 400px; /* Reduce max width */
-    margin: 10% auto; /* Adjust top margin if needed */
+    width: auto;
+    min-width: 300px;
+    max-width: 400px;
+    margin: 10% auto;
 }
 
 #multipleFilesDropModalContent .modal-actions {
     display: flex;
-    flex-direction: column; /* Stack buttons vertically */
-    gap: 10px; /* Add space between buttons */
+    flex-direction: column;
+    gap: 10px;
     margin-top: 15px;
 }
 
 #multipleFilesDropModalContent .modal-actions button {
-    width: 100%; /* Make buttons take full width of their container */
-} 
-
-/* ===== HIDE MIXER INTEGRATION FEATURES FOR ALPHA BUILD ===== */
-
-/* Hide all mixer integration elements by ID - most reliable approach */
-#configMixerIntegrationEnabled,
-input#configMixerIntegrationEnabled,
-label[for="configMixerIntegrationEnabled"],
-#mixerTypeGroup,
-#wingIpAddressGroup,
-#configMixerType,
-#configWingIpAddress,
-#wingTriggerSettingsContainer,
-#propWingTriggerEnabled,
-#wingFullSizeConfig,
-#wingCompactConfig,
-#wingUserButtonSubGroup_Legacy,
-#propWingFullLayer,
-#propWingFullButton,
-#propWingFullRow,
-#propWingCompactLayer,
-#propWingCompactButton,
-#propWingUserButton_Legacy {
-    display: none !important;
-}
-
-/* Hide the checkbox label containing the mixer integration checkbox */
-.checkbox-label:has(input#configMixerIntegrationEnabled),
-label.checkbox-label:has(#configMixerIntegrationEnabled) {
-    display: none !important;
-}
-
-/* Alternative approach: Hide any form group div that contains mixer elements */
-div.form-group:has(#configMixerIntegrationEnabled),
-div.form-group:has(#configMixerType),
-div.form-group:has(#configWingIpAddress) {
-    display: none !important;
-}
-
-/* Specific targeting for the Mixer Integration heading */
-#configSidebar h3:nth-of-type(3) {
-    display: none !important;
-}
-
-/* Hide HR elements around mixer section */
-#configSidebar hr:nth-of-type(2),
-#configSidebar hr:nth-of-type(3) {
-    display: none !important;
-}
-
-/* Fallback: Hide any element with mixer/wing in ID (but exclude waveform elements) */
-*[id*="mixer"],
-*[id*="wing"]:not([id*="waveform"]):not([id*="wf"]) {
-    display: none !important;
+    width: 100%;
 } 

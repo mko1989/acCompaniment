@@ -33,7 +33,10 @@ function handleDragLeave(event) {
     // Optionally, remove visual feedback
     // e.g., event.target.classList.remove('drag-over-active');
     // Check if the leave event is not just moving to a child element
-    if (event.relatedTarget === null || !document.body.contains(event.relatedTarget)) {
+    // More robust check: if relatedTarget is null or not within the document body
+    if (event.relatedTarget === null || 
+        !document.body.contains(event.relatedTarget) || 
+        event.relatedTarget === document.documentElement) {
         document.body.classList.remove('app-drag-over');
     }
 }
@@ -46,23 +49,29 @@ function handleDrop(event) {
     const files = event.dataTransfer.files;
     const dropTargetElement = event.target; // The actual element the drop occurred on
 
-    if (files.length === 1) {
-        console.log('DragDropHandler: Single file dropped:', files[0].path, 'on target:', dropTargetElement);
-        if (uiRef && typeof uiRef.handleSingleFileDrop === 'function') {
-            uiRef.handleSingleFileDrop(files[0].path, dropTargetElement);
+    try {
+        if (files.length === 1) {
+            const filePath = files[0].path || files[0].name; // Fallback to name if path not available
+            console.log('DragDropHandler: Single file dropped:', filePath, 'on target:', dropTargetElement);
+            if (uiRef && typeof uiRef.handleSingleFileDrop === 'function') {
+                uiRef.handleSingleFileDrop(filePath, dropTargetElement);
+            } else {
+                console.warn('DragDropHandler: uiRef or uiRef.handleSingleFileDrop not available.');
+            }
+        } else if (files.length > 1) {
+            const filePaths = Array.from(files).map(f => f.path || f.name); // Fallback to name if path not available
+            console.log('DragDropHandler: Multiple files dropped:', filePaths, 'on target:', dropTargetElement);
+            if (uiRef && typeof uiRef.handleMultipleFileDrop === 'function') {
+                // Pass the FileList object directly, not just paths, as we might need file names too
+                uiRef.handleMultipleFileDrop(files, dropTargetElement);
+            } else {
+                console.warn('DragDropHandler: uiRef or uiRef.handleMultipleFileDrop not available.');
+            }
         } else {
-            console.warn('DragDropHandler: uiRef or uiRef.handleSingleFileDrop not available.');
+            console.log('DragDropHandler: Drop event with no files.');
         }
-    } else if (files.length > 1) {
-        console.log('DragDropHandler: Multiple files dropped:', Array.from(files).map(f => f.path), 'on target:', dropTargetElement);
-        if (uiRef && typeof uiRef.handleMultipleFileDrop === 'function') {
-            // Pass the FileList object directly, not just paths, as we might need file names too
-            uiRef.handleMultipleFileDrop(files, dropTargetElement);
-        } else {
-            console.warn('DragDropHandler: uiRef or uiRef.handleMultipleFileDrop not available.');
-        }
-    } else {
-        console.log('DragDropHandler: Drop event with no files.');
+    } catch (error) {
+        console.error('DragDropHandler: Error handling drop event:', error);
     }
 }
 

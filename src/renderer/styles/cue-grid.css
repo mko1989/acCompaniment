@@ -25,8 +25,8 @@
 }
 
 .cue-button:hover {
-    background-color: #4a4a4a;
-    border-color: #666666;
+    background-color: var(--button-secondary-bg);
+    border-color: var(--button-secondary-border);
 }
 
 .cue-status-indicator {
@@ -46,7 +46,7 @@
 
 .wing-link-label {
     font-size: 0.6em;
-    color: #58a6ff;
+    color: var(--button-primary-bg);
     position: absolute;
     top: 2px;
     right: 2px;
@@ -118,12 +118,12 @@
 
 .cue-button .next-playlist-item {
     font-size: 0.75em;
-    color: #aaaaaa;
+    color: var(--text-secondary-color);
 }
 
 .cue-time-display-container {
     font-size: 0.85em;
-    color: #cccccc;
+    color: var(--text-color);
     width: 100%;
     display: flex;
     justify-content: center;
@@ -140,7 +140,7 @@
 .cue-time-remaining {
     margin-left: 5px;
     font-size: 0.9em;
-    color: #bbbbbb;
+    color: var(--text-secondary-color);
 }
 
 /* Cue Button States */
@@ -157,7 +157,25 @@
     color: white;
 }
 .cue-button.playing:hover {
-    background-color: #1e7e1e; /* Darker green */
+    background-color: #4CAF50; /* Lighter green for playing button hover */
+}
+
+/* Enhanced visual feedback for playlist playing state */
+.cue-button.playing[data-cue-type="playlist"] {
+    animation: playlist-playing-pulse 2s ease-in-out infinite;
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+}
+
+@keyframes playlist-playing-pulse {
+    0% {
+        box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(76, 175, 80, 0.8);
+    }
+    100% {
+        box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+    }
 }
 
 .cue-button.paused {
@@ -170,15 +188,15 @@
 .cue-button.paused .playlist-next-item-playing,
 .cue-button.paused .cue-time-display-container,
 .cue-button.paused .cue-time-remaining {
-    color: #ffe6cc; /* Lighter orange for text on orange */
+    color: var(--text-color); /* Lighter orange for text on orange */
 }
 .cue-button.paused:hover {
-    background-color: #b36200; /* Darker orange */
+    background-color: var(--button-primary-hover-bg); /* Darker orange */
 }
 
 .cue-button.cued {
-    background-color: var(--cue-cued-bg, #2196F3);
-    border-color: var(--cue-cued-border, #1976D2);
+    background-color: var(--cue-cued-bg, #ff8c00);
+    border-color: var(--cue-cued-border, #e67300);
 }
 .cue-button.cued .cue-status-indicator,
 .cue-button.cued .now-playing-item,
@@ -187,14 +205,14 @@
 .cue-button.cued .playlist-next-item-playing,
 .cue-button.cued .cue-time-display-container,
 .cue-button.cued .cue-time-remaining {
-    color: #d4e7f5; /* Lighter blue for text on blue */
+    color: var(--text-color); /* Lighter blue for text on blue */
 }
 .cue-button .cue-cued-text-indicator {
     position: absolute;
     top: 2px;
     left: 4px;
     font-size: 10px;
-    color: #dddddd;
+    color: var(--text-color);
     background-color: rgba(0, 0, 0, 0.6);
     padding: 2px 4px;
     border-radius: 3px;
@@ -203,12 +221,12 @@
     display: none;
 }
 .cue-button.cued:hover {
-    background-color: #004c7a; /* Darker blue */
+    background-color: var(--button-primary-hover-bg); /* Darker blue */
 }
 
 .cue-button.drop-target {
     border: 2px dashed var(--button-primary-bg);
-    background-color: #2c3034;
+    background-color: var(--background-darker);
 }
 
 /* Style for fading cues */

@@ -2,11 +2,9 @@ const fs = require('fs');
 const path = require('path');
 const { app } = require('electron'); // Required for app.getPath('userData')
 const { v4: uuidv4 } = require('uuid');
-const mixerIntegrationManager = require('./mixerIntegrationManager'); // Added for WING integration
-// const mm = require('music-metadata'); // REMOVE this line
+// Mixer integration removed as per requirements
 
 const CUES_FILE_NAME = 'cues.json';
-// const CUES_CONFIG_FILE = path.join(app.getPath('userData'), 'cues.json'); // REMOVED
 let currentCuesFilePath = path.join(app.getPath('userData'), CUES_FILE_NAME); // Default path
 
 // REMOVED DEFAULT_MIDI_TRIGGER
@@ -63,46 +61,10 @@ function loadCuesFromFile() {
             isDuckingTrigger: cue.isDuckingTrigger !== undefined ? cue.isDuckingTrigger : false,
           };
 
-          // Migrate old wingTrigger to new mixerButtonAssignment structure
-          if (cue.wingTrigger && cue.wingTrigger.enabled && cue.wingTrigger.userButton && !cue.mixerButtonAssignment) {
-            console.log(`CueManager: Migrating wingTrigger to mixerButtonAssignment for cue ${cue.id}`);
-            const wingTrigger = cue.wingTrigger;
-            let mixerType = wingTrigger.mixerType || 'behringer_wing';
-            
-            // Convert old mixer types to new structure
-            if (mixerType === 'behringer_wing') {
-              // Default to full if not specified
-              mixerType = 'behringer_wing_full';
-            }
-            
-            migratedCue.mixerButtonAssignment = {
-              mixerType: mixerType,
-              buttonId: wingTrigger.userButton
-            };
-            
-            // Keep wingTrigger for backward compatibility but mark as disabled
-            migratedCue.wingTrigger = { 
-              enabled: false, 
-              userButton: null, 
-              mixerType: mixerType,
-              migrated: true // Flag to indicate this was migrated
-            };
-          } else {
-            // Ensure wingTrigger exists with defaults
-            migratedCue.wingTrigger = cue.wingTrigger ? 
-              { enabled: false, userButton: null, mixerType: cue.wingTrigger.mixerType || 'behringer_wing', ...cue.wingTrigger } : 
-              { enabled: false, userButton: null, mixerType: 'behringer_wing' };
-          }
 
           return migratedCue;
         });
         
-        // Check if any cues were migrated and save if so
-        const migratedCues = cues.filter(cue => cue.wingTrigger && cue.wingTrigger.migrated);
-        if (migratedCues.length > 0) {
-          console.log(`CueManager: ${migratedCues.length} cues were migrated from wingTrigger to mixerButtonAssignment. Saving changes.`);
-          saveCuesToFile(true); // Save silently to avoid unnecessary broadcasts during loading
-        }
         
         // Clean up any lingering midiTrigger and oscTrigger properties from old files
         cues.forEach(cue => {
@@ -397,7 +359,7 @@ async function addOrUpdateProcessedCue(cueData, workspacePath) {
     // Log the full cueData object for complete debugging (temporarily)
     console.log(`[CueManager] Full cueData object:`, JSON.stringify(cueData, null, 2));
 
-    const cueId = cueData.id || await generateUUID(); // Generate UUID if not provided
+    const cueId = cueData.id || generateUUID(); // Generate UUID if not provided
     const existingCueIndex = cues.findIndex(c => c.id === cueId);
     let isNew = true;
     if (existingCueIndex !== -1) {
@@ -419,10 +381,6 @@ async function addOrUpdateProcessedCue(cueData, workspacePath) {
       retriggerAction: effectiveRetriggerBehavior, // TODO: Consolidate retriggerAction & retriggerBehavior
       retriggerActionCompanion: effectiveRetriggerBehavior, // TODO: Consolidate
       knownDuration: cueData.knownDuration || 0,
-      // WING Trigger specific properties
-      wingTrigger: cueData.wingTrigger ? 
-                   { enabled: false, userButton: null, mixerType: cueData.wingTrigger.mixerType || 'behringer_wing', ...cueData.wingTrigger } : 
-                   { enabled: false, userButton: null, mixerType: 'behringer_wing' },
       // OSC Trigger specific properties - REMOVED
       // oscTrigger: cueData.oscTrigger ? 
       //             { enabled: false, path: null, args: [], ...cueData.oscTrigger } : 
@@ -525,7 +483,8 @@ async function addOrUpdateProcessedCue(cueData, workspacePath) {
     }
 
     // Return a copy of the processed cue from the array
-    return { ...cues[existingCueIndex !== -1 ? existingCueIndex : cues.length - 1] };
+    const finalCueIndex = isNew ? cues.length - 1 : existingCueIndex;
+    return { ...cues[finalCueIndex] };
 }
 
 // New function to update duration for a single cue or a specific playlist item
@@ -582,79 +541,7 @@ function updateCueItemDuration(cueId, duration, playlistItemId = null) {
     }
 }
 
-function triggerCueByWingCC(assignedCC, value) {
-    if (mainWindowRef === null) { // Ensure mainWindowRef is available
-        console.error('CueManager: mainWindowRef not available to send IPC for WING CC trigger.');
-        return;
-    }
-    if (parseInt(String(value), 10) !== 127) {
-        console.log(`CueManager: Received WING CC ${assignedCC} with value ${value}, not triggering (value !== 127).`);
-        return; // Only trigger on "press" (value 127)
-    }
 
-    const cueToTrigger = cues.find(cue => 
-        cue.wingTrigger && 
-        cue.wingTrigger.enabled && 
-        cue.wingTrigger.assignedMidiCC === parseInt(String(assignedCC), 10) // Ensure CC is number for comparison
-    );
-
-    if (cueToTrigger) {
-        console.log(`CueManager: Triggering cue ${cueToTrigger.id} (${cueToTrigger.name}) via WING CC ${assignedCC}`);
-        // Send IPC to renderer to toggle this cue
-        if (mainWindowRef && mainWindowRef.webContents && !mainWindowRef.webContents.isDestroyed()) {
-            mainWindowRef.webContents.send('toggle-audio-by-id', { 
-                cueId: cueToTrigger.id, 
-                fromCompanion: false, // Or determine if this source needs differentiation
-                retriggerBehaviorOverride: null // Or use cue's default
-            });
-        } else {
-            console.error('CueManager: mainWindowRef.webContents not available for WING CC trigger IPC.');
-        }
-    } else {
-        console.warn(`CueManager: Received WING trigger for CC ${assignedCC} (value ${value}), but no enabled cue is assigned to this CC.`);
-    }
-}
-
-function triggerCueByWingPhysicalButton(physicalButtonId, mixerType, value) {
-    if (mainWindowRef === null) { // Ensure mainWindowRef is available
-        console.error('CueManager: mainWindowRef not available for WING physical button trigger IPC.');
-        return;
-    }
-    if (parseInt(String(value), 10) !== 127) {
-        console.log(`CueManager: Received WING physical button ${physicalButtonId} with value ${value}, not triggering.`);
-        return; // Assuming 127 is press
-    }
-
-    const cueToTrigger = cues.find(cue => {
-        if (cue.wingTrigger && cue.wingTrigger.enabled) {
-            // Reconstruct physicalButtonId from cue.wingTrigger data for comparison
-            const cueLayerNum = cue.wingTrigger.wingLayer ? parseInt(String(cue.wingTrigger.wingLayer).replace('layer', ''), 10) : -1;
-            const cueButtonNum = cue.wingTrigger.wingButton ? parseInt(String(cue.wingTrigger.wingButton).replace('button', ''), 10) : -1;
-            const cueRowId = cue.wingTrigger.wingRow;
-
-            if (cueLayerNum === -1 || cueButtonNum === -1 || !cueRowId) return false;
-
-            const cuePhysicalId = `layer${cueLayerNum}_button${cueButtonNum}_${cueRowId}`;
-            return cuePhysicalId === physicalButtonId;
-        }
-        return false;
-    });
-
-    if (cueToTrigger) {
-        console.log(`CueManager: Triggering cue ${cueToTrigger.id} (${cueToTrigger.name}) via WING physical button ${physicalButtonId}`);
-        if (mainWindowRef && mainWindowRef.webContents && !mainWindowRef.webContents.isDestroyed()) {
-            mainWindowRef.webContents.send('toggle-audio-by-id', { 
-                cueId: cueToTrigger.id, 
-                fromCompanion: false, 
-                retriggerBehaviorOverride: null 
-            });
-        } else {
-            console.error('CueManager: mainWindowRef.webContents not available for WING physical button trigger IPC.');
-        }
-    } else {
-        console.warn(`CueManager: Received WING physical button trigger for ${physicalButtonId} (value ${value}), but no enabled cue is assigned to this physical button.`);
-    }
-}
 
 // Function to get the default cues file path
 function getDefaultCuesPath() {
@@ -677,7 +564,5 @@ module.exports = {
   updateCueItemDuration, // Export the new combined function
   triggerCueById, // Export the new function
   triggerCueByMixerButtonId, // Export the new function
-  triggerCueByWingCC,                // Added
-  triggerCueByWingPhysicalButton,    // Added
   getDefaultCuesPath                 // Added for menu functionality
 }; 

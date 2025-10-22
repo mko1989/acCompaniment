@@ -9,7 +9,7 @@ import * as ui from './ui.js';
 import * as dragDropHandler from './dragDropHandler.js';
 import * as appConfigUI from './ui/appConfigUI.js';
 import * as waveformControls from './ui/waveformControls.js';
-import * as sidebars from './ui/propertiesSidebar.js'; // Import and alias propertiesSidebar as sidebars
+import * as sidebars from './ui/propertiesSidebar.js'; // Import propertiesSidebar module as 'sidebars'
 
 // Function to wait for electronAPI and its methods to be ready
 async function ensureElectronApiReady() {
@@ -72,18 +72,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     await audioController.default.init(cueStore, electronAPI, uiHandles.cueGridModule, uiHandles.propertiesSidebarModule);
     console.log('Renderer: AudioController initialized.');
 
-    // Connect AudioController to AppConfigUI for device changes
-    console.log('Renderer: Connecting AudioController to AppConfigUI...');
-    appConfigUI.setAudioControllerRef(audioController.default);
-    console.log('Renderer: AudioController connected to AppConfigUI.');
-
-    // Update AudioController with the configuration obtained from AppConfigUI
+    // Update AudioController with the configuration obtained from AppConfigUI BEFORE connecting
     if (initialAppConfig && audioController.default && typeof audioController.default.updateAppConfig === 'function') {
         console.log('Renderer: Passing initialAppConfig to audioController.default.updateAppConfig.');
         audioController.default.updateAppConfig(initialAppConfig);
     } else {
         console.warn('Renderer: initialAppConfig not available or audioController.default.updateAppConfig is not a function. AC will use its own loaded config or defaults.');
     }
+
+    // Connect AudioController to AppConfigUI for device changes
+    console.log('Renderer: Connecting AudioController to AppConfigUI...');
+    appConfigUI.setAudioControllerRef(audioController.default);
+    console.log('Renderer: AudioController connected to AppConfigUI.');
 
     // 6. Initialize WaveformControls (needs electronAPI for IPC, audioController for playback)
     // 'sidebars' here is the imported propertiesSidebar.js aliased as sidebars.
@@ -95,16 +95,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (sidebars && typeof sidebars.handleCuePropertyChangeFromWaveform === 'function') {
         console.log('Renderer: Found handleCuePropertyChangeFromWaveform, initializing waveformControls with callback');
         waveformControls.init({
-            ipcRendererBindings: electronAPI, // Pass electronAPI as ipcRendererBindings
+            ipcRendererBindings: electronAPI, // Pass electronAPI for IPC communication
             onTrimChange: sidebars.handleCuePropertyChangeFromWaveform
         });
     } else {
         console.error('Renderer: sidebars.handleCuePropertyChangeFromWaveform is not available for WaveformControls init.');
         console.log('Renderer: Available sidebars methods:', sidebars ? Object.keys(sidebars).filter(key => typeof sidebars[key] === 'function') : 'none');
-        // Fallback initialization for waveformControls if the callback is missing, or handle error appropriately
-        waveformControls.init({ ipcRendererBindings: electronAPI, onTrimChange: () => {
-            console.warn('Renderer: Fallback onTrimChange called - no sidebar integration');
-        } });
+        // Fallback initialization for waveformControls if the callback is missing
+        waveformControls.init({ 
+            ipcRendererBindings: electronAPI, 
+            onTrimChange: () => {
+                console.warn('Renderer: Fallback onTrimChange called - no sidebar integration');
+            } 
+        });
     }
 
     // 7. Set Module References for IPC Bindings AFTER core modules and UI are initialized
@@ -142,22 +145,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     console.log('Renderer: All renderer modules initialized.');
+    
+    // CRITICAL: Expose UI module to window for crossfade access
+    window.ui = ui;
+    console.log('Renderer: UI module exposed to window.ui for crossfade access');
+    console.log('Renderer: UI.isCrossfadeEnabled available:', typeof ui.isCrossfadeEnabled);
 
-    // Remove listener for the Dev Easter Egg Button
-    // const devEasterEggButton = document.getElementById('devEasterEggButton');
-    // if (devEasterEggButton && electronAPI && typeof electronAPI.openEasterEggGame === 'function') {
-    //     devEasterEggButton.addEventListener('click', () => {
-    //         console.log('Dev Easter Egg Button clicked. Sending IPC to open game.');
-    //         electronAPI.openEasterEggGame();
-    //     });
-    // } else {
-    //     if (!devEasterEggButton) console.warn('Renderer: Dev Easter Egg Button not found.');
-    //     if (!electronAPI || typeof electronAPI.openEasterEggGame !== 'function') console.warn('Renderer: electronAPI.openEasterEggGame not available.');
-    // }
 
     // Add keyboard shortcut for Easter Egg Game (Control+Alt+P)
     window.addEventListener('keydown', (event) => {
-        // console.log(`Keydown: Ctrl: ${event.ctrlKey}, Alt: ${event.altKey}, Shift: ${event.shiftKey}, Meta: ${event.metaKey}, Key: ${event.key}, Code: ${event.code}`); // Debug log
         if (event.ctrlKey && event.altKey && (event.key === 'P' || event.key === 'p' || event.code === 'KeyP')) {
             event.preventDefault(); 
             console.log('Ctrl+Alt+P shortcut triggered. Sending IPC to open Easter Egg game.');

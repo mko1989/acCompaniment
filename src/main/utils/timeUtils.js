@@ -4,11 +4,16 @@
  * @returns {string} Formatted time string
  */
 function formatTimeMMSS(totalSeconds) {
-    if (isNaN(totalSeconds) || totalSeconds < 0) {
+    // More robust input validation
+    if (typeof totalSeconds !== 'number' || isNaN(totalSeconds) || !isFinite(totalSeconds) || totalSeconds < 0) {
         return '00:00';
     }
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = Math.floor(totalSeconds % 60);
+    
+    // Use Math.round to handle floating point precision issues
+    const totalSecondsRounded = Math.round(totalSeconds);
+    const minutes = Math.floor(totalSecondsRounded / 60);
+    const seconds = totalSecondsRounded % 60;
+    
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
@@ -34,11 +39,18 @@ function calculateEffectiveTrimmedDurationSec(cue) {
 
     // Apply trimming only if it's a single file cue with actual trim values
     if (trimStartTime > 0) {
+        // Calculate duration after trimming from start
         effectiveDuration = Math.max(0, cue.knownDuration - trimStartTime);
-        if (trimEndTime && trimEndTime > trimStartTime) {
-            effectiveDuration = Math.min(effectiveDuration, trimEndTime - trimStartTime);
+        
+        // If trimEndTime is specified, apply end trimming
+        if (trimEndTime && typeof trimEndTime === 'number' && trimEndTime > trimStartTime) {
+            // Calculate the actual end position in the original file
+            const actualEndTime = Math.min(trimEndTime, cue.knownDuration);
+            // Calculate the duration between start and end trim points
+            effectiveDuration = Math.max(0, actualEndTime - trimStartTime);
         }
-    } else if (trimEndTime && trimEndTime > 0 && trimEndTime < cue.knownDuration) {
+    } else if (trimEndTime && typeof trimEndTime === 'number' && trimEndTime > 0 && trimEndTime < cue.knownDuration) {
+        // Only end trimming (no start trimming)
         effectiveDuration = Math.min(cue.knownDuration, trimEndTime);
     }
     

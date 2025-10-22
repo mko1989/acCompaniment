@@ -1,4 +1,4 @@
-// Companion_soundboard/src/renderer/ipcRendererBindings.js
+// acCompaniment/src/renderer/ipcRendererBindings.js
 // Sets up renderer-side IPC listeners and sender functions.
 
 let electronAPIInstance;
@@ -14,8 +14,6 @@ let _cueListUpdatedCallback = null; // To store the callback from cueStore
 let queuedCuesUpdate = null; // To queue cues if callback isn't ready
 let cuesUpdatedListenerRegistered = false; // Flag to ensure listener is only set once
 
-const configureWingButtonForCue = (cueId, wingTriggerData) => electronAPIInstance.invoke('configure-wing-button-for-cue', cueId, wingTriggerData);
-const clearWingButtonForCue = (cueId, oldWingTriggerData) => electronAPIInstance.invoke('clear-wing-button-for-cue', cueId, oldWingTriggerData);
 const setAudioOutputDevice = (deviceId) => electronAPIInstance.invoke('set-audio-output-device', deviceId);
 const showMultipleFilesDropModalComplete = (result) => electronAPIInstance.send('multiple-files-drop-modal-complete', result);
 const showOpenDialog = (options) => electronAPIInstance.invoke('show-open-dialog', options);
@@ -70,11 +68,7 @@ function setModuleRefs(modules) {
         console.warn('IPC Binding: audioControllerRef.toggle is STILL NOT available after setModuleRefs.');
     }
 
-    if (uiRef && typeof uiRef.showModal === 'function') {
-        console.log('IPC Binding: uiRef.showModal is available.');
-    } else {
-        // console.warn('IPC Binding: uiRef.showModal is NOT available after setModuleRefs. uiRef:', uiRef); // uiRef might be the direct ui.js module which doesn't have showModal directly
-    }
+    // Note: showModal functionality is handled by the modals module, not directly by uiRef
 }
 
 // --- Senders to Main Process ---
@@ -91,7 +85,14 @@ async function saveCuesToMain(cues) {
 async function generateUUID() {
     if (!electronAPIInstance) {
         console.error("electronAPIInstance not available for UUID generation, falling back.");
-        return 'cue_fallback_' + Date.now().toString(36) + Math.random().toString(36).substring(2);
+        // More robust fallback UUID generation using crypto if available
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            return crypto.randomUUID();
+        }
+        // Fallback to timestamp + better random component
+        const timestamp = Date.now().toString(36);
+        const randomPart = Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2);
+        return `cue_fallback_${timestamp}_${randomPart}`;
     }
     return electronAPIInstance.invoke('generate-uuid');
 }
@@ -284,6 +285,29 @@ function setupOtherListeners() {
             uiRef.highlightPlayingItem(data);
         }
     });
+
+    // Playlist navigation listeners for external sources (Companion/HTTP remote)
+    // These are ONLY for messages from main process (external sources), not UI clicks
+    electronAPIInstance.on('playlist-navigate-next-from-main', (cueId) => {
+        console.log(`IPC Binding: Received 'playlist-navigate-next-from-main' from EXTERNAL source for cueId: ${cueId}`);
+        console.log(`IPC Binding: audioControllerRef exists: ${!!audioControllerRef}, playlistNavigateNext function exists: ${!!(audioControllerRef && audioControllerRef.playlistNavigateNext)}`);
+        if (audioControllerRef && typeof audioControllerRef.playlistNavigateNext === 'function') {
+            const result = audioControllerRef.playlistNavigateNext(cueId, true); // true = from external source
+            console.log(`IPC Binding: playlistNavigateNext result for ${cueId}: ${result}`);
+        } else {
+            console.error('IPC Binding: audioControllerRef.playlistNavigateNext not available for external navigation');
+        }
+    });
+
+    electronAPIInstance.on('playlist-navigate-previous-from-main', (cueId) => {
+        console.log(`IPC Binding: Received 'playlist-navigate-previous-from-main' from EXTERNAL source for cueId: ${cueId}`);
+        if (audioControllerRef && typeof audioControllerRef.playlistNavigatePrevious === 'function') {
+            const result = audioControllerRef.playlistNavigatePrevious(cueId, true); // true = from external source
+            console.log(`IPC Binding: playlistNavigatePrevious result for ${cueId}: ${result}`);
+        } else {
+            console.error('IPC Binding: audioControllerRef.playlistNavigatePrevious not available for external navigation');
+        }
+    });
 }
 
 // Note: ipcRendererBindings itself no longer directly calls audioController methods like playCueById, stopCue, etc.
@@ -350,8 +374,6 @@ export {
     getAudioFileBuffer,
     getOrGenerateWaveformPeaks,
     getMediaDuration,
-    configureWingButtonForCue,
-    clearWingButtonForCue,
     setAudioOutputDevice,
     showMultipleFilesDropModalComplete,
     showOpenDialog,

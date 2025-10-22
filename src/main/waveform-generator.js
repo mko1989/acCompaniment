@@ -1,7 +1,6 @@
 const { workerData, parentPort } = require('worker_threads');
 const { audioFilePath } = workerData;
 const fs = require('fs');
-// const WaveformData = require('waveform-data'); // No longer using waveform-data
 const { AudioContext } = require('node-web-audio-api');
 
 async function processAudio() {
@@ -20,8 +19,8 @@ async function processAudio() {
               typeof buffer.sampleRate !== 'number' ||
               typeof buffer.numberOfChannels !== 'number' ||
               typeof buffer.duration !== 'number' ||
-              !Array.isArray(buffer._data) || 
-              typeof buffer._data[0]?.length !== 'number' ) {
+              !buffer.getChannelData ||
+              typeof buffer.getChannelData(0)?.length !== 'number' ) {
             console.error('WAVEFORM_GENERATOR: Decoded buffer from web-audio-api is not in the expected structure.', buffer);
             // This is still a type of decode failure, but more specific.
             reject({ decodeError: true, message: 'Decoded audio buffer from web-audio-api is not in the expected structure.'});
@@ -48,7 +47,7 @@ async function processAudio() {
 
     // Manual Peak Calculation
     const targetPoints = 2048; // Number of points for the waveform, adjust as needed
-    const channelData = decodedBuffer._data[0]; // Use first channel
+    const channelData = decodedBuffer.getChannelData(0); // Use first channel
     const totalSamples = channelData.length;
     const samplesPerPeak = Math.floor(totalSamples / targetPoints);
     const peaks = [];

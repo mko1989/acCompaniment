@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>acCompaniment</title>
-    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';">
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self';">
     <link rel="stylesheet" href="styles/_variables.css">
     <link rel="stylesheet" href="styles/base.css">
     <link rel="stylesheet" href="styles/layout.css">
@@ -12,10 +12,11 @@
     <link rel="stylesheet" href="styles/sidebars_content.css">
     <link rel="stylesheet" href="styles/modals.css">
     <link rel="stylesheet" href="styles/waveform.css">
+    <link rel="stylesheet" href="styles/playlist-nav.css">
+    <link rel="stylesheet" href="styles/crossfade.css">
     <script src="vendor/howler/howler.min.js"></script>
-    <script defer src="../../node_modules/wavesurfer.js/dist/wavesurfer.min.js"></script>
-    <script defer src="../../node_modules/wavesurfer.js/dist/plugins/regions.min.js"></script>
-    <!-- <script defer src="vendor/wavesurfer/regions.min.js"></script> -->
+    <script defer src="vendor/wavesurfer/wavesurfer.min.js"></script>
+    <script defer src="vendor/wavesurfer/regions.min.js"></script>
 </head>
 <body>
     <div id="appContainer" class="edit-mode">
@@ -55,6 +56,8 @@
                             <option value="do_nothing">Do Nothing</option>
                             <option value="stop">Stop</option>
                             <option value="toggle_pause_play">Toggle Pause/Play</option>
+                            <option value="replay_current_item">Replay Current Item</option>
+                            <option value="play_next_item">Play Next Item (Playlist Only)</option>
                         </select>
                     </div>
 
@@ -69,6 +72,11 @@
                     <div class="form-group" id="defaultStopAllFadeOutGroup">
                         <label for="defaultStopAllFadeOut">Stop All Fade Out Time (ms):</label>
                         <input type="number" id="defaultStopAllFadeOut" name="defaultStopAllFadeOut" value="1500" min="0" step="100">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="crossfadeTime">Crossfade Time (ms):</label>
+                        <input type="number" id="crossfadeTime" name="crossfadeTime" value="2000" min="100" max="10000" step="100" title="Duration for crossfading between cues when crossfade mode is enabled">
                     </div>
 
                     <h3>HTTP Remote Control</h3>
@@ -89,23 +97,6 @@
 
                     <!-- Generic OSC settings removed -->
 
-                    <h3>Mixer Integration</h3>
-                    <div class="form-group">
-                        <label for="configMixerIntegrationEnabled">Enable Mixer Integration:</label>
-                        <input type="checkbox" id="configMixerIntegrationEnabled" name="configMixerIntegrationEnabled">
-                    </div>
-                    <div class="form-group" id="configMixerTypeGroup">
-                        <label for="configMixerType">Mixer Type:</label>
-                        <select id="configMixerType">
-                            <option value="none">None</option>
-                            <option value="behringer_wing_compact">Behringer WING Compact</option>
-                            <option value="behringer_wing_full">Behringer WING Full</option>
-                        </select>
-                    </div>
-                    <div class="form-group" id="configWingIpAddressGroup">
-                        <label for="configWingIpAddress">WING IP Address:</label>
-                        <input type="text" id="configWingIpAddress" name="configWingIpAddress" placeholder="192.168.1.100">
-                    </div>
 
                     
                 </div>
@@ -121,6 +112,10 @@
                         <div id="globalControls" class="global-controls">
                             <button id="stopAllButton" class="btn" title="Emergency Stop All">
                                 <img src="../../assets/icons/dont panic.png" alt="Stop All" class="btn-icon">
+                            </button>
+                            <button id="crossfadeToggleBtn" class="btn crossfade-disabled" title="Toggle Crossfade Mode - Click to Enable">
+                                <img id="crossfadeToggleIcon" src="../../assets/icons/crossfade.png" alt="Crossfade" class="btn-icon">
+                                <span class="btn-label">XFADE</span>
                             </button>
                             <button id="modeToggleBtn" class="btn" title="Toggle Edit/Show Mode">
                                 <img id="modeToggleIcon" src="../../assets/icons/show_light.png" alt="Toggle Mode" class="btn-icon">
@@ -165,13 +160,12 @@
                                 <div style="flex-grow: 1;"></div> <!-- Spacer Left -->
                                 <button id="wfPlayPauseBtn" title="Play/Pause" class="wf-control-btn"><img src="../../assets/icons/play.png" alt="Play" class="btn-icon-wf-playpause"></button>
                                 <button id="wfStopBtn" title="Stop" class="wf-control-btn" style="margin-left: 5px; margin-right: 5px;"><img src="../../assets/icons/stop.png" alt="Stop" class="btn-icon-wf"></button>
-                                <div style="flex-grow: 1; display: flex; justify-content: flex-end;"> <!-- Spacer Right, containing Solo -->
-                                     <!-- <button id="wfSoloBtn" title="Solo Cue (Monitor Output)" class="wf-control-btn">S</button> --> 
+                                <div style="flex-grow: 1; display: flex; justify-content: flex-end;"> <!-- Spacer Right -->
                                 </div>
                             </div>
                         </div>
                         <div id="waveformTimeDisplay" style="margin-top: 10px; text-align: center; font-size: 0.9em; color: #cccccc;">
-                            <span id="wfCurrentTime">0:00.0</span> / <span id="wfTotalDuration">0:00.0</span> (<span id="wfRemainingTime">-0:00.0</span>)
+                            <span id="wfCurrentTime">0:00.000</span> / <span id="wfTotalDuration">0:00.000</span> (<span id="wfRemainingTime">-0:00.000</span>)
                         </div>
                     </div>
 
@@ -196,7 +190,7 @@
                                 <option value="stop_and_cue_next">Stop after item, cue next</option>
                             </select>
                         </div>
-                        <p id="propPlaylistFilePathDisplay" class="file-path-display"></p> <!-- This might be repurposed or removed if the list above is sufficient -->
+                        <p id="propPlaylistFilePathDisplay" class="file-path-display"></p>
                     </div>
 
                     <div class="form-group">
@@ -220,6 +214,8 @@
                             <option value="do_nothing">Do Nothing</option>
                             <option value="stop">Stop</option>
                             <option value="toggle_pause_play">Toggle Pause/Play</option>
+                            <option value="replay_current_item">Replay Current Item</option>
+                            <option value="play_next_item">Play Next Item (Playlist Only)</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -238,57 +234,11 @@
                         <input type="checkbox" id="propEnableDucking" name="propEnableDucking">
                     </div>
                     <div class="form-group" id="duckingLevelGroup" style="display: none;">
-                        <label for="propDuckingLevel">Ducking level (% of original volume to keep):</label>
+                        <label for="propDuckingLevel">Ducking level (% of how much to lower the volume):</label>
                         <input type="range" id="propDuckingLevel" name="propDuckingLevel" min="0" max="100" step="1" value="80">
                         <span id="propDuckingLevelValue">80</span>
                     </div>
                     
-                    <!-- Updated WING Mixer Trigger Section -->
-                    <div id="wingTriggerSettings" style="display: none;">
-                        <h4>WING Mixer Trigger</h4>
-                        <div class="form-group">
-                            <label for="propWingTriggerEnabled">Enable WING Trigger:</label>
-                            <input type="checkbox" id="propWingTriggerEnabled" name="propWingTriggerEnabled">
-                        </div>
-                        
-                        <!-- WING Compact Configuration -->
-                        <div id="wingCompactConfig" style="display: none;">
-                            <div class="form-group">
-                                <label for="propWingCompactLayer">Layer:</label>
-                                <select id="propWingCompactLayer">
-                                    <!-- Options will be populated by JavaScript -->
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="propWingCompactButton">Button:</label>
-                                <select id="propWingCompactButton">
-                                    <!-- Options will be populated by JavaScript -->
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <!-- WING Full Configuration -->
-                        <div id="wingFullSizeConfig" style="display: none;">
-                            <div class="form-group">
-                                <label for="propWingFullLayer">Layer:</label>
-                                <select id="propWingFullLayer">
-                                    <!-- Options will be populated by JavaScript -->
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="propWingFullButton">Button:</label>
-                                <select id="propWingFullButton">
-                                    <!-- Options will be populated by JavaScript -->
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="propWingFullRow">Row:</label>
-                                <select id="propWingFullRow">
-                                    <!-- Options will be populated by JavaScript -->
-                                </select>
-                            </div>
-                        </div>
-                    </div>
 
                     <div class="form-group">
                         <button id="saveCuePropertiesButton" style="display: none;">Save Cue</button>
@@ -302,43 +252,52 @@
         <div id="bottomWaveformPanel">
             <div class="bottom-panel-header">
                 <div class="bottom-panel-title">
-                    <span>🎵</span>
                     <span id="bottomPanelCueName">Waveform Editor</span>
                 </div>
                 <div class="bottom-panel-controls">
-                    <button class="size-toggle-btn" id="normalSizeBtn">Normal</button>
-                    <button class="size-toggle-btn" id="largeSizeBtn">Large</button>
                     <button class="size-toggle-btn" id="collapseBottomPanelBtn">×</button>
                 </div>
             </div>
             <div class="bottom-panel-content">
                 <div id="expandedWaveformDisplay"></div>
                 <div id="expandedWaveformControls">
-                    <div class="expanded-controls-row">
-                        <button id="expandedWfSetStartBtn" title="Set Start Point" class="expanded-wf-control-btn">
-                            <img src="../../assets/icons/skip-start.png" alt="Set Start" class="btn-icon">
-                        </button>
-                        <button id="expandedWfSetEndBtn" title="Set End Point" class="expanded-wf-control-btn">
-                            <img src="../../assets/icons/skip-end.png" alt="Set End" class="btn-icon">
-                        </button>
-                        <button id="expandedWfPlayPauseBtn" title="Play/Pause" class="expanded-wf-control-btn play-pause">
-                            <img src="../../assets/icons/play.png" alt="Play" class="btn-icon">
-                        </button>
-                        <button id="expandedWfStopBtn" title="Stop" class="expanded-wf-control-btn">
-                            <img src="../../assets/icons/stop.png" alt="Stop" class="btn-icon">
-                        </button>
-                        <button id="expandedWfClearTrimBtn" title="Clear In/Out Points" class="expanded-wf-control-btn">
-                            <img src="../../assets/icons/rubber.png" alt="Clear" class="btn-icon">
-                        </button>
+                    <div class="expanded-controls-main-row">
+                        <div class="expanded-controls-buttons">
+                            <button id="expandedWfSetStartBtn" title="Set Start Point" class="expanded-wf-control-btn">
+                                <img src="../../assets/icons/skip-start.png" alt="Set Start" class="btn-icon">
+                            </button>
+                            <button id="expandedWfSetEndBtn" title="Set End Point" class="expanded-wf-control-btn">
+                                <img src="../../assets/icons/skip-end.png" alt="Set End" class="btn-icon">
+                            </button>
+                            <button id="expandedWfPlayPauseBtn" title="Play/Pause" class="expanded-wf-control-btn play-pause">
+                                <img src="../../assets/icons/play.png" alt="Play" class="btn-icon">
+                            </button>
+                            <button id="expandedWfStopBtn" title="Stop" class="expanded-wf-control-btn">
+                                <img src="../../assets/icons/stop.png" alt="Stop" class="btn-icon">
+                            </button>
+                            <button id="expandedWfClearTrimBtn" title="Clear In/Out Points" class="expanded-wf-control-btn">
+                                <img src="../../assets/icons/rubber.png" alt="Clear" class="btn-icon">
+                            </button>
+                        </div>
+                        <div class="waveform-tips">
+                            <strong>Keyboard:</strong> 
+                            <span class="tip-item">← → Move (1s)</span>
+                            <span class="tip-separator">|</span>
+                            <span class="tip-item">Shift+← → Fine (10ms)</span>
+                            <span class="tip-separator">|</span>
+                            <span class="tip-item">Ctrl/Cmd+← → (100ms)</span>
+                            <span class="tip-separator">|</span>
+                            <span class="tip-item">Wheel = Zoom</span>
+                        </div>
                     </div>
                     <div id="expandedWaveformTimeDisplay">
-                        <span id="expandedWfCurrentTime">0:00.0</span> / <span id="expandedWfTotalDuration">0:00.0</span> (<span id="expandedWfRemainingTime">-0:00.0</span>)
+                        <span id="expandedWfCurrentTime">0:00.000</span> / <span id="expandedWfTotalDuration">0:00.000</span> (<span id="expandedWfRemainingTime">-0:00.000</span>)
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Rest of the modals stay the same -->
+        <!-- Modal dialogs -->
         <div id="cueConfigModal" class="modal" style="display:none;">
             <div class="modal-content">
                 <span class="close-button">&times;</span>
@@ -359,6 +318,8 @@
                 <div id="singleFileConfig">
                     <label for="filePath">Audio File:</label>
                     <input type="text" id="filePath" name="filePath" readonly placeholder="Drag & drop file or click to select">
+                    <!-- Note: Modal waveform display removed - modal is only for creating new cues -->
+                    <!-- Editing existing cues should use the properties sidebar which has proper waveform display -->
                 </div>
 
                 <div id="playlistConfig" style="display:none;">

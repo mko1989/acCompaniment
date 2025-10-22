@@ -1,5 +1,4 @@
-const { ipcMain, session, app, dialog, shell } = require('electron');
-// const { generateUUID } = require('./cueManager'); // Assuming generateUUID is still relevant here or in cueManager
+const { ipcMain, session, app, dialog, shell, clipboard } = require('electron');
 const appConfigManager = require('./appConfig'); // Import the new app config manager
 const fsPromises = require('fs').promises; // Renamed from fs to fsPromises
 const fs = require('fs'); // Added for synchronous operations like existsSync
@@ -17,11 +16,10 @@ let appConfigManagerRef; // To store appConfigManager
 let workspaceManagerRef;
 let websocketServerRef;
 let httpServerRef; // Added: For HTTP remote updates
-let mixerIntegrationManagerRef = null;
 let audioPlaybackIPCRef = null;
 let openEasterEggGameWindowCallback = null; // Added to store the function
 
-function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, wsServer, _oscLstnr, httpServerInstance, mixrIntMgr, openEasterEggGameFunc) {
+function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, wsServer, _oscLstnr, httpServerInstance, _mixrIntMgr, openEasterEggGameFunc) {
     appRef = application; // Store app
     mainWindowRef = mainWin;
     cueManagerRef = cueMgrModule; 
@@ -29,8 +27,7 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
     workspaceManagerRef = wsMgr; 
     websocketServerRef = wsServer;
     httpServerRef = httpServerInstance; // Added: Store httpServer reference
-    // Generic OSC listener removed
-    mixerIntegrationManagerRef = mixrIntMgr; // Store mixerIntegrationManager
+    // Mixer integration removed as per requirements
     openEasterEggGameWindowCallback = openEasterEggGameFunc; // Store the passed function
 
     console.log("IPC_HANDLERS_INIT: Initializing.");
@@ -45,15 +42,7 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
     }
     // --- END DIAGNOSTIC LOG ---
 
-    // Note: mixerIntegrationManager is already initialized in main.js before IPC handlers are set up
-    // We don't need to initialize it again here, just verify it's available
-    if (mixerIntegrationManagerRef && typeof mixerIntegrationManagerRef.initialize === 'function') {
-        console.log("IPC_HANDLERS_INIT: mixerIntegrationManager is available and already initialized in main.js.");
-    } else if (mixerIntegrationManagerRef) {
-        console.error("IPC_HANDLERS_INIT: mixerIntegrationManagerRef exists, but its initialize function is missing.");
-    } else {
-        console.warn("IPC_HANDLERS_INIT: mixerIntegrationManagerRef not provided.");
-    }
+    // Mixer integration functionality removed as per requirements
 
     // --- IPC Handlers ---
     ipcMain.handle('get-cues', async (event) => {
@@ -235,6 +224,18 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
     });
     console.log("IPC_HANDLERS_INIT: Handler for 'get-http-remote-info' explicitly registered.");
 
+    ipcMain.handle('write-to-clipboard', async (event, text) => {
+        try {
+            clipboard.writeText(text);
+            console.log('IPC_HANDLER: Successfully wrote to clipboard');
+            return { success: true };
+        } catch (error) {
+            console.error('IPC_HANDLER: Error writing to clipboard:', error);
+            return { success: false, error: error.message };
+        }
+    });
+    console.log("IPC_HANDLERS_INIT: Handler for 'write-to-clipboard' explicitly registered.");
+
     ipcMain.handle('save-app-config', async (event, config) => {
         console.log(`IPC_HANDLER: 'save-app-config' received with config:`, JSON.stringify(config));
         try {
@@ -276,7 +277,12 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
         try {
             if (!app.isReady()) {
                 console.warn('Attempted to get media devices before app was ready.');
-                return [];
+                return { 
+                    success: false, 
+                    error: 'Application not ready', 
+                    devices: [],
+                    fallback: 'renderer_enumeration'
+                };
             }
             
             // For a soundboard app, audio output device enumeration should be handled 
@@ -284,13 +290,22 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
             // This avoids permission issues and provides better device information
             console.log('Audio output device enumeration delegated to renderer process');
             
-            // Return empty array - the renderer will handle actual device enumeration
-            // This prevents duplicates and permission issues
-            return [];
+            // Return structured response indicating delegation to renderer
+            return { 
+                success: true, 
+                devices: [], 
+                delegated: true,
+                message: 'Device enumeration delegated to renderer process for better compatibility'
+            };
             
         } catch (error) {
             console.error('Error in get-audio-output-devices handler:', error);
-            return [];
+            return { 
+                success: false, 
+                error: error.message, 
+                devices: [],
+                fallback: 'renderer_enumeration'
+            };
         }
     });
     console.log("IPC_HANDLERS_INIT: Handler for 'get-audio-output-devices' explicitly registered.");
@@ -313,60 +328,7 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
                  mainWindowRef.webContents.send('cues-updated-from-main', cueManagerRef.getCues());
             }
 
-            // BEGINNING OF ADDED MIXER INTEGRATION LOGIC
-            if (mixerIntegrationManagerRef && processedCue) {
-                // Check for new mixerButtonAssignment structure
-                if (processedCue.mixerButtonAssignment && processedCue.mixerButtonAssignment.buttonId) {
-                    console.log(`IPC_HANDLER: 'add-or-update-cue' - Cue ${processedCue.id} has mixer button assignment. Setting up button.`);
-                    // Convert mixerButtonAssignment to wingTrigger format for compatibility with existing mixer modules
-                    const wingTriggerData = {
-                        enabled: true,
-                        mixerType: processedCue.mixerButtonAssignment.mixerType,
-                        userButton: processedCue.mixerButtonAssignment.buttonId
-                    };
-                    
-                        if (typeof mixerIntegrationManagerRef.setupWingButton === 'function') {
-                            try {
-                            const wingResult = await mixerIntegrationManagerRef.setupWingButton(processedCue.id, wingTriggerData);
-                                if (wingResult && wingResult.success && wingResult.assignedMidiCC !== undefined) {
-                                // Update the wingTrigger with the assigned MIDI CC for backward compatibility
-                                const updatedCueWithMidi = { 
-                                    ...processedCue, 
-                                    wingTrigger: { 
-                                        ...processedCue.wingTrigger, 
-                                        assignedMidiCC: wingResult.assignedMidiCC,
-                                        enabled: true
-                                    } 
-                                };
-                                await cueManagerRef.addOrUpdateProcessedCue(updatedCueWithMidi, true);
-                                    console.log(`IPC_HANDLER: Wing button setup for cue ${processedCue.id} successful. Assigned MIDI CC: ${wingResult.assignedMidiCC}. Cue updated with CC.`);
-                                } else if (wingResult && !wingResult.success) {
-                                    console.error(`IPC_HANDLER: Failed to set up Wing button for cue ${processedCue.id}: ${wingResult.error}`);
-                                }
-                            } catch (err) {
-                                console.error(`IPC_HANDLER: Error calling setupWingButton for cue ${processedCue.id}:`, err);
-                            }
-                        } else {
-                            console.warn('IPC_HANDLER: mixerIntegrationManagerRef.setupWingButton is not a function.');
-                        }
-                } else if (processedCue.wingTrigger && processedCue.wingTrigger.enabled === false) {
-                        console.log(`IPC_HANDLER: 'add-or-update-cue' - Cue ${processedCue.id} has Wing trigger disabled. Attempting to clear Wing button.`);
-                        if (typeof mixerIntegrationManagerRef.clearWingButton === 'function') {
-                            try {
-                                await mixerIntegrationManagerRef.clearWingButton(processedCue.wingTrigger);
-                                // Also, nullify assignedMidiCC in the cue data
-                                const updatedCueNoMidi = { ...processedCue, wingTrigger: { ...processedCue.wingTrigger, assignedMidiCC: null } };
-                                await cueManagerRef.addOrUpdateProcessedCue(updatedCueNoMidi, true); // silent update
-                                console.log(`IPC_HANDLER: Wing button cleared for cue ${processedCue.id}. Cue updated to remove CC.`);
-                            } catch (err) {
-                                console.error(`IPC_HANDLER: Error calling clearWingButton for cue ${processedCue.id}:`, err);
-                            }
-                        } else {
-                            console.warn('IPC_HANDLER: mixerIntegrationManagerRef.clearWingButton is not a function.');
-                    }
-                }
-            }
-            // END OF ADDED MIXER INTEGRATION LOGIC
+            // Mixer integration logic removed as per requirements
 
             console.log(`IPC_HANDLER: 'add-or-update-cue' processed cue ID: ${processedCue.id}, knownDuration: ${processedCue.knownDuration}`);
             return { success: true, cue: processedCue };
@@ -398,84 +360,248 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
         try {
             if (!filePath) {
                 console.error('IPC_HANDLER: \'get-audio-file-buffer\' - No filePath provided.');
-                return null; 
+                return { 
+                    success: false, 
+                    error: 'No file path provided', 
+                    buffer: null 
+                }; 
             }
+            
+            // Validate file exists before attempting to read
+            if (!fs.existsSync(filePath)) {
+                console.error(`IPC_HANDLER: 'get-audio-file-buffer' - File does not exist: ${filePath}`);
+                return { 
+                    success: false, 
+                    error: 'File does not exist', 
+                    buffer: null,
+                    filePath: filePath
+                };
+            }
+            
             console.log(`IPC_HANDLER: 'get-audio-file-buffer' - Reading file: ${filePath}`);
+            
             try {
                 const buffer = await fsPromises.readFile(filePath);
                 console.log(`IPC_HANDLER: 'get-audio-file-buffer' - Successfully read ${buffer.byteLength} bytes from ${filePath}`);
-                return buffer;
+                return { 
+                    success: true, 
+                    buffer: buffer, 
+                    size: buffer.byteLength,
+                    filePath: filePath
+                };
             } catch (error) {
                 console.error(`IPC_HANDLER: 'get-audio-file-buffer' - Error reading file ${filePath}:`, error);
-                return null; 
+                return { 
+                    success: false, 
+                    error: error.message, 
+                    buffer: null,
+                    filePath: filePath
+                }; 
             }
         } catch (e) {
             console.error(`IPC_HANDLER: CRITICAL ERROR in 'get-audio-file-buffer' for path ${filePath}:`, e);
-            return null;
+            return { 
+                success: false, 
+                error: e.message || 'Critical error occurred', 
+                buffer: null,
+                filePath: filePath
+            };
         }
     });
 
-    ipcMain.handle('get-or-generate-waveform-peaks', async (event, audioFilePath) => {
+    // Helper function for waveform generation with retry logic
+    async function generateWaveformWithRetry(audioFilePath, retryCount = 0) {
         const waveformJsonPath = audioFilePath + '.peaks.json';
-        console.log(`IPC_HANDLER: 'get-or-generate-waveform-peaks' for ${audioFilePath}, JSON path: ${waveformJsonPath}`);
+        const maxRetries = 2;
+        console.log(`IPC_HANDLER: 'generateWaveformWithRetry' for ${audioFilePath}, retry: ${retryCount}`);
+        
         try {
             await fsPromises.access(waveformJsonPath);
             console.log(`IPC_HANDLER: Found existing waveform data at ${waveformJsonPath}`);
             const jsonData = await fsPromises.readFile(waveformJsonPath, 'utf8');
-            return JSON.parse(jsonData);
+            const parsedData = JSON.parse(jsonData);
+            
+            // Validate the cached data
+            if (parsedData && (parsedData.peaks || parsedData.duration)) {
+                return {
+                    success: true,
+                    ...parsedData,
+                    cached: true
+                };
+            } else {
+                console.warn(`IPC_HANDLER: Cached waveform data is invalid, regenerating for ${audioFilePath}`);
+                // Remove invalid cache file
+                try {
+                    await fsPromises.unlink(waveformJsonPath);
+                } catch (unlinkError) {
+                    console.warn(`IPC_HANDLER: Could not remove invalid cache file: ${unlinkError.message}`);
+                }
+            }
         } catch (error) {
             console.log(`IPC_HANDLER: No existing waveform data found (or error accessing it), generating for ${audioFilePath}. Error: ${error.message}`);
-            return new Promise((resolve, reject) => {
-                const worker = new Worker(nodePath.join(__dirname, 'waveform-generator.js'), {
-                    workerData: { audioFilePath }
-                });
-                worker.on('message', async (workerResult) => {
-                    if (workerResult.error) {
-                        console.warn(`IPC_HANDLER: Waveform generation FAILED for ${audioFilePath} (worker posted error): ${workerResult.error.message}. Resolving with decodeError status.`);
-                        resolve({
-                            peaks: null,
-                            duration: null,
-                            decodeError: true,
-                            errorMessage: workerResult.error.message
-                        });
-                        return;
-                    }
-                    try {
-                        console.log(`IPC_HANDLER: Waveform data received from worker for ${audioFilePath}`);
-                        await fsPromises.writeFile(waveformJsonPath, JSON.stringify(workerResult), 'utf8');
-                        console.log(`IPC_HANDLER: Saved waveform data to ${waveformJsonPath}`);
-                        resolve(workerResult);
-                    } catch (saveError) {
-                        console.error(`IPC_HANDLER: Error saving waveform JSON for ${audioFilePath}:`, saveError);
-                        reject(saveError);
-                    }
-                });
-                worker.on('error', (workerError) => {
-                    console.error(`IPC_HANDLER: Waveform generation worker CRITICAL error event for ${audioFilePath}:`, workerError);
+        }
+        
+        return new Promise((resolve, reject) => {
+            const worker = new Worker(nodePath.join(__dirname, 'waveform-generator.js'), {
+                workerData: { audioFilePath }
+            });
+            
+            // Set a timeout for the worker
+            const workerTimeout = setTimeout(() => {
+                console.warn(`IPC_HANDLER: Waveform generation timeout for ${audioFilePath}, terminating worker`);
+                worker.terminate();
+                if (retryCount < maxRetries) {
+                    console.log(`IPC_HANDLER: Retrying waveform generation for ${audioFilePath} (attempt ${retryCount + 1})`);
+                    // Retry with exponential backoff
+                    setTimeout(async () => {
+                        const retryResult = await generateWaveformWithRetry(audioFilePath, retryCount + 1);
+                        resolve(retryResult);
+                    }, Math.pow(2, retryCount) * 1000);
+                } else {
                     resolve({
+                        success: false,
                         peaks: null,
                         duration: null,
-                        decodeError: true,
-                        errorMessage: workerError.message || 'Worker process failed critically or with an unhandled error.'
+                        error: 'timeout',
+                        errorMessage: 'Waveform generation timed out after multiple attempts',
+                        retryCount: retryCount
                     });
-                });
-                worker.on('exit', (code) => {
-                    if (code !== 0) {
-                        console.error(`IPC_HANDLER: Waveform generation worker stopped with exit code ${code} for ${audioFilePath}`);
+                }
+            }, 30000); // 30 second timeout
+            
+            worker.on('message', async (workerResult) => {
+                clearTimeout(workerTimeout);
+                
+                if (workerResult.error) {
+                    console.warn(`IPC_HANDLER: Waveform generation FAILED for ${audioFilePath} (worker posted error): ${workerResult.error.message}`);
+                    
+                    if (retryCount < maxRetries) {
+                        console.log(`IPC_HANDLER: Retrying waveform generation for ${audioFilePath} (attempt ${retryCount + 1})`);
+                        setTimeout(async () => {
+                            const retryResult = await generateWaveformWithRetry(audioFilePath, retryCount + 1);
+                            resolve(retryResult);
+                        }, Math.pow(2, retryCount) * 1000);
+                    } else {
+                        resolve({
+                            success: false,
+                            peaks: null,
+                            duration: null,
+                            error: 'generation_failed',
+                            errorMessage: workerResult.error.message,
+                            retryCount: retryCount
+                        });
                     }
-                });
+                    return;
+                }
+                
+                try {
+                    console.log(`IPC_HANDLER: Waveform data received from worker for ${audioFilePath}`);
+                    await fsPromises.writeFile(waveformJsonPath, JSON.stringify(workerResult), 'utf8');
+                    console.log(`IPC_HANDLER: Saved waveform data to ${waveformJsonPath}`);
+                    resolve({
+                        success: true,
+                        ...workerResult,
+                        cached: false
+                    });
+                } catch (saveError) {
+                    console.error(`IPC_HANDLER: Error saving waveform JSON for ${audioFilePath}:`, saveError);
+                    // Even if we can't save, return the generated data
+                    resolve({
+                        success: true,
+                        ...workerResult,
+                        cached: false,
+                        saveWarning: 'Could not save waveform cache: ' + saveError.message
+                    });
+                }
             });
-        }
+            
+            worker.on('error', (workerError) => {
+                clearTimeout(workerTimeout);
+                console.error(`IPC_HANDLER: Waveform generation worker CRITICAL error event for ${audioFilePath}:`, workerError);
+                
+                if (retryCount < maxRetries) {
+                    console.log(`IPC_HANDLER: Retrying waveform generation for ${audioFilePath} (attempt ${retryCount + 1})`);
+                    setTimeout(async () => {
+                        const retryResult = await generateWaveformWithRetry(audioFilePath, retryCount + 1);
+                        resolve(retryResult);
+                    }, Math.pow(2, retryCount) * 1000);
+                } else {
+                    resolve({
+                        success: false,
+                        peaks: null,
+                        duration: null,
+                        error: 'worker_critical_error',
+                        errorMessage: workerError.message || 'Worker process failed critically or with an unhandled error.',
+                        retryCount: retryCount
+                    });
+                }
+            });
+            
+            worker.on('exit', (code) => {
+                clearTimeout(workerTimeout);
+                if (code !== 0) {
+                    console.error(`IPC_HANDLER: Waveform generation worker stopped with exit code ${code} for ${audioFilePath}`);
+                    if (retryCount < maxRetries) {
+                        console.log(`IPC_HANDLER: Retrying waveform generation for ${audioFilePath} (attempt ${retryCount + 1})`);
+                        setTimeout(async () => {
+                            const retryResult = await generateWaveformWithRetry(audioFilePath, retryCount + 1);
+                            resolve(retryResult);
+                        }, Math.pow(2, retryCount) * 1000);
+                    } else {
+                        resolve({
+                            success: false,
+                            peaks: null,
+                            duration: null,
+                            error: 'worker_exit_error',
+                            errorMessage: `Worker exited with code ${code}`,
+                            retryCount: retryCount
+                        });
+                    }
+                }
+            });
+        });
+    }
+
+    ipcMain.handle('get-or-generate-waveform-peaks', async (event, audioFilePath) => {
+        console.log(`IPC_HANDLER: 'get-or-generate-waveform-peaks' for ${audioFilePath}`);
+        return await generateWaveformWithRetry(audioFilePath);
     });
 
     ipcMain.handle('get-media-duration', async (event, filePath) => {
         console.log(`IPC Handler: Received 'get-media-duration' for path: ${filePath}`);
         try {
+            if (!filePath) {
+                console.error('IPC Handler: No file path provided for get-media-duration');
+                return { 
+                    success: false, 
+                    error: 'No file path provided', 
+                    duration: null 
+                };
+            }
+            
             const duration = await getAudioFileDuration(filePath);
-            return duration;
+            if (duration !== null) {
+                return { 
+                    success: true, 
+                    duration: duration, 
+                    filePath: filePath 
+                };
+            } else {
+                return { 
+                    success: false, 
+                    error: 'Could not determine duration', 
+                    duration: null,
+                    filePath: filePath
+                };
+            }
         } catch (error) {
             console.error(`IPC Handler: Error processing 'get-media-duration' for ${filePath}:`, error);
-            return null;
+            return { 
+                success: false, 
+                error: error.message, 
+                duration: null,
+                filePath: filePath
+            };
         }
     });
 
@@ -487,23 +613,9 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
         handleThemeChange(theme, mainWindowRef, require('electron').nativeTheme);
     });
 
-    ipcMain.removeListener('reset-inactivity-timer', () => {});
+    // Note: reset-inactivity-timer listener removal not needed as no listener was registered
 
-    ipcMain.handle('send-osc-message-to-mixer', async (event, { address, args }) => {
-        if (mixerIntegrationManagerRef && typeof mixerIntegrationManagerRef.sendOsc === 'function') {
-            mixerIntegrationManagerRef.sendOsc(address, ...(args || []));
-            return { success: true };
-        }
-        return { success: false, error: 'Mixer integration manager not available or sendOsc not implemented.' };
-    });
-
-    ipcMain.handle('update-cue-mixer-trigger-config', async (event, cue) => {
-        if (mixerIntegrationManagerRef && typeof mixerIntegrationManagerRef.updateCueMixerTrigger === 'function') {
-            mixerIntegrationManagerRef.updateCueMixerTrigger(cue);
-            return { success: true };
-        }
-        return { success: false, error: 'Mixer integration manager not available or updateCueMixerTrigger not implemented.' };
-    });
+    // OSC and mixer integration handlers removed as per requirements
     
     // Handler for 'get-or-generate-waveform-peaks' registered
 
@@ -513,10 +625,7 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
             if (mainWindowRef && mainWindowRef.webContents && !mainWindowRef.webContents.isDestroyed()) {
                 mainWindowRef.webContents.send('app-config-updated', newConfig);
             }
-            // Generic OSC listener removed
-            if (mixerIntegrationManagerRef && typeof mixerIntegrationManagerRef.updateSettings === 'function') {
-                mixerIntegrationManagerRef.updateSettings(newConfig);
-            }
+            // Mixer integration settings update removed as per requirements
             // Update HTTP server with new config (for port changes, etc.)
             if (httpServerRef && typeof httpServerRef.updateConfig === 'function') {
                 httpServerRef.updateConfig(newConfig);
@@ -526,93 +635,25 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
         console.error("IPC_HANDLERS_INIT: appConfigManagerRef or onConfigChange is not available.");
     }
 
-    // Handler for WING Button Configuration
-    ipcMain.handle('configure-wing-button-for-cue', async (event, cueId, wingTriggerData) => {
-        console.log(`IPC_HANDLER: 'configure-wing-button-for-cue' received for cueId: ${cueId}`, wingTriggerData);
-        if (!mixerIntegrationManagerRef || typeof mixerIntegrationManagerRef.setupWingButton !== 'function') {
-            console.error('IPC_HANDLER: Mixer Integration Manager or setupWingButton function not available.');
-            return { success: false, error: 'Mixer Integration Manager or setupWingButton not available.' };
+    // Wing button configuration handlers removed as per requirements
+    
+    // Playlist Navigation Handlers
+    ipcMain.handle('playlist-navigate-next', async (event, cueId) => {
+        console.log(`IPC_HANDLER: 'playlist-navigate-next' received for cueId: ${cueId}`);
+        if (mainWindowRef && mainWindowRef.webContents && !mainWindowRef.webContents.isDestroyed()) {
+            mainWindowRef.webContents.send('playlist-navigate-next-from-main', cueId);
+            return { success: true };
         }
-        if (!cueManagerRef || typeof cueManagerRef.getCueById !== 'function' || typeof cueManagerRef.addOrUpdateProcessedCue !== 'function') {
-            console.error('IPC_HANDLER: Cue Manager or its required functions not available.');
-            return { success: false, error: 'Cue Manager not available or misconfigured.' };
-        }
-
-        try {
-            const setupResult = await mixerIntegrationManagerRef.setupWingButton(cueId, wingTriggerData);
-
-            if (setupResult && setupResult.success) {
-                const cue = cueManagerRef.getCueById(cueId);
-                if (cue) {
-                    cue.wingTrigger = {
-                        ...(cue.wingTrigger || {}), // Preserve any other existing wingTrigger fields
-                        enabled: true,
-                        assignedMidiCC: setupResult.assignedMidiCC,
-                        label: wingTriggerData.label, // Ensure all relevant data from wingTriggerData is stored
-                        wingLayer: wingTriggerData.wingLayer,
-                        wingButton: wingTriggerData.wingButton,
-                        wingRow: wingTriggerData.wingRow
-                    };
-                    await cueManagerRef.addOrUpdateProcessedCue(cue); // This saves and broadcasts
-                    console.log(`IPC_HANDLER: Successfully configured WING button for cue ${cueId} with CC ${setupResult.assignedMidiCC}. Cue data updated.`);
-                    return { success: true, assignedMidiCC: setupResult.assignedMidiCC };
-                } else {
-                    console.error(`IPC_HANDLER: WING button configured by OSC, but cue ${cueId} not found to save CC. Attempting to clear WING button.`);
-                    if (typeof mixerIntegrationManagerRef.clearWingButton === 'function') {
-                        // Pass minimal info needed for clearing; setupResult might contain button details
-                        await mixerIntegrationManagerRef.clearWingButton(wingTriggerData); 
-                    }
-                    return { success: false, error: `Cue ${cueId} not found after WING config.` };
-                }
-            } else {
-                console.error(`IPC_HANDLER: Failed to setup WING button via MixerIntegrationManager for cue ${cueId}. Error: ${setupResult ? setupResult.error : 'Unknown error'}`);
-                return { success: false, error: setupResult ? setupResult.error : 'Failed to send OSC commands for WING button setup.' };
-            }
-        } catch (error) {
-            console.error(`IPC_HANDLER: Critical error in 'configure-wing-button-for-cue' for ${cueId}:`, error);
-            return { success: false, error: error.message };
-        }
+        return { success: false, error: 'Main window not available' };
     });
 
-    ipcMain.handle('clear-wing-button-for-cue', async (event, cueId, oldWingTriggerData) => {
-        console.log(`IPC_HANDLER: 'clear-wing-button-for-cue' received for cueId: ${cueId}`, oldWingTriggerData);
-        if (!mixerIntegrationManagerRef || typeof mixerIntegrationManagerRef.clearWingButton !== 'function') {
-            console.error('IPC_HANDLER: Mixer Integration Manager or clearWingButton function not available.');
-            return { success: false, error: 'Mixer Integration Manager or clearWingButton not available.' };
+    ipcMain.handle('playlist-navigate-previous', async (event, cueId) => {
+        console.log(`IPC_HANDLER: 'playlist-navigate-previous' received for cueId: ${cueId}`);
+        if (mainWindowRef && mainWindowRef.webContents && !mainWindowRef.webContents.isDestroyed()) {
+            mainWindowRef.webContents.send('playlist-navigate-previous-from-main', cueId);
+            return { success: true };
         }
-        if (!cueManagerRef || typeof cueManagerRef.getCueById !== 'function' || typeof cueManagerRef.addOrUpdateProcessedCue !== 'function') {
-            console.error('IPC_HANDLER: Cue Manager or its required functions not available.');
-            return { success: false, error: 'Cue Manager not available or misconfigured.' };
-        }
-
-        try {
-            // We need oldWingTriggerData to know which button (layer, button, row) to clear on the WING.
-            const clearResult = await mixerIntegrationManagerRef.clearWingButton(oldWingTriggerData);
-
-            if (clearResult && clearResult.success) {
-                const cue = cueManagerRef.getCueById(cueId);
-                if (cue) {
-                    if (cue.wingTrigger) { // Only modify if wingTrigger exists
-                        cue.wingTrigger.enabled = false;
-                        cue.wingTrigger.assignedMidiCC = null;
-                        // Optionally clear other fields like label, wingLayer, etc., or leave them for re-enabling.
-                    }
-                    await cueManagerRef.addOrUpdateProcessedCue(cue); // This saves and broadcasts
-                    console.log(`IPC_HANDLER: Successfully cleared WING button assignment for cue ${cueId}. Cue data updated.`);
-                    return { success: true };
-                } else {
-                    console.warn(`IPC_HANDLER: WING button cleared by OSC, but cue ${cueId} not found to update.`);
-                    // This is less critical than if setup failed and cue wasn't found.
-                    return { success: true }; // OSC clear was successful, even if cue update failed.
-                }
-            } else {
-                console.error(`IPC_HANDLER: Failed to clear WING button via MixerIntegrationManager for cue ${cueId}. Error: ${clearResult ? clearResult.error : 'Unknown error'}`);
-                return { success: false, error: clearResult ? clearResult.error : 'Failed to send OSC commands for WING button clear.' };
-            }
-        } catch (error) {
-            console.error(`IPC_HANDLER: Critical error in 'clear-wing-button-for-cue' for ${cueId}:`, error);
-            return { success: false, error: error.message };
-        }
+        return { success: false, error: 'Main window not available' };
     });
 }
 
@@ -655,13 +696,38 @@ async function getAudioFileDuration(filePath) {
             console.warn(`IPC Handler (getAudioFileDuration): File not found at ${filePath}`);
             return null;
         }
-        console.log(`IPC Handler (getAudioFileDuration): Attempting to parse file for duration: ${filePath}`);
+        
+        // Check file size to avoid processing very large files
+        const stats = fs.statSync(filePath);
+        const fileSizeMB = stats.size / (1024 * 1024);
+        if (fileSizeMB > 100) { // 100MB limit
+            console.warn(`IPC Handler (getAudioFileDuration): File too large (${fileSizeMB.toFixed(2)}MB) for duration parsing: ${filePath}`);
+            return null;
+        }
+        
+        console.log(`IPC Handler (getAudioFileDuration): Attempting to parse file for duration: ${filePath} (${fileSizeMB.toFixed(2)}MB)`);
         const metadata = await mm.parseFile(filePath);
-        console.log(`IPC Handler (getAudioFileDuration): Successfully parsed metadata for ${filePath}, duration: ${metadata.format.duration}`);
+        
+        if (!metadata || !metadata.format || typeof metadata.format.duration !== 'number') {
+            console.warn(`IPC Handler (getAudioFileDuration): Invalid or missing duration in metadata for ${filePath}`);
+            return null;
+        }
+        
+        console.log(`IPC Handler (getAudioFileDuration): Successfully parsed metadata for ${filePath}, duration: ${metadata.format.duration}s`);
         return metadata.format.duration; // duration in seconds
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error(`IPC Handler (getAudioFileDuration): Error getting duration for ${filePath}:`, errorMessage);
+        
+        // Provide more specific error information
+        if (errorMessage.includes('ENOENT')) {
+            console.error(`IPC Handler (getAudioFileDuration): File not found: ${filePath}`);
+        } else if (errorMessage.includes('EACCES')) {
+            console.error(`IPC Handler (getAudioFileDuration): Permission denied: ${filePath}`);
+        } else if (errorMessage.includes('format')) {
+            console.error(`IPC Handler (getAudioFileDuration): Unsupported audio format: ${filePath}`);
+        }
+        
         return null;
     }
 }

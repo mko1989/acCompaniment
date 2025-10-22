@@ -46,7 +46,7 @@ button:active, .btn:active {
     padding: 0 !important; 
     width: 50px !important; 
     height: 60px !important;
-    background-color: var(--maroon-bg, #800000) !important;
+    background-color: var(--maroon-bg) !important;
     border: 1px solid #666 !important; 
     /* Ensure flex properties from .btn are maintained or re-declared if necessary for icon centering */
     display: inline-flex !important; 
@@ -68,7 +68,6 @@ button:active, .btn:active {
     width: 60px !important; 
     height: 60px !important;
     background-color: #555 !important;
-    background-size: contain;
     border: 1px solid #666 !important;
     /* Ensure flex properties from .btn are maintained or re-declared if necessary for icon centering */
     display: inline-flex !important; 
@@ -133,5 +132,5 @@ button:active, .btn:active {
 }
 
 #propertiesSidebar .close-button {
-    align-self: flex-end; 
+    align-self: flex-end;
 }

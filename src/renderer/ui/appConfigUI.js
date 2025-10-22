@@ -34,6 +34,7 @@ let configDefaultRetriggerBehaviorSelect;
 let configDefaultStopAllBehaviorSelect;
 let configDefaultStopAllFadeOutInput;
 let configDefaultStopAllFadeOutGroup;
+let configCrossfadeTimeInput;
 
 // OSC Settings (generic) removed
 let configOscEnabledCheckbox;
@@ -57,8 +58,6 @@ let configHttpRemoteLinksDiv;
 let configMixerIntegrationEnabledCheckbox;
 let configMixerTypeGroup;
 let configMixerTypeSelect;
-let configWingIpAddressGroup;
-let configWingIpAddressInput;
 
 
 
@@ -128,6 +127,7 @@ function cacheDOMElements() {
     configDefaultStopAllBehaviorSelect = document.getElementById('defaultStopAllBehavior');
     configDefaultStopAllFadeOutInput = document.getElementById('defaultStopAllFadeOut');
     configDefaultStopAllFadeOutGroup = document.getElementById('defaultStopAllFadeOutGroup');
+    configCrossfadeTimeInput = document.getElementById('crossfadeTime');
     
     // Generic OSC UI removed
     configOscEnabledCheckbox = null;
@@ -148,16 +148,9 @@ function cacheDOMElements() {
     configMixerIntegrationEnabledCheckbox = document.getElementById('configMixerIntegrationEnabled');
     configMixerTypeGroup = document.getElementById('mixerTypeGroup');
     configMixerTypeSelect = document.getElementById('configMixerType');
-    configWingIpAddressGroup = document.getElementById('wingIpAddressGroup');
-    configWingIpAddressInput = document.getElementById('configWingIpAddress');
 
 
 
-    if (configWingIpAddressInput) {
-        console.log('AppConfigUI (cacheDOMElements): Found configWingIpAddressInput. ID:', configWingIpAddressInput.id, 'TagName:', configWingIpAddressInput.tagName, 'Type:', configWingIpAddressInput.type, 'Initial Value:', configWingIpAddressInput.value);
-    } else {
-        console.error('AppConfigUI (cacheDOMElements): configWingIpAddressInput NOT FOUND by ID \'configWingIpAddress\'!');
-    }
 
     // ALPHA BUILD: Hide mixer integration elements via JavaScript
     hideMixerIntegrationElements();
@@ -173,9 +166,7 @@ function hideMixerIntegrationElements() {
     const elementsToHide = [
         'configMixerIntegrationEnabled',
         'mixerTypeGroup', 
-        'wingIpAddressGroup',
-        'configMixerType',
-        'configWingIpAddress'
+        'configMixerType'
     ];
     
     elementsToHide.forEach(id => {
@@ -274,12 +265,6 @@ function bindEventListeners() {
             handleAppConfigChange(); 
         });
     }
-    if (configWingIpAddressInput) {
-        configWingIpAddressInput.addEventListener('blur', (event) => {
-            console.log('AppConfigUI (DEBUG): WING IP input BLUR event fired! Value:', event.target.value);
-            handleAppConfigChange(); 
-        });
-    }
 
 
 
@@ -324,6 +309,7 @@ function populateConfigSidebar(config) {
         if (configDefaultRetriggerBehaviorSelect) configDefaultRetriggerBehaviorSelect.value = currentAppConfig.defaultRetriggerBehavior || 'restart';
         if (configDefaultStopAllBehaviorSelect) configDefaultStopAllBehaviorSelect.value = currentAppConfig.defaultStopAllBehavior || 'stop';
         if (configDefaultStopAllFadeOutInput) configDefaultStopAllFadeOutInput.value = currentAppConfig.defaultStopAllFadeOutTime || 1500;
+        if (configCrossfadeTimeInput) configCrossfadeTimeInput.value = currentAppConfig.crossfadeTime || 2000;
         
         // OSC Settings not shown in UI
         
@@ -342,16 +328,6 @@ function populateConfigSidebar(config) {
         }
         if (configMixerTypeSelect) {
             configMixerTypeSelect.value = currentAppConfig.mixerType || 'none';
-        }
-        // Set IP address for any Wing mixer type
-        if (currentAppConfig.mixerType === 'behringer_wing_compact' || currentAppConfig.mixerType === 'behringer_wing_full') {
-            if (configWingIpAddressInput) {
-                configWingIpAddressInput.value = currentAppConfig.wingIpAddress || '';
-            }
-        } else {
-            if (configWingIpAddressInput) {
-                configWingIpAddressInput.value = '';
-            }
         }
         
         // Generic OSC removed
@@ -411,12 +387,22 @@ async function loadHttpRemoteInfo() {
                         <div class="remote-link-interface">${iface.interface}</div>
                         <div class="remote-link-url">${iface.url}</div>
                     </div>
-                    <button class="remote-link-copy" onclick="copyToClipboard('${iface.url}', this)">Copy</button>
+                    <button class="remote-link-copy" data-url="${iface.url}">Copy</button>
                 </div>
             `;
         });
         
         configHttpRemoteLinksDiv.innerHTML = linksHTML;
+        
+        // Add event listeners to all copy buttons (event delegation)
+        configHttpRemoteLinksDiv.querySelectorAll('.remote-link-copy').forEach(button => {
+            button.addEventListener('click', function() {
+                const url = this.getAttribute('data-url');
+                if (url) {
+                    window.copyToClipboard(url, this);
+                }
+            });
+        });
     } catch (error) {
         console.error('AppConfigUI: Error loading HTTP remote info:', error);
         configHttpRemoteLinksDiv.innerHTML = '<p class="small-text">Error loading remote info.</p>';
@@ -437,28 +423,52 @@ window.copyToClipboard = async function(text, button) {
             if (clsAdd) button.classList.remove(clsAdd);
         }, 2000);
     };
+    
+    // Use Electron's clipboard API (most reliable for Electron apps)
+    try {
+        if (window.electronAPI && typeof window.electronAPI.writeToClipboard === 'function') {
+            const result = await window.electronAPI.writeToClipboard(text);
+            if (result && result.success) {
+                setBtn('Copied!', 'copied');
+                return;
+            } else {
+                console.error('Electron clipboard API failed:', result?.error);
+            }
+        }
+    } catch (error) {
+        console.error('Error using Electron clipboard API:', error);
+    }
+    
+    // Fallback: Try browser clipboard API
     try {
         if (navigator.clipboard && navigator.clipboard.writeText) {
             await navigator.clipboard.writeText(text);
             setBtn('Copied!', 'copied');
             return;
         }
-    } catch (_) { /* fall through to legacy methods */ }
+    } catch (error) {
+        console.warn('Browser clipboard API failed, trying execCommand fallback:', error);
+    }
 
+    // Last resort: use textarea + execCommand
     try {
         const textarea = document.createElement('textarea');
         textarea.value = text;
         textarea.style.position = 'fixed';
         textarea.style.left = '-9999px';
+        textarea.style.opacity = '0';
         document.body.appendChild(textarea);
         textarea.focus();
         textarea.select();
+        
         const ok = document.execCommand('copy');
         document.body.removeChild(textarea);
+        
         if (ok) {
             setBtn('Copied!', 'copied');
         } else {
             setBtn('Failed');
+            console.error('All clipboard methods failed');
         }
     } catch (error) {
         console.error('Failed to copy to clipboard:', error);
@@ -476,7 +486,6 @@ function handleMixerIntegrationEnabledChange() {
     
     // Always hide all mixer-specific input fields when integration is disabled
     if (!isEnabled) {
-        if (configWingIpAddressGroup) configWingIpAddressGroup.style.display = 'none';
     } else {
         handleMixerTypeChange();
     }
@@ -488,11 +497,6 @@ function handleMixerTypeChange() {
     const selectedMixer = configMixerTypeSelect ? configMixerTypeSelect.value : 'none';
     console.log('AppConfigUI (handleMixerTypeChange): Selected mixer type:', selectedMixer);
 
-    const isWingFamily = selectedMixer === 'behringer_wing_compact' || selectedMixer === 'behringer_wing_full';
-
-    if (configWingIpAddressGroup) {
-        configWingIpAddressGroup.style.display = isWingFamily ? 'block' : 'none';
-    }
 }
 
 function handleStopAllBehaviorChange() {
@@ -550,6 +554,12 @@ async function loadAudioOutputDevices() {
             } catch (deviceError) {
                 console.warn('AppConfigUI: Error enumerating devices:', deviceError);
                 console.log('AppConfigUI: Falling back to system default only');
+                
+                // Add a user-friendly message option
+                const fallbackOption = document.createElement('option');
+                fallbackOption.value = 'default';
+                fallbackOption.textContent = 'System Default (Device list unavailable)';
+                configAudioOutputDeviceSelect.appendChild(fallbackOption);
             }
         } else {
             console.warn('AppConfigUI: navigator.mediaDevices.enumerateDevices not available');
@@ -600,6 +610,7 @@ function gatherConfigFromUI() {
         defaultRetriggerBehavior: configDefaultRetriggerBehaviorSelect ? configDefaultRetriggerBehaviorSelect.value : 'restart',
         defaultStopAllBehavior: configDefaultStopAllBehaviorSelect ? configDefaultStopAllBehaviorSelect.value : 'stop',
         defaultStopAllFadeOutTime: configDefaultStopAllFadeOutInput ? parseInt(configDefaultStopAllFadeOutInput.value) : 1500,
+        crossfadeTime: configCrossfadeTimeInput ? parseInt(configCrossfadeTimeInput.value) : 2000,
 
         // Generic OSC removed from saved config
         
@@ -619,14 +630,8 @@ function gatherConfigFromUI() {
     if (mixerEnabled) {
         config.mixerType = mixerType; // Set the selected mixer type
 
-        if (mixerType === 'behringer_wing_compact' || mixerType === 'behringer_wing_full') {
-            config.wingIpAddress = configWingIpAddressInput ? configWingIpAddressInput.value.trim() : '';
-        } else {
-            config.wingIpAddress = ''; // Clear if not a WING type
-        }
     } else { // Mixer integration disabled
         config.mixerType = 'none';
-        config.wingIpAddress = '';
     }
     
     console.log('AppConfigUI (gatherConfigFromUI): Gathered config:', JSON.parse(JSON.stringify(config)));
@@ -673,8 +678,15 @@ async function saveAppConfiguration() {
                     // Show error feedback to user
                     console.error(`❌ Failed to switch audio output: ${error.message}`);
                     
-                    // Optionally, you could show a toast notification or alert here
-                    // For now, we'll just log it prominently
+                    // Show user-friendly error notification
+                    const errorMsg = `Failed to switch audio output device. ${error.message || 'Unknown error occurred.'}`;
+                    
+                    // Try to show a more visible error notification
+                    if (typeof window !== 'undefined' && window.alert) {
+                        // Simple alert as fallback - in a real app you'd want a better notification system
+                        console.error('Audio device change failed:', errorMsg);
+                        // Note: Using console.error instead of alert to avoid blocking the UI
+                    }
                     
                     // Revert the UI selection to the previous device
                     if (configAudioOutputDeviceSelect) {

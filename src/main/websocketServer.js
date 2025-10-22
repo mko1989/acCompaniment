@@ -54,7 +54,7 @@ async function startServer(port = DEFAULT_PORT, enabled = true) {
 
     if (wss) {
         console.log('WebSocket server (old instance) was found. Attempting to stop it for restart.');
-        await stopServer(); // stopServer will also set isServerStartingOrStopping to false when done if it was called from here
+        await stopServer(); // stopServer will reset isServerStartingOrStopping to false when done
         // No explicit delay here anymore, rely on stopServer completion
     }
 
@@ -143,7 +143,7 @@ async function startServer(port = DEFAULT_PORT, enabled = true) {
                 console.error(`WebSocket Server: Port ${port} is already in use. This could be a Windows firewall issue or another application using the port.`);
                 console.error('WebSocket Server: Try changing the WebSocket port in app settings or check Windows firewall settings.');
                 // wss might be the old one if new one failed, or null. Ensure it is null if start failed.
-                if (wss && wss.options.port === port) { // Check if this is the instance that failed
+                if (wss && wss.options && wss.options.port === port) { // Check if this is the instance that failed
                     // It failed to listen, so it's not really active.
                     // No need to call currentWssInstance.close() as it never opened.
                 }
@@ -236,14 +236,55 @@ function handleCompanionMessage(message) {
                 console.error(`WebSocket Server: Error sending stop all IPC message:`, error);
             }
             break;
+        case 'playlistNavigateNext':
+            if (message.payload && message.payload.cueId) {
+                console.log(`WebSocket Server: Processing playlist navigate next for ${message.payload.cueId}`);
+                try {
+                    mainWindowRef.webContents.send('playlist-navigate-next-from-main', message.payload.cueId);
+                    console.log(`WebSocket Server: Successfully sent playlist navigate next IPC message for cue ${message.payload.cueId}`);
+                } catch (error) {
+                    console.error(`WebSocket Server: Error sending playlist navigate next IPC message for cue ${message.payload.cueId}:`, error);
+                }
+            } else {
+                console.warn(`WebSocket Server: Invalid payload for playlistNavigateNext action - missing cueId`);
+            }
+            break;
+        case 'playlistNavigatePrevious':
+            if (message.payload && message.payload.cueId) {
+                console.log(`WebSocket Server: Processing playlist navigate previous for ${message.payload.cueId}`);
+                try {
+                    mainWindowRef.webContents.send('playlist-navigate-previous-from-main', message.payload.cueId);
+                    console.log(`WebSocket Server: Successfully sent playlist navigate previous IPC message for cue ${message.payload.cueId}`);
+                } catch (error) {
+                    console.error(`WebSocket Server: Error sending playlist navigate previous IPC message for cue ${message.payload.cueId}:`, error);
+                }
+            } else {
+                console.warn(`WebSocket Server: Invalid payload for playlistNavigatePrevious action - missing cueId`);
+            }
+            break;
         default:
             console.warn('WebSocket Server: Unknown action from Companion:', message.action);
     }
 }
 
 function broadcastToAllClients(messageObject) {
-    if (!wss) return;
+    if (!wss) {
+        console.log('WebSocket Server: Cannot broadcast - no server instance (wss is null)');
+        return;
+    }
     const messageString = JSON.stringify(messageObject);
+    const openClients = Array.from(wss.clients).filter(c => c.readyState === WebSocket.OPEN);
+    
+    if (openClients.length === 0 && messageObject.event === 'playbackTimeUpdate') {
+        // Only log once per cue to avoid spam
+        if (!broadcastToAllClients._loggedNoClients) {
+            console.log('WebSocket Server: No Companion clients connected to receive playback updates');
+            broadcastToAllClients._loggedNoClients = true;
+        }
+    } else if (openClients.length > 0) {
+        broadcastToAllClients._loggedNoClients = false;
+    }
+    
     wss.clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
             client.send(messageString);
@@ -265,8 +306,13 @@ function broadcastCueStatus(cueId, status, error = null) {
 
 // New function to broadcast playback time updates
 function broadcastPlaybackTimeUpdate(updatePayload) {
-    // console.log('Broadcasting playback time update to Companion clients:', updatePayload);
-    broadcastToAllClients({ type: 'playbackTimeUpdate', data: updatePayload });
+    console.log('Broadcasting playback time update to Companion clients:', {
+        cueId: updatePayload.cueId,
+        status: updatePayload.status,
+        currentTime: updatePayload.currentTimeFormatted,
+        isCurrentCue: updatePayload.isCurrentCue
+    });
+    broadcastToAllClients({ event: 'playbackTimeUpdate', payload: updatePayload });
 }
 
 function stopServer() {
@@ -285,12 +331,13 @@ function stopServer() {
             currentWssInstance.close(err => {
                 if (err) {
                     console.error('Error during WebSocket server currentWssInstance.close():', err);
-                    // Even if close fails, we attempted. Reset flag only if this stop was the end of a cycle.
-                    // isServerStartingOrStopping = false; // Potentially reset here or rely on caller
+                    // Even if close fails, we attempted. Reset flag to allow future operations.
+                    isServerStartingOrStopping = false;
                     reject(err);
                 } else {
                     console.log('WebSocket server currentWssInstance.close() successful.');
-                    // isServerStartingOrStopping = false; // Potentially reset here or rely on caller
+                    // Reset flag to allow future operations.
+                    isServerStartingOrStopping = false;
                     resolve();
                 }
             });
@@ -303,7 +350,8 @@ function stopServer() {
             });
         } else {
             console.log('WebSocket server not running (wss is null), no action to stop.');
-            // isServerStartingOrStopping = false; // Reset if this was part of a cycle that expected a server.
+            // Reset flag to allow future operations.
+            isServerStartingOrStopping = false;
             resolve();
         }
     });

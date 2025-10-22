@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>acCompaniment Remote</title>
-    <link rel="icon" type="image/png" href="/assets/icons/icon.png">
+    <link rel="icon" type="image/png" href="../../assets/icons/icon.png">
     <style>
         body {
-            font-family: 'Rewir', sans-serif; /* Default font */
+            font-family: 'Rewir', 'Arial', 'Helvetica', sans-serif; /* Default font with fallbacks */
             background-color: #1e1e1e;
             color: #e0e0e0;
             margin: 0;
@@ -35,7 +35,7 @@
             margin-right: 10px;
         }
         .remote-header h1 { /* Target h1 inside .remote-header */
-            font-family: 'Apropal', sans-serif; /* Title font */
+            font-family: 'Apropal', 'Arial', 'Helvetica', sans-serif; /* Title font with fallbacks */
             font-size: 1.8em; 
             color: #e0e0e0;
             margin: 0; /* Remove default h1 margins */
@@ -146,11 +146,11 @@
 <body>
     <div class="remote-header">
         <div class="remote-header-left">
-            <img src="/assets/icons/icon.png" alt="acCompaniment Icon" class="remote-header-icon">
+            <img src="../../assets/icons/icon.png" alt="acCompaniment Icon" class="remote-header-icon">
             <h1>acCompaniment</h1>
         </div>
         <button id="stopAllButtonRemote">
-            <img src="/assets/icons/dont panic.png" alt="Stop All" class="btn-icon-remote">
+            <img src="../../assets/icons/dont panic.png" alt="Stop All" class="btn-icon-remote">
         </button>
     </div>
     
@@ -236,18 +236,18 @@
                     
                 }
             } catch (error) {
-                
-                
+                console.error('Error parsing WebSocket message:', error);
+                console.error('Raw message:', event.data);
             }
         };
 
         ws.onclose = (event) => {
-            
+            console.log('WebSocket connection closed:', event.code, event.reason);
             cueGridRemote.innerHTML = `<p style="color: #ff6b6b; text-align: center;">Connection lost. Please refresh the page.</p>`;
         };
 
         ws.onerror = (error) => {
-            
+            console.error('WebSocket error:', error);
             cueGridRemote.innerHTML = `<p style="color: #ff6b6b; text-align: center;">Connection error. Please refresh.</p>`;
         };
 

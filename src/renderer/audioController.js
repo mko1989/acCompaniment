@@ -1,12 +1,20 @@
 // Companion_soundboard/src/renderer/audioController.js
 // Manages audio playback using Howler.js - now acts as a higher-level orchestrator.
 
-import { getGlobalCueById } from './ui/utils.js';
+// import { getGlobalCueById } from './ui/utils.js'; // Removed - using cueStore directly instead
 import { getPlaybackTimesUtil, formatTimeMMSS } from './audioTimeUtils.js';
 import { init as initEmitter, sendPlaybackTimeUpdate } from './audioPlaybackIPCEmitter.js';
 import { createPlaybackInstance } from './playbackInstanceHandler.js';
 
-// Static import removed: import * as audioPlaybackManager from './audioPlaybackManager.js';
+// Local function to get cue by ID using cueStore directly
+function getGlobalCueById(cueId) {
+    if (cueStoreRef && typeof cueStoreRef.getCueById === 'function') {
+        return cueStoreRef.getCueById(cueId);
+    }
+    console.warn(`AudioController.getGlobalCueById: cueStoreRef or getCueById is not available. Cue ID: ${cueId}.`);
+    return null;
+}
+
 
 // State variables that REMAIN in audioController.js:
 let ipcBindings; // To send status updates
@@ -75,6 +83,10 @@ async function init(cs, ipcRendererBindingsInstance, cgAPI, sbAPI) {
     setupIPCListeners();
     audioControllerInitialized = true;
     console.log('AudioController: Main initialization complete.');
+    
+    // Start preloading audio files for faster first play
+    console.log('AudioController: Starting audio preloading...');
+    setTimeout(() => preloadAudioFiles(), 1000); // Delay to ensure UI is ready
 }
 
 function setUIRefs(cgAPI, sbAPI) {
@@ -93,7 +105,7 @@ function setUIRefs(cgAPI, sbAPI) {
 
 function getAppConfig() {
     if (!appConfigInitialized) {
-        console.warn("AudioController: getAppConfig called before appConfig was fully initialized from AppConfigUI. Returning potentially empty/default state.");
+        console.log("AudioController: getAppConfig called during initialization. Returning default state.");
     }
     return internalAppConfigState;
 }
@@ -131,7 +143,7 @@ function setupIPCListeners() {
 
     ipcBindings.on('play-audio-by-id', (event, { cueId }) => {
         console.log(`AudioController: IPC 'play-audio-by-id' received for ${cueId}`);
-        const cue = cueStoreRef ? cueStoreRef.getCueById(cueId) : getGlobalCueById(cueId); // Fallback if cueStoreRef not ready
+        const cue = getGlobalCueById(cueId); // Use local function
         if (cue && playbackManagerModule && playbackManagerModule.playCue) {
             playbackManagerModule.playCue(cue, false); // false for isResume
         } else {
@@ -189,10 +201,11 @@ function seek(cueId, positionSec) {
 }
 
 function getPlaybackTimes(cueId) {
-    console.log(`AudioController: getPlaybackTimes called for cueId: ${cueId}. Initialized: ${audioControllerInitialized}`);
+    // console.log(`AudioController: getPlaybackTimes called for cueId: ${cueId}. Initialized: ${audioControllerInitialized}`);
 
     if (!audioControllerInitialized || !playbackManagerModule || typeof playbackManagerModule.getPlaybackState !== 'function') {
-        console.warn(`AudioController: getPlaybackTimes prerequisites not met for cueId: ${cueId}. Module ready: ${!!playbackManagerModule}, getPlaybackState is function: ${typeof playbackManagerModule?.getPlaybackState === 'function'}. Returning default idle times.`);
+        // This is normal during initialization - reduce log verbosity
+        // console.log(`AudioController: getPlaybackTimes prerequisites not met for cueId: ${cueId}. Module ready: ${!!playbackManagerModule}, getPlaybackState is function: ${typeof playbackManagerModule?.getPlaybackState === 'function'}. Returning default idle times.`);
         if (cueStoreRef) {
             const cue = cueStoreRef.getCueById(cueId);
             if (cue) {
@@ -214,22 +227,41 @@ function getPlaybackTimes(cueId) {
                 }
                 effectiveDuration = Math.max(0, effectiveDuration);
                 let nextItemName = null;
+                let totalPlaylistDuration = 0;
+                let nextItemDuration = 0;
+                
                 if (cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0) {
                     nextItemName = cue.playlistItems[0]?.name || 'Item 1';
+                    nextItemDuration = cue.playlistItems[0]?.knownDuration || 0;
+                    
+                    // Calculate total playlist duration
+                    const itemsWithValidDurations = cue.playlistItems.filter(item => item.knownDuration && item.knownDuration > 0);
+                    if (itemsWithValidDurations.length === cue.playlistItems.length) {
+                        // All items have valid durations, calculate total
+                        totalPlaylistDuration = cue.playlistItems.reduce((total, item) => total + (item.knownDuration || 0), 0);
+                    } else {
+                        // Some items missing durations, use first item duration as fallback
+                        totalPlaylistDuration = nextItemDuration;
+                        console.log(`AudioController: Playlist ${cueId} has ${cue.playlistItems.length - itemsWithValidDurations.length} items without durations, using first item duration as fallback for total`);
+                    }
+                } else {
+                    totalPlaylistDuration = effectiveDuration; // For single files, use the trimmed duration
+                    nextItemDuration = effectiveDuration;
                 }
 
                 return {
                     currentTime: 0,
-                    duration: effectiveDuration,
+                    duration: totalPlaylistDuration,
                     currentTimeFormatted: formatTimeMMSS(0),
-                    durationFormatted: formatTimeMMSS(effectiveDuration),
-                    remainingTime: effectiveDuration,
-                    remainingTimeFormatted: formatTimeMMSS(effectiveDuration),
+                    durationFormatted: formatTimeMMSS(totalPlaylistDuration),
+                    remainingTime: totalPlaylistDuration,
+                    remainingTimeFormatted: formatTimeMMSS(totalPlaylistDuration),
                     isPlaying: false,
                     isPaused: false,
                     isCued: cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0, // Only cued if it's a playlist with items
                     currentPlaylistItemName: null,
                     nextPlaylistItemName: nextItemName, // For idle playlist, show first item as next
+                    nextPlaylistItemDuration: nextItemDuration, // Add next item duration for display
                     isPlaylist: cue.type === 'playlist'
                 };
             }
@@ -243,7 +275,7 @@ function getPlaybackTimes(cueId) {
     const state = playbackManagerModule.getPlaybackState(cueId);
     
     if (state) { 
-        console.log(`[AudioController getPlaybackTimes] CueID: ${cueId} - Received state from playbackManager:`, JSON.stringify(state));
+        // console.log(`[AudioController getPlaybackTimes] CueID: ${cueId} - Received state from playbackManager:`, JSON.stringify(state));
         // Pass through all relevant state, including names and status flags
         return {
             currentTime: state.currentTime,
@@ -264,7 +296,8 @@ function getPlaybackTimes(cueId) {
             // Add other relevant fields from 'state' if cueGrid needs them directly
         };
     } else { // Cue is idle (and not found by playbackManagerModule.getPlaybackState, e.g. truly empty)
-        console.warn(`AudioController: getPlaybackTimes - playbackManagerModule.getPlaybackState returned null for cueId: ${cueId}. Using fallback idle state.`);
+        // This is normal for idle cues - no need to log as warning
+        // console.log(`AudioController: getPlaybackTimes - playbackManagerModule.getPlaybackState returned null for cueId: ${cueId}. Using fallback idle state.`);
         if (cueStoreRef) { // Try cueStore again as a last resort for some basic info
             const cue = cueStoreRef.getCueById(cueId);
             if (cue) {
@@ -274,7 +307,10 @@ function getPlaybackTimes(cueId) {
                 const trimEndTime = (cue.trimEndTime !== undefined && cue.trimEndTime !== null) ? cue.trimEndTime : undefined;
                 let effectiveDuration;
                 
-                if (trimEndTime && trimEndTime > trimStartTime) {
+                // FIX: Don't calculate trimmed duration if original duration is 0
+                if (originalKnownDuration <= 0) {
+                    effectiveDuration = 0;
+                } else if (trimEndTime && trimEndTime > trimStartTime) {
                     effectiveDuration = trimEndTime - trimStartTime;
                 } else if (trimEndTime && trimEndTime <= trimStartTime && trimEndTime > 0) {
                     effectiveDuration = 0;
@@ -288,20 +324,39 @@ function getPlaybackTimes(cueId) {
                 }
                 effectiveDuration = Math.max(0, effectiveDuration);
                 
-                 let nextItemNameFallback = null;
+                let nextItemNameFallback = null;
+                let totalPlaylistDuration = 0;
+                let nextItemDuration = 0;
+                
                 if (cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0) {
                     nextItemNameFallback = cue.playlistItems[0]?.name || 'Item 1';
+                    nextItemDuration = cue.playlistItems[0]?.knownDuration || 0;
+                    
+                    // Calculate total playlist duration
+                    const itemsWithValidDurations = cue.playlistItems.filter(item => item.knownDuration && item.knownDuration > 0);
+                    if (itemsWithValidDurations.length === cue.playlistItems.length) {
+                        // All items have valid durations, calculate total
+                        totalPlaylistDuration = cue.playlistItems.reduce((total, item) => total + (item.knownDuration || 0), 0);
+                    } else {
+                        // Some items missing durations, use first item duration as fallback
+                        totalPlaylistDuration = nextItemDuration;
+                        console.log(`AudioController: Playlist ${cueId} has ${cue.playlistItems.length - itemsWithValidDurations.length} items without durations, using first item duration as fallback for total`);
+                    }
+                } else {
+                    totalPlaylistDuration = effectiveDuration; // For single files, use the trimmed duration
+                    nextItemDuration = effectiveDuration;
                 }
                 
-                console.log(`AudioController: Second fallback calculated duration for cue ${cueId}: original=${originalKnownDuration}, trimmed=${effectiveDuration}, trimStart=${trimStartTime}, trimEnd=${trimEndTime}`);
+                // console.log(`AudioController: Second fallback calculated duration for cue ${cueId}: original=${originalKnownDuration}, trimmed=${effectiveDuration}, totalPlaylist=${totalPlaylistDuration}, nextItem=${nextItemDuration}, trimStart=${trimStartTime}, trimEnd=${trimEndTime}`);
                 
                 return {
-                    currentTime: 0, duration: effectiveDuration, currentTimeFormatted: '00:00', 
-                    durationFormatted: formatTimeMMSS(effectiveDuration), 
-                    remainingTime: effectiveDuration, remainingTimeFormatted: formatTimeMMSS(effectiveDuration),
+                    currentTime: 0, duration: totalPlaylistDuration, currentTimeFormatted: '00:00', 
+                    durationFormatted: formatTimeMMSS(totalPlaylistDuration), 
+                    remainingTime: totalPlaylistDuration, remainingTimeFormatted: formatTimeMMSS(totalPlaylistDuration),
                     isPlaying: false, isPaused: false, 
                     isCued: cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0, // Only cued if it's a playlist with items
                     currentPlaylistItemName: null, nextPlaylistItemName: nextItemNameFallback, 
+                    nextPlaylistItemDuration: nextItemDuration, // Add next item duration for display
                     isPlaylist: cue.type === 'playlist'
                 };
             }
@@ -424,9 +479,24 @@ async function setAudioOutputDevice(deviceId) {
                         console.error(`AudioController: Failed to set device for cue ${cueId}:`, error);
                         failedSwitches++;
                         
-                        // Handle specific error types
-                        if (error.name === 'NotFoundError') {
-                            errorMessage = `Audio device not found: ${deviceId}`;
+                        // Handle specific error types and try fallback
+                        if (error.name === 'NotFoundError' || error.message.includes('not found')) {
+                            console.log(`AudioController: Device not found, trying fallback to default for cue ${cueId}`);
+                            try {
+                                // Try to fall back to default device
+                                if (sound._sounds && sound._sounds.length > 0) {
+                                    const audioNode = sound._sounds[0]._node;
+                                    if (audioNode && typeof audioNode.setSinkId === 'function') {
+                                        await audioNode.setSinkId(''); // Empty string for default device
+                                        console.log(`AudioController: Successfully set default device for cue ${cueId}`);
+                                        failedSwitches--; // Reduce failed count since fallback succeeded
+                                        successfulSwitches++;
+                                    }
+                                }
+                            } catch (fallbackError) {
+                                console.error(`AudioController: Fallback to default device also failed for cue ${cueId}:`, fallbackError);
+                                errorMessage = `Audio device not found and fallback failed: ${deviceId}`;
+                            }
                         } else if (error.name === 'NotAllowedError') {
                             errorMessage = `Permission denied for audio device: ${deviceId}`;
                         } else {
@@ -533,6 +603,138 @@ function getCurrentAudioOutputDeviceId() {
     return currentAudioOutputDeviceId;
 }
 
+// --- Playlist Navigation Functions ---
+
+function playlistNavigateNext(cueId, fromExternal = false) {
+    console.log(`AudioController: playlistNavigateNext for cue ${cueId}, fromExternal=${fromExternal}`);
+    console.log(`AudioController: audioControllerInitialized=${audioControllerInitialized}, playbackManagerModule=${!!playbackManagerModule}`);
+    if (!audioControllerInitialized || !playbackManagerModule || !playbackManagerModule.playlistNavigateNext) {
+        console.warn(`AudioController: playlistNavigateNext called for ${cueId} - playbackManager not ready`);
+        return false;
+    }
+    const result = playbackManagerModule.playlistNavigateNext(cueId, fromExternal);
+    console.log(`AudioController: playlistNavigateNext result for ${cueId}: ${result}`);
+    return result;
+}
+
+function playlistNavigatePrevious(cueId, fromExternal = false) {
+    console.log(`AudioController: playlistNavigatePrevious for cue ${cueId}, fromExternal=${fromExternal}`);
+    if (!audioControllerInitialized || !playbackManagerModule || !playbackManagerModule.playlistNavigatePrevious) {
+        console.warn(`AudioController: playlistNavigatePrevious called for ${cueId} - playbackManager not ready`);
+        return false;
+    }
+    return playbackManagerModule.playlistNavigatePrevious(cueId, fromExternal);
+}
+
+// Preload audio files for instant playback
+const preloadedSounds = new Map(); // Store preloaded Howl instances
+
+async function preloadAudioFiles() {
+    console.log('🎵 AudioController: Starting audio preloading...');
+    
+    if (!cueStoreRef || !cueStoreRef.getAllCues) {
+        console.warn('🎵 AudioController: CueStore not ready for preloading');
+        return;
+    }
+    
+    const allCues = cueStoreRef.getAllCues();
+    console.log(`🎵 AudioController: Preloading ${allCues.length} cues...`);
+    
+    let preloadedCount = 0;
+    let errorCount = 0;
+    
+    for (const cue of allCues) {
+        try {
+            if (cue.type === 'single_file' && cue.filePath) {
+                await preloadSingleFile(cue);
+                preloadedCount++;
+            } else if (cue.type === 'playlist' && cue.playlistItems) {
+                // Preload first few playlist items (not all to avoid memory issues)
+                const itemsToPreload = cue.playlistItems.slice(0, 3);
+                for (const item of itemsToPreload) {
+                    if (item.filePath) {
+                        await preloadPlaylistItem(cue.id, item);
+                        preloadedCount++;
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn(`🎵 AudioController: Error preloading cue ${cue.id}:`, error);
+            errorCount++;
+        }
+    }
+    
+    console.log(`🎵 AudioController: Preloading complete! Loaded: ${preloadedCount}, Errors: ${errorCount}`);
+}
+
+async function preloadSingleFile(cue) {
+    return new Promise((resolve, reject) => {
+        console.log(`🎵 Preloading: ${cue.name} (${cue.filePath})`);
+        
+        // Use html5 for .m4a and .mp3 files for better compatibility
+        const useHtml5 = cue.filePath.toLowerCase().endsWith('.m4a') || cue.filePath.toLowerCase().endsWith('.mp3');
+        
+        const sound = new Howl({
+            src: [cue.filePath],
+            preload: true,
+            volume: 0, // Silent preload
+            html5: useHtml5,
+            format: ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac'],
+            onload: () => {
+                preloadedSounds.set(cue.id, sound);
+                console.log(`🎵 Preloaded: ${cue.name}`);
+                resolve();
+            },
+            onloaderror: (soundId, error) => {
+                console.warn(`🎵 Preload failed: ${cue.name} -`, error);
+                if (useHtml5) {
+                    const fileExt = cue.filePath.toLowerCase().split('.').pop();
+                    if (fileExt === 'm4a') {
+                        console.warn(`🎵 .m4a file failed to preload. Consider converting to .mp3 for better compatibility.`);
+                    } else if (fileExt === 'mp3') {
+                        console.warn(`🎵 .mp3 file failed to preload. Consider re-encoding or converting to .wav for better compatibility.`);
+                    }
+                }
+                reject(error);
+            }
+        });
+    });
+}
+
+async function preloadPlaylistItem(cueId, item) {
+    return new Promise((resolve, reject) => {
+        console.log(`🎵 Preloading playlist item: ${item.name} (${item.filePath})`);
+        
+        // Use html5 for .m4a files for better compatibility
+        const useHtml5 = item.filePath.toLowerCase().endsWith('.m4a');
+        
+        const sound = new Howl({
+            src: [item.filePath],
+            preload: true,
+            volume: 0, // Silent preload
+            html5: useHtml5,
+            format: ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac'],
+            onload: () => {
+                preloadedSounds.set(`${cueId}_${item.id}`, sound);
+                console.log(`🎵 Preloaded playlist item: ${item.name}`);
+                resolve();
+            },
+            onloaderror: (soundId, error) => {
+                console.warn(`🎵 Preload failed for playlist item: ${item.name} -`, error);
+                if (useHtml5) {
+                    console.warn(`🎵 .m4a playlist item failed to preload. Consider converting to .mp3 for better compatibility.`);
+                }
+                reject(error);
+            }
+        });
+    });
+}
+
+// Function to get preloaded sound by key
+function getPreloadedSound(key) {
+    return preloadedSounds.get(key) || null;
+}
+
 export default {
     init,
     setUIRefs,
@@ -551,7 +753,23 @@ export default {
     updateAppConfig: _updateInternalAppConfig, // Expose the internal updater
     setAudioOutputDevice,
     getCurrentAudioOutputDeviceId,
-    playCueByIdFromMain // Make sure this is exported if called from IPC
+    playCueByIdFromMain, // Make sure this is exported if called from IPC
+    playlistNavigateNext,
+    playlistNavigatePrevious,
+    handleCrossfadeToggle: (cueId) => {
+        if (!audioControllerInitialized || !playbackManagerModule || !playbackManagerModule.handleCrossfadeToggle) {
+            console.error(`AudioController: handleCrossfadeToggle called for ${cueId} before full initialization or playbackManager not ready.`);
+            return;
+        }
+        console.log(`AudioController: Public handleCrossfadeToggle called for cueId: ${cueId}`);
+        playbackManagerModule.handleCrossfadeToggle(cueId);
+    },
+    // Ducking functions - exposed for internal use by playbackInstanceHandler
+    _applyDucking: (triggerCueId) => playbackManagerModule?._applyDucking(triggerCueId),
+    _revertDucking: (triggerCueIdStop) => playbackManagerModule?._revertDucking(triggerCueIdStop),
+    getGlobalCueById: (cueId) => cueStoreRef?.getCueById(cueId),
+    getPreloadedSound,
+    preloadAudioFiles
     // getCurrentlyPlayingPlaylistItemName, // REMOVED
     // getNextPlaylistItemName, // REMOVED
 };

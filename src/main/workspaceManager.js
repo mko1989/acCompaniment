@@ -27,7 +27,7 @@ function initialize(appConfManager, cManager, mainWin) {
             console.log(`[WorkspaceManager Initialize] Attempting to auto-load last opened workspace: ${globalConfig.lastOpenedWorkspacePath}`);
             // Pass true for isInitializing to prevent re-saving lastOpenedWorkspacePath to global config if it's already correct.
             // However, the openWorkspace logic ensures it's saved globally before switching.
-            this.openWorkspace(globalConfig.lastOpenedWorkspacePath, true)
+            openWorkspace(globalConfig.lastOpenedWorkspacePath, true)
                 .then(success => {
                     if (success) {
                         console.log(`[WorkspaceManager Initialize] Successfully auto-opened workspace: ${globalConfig.lastOpenedWorkspacePath}`);
@@ -68,7 +68,7 @@ function initialize(appConfManager, cManager, mainWin) {
         const currentCuesPath = globalConfig.cuesFilePath || path.join(app.getPath('userData'), DEFAULT_CUES_FILENAME);
         cueManager.setCuesDirectory(path.dirname(currentCuesPath));
         cueManager.loadCuesFromFile(); // Load or initialize default cues
-         if (mainWindow && mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
+        if (mainWindow && mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
             mainWindow.webContents.send('cues-updated-from-main', cueManager.getCues());
         }
     }
@@ -334,7 +334,7 @@ async function saveWorkspaceAs() {
                     mainWindow.setRepresentedFilename(newWorkspacePath);
                 }
                 mainWindow.setDocumentEdited(false);
-                 if (mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
+                if (mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
                     mainWindow.webContents.send('cues-updated-from-main', cueManager.getCues());
                     mainWindow.webContents.send('app-config-updated-from-main', workspaceSaveResult.config); // Send new workspace config
                 }
@@ -358,11 +358,11 @@ function getCurrentWorkspacePath() {
     return currentWorkspaceDirectory;
 }
 
-// This export needs to match what main.js expects if it uses this.initialize
+// Export functions for use by main.js
 module.exports = {
-    initialize: (appConfMan, cMan, mainWin) => initialize.call(module.exports, appConfMan, cMan, mainWin),
+    initialize,
     newWorkspace,
-    openWorkspace: (path, initFlag) => openWorkspace.call(module.exports, path, initFlag), // Ensure 'this' context for openWorkspace
+    openWorkspace,
     saveWorkspace,
     saveWorkspaceAs,
     getCurrentWorkspacePath,

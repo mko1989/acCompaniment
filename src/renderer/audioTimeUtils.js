@@ -68,17 +68,16 @@ function getPlaybackTimesUtil(
     let rawSoundDuration = 0; // Actual Howler sound.duration() if available
 
     // ---- START DETAILED LOGGING ----
-    console.log(`audioTimeUtils (getPlaybackTimesUtil): Received mainCue:`, mainCue ? JSON.parse(JSON.stringify(mainCue)) : mainCue);
+    // console.log(`audioTimeUtils (getPlaybackTimesUtil): Received mainCue:`, mainCue ? JSON.parse(JSON.stringify(mainCue)) : mainCue);
     const mainCueIdForLog = mainCue && typeof mainCue.id !== 'undefined' ? mainCue.id : 'mainCue.id is undefined';
-    if (sound && typeof sound.seek === 'function') {
-        console.log(`audioTimeUtils (getPlaybackTimesUtil for ${mainCueIdForLog}): Sound object present. sound.playing(): ${sound.playing()}, sound.state(): ${sound.state()}, sound.seek(): ${sound.seek()}`);
-    } else {
-        console.log(`audioTimeUtils (getPlaybackTimesUtil for ${mainCueIdForLog}): Sound object NOT present or not a Howl instance.`);
-    }
+    // if (sound && typeof sound.seek === 'function') {
+    //     console.log(`audioTimeUtils (getPlaybackTimesUtil for ${mainCueIdForLog}): Sound object present. sound.playing(): ${sound.playing()}, sound.state(): ${sound.state()}, sound.seek(): ${sound.seek()}`);
+    // } else {
+    //     console.log(`audioTimeUtils (getPlaybackTimesUtil for ${mainCueIdForLog}): Sound object NOT present or not a Howl instance.`);
+    // }
     // ---- END DETAILED LOGGING ----
 
     if (!mainCue) {
-        // console.warn('getPlaybackTimesUtil: mainCue is null or undefined.');
         return { currentTime: 0, totalPlaylistDuration: 0, currentItemDuration: 0, currentItemRemainingTime: 0, rawDuration: 0 };
     }
     
@@ -90,13 +89,22 @@ function getPlaybackTimesUtil(
 
         if (mainCue.type === 'playlist') {
             if (playlistOriginalItems && playlistOriginalItems.length > 0) {
-                displayTotalDuration = playlistOriginalItems.reduce((total, item) => total + (item.knownDuration || 0), 0);
+                // FIX: Only calculate total if we have valid durations for items
+                const itemsWithValidDurations = playlistOriginalItems.filter(item => item.knownDuration && item.knownDuration > 0);
+                if (itemsWithValidDurations.length === playlistOriginalItems.length) {
+                    // All items have valid durations, calculate total
+                    displayTotalDuration = playlistOriginalItems.reduce((total, item) => total + (item.knownDuration || 0), 0);
+                } else {
+                    // Some items missing durations, use current item duration as fallback
+                    displayTotalDuration = displayCurrentItemDuration;
+                    console.log(`audioTimeUtils: Playlist ${mainCue.id} has ${playlistOriginalItems.length - itemsWithValidDurations.length} items without durations, using current item duration as fallback`);
+                }
                 if (mainCue.repeatOne) {
                     // If repeating one item, total duration effectively becomes that item's duration.
                      displayTotalDuration = displayCurrentItemDuration;
                 }
             } else {
-                displayTotalDuration = displayCurrentItemDuration; // Fallback
+                displayTotalDuration = 0; // No items in playlist
             }
         } else { // Single file cue
             displayTotalDuration = displayCurrentItemDuration; // For single cue, total is its own duration
@@ -133,7 +141,16 @@ function getPlaybackTimesUtil(
         
         if (mainCue.type === 'playlist') {
             if (playlistOriginalItems && playlistOriginalItems.length > 0) {
-                displayTotalDuration = playlistOriginalItems.reduce((total, item) => total + (item.knownDuration || 0), 0);
+                // FIX: Only calculate total if we have valid durations for items
+                const itemsWithValidDurations = playlistOriginalItems.filter(item => item.knownDuration && item.knownDuration > 0);
+                if (itemsWithValidDurations.length === playlistOriginalItems.length) {
+                    // All items have valid durations, calculate total
+                    displayTotalDuration = playlistOriginalItems.reduce((total, item) => total + (item.knownDuration || 0), 0);
+                } else {
+                    // Some items missing durations, use first item duration as fallback
+                    displayTotalDuration = playlistOriginalItems[0]?.knownDuration || 0;
+                    console.log(`audioTimeUtils: Playlist ${mainCue.id} has ${playlistOriginalItems.length - itemsWithValidDurations.length} items without durations in idle state, using first item duration as fallback`);
+                }
                 
                 let itemToDisplayIndex = 0; // Default to the first item in logical order
                 if (isCurrentlyCuedNext && currentPlaylistItemLogicalIndex !== null && currentPlaylistItemLogicalIndex < playlistOriginalItems.length) {
@@ -149,7 +166,7 @@ function getPlaybackTimesUtil(
                 if (actualItemOriginalIndex >= 0 && actualItemOriginalIndex < playlistOriginalItems.length) {
                     displayCurrentItemDuration = playlistOriginalItems[actualItemOriginalIndex]?.knownDuration || 0;
                 } else {
-                     displayCurrentItemDuration = playlistOriginalItems[0]?.knownDuration || 0; // Fallback to very first item
+                    displayCurrentItemDuration = 0; // Invalid index, no valid item
                 }
 
                 if (mainCue.repeatOne) {

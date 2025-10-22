@@ -12,12 +12,12 @@
     --cue-default-bg: #3a3a3a;
     --cue-playing-bg: #228b22; /* Forest Green */
     --cue-paused-bg: #d97700;  /* Orange */
-    --cue-cued-bg: #005f99;    /* Dark Blue */
+    --cue-cued-bg: #d97700;    /* Muted Orange */
     --maroon-bg: #800000;
     --border-radius: 4px;
     
     /* Fading Variables */
-    --cue-fading-bg: #8B0000;         /* Dark Red - General fade text color can use this if needed */
+    --cue-fading-bg: #8B0000;         /* Dark Red - General fade background color */
     --cue-fading-out-bg: #B22222;   /* Firebrick - For fading out background */
     --cue-fading-in-bg: #20B2AA;    /* Light Sea Green - For fading in background */
-} 
+}

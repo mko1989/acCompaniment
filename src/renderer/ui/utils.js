@@ -1,4 +1,4 @@
-// Companion_soundboard/src/renderer/ui/utils.js
+// acCompaniment-main/src/renderer/ui/utils.js
 
 // Keep a reference to cueStore, will be set by an init function if needed by getGlobalCueById
 let cueStoreModule;
@@ -22,7 +22,7 @@ function getGlobalCueById(cueId) {
     if (cueStoreModule && typeof cueStoreModule.getCueById === 'function') {
         return cueStoreModule.getCueById(cueId);
     }
-    console.warn(`UI.utils.getGlobalCueById: cueStoreModule or getCueById is not available. Cue ID: ${cueId}`);
+    console.warn(`UI.utils.getGlobalCueById: cueStoreModule or getCueById is not available. Cue ID: ${cueId}. Make sure initUtils() has been called with a valid cueStore module.`);
     return null;
 }
 

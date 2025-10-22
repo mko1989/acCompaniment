@@ -1,6 +1,7 @@
 let cueStore;
 let ipcRendererBindingsModule;
 let uiCore; // To get currentAppConfig
+let waveformControlsModule; // For modal waveform functionality
 
 // --- DOM Elements for Modals ---
 // New/Edit Cue Config Modal
@@ -10,7 +11,7 @@ let modalCueIdInput, modalCueNameInput, modalCueTypeSelect, modalSingleFileConfi
     modalFilePathInput, modalPlaylistConfigDiv, modalPlaylistItemsUl,
     modalPlaylistFilePathDisplay, modalFadeInTimeInput, modalFadeOutTimeInput,
     modalLoopCheckbox, modalTrimStartTimeInput, modalTrimEndTimeInput,
-    modalVolumeRangeInput, modalVolumeValueSpan, modalSaveCueButton;
+    modalVolumeRangeInput, modalVolumeValueSpan, modalSaveCueButton, modalWaveformDisplay;
 
 // Multiple Files Drop Modal
 let multipleFilesDropModal;
@@ -21,11 +22,13 @@ let modalCancelMultipleFilesDropBtn;
 
 // --- State for Modals ---
 let droppedFilesList = null; // For the multiple files drop modal
+let modalWaveformInstance = null; // For modal waveform instance
 
-function initModals(cs, ipc, core) {
+function initModals(cs, ipc, core, waveformControls) {
     cueStore = cs;
     ipcRendererBindingsModule = ipc;
     uiCore = core;
+    waveformControlsModule = waveformControls;
 
     cacheModalDOMElements();
     bindModalEventListeners();
@@ -53,6 +56,7 @@ function cacheModalDOMElements() {
         modalVolumeRangeInput = document.getElementById('volume');
         modalVolumeValueSpan = document.getElementById('volumeValue');
         modalSaveCueButton = document.getElementById('saveCueButton');
+        modalWaveformDisplay = document.getElementById('modalWaveformDisplay');
     }
 
     // Multiple Files Drop Modal
@@ -68,11 +72,13 @@ function cacheModalDOMElements() {
 function bindModalEventListeners() {
     // New/Edit Cue Config Modal
     if (closeCueConfigModalBtn) closeCueConfigModalBtn.addEventListener('click', () => {
+        // Note: Modal waveform display removed - modal is only for creating new cues
         if (cueConfigModal) cueConfigModal.style.display = 'none';
     });
     if (modalSaveCueButton) modalSaveCueButton.addEventListener('click', handleSaveNewCueFromModal);
     if (cueConfigModal) cueConfigModal.addEventListener('click', (event) => { // Close on outside click
         if (event.target === cueConfigModal) {
+            // Note: Modal waveform display removed - modal is only for creating new cues
             cueConfigModal.style.display = 'none';
         }
     });
@@ -80,10 +86,21 @@ function bindModalEventListeners() {
         const isPlaylist = e.target.value === 'playlist';
         if(modalPlaylistConfigDiv) modalPlaylistConfigDiv.style.display = isPlaylist ? 'block' : 'none';
         if(modalSingleFileConfigDiv) modalSingleFileConfigDiv.style.display = isPlaylist ? 'none' : 'block';
+        
+        // Handle waveform display based on cue type
+        if (modalWaveformDisplay) {
+            modalWaveformDisplay.style.display = isPlaylist ? 'none' : 'block';
+        }
+        
+        // Note: Modal waveform display removed - modal is only for creating new cues
+        // Editing existing cues should use the properties sidebar which has proper waveform display
     });
     if(modalVolumeRangeInput && modalVolumeValueSpan) modalVolumeRangeInput.addEventListener('input', (e) => {
         modalVolumeValueSpan.textContent = parseFloat(e.target.value).toFixed(2);
     });
+    
+    // Note: Modal waveform display removed - modal is only for creating new cues
+    // Editing existing cues should use the properties sidebar which has proper waveform display
 
     // Multiple Files Drop Modal
     if (closeMultipleFilesDropModalBtn) closeMultipleFilesDropModalBtn.addEventListener('click', hideMultipleFilesDropModal);
@@ -101,6 +118,9 @@ function openNewCueModal() {
     if (!cueConfigModal || !uiCore) return;
     const currentAppConfig = uiCore.getCurrentAppConfig();
     clearCueConfigModalFields(currentAppConfig); // Pass current app config for defaults
+    
+    // Note: Modal waveform display removed - modal is only for creating new cues
+    // Editing existing cues should use the properties sidebar which has proper waveform display
     
     if(modalCueIdInput && ipcRendererBindingsModule && typeof ipcRendererBindingsModule.generateUUID === 'function') {
       ipcRendererBindingsModule.generateUUID().then(uuid => {
@@ -151,7 +171,10 @@ function clearCueConfigModalFields(appConfig) {
     if(modalTrimStartTimeInput) modalTrimStartTimeInput.value = '';
     if(modalTrimEndTimeInput) modalTrimEndTimeInput.value = '';
     if(modalVolumeRangeInput) modalVolumeRangeInput.value = 1;
-    if(modalVolumeValueSpan) modalVolumeValueSpan.textContent = parseFloat(modalVolumeRangeInput.value).toFixed(2);
+    if(modalVolumeValueSpan && modalVolumeRangeInput) modalVolumeValueSpan.textContent = parseFloat(modalVolumeRangeInput.value).toFixed(2);
+    
+    // Hide modal waveform when clearing fields
+    hideModalWaveform();
 }
 
 async function handleSaveNewCueFromModal() {
@@ -172,13 +195,13 @@ async function handleSaveNewCueFromModal() {
     }
 
     const cueName = modalCueNameInput ? modalCueNameInput.value.trim() || 'Unnamed Cue' : 'Unnamed Cue';
-    const cueType = modalCueTypeSelect ? modalCueTypeSelect.value : 'single_file'; 
+    const cueType = modalCueTypeSelect ? modalCueTypeSelect.value : 'single'; 
     
     const newCueData = {
         id: cueId,
         name: cueName,
         type: cueType,
-        filePath: (cueType === 'single_file' && modalFilePathInput) ? modalFilePathInput.value : null,
+        filePath: (cueType === 'single' && modalFilePathInput) ? modalFilePathInput.value : null,
         playlistItems: [], 
         volume: modalVolumeRangeInput ? parseFloat(modalVolumeRangeInput.value) : 1,
         fadeInTime: modalFadeInTimeInput ? parseFloat(modalFadeInTimeInput.value) || 0 : currentAppConfig.defaultFadeInTime,
@@ -309,9 +332,10 @@ function handleFileDropInNewCueModal(filePaths) {
     if (!cueConfigModal || cueConfigModal.style.display !== 'flex') return false;
     console.log("Modals: handleFileDropInNewCueModal called with paths:", filePaths);
 
-    if (modalCueTypeSelect && (modalCueTypeSelect.value === 'single' || modalCueTypeSelect.value === 'single_file')) {
+    if (modalCueTypeSelect && modalCueTypeSelect.value === 'single') {
         if (filePaths.length === 1 && modalFilePathInput) {
              modalFilePathInput.value = filePaths[0];
+             // Note: Modal waveform display removed - modal is only for creating new cues
              return true;
         }
     } else if (modalCueTypeSelect && modalCueTypeSelect.value === 'playlist') {
@@ -327,6 +351,31 @@ function handleFileDropInNewCueModal(filePaths) {
         return true;
     }
     return false;
+}
+
+/**
+ * Handle file path input changes in modal
+ */
+function handleModalFilePathChange(e) {
+    // Note: Modal waveform display removed - modal is only for creating new cues
+    // Editing existing cues should use the properties sidebar which has proper waveform display
+}
+
+/**
+ * Show waveform in modal for a given file path
+ * Note: Modal waveform display removed - modal is only for creating new cues
+ */
+function showModalWaveform(filePath) {
+    // Note: Modal waveform display removed - modal is only for creating new cues
+    // Editing existing cues should use the properties sidebar which has proper waveform display
+}
+
+/**
+ * Hide and destroy modal waveform
+ */
+function hideModalWaveform() {
+    // Note: Modal waveform display removed - modal is only for creating new cues
+    // Editing existing cues should use the properties sidebar which has proper waveform display
 }
 
 export {

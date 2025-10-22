@@ -1,0 +1,100 @@
+/* Crossfade toggle button styling */
+#crossfadeToggleBtn {
+    padding: 0 !important; 
+    width: 60px !important; 
+    height: 60px !important;
+    border: 1px solid #666 !important;
+    display: inline-flex !important; 
+    align-items: center !important;
+    justify-content: center !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    transition: all 0.2s ease;
+}
+
+#crossfadeToggleBtn.crossfade-enabled {
+    background-color: #f39c12 !important; /* Orange for crossfade enabled */
+    border-color: #e67e22 !important;
+}
+
+#crossfadeToggleBtn.crossfade-disabled {
+    background-color: #555 !important; /* Match mode toggle button */
+    border-color: #666 !important;
+}
+
+#crossfadeToggleBtn:hover.crossfade-enabled {
+    background-color: #e67e22 !important;
+}
+
+#crossfadeToggleBtn:hover.crossfade-disabled {
+    background-color: #666 !important;
+}
+
+#crossfadeToggleBtn .btn-label {
+    font-size: 8px;
+    font-weight: bold;
+    color: white;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.3);
+    letter-spacing: 0.5px;
+    margin-top: 1px;
+}
+
+#crossfadeToggleBtn .btn-icon {
+    width: 24px !important;
+    height: 24px !important;
+    object-fit: contain !important;
+    margin: 0 !important;
+    filter: brightness(1.2);
+}
+
+/* Crossfade button states - override hover with higher specificity */
+.cue-button.crossfade-fade-out {
+    background-color: rgba(255, 69, 0, 0.8) !important;
+}
+
+.cue-button.crossfade-fade-out:hover {
+    background-color: rgba(255, 69, 0, 0.9) !important; /* Slightly more opaque on hover, stays red */
+}
+
+.cue-button.crossfade-fade-in {
+    background-color: rgba(255, 165, 0, 0.8) !important;
+}
+
+.cue-button.crossfade-fade-in:hover {
+    background-color: rgba(255, 165, 0, 0.9) !important; /* Slightly more opaque on hover, stays orange */
+}
+
+/* Additional specificity to override any other hover states */
+#cueGridContainer .cue-button.crossfade-fade-out:hover {
+    background-color: rgba(255, 69, 0, 0.9) !important;
+}
+
+#cueGridContainer .cue-button.crossfade-fade-in:hover {
+    background-color: rgba(255, 165, 0, 0.9) !important;
+}
+
+/* Normal fading states (non-crossfade) */
+.cue-button.fading-out {
+    background-color: rgba(255, 69, 0, 0.8) !important; /* Red-orange for normal fade out */
+}
+
+.cue-button.fading-out:hover {
+    background-color: rgba(255, 69, 0, 0.9) !important; /* Stays red on hover */
+}
+
+.cue-button.fading-in {
+    background-color: rgba(0, 255, 0, 0.8) !important; /* Green for normal fade in */
+}
+
+.cue-button.fading-in:hover {
+    background-color: rgba(0, 255, 0, 0.9) !important; /* Stays green on hover */
+}
+
+/* Additional specificity for normal fading */
+#cueGridContainer .cue-button.fading-out:hover {
+    background-color: rgba(255, 69, 0, 0.9) !important;
+}
+
+#cueGridContainer .cue-button.fading-in:hover {
+    background-color: rgba(0, 255, 0, 0.9) !important;
+}

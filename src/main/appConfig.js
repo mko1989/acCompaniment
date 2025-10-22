@@ -25,6 +25,7 @@ const DEFAULT_CONFIG = {
   defaultRetriggerBehavior: 'restart', // 'restart', 'pause_resume', 'stop', 'do_nothing', 'fade_out_and_stop', 'fade_stop_restart'
   defaultStopAllBehavior: 'stop', // 'stop' or 'fade_out_and_stop'
   defaultStopAllFadeOutTime: 1500, // Default fade out time for stop all in milliseconds
+  crossfadeTime: 2000, // Default crossfade duration in ms
   audioOutputDeviceId: 'default',
   theme: 'system', // 'light', 'dark', or 'system'
   // WebSocket Server Settings for Companion
@@ -36,8 +37,7 @@ const DEFAULT_CONFIG = {
   // OSC Settings removed (only mixer-specific OSC remains inside mixer modules)
   // Mixer Integration Settings (DISABLED FOR ALPHA BUILD)
   mixerIntegrationEnabled: false,
-  mixerType: 'none', // e.g., 'none', 'behringer_wing_compact', 'behringer_wing_full'
-  wingIpAddress: '', // Specific to Behringer WING (both models)
+  mixerType: 'none', // e.g., 'none'
   localIpAddress: '', // IP address of this machine for the mixer to send to
   recentWorkspaces: [], // Ensure recentWorkspaces is part of DEFAULT_CONFIG
 };
@@ -131,7 +131,7 @@ function saveConfig() { // Renamed from saveConfigInternal
 
 function getConfig() {
   // initializePaths(); // REMOVED
-  if (Object.keys(appConfig).length === 0 || !appConfig.hasOwnProperty('recentWorkspaces')) {
+  if (Object.keys(appConfig).length === 0 || !('recentWorkspaces' in appConfig)) {
     return loadConfig();
   }
   return { ...appConfig }; // Return a copy
@@ -146,10 +146,10 @@ function updateConfig(newSettings) {
   // if newSettings doesn't include it or has an invalid type for it.
   const currentRecent = appConfig.recentWorkspaces || [];
   appConfig = { ...appConfig, ...newSettings };
-  if (newSettings.hasOwnProperty('recentWorkspaces') && !Array.isArray(newSettings.recentWorkspaces)) {
+  if ('recentWorkspaces' in newSettings && !Array.isArray(newSettings.recentWorkspaces)) {
       console.warn('[AppConfig] updateConfig: newSettings contained invalid recentWorkspaces, preserving old list.');
       appConfig.recentWorkspaces = currentRecent;
-  } else if (!newSettings.hasOwnProperty('recentWorkspaces')) {
+  } else if (!('recentWorkspaces' in newSettings)) {
       appConfig.recentWorkspaces = currentRecent; // Preserve if not in newSettings
   }
   // else, newSettings.recentWorkspaces is used if it's a valid array or undefined (which will be handled by spread)

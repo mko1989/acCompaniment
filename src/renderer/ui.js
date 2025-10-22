@@ -5,6 +5,7 @@
 import * as cueGrid from './ui/cueGrid.js';
 import * as utils from './ui/utils.js';
 import * as configSidebar from './ui/configSidebar.js';
+import * as sidebars from './ui/sidebars.js'; // Import sidebars module for config sidebar toggle
 import * as propertiesSidebar from './ui/propertiesSidebar.js';
 import * as modals from './ui/modals.js';
 import * as appConfigUI from './ui/appConfigUI.js'; // Import new module
@@ -25,39 +26,26 @@ let isUIModuleFullyInitialized = false; // NEW FLAG
 let appContainer;
 let modeToggleBtn;
 let stopAllButton;
+let crossfadeToggleBtn;
+
+// Crossfade state
+let crossfadeEnabled = false;
 
 // --- Modals (MOVED to modals.js) ---
-/*
-let cueConfigModal;
-let closeCueConfigModalBtn;
-let multipleFilesDropModal;
-let closeMultipleFilesDropModalBtn;
-let modalAddAsSeparateCuesBtn;
-let modalAddAsPlaylistCueBtn;
-let modalCancelMultipleFilesDropBtn;
-*/
+// Modal elements are now managed by modals.js module
 
 // --- App Config Sidebar Inputs (MOVED to appConfigUI.js) ---
-/*
-let audioOutputSelect, defaultFadeInInput, defaultFadeOutInput, defaultLoopCheckbox,
-    defaultVolumeInput, defaultVolumeValueDisplay, retriggerBehaviorSelect, defaultStopAllBehaviorSelect;
-*/
+// App config elements are now managed by appConfigUI.js module
 
 // --- Cue Config Modal Inputs (MOVED to modals.js) ---
-/*
-let modalCueIdInput, modalCueNameInput, modalCueTypeSelect, modalSingleFileConfigDiv,
-    modalFilePathInput, modalPlaylistConfigDiv, modalPlaylistItemsUl,
-    modalPlaylistFilePathDisplay, modalFadeInTimeInput, modalFadeOutTimeInput,
-    modalLoopCheckbox, modalTrimStartTimeInput, modalTrimEndTimeInput,
-    modalVolumeRangeInput, modalVolumeValueSpan, modalSaveCueButton;
-*/
+// Cue config modal elements are now managed by modals.js module
 
 // Core UI State
 let currentMode = 'edit'; // 'edit' or 'show'
 let shiftKeyPressed = false;
 
 // App Configuration State (MOVED to appConfigUI.js)
-// let currentAppConfig = {}; // Local cache of app config in ui.js - REMOVE, use appConfigUI.getCurrentAppConfig()
+// App config state is now managed by appConfigUI.js module
 
 // MOVED to modals.js: droppedFilesList
 
@@ -93,6 +81,7 @@ async function init(rcvdCueStore, rcvdAudioController, rcvdElectronAPI, rcvdDrag
     modalsModule = modals;
     uiModules.cueGrid = cueGrid; // These are the imported modules
     uiModules.configSidebar = configSidebar;
+    uiModules.sidebars = sidebars; // Add sidebars module for config sidebar toggle
     uiModules.propertiesSidebar = propertiesSidebar;
     uiModules.waveformControls = waveformControlsModule; // Use the imported waveformControls
     uiModules.appConfigUI = appConfigUIModuleInternal; // Use the imported appConfigUI for its functions
@@ -134,6 +123,7 @@ async function init(rcvdCueStore, rcvdAudioController, rcvdElectronAPI, rcvdDrag
     // Pass the *assigned* modules to sub-module initializers
     cueGrid.initCueGrid(cueStoreModule, audioControllerModule, dragDropHandlerModule, uiCoreInterface);
     configSidebar.initConfigSidebar();
+    sidebars.initSidebars(); // Initialize sidebars module for config sidebar toggle functionality
 
     // Log before initializing propertiesSidebar
     console.log('[UI.js Init] Attempting to initialize propertiesSidebar. Module:', propertiesSidebar);
@@ -143,7 +133,10 @@ async function init(rcvdCueStore, rcvdAudioController, rcvdElectronAPI, rcvdDrag
     console.log('[UI.js Init] uiCoreInterface keys:', uiCoreInterface ? Object.keys(uiCoreInterface) : 'null');
 
     propertiesSidebar.initPropertiesSidebar(cueStoreModule, audioControllerModule, actualIpcBindingsModule, uiCoreInterface);
-    modalsModule.initModals(cueStoreModule, electronAPIForPreload, uiCoreInterface);
+    modalsModule.initModals(cueStoreModule, electronAPIForPreload, uiCoreInterface, waveformControlsModule);
+    
+    // Make uiModules available globally for other modules to access
+    window.uiModules = uiModules;
     
     // updateModeUI(); // Defer this call until after initial cues are loaded
     console.log('UI Core Module Initialized (after main process ready). Mode UI update deferred until cues loaded.');
@@ -169,11 +162,10 @@ function cacheCoreDOMElements() {
     appContainer = document.getElementById('appContainer');
     modeToggleBtn = document.getElementById('modeToggleBtn');
     stopAllButton = document.getElementById('stopAllButton');
+    crossfadeToggleBtn = document.getElementById('crossfadeToggleBtn');
 
-    // MOVED to modals.js: Caching for cueConfigModal, multipleFilesDropModal and their child elements
-    // MOVED to modals.js: Caching for modalCueIdInput, modalCueNameInput etc.
-
-    // App Config Sidebar Inputs caching MOVED to appConfigUI.js
+    // Modal element caching is now handled by modals.js module
+    // App Config Sidebar element caching is now handled by appConfigUI.js module
 }
 
 function bindCoreEventListeners() {
@@ -181,8 +173,12 @@ function bindCoreEventListeners() {
 
     if (stopAllButton) {
         stopAllButton.addEventListener('click', () => {
+            console.log('🛑 UI: Stop All button clicked!');
             // Access .default if audioControllerModule is the namespace import
             const ac = audioControllerModule && audioControllerModule.default ? audioControllerModule.default : audioControllerModule;
+            console.log('🛑 UI: audioControllerModule available:', !!ac);
+            console.log('🛑 UI: stopAll function available:', typeof ac?.stopAll);
+            
             if (ac && typeof ac.stopAll === 'function') {
                 const config = appConfigUIModuleInternal.getCurrentAppConfig(); // Get from appConfigUI
                 const behavior = config.defaultStopAllBehavior || 'stop';
@@ -190,11 +186,28 @@ function bindCoreEventListeners() {
                 // Determine useFade based on behavior
                 const useFadeForStopAll = behavior === 'fade_out_and_stop'; 
                 
+                console.log('🛑 UI: Calling stopAll with options:', { useFade: useFadeForStopAll });
                 // Pass useFade directly in the options
                 // Also, preserve exceptCueId if it were ever to be used, though not currently by this button.
                 ac.stopAll({ useFade: useFadeForStopAll }); 
+            } else {
+                console.error('🛑 UI: audioController or stopAll function not available!');
             }
         });
+    }
+
+    if (crossfadeToggleBtn) {
+        crossfadeToggleBtn.addEventListener('click', () => {
+            crossfadeEnabled = !crossfadeEnabled;
+            updateCrossfadeButtonState();
+            console.log('UI: Crossfade mode toggled to:', crossfadeEnabled);
+            console.log('UI: window.ui.isCrossfadeEnabled now returns:', window.ui && window.ui.isCrossfadeEnabled && window.ui.isCrossfadeEnabled());
+        });
+        // Initialize the button state
+        updateCrossfadeButtonState();
+        console.log('UI: Crossfade button initialized. Initial state:', crossfadeEnabled);
+    } else {
+        console.error('UI: crossfadeToggleBtn not found! Crossfade will not work.');
     }
 
     window.addEventListener('keydown', (e) => {
@@ -210,11 +223,8 @@ function bindCoreEventListeners() {
         }
     });
 
-    // MOVED to modals.js: Event listeners for closeCueConfigModalBtn, modalSaveCueButton, cueConfigModal (outside click)
-    // MOVED to modals.js: Event listeners for modalCueTypeSelect, modalVolumeRangeInput
-    // MOVED to modals.js: Event listeners for closeMultipleFilesDropModalBtn, modalAddAsSeparateCuesBtn, etc.
-
-    // App Config Listeners MOVED to appConfigUI.js
+    // Modal event listeners are now handled by modals.js module
+    // App Config event listeners are now handled by appConfigUI.js module
 }
 
 function getCurrentAppMode() {
@@ -311,30 +321,48 @@ function applyAppConfiguration(newConfig) {
 // getCurrentAppConfig MOVED (accessed via appConfigUI.getCurrentAppConfig through uiCoreInterface)
 
 // --- App Configuration Functions (MOVED to appConfigUI.js) ---
-/* Commenting out the moved functions as they are now in appConfigUI.js
-async function loadAndApplyAppConfiguration() { ... }
-function populateConfigSidebar() { ... }
-async function handleAppConfigChange() { ... }
-async function populateAudioOutputDevicesDropdown() { ... }
-*/
+// App configuration functions are now handled by appConfigUI.js module
+
+// --- Crossfade Functions ---
+function updateCrossfadeButtonState() {
+    if (crossfadeToggleBtn) {
+        if (crossfadeEnabled) {
+            crossfadeToggleBtn.classList.remove('crossfade-disabled');
+            crossfadeToggleBtn.classList.add('crossfade-enabled');
+            crossfadeToggleBtn.title = 'Crossfade Mode Enabled - Click to Disable';
+        } else {
+            crossfadeToggleBtn.classList.remove('crossfade-enabled');
+            crossfadeToggleBtn.classList.add('crossfade-disabled');
+            crossfadeToggleBtn.title = 'Crossfade Mode Disabled - Click to Enable';
+        }
+    }
+}
+
+function isCrossfadeEnabled() {
+    console.log('UI: isCrossfadeEnabled() called, returning:', crossfadeEnabled);
+    return crossfadeEnabled;
+}
 
 // --- Workspace Change Handling ---
 async function handleWorkspaceChange() {
     console.log('UI Core: Workspace did change. Reloading cues and app config.');
     
     // Comprehensive cleanup before changing workspace context to prevent memory leaks
-    if (audioControllerModule && typeof audioControllerModule.cleanupAllResources === 'function') {
+    const ac = audioControllerModule && audioControllerModule.default ? audioControllerModule.default : audioControllerModule;
+    if (ac && typeof ac.cleanupAllResources === 'function') {
         console.log('UI Core: Performing comprehensive cleanup before workspace change');
-        audioControllerModule.cleanupAllResources({ 
+        ac.cleanupAllResources({ 
             source: 'workspace_change',
             forceUnload: true 
         });
-    } else if (audioControllerModule && typeof audioControllerModule.stopAll === 'function') {
+    } else if (ac && typeof ac.stopAll === 'function') {
         // Fallback to stopAll if cleanupAllResources is not available
         console.log('UI Core: Performing fallback cleanup before workspace change');
         const currentEffectiveConfig = appConfigUIModuleInternal.getCurrentAppConfig(); 
-        audioControllerModule.stopAll({ 
-            behavior: currentEffectiveConfig.defaultStopAllBehavior || 'stop',
+        const behavior = currentEffectiveConfig.defaultStopAllBehavior || 'stop';
+        const useFadeForStopAll = behavior === 'fade_out_and_stop';
+        ac.stopAll({ 
+            useFade: useFadeForStopAll,
             forceCleanup: true // Use force cleanup if available
         });
     }
@@ -428,16 +456,16 @@ async function handleMultipleFileDrop(files, dropTargetElement) {
         const fileArray = Array.from(files).map(file => ({ path: file.path, name: file.name }));
         // Assuming addFilesToStagedPlaylist handles playlist cues. 
         // If it needs to open properties sidebar for a single file cue, that logic would be in sidebars.js
-        if (await propertiesSidebar.addFilesToStagedPlaylist(fileArray)) { // This was from your previous suggestion, ensure it's correct for multi-file to playlist
-            console.log("UI Core (MultiDrop): Handled by open Properties Sidebar (playlist).");
-            return;
+        if (propertiesSidebar && typeof propertiesSidebar.addFilesToStagedPlaylist === 'function') {
+            if (await propertiesSidebar.addFilesToStagedPlaylist(fileArray)) {
+                console.log("UI Core (MultiDrop): Handled by open Properties Sidebar (playlist).");
+                return;
+            } else {
+                console.warn("UI Core (MultiDrop): Properties sidebar did not handle multi-file drop. No fallback implemented yet for this specific case.");
+                return;
+            }
         } else {
-            // Fallback or alternative handling if not a playlist drop on sidebar, 
-            // or if addFilesToStagedPlaylist returns false for other reasons.
-            // For now, let's assume if it's on sidebar, it tried to handle it.
-            // If it failed, maybe let assignFilesToRelevantTarget try a more generic assignment.
-            // assignFilesToRelevantTarget(Array.from(files).map(f => f.path), dropTargetElement); // assignFilesToRelevantTarget is not defined here
-            console.warn("UI Core (MultiDrop): Properties sidebar did not handle multi-file drop. No fallback implemented yet for this specific case.");
+            console.warn("UI Core (MultiDrop): Properties sidebar addFilesToStagedPlaylist function not available.");
             return;
         }
     }
@@ -463,6 +491,8 @@ function refreshCueGrid() {
     if (cueGrid && typeof cueGrid.renderCues === 'function') {
         console.log('UI Core: Refreshing cue grid display.');
         cueGrid.renderCues();
+    } else {
+        console.warn('UI Core: cueGrid.renderCues is not available for refresh.');
     }
 }
 
@@ -490,7 +520,7 @@ function updateCueButtonTimeDisplay(data) {
         // console.warn('[UI_CORE_DEBUG] cueGrid.updateCueButtonTime is not available.');
         return;
     }
-    console.log(`[UI_TIME_DEBUG] updateCueButtonTimeDisplay called for cueId: ${data.cueId}, currentTimeSec: ${data.currentTimeSec}, status: ${data.status}`);
+    // console.log(`[UI_TIME_DEBUG] updateCueButtonTimeDisplay called for cueId: ${data.cueId}, currentTimeSec: ${data.currentTimeSec}, status: ${data.status}`);
 
     // Ensure data contains necessary fields. Defaulting fade states to false if not present.
     const cueId = data.cueId;
@@ -535,6 +565,7 @@ export {
     handleMultipleFileDrop,
     refreshCueGrid, // Export the new function
     applyAppConfiguration, // Export the new function
+    isCrossfadeEnabled, // Export crossfade state
 
     // MIDI related functions for sidebars
     // getMidiDevices: electronAPIForPreload.getMidiDevices, // REMOVED

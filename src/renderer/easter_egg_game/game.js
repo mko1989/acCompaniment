@@ -1,4 +1,4 @@
-// Companion_soundboard/src/renderer/easter_egg_game/game.js
+// acCompaniment-main/src/renderer/easter_egg_game/game.js
 
 console.log("Pig Roundup Game JS Loaded!");
 
@@ -16,13 +16,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     console.log("Canvas initialized:", canvas.width, "x", canvas.height);
 
-    // --- Game Assets (Placeholders - Replace with Image objects and load paths) ---
+    // --- Game Assets ---
      const elmerSprite = new Image();
-     elmerSprite.src = 'assets/farmer.png'; // Example path
+     elmerSprite.src = 'assets/farmer.png';
      const pigSprite = new Image();
-     pigSprite.src = 'assets/pig.png';     // Example path
+     pigSprite.src = 'assets/pig.png';
      const barnSprite = new Image();
-     barnSprite.src = 'assets/barn.png';    // Example path
+     barnSprite.src = 'assets/barn.png';
 
     // New Obstacle and Decoration Assets
     const tree1Sprite = new Image();
@@ -338,7 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Draw Score and Level
         ctx.fillStyle = '#FFFFFF';
-        ctx.font = '20px Arial';
+        ctx.font = '20px Rewir';
         ctx.textAlign = 'left';
         ctx.fillText(`Level: ${level}`, 10, 30);
         ctx.textAlign = 'right';
@@ -348,10 +348,10 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = '#FFFFFF';
-            ctx.font = '40px Arial';
+            ctx.font = '40px Rewir';
             ctx.textAlign = 'center';
             ctx.fillText(`Level ${level} Complete!`, canvas.width / 2, canvas.height / 2 - 30);
-            ctx.font = '20px Arial';
+            ctx.font = '20px Rewir';
             if (waitingForNextLevelInput) {
                 ctx.fillText(`Press Enter to Start Level ${level + 1}`, canvas.width / 2, canvas.height / 2 + 20);
             } else {
@@ -533,7 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("Error loading game assets:", error);
         // Fallback or error message display if assets fail to load
         ctx.fillStyle = 'red';
-        ctx.font = '20px Arial';
+        ctx.font = '20px Rewir';
         ctx.textAlign = 'center';
         ctx.fillText('Error loading game assets. Check console.', canvas.width/2, canvas.height/2);
     });
@@ -556,7 +556,7 @@ function loadImage(imageObject) {
         // For example, if an error occurred before this promise was set up.
         // This part is a bit more defensive, might not always be necessary if src is set right before calling this.
         if (!imageObject.src) {
-             reject(new Error(`Image source for ${imageObject} is not set.`));
+             reject(new Error(`Image source is not set.`));
         }
     });
 } 

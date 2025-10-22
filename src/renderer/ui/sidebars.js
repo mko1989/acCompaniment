@@ -1,8 +1,6 @@
 import * as waveformControls from './waveformControls.js'; // Import the new module
 import { formatWaveformTime } from './waveformControls.js';
 import { debounce } from './utils.js'; // Import debounce
-// import * as path from 'path'; // Import path module - REMOVED as it causes renderer error and seems unused
-// const nodePath = window.require('path'); // This was causing issues
 
 let cueStore;
 let audioController;
@@ -27,16 +25,13 @@ let propAddFilesToPlaylistBtn, propPlaylistFileInput;
 let propPlaylistPlayModeSelect; // Added for playlist play mode
 let propVolumeSlider, propVolumeValueDisplay;
 
+
 // OSC Trigger Elements
 let propOscTriggerEnabledCheckbox;
 let propOscTriggerPathInput;
 let propOscLearnBtn;
 
-// WING Mixer Trigger Elements
-let wingTriggerSettingsDiv;
-let propWingMixerTriggerEnabledCheckbox;
-let wingUserButtonSubGroupDiv;
-let propWingUserButtonInput;
+// WING Mixer Trigger Elements - REMOVED
 
 // --- State for Properties Sidebar ---
 let activePropertiesCueId = null;
@@ -128,11 +123,7 @@ function cacheSidebarDOMElements() {
     propOscTriggerPathInput = document.getElementById('propOscTriggerPath');
     propOscLearnBtn = document.getElementById('propOscLearnBtn');
 
-    // Cache WING Mixer Trigger Elements
-    wingTriggerSettingsDiv = document.getElementById('wingTriggerSettings');
-    propWingMixerTriggerEnabledCheckbox = document.getElementById('propWingTriggerEnabled');
-    wingUserButtonSubGroupDiv = document.getElementById('wingUserButtonSubGroup');
-    propWingUserButtonInput = document.getElementById('propWingUserButton');
+    // Cache WING Mixer Trigger Elements - REMOVED
 
     if (propVolumeSlider && propVolumeValueDisplay) {
         propVolumeSlider.addEventListener('input', (e) => {
@@ -146,7 +137,6 @@ function bindSidebarEventListeners() {
     if (configToggleBtn) configToggleBtn.addEventListener('click', toggleConfigSidebar);
     if (closePropertiesSidebarBtn) closePropertiesSidebarBtn.addEventListener('click', hidePropertiesSidebar);
     if (saveCuePropertiesButton) {
-        // saveCuePropertiesButton.addEventListener('click', handleSaveCueProperties); // REMOVE THIS
         saveCuePropertiesButton.style.display = 'none'; // Hide the save button
     }
     if (deleteCuePropertiesButton) deleteCuePropertiesButton.addEventListener('click', handleDeleteCueProperties);
@@ -216,24 +206,7 @@ function bindSidebarEventListeners() {
         });
     }
 
-    // WING Mixer Trigger Event Listeners
-    if (propWingMixerTriggerEnabledCheckbox) {
-        propWingMixerTriggerEnabledCheckbox.addEventListener('change', () => {
-            if (wingUserButtonSubGroupDiv) {
-                wingUserButtonSubGroupDiv.style.display = propWingMixerTriggerEnabledCheckbox.checked ? 'block' : 'none';
-            }
-            // handleSaveCueProperties(); // Auto-save on change - REPLACE
-            debouncedSaveCueProperties();
-        });
-    }
-    if (propWingUserButtonInput) {
-        // propWingUserButtonInput.addEventListener('change', handleSaveCueProperties); // Auto-save on change - REMOVE (covered by generic input listener)
-        // propWingUserButtonInput.addEventListener('blur', handleSaveCueProperties); // Auto-save on blur - REMOVE (covered by generic input listener)
-        // The generic 'input' listener added above will cover this.
-        // If specific 'change' or 'blur' is needed, they can be added, but 'input' should catch most cases.
-        // For number input, 'change' fires when focus is lost or enter is pressed. 'input' fires on each keystroke.
-        // We already added 'input' listener to propWingUserButtonInput in the loop.
-    }
+    // WING Mixer Trigger Event Listeners - REMOVED
 
     // --- Attach debounced save to all relevant input fields ---
     const inputsToAutoSave = [
@@ -244,10 +217,8 @@ function bindSidebarEventListeners() {
         propVolumeRangeInput, // Also propVolumeSlider - they are the same element
         propRetriggerBehaviorSelect,
         propOscTriggerPathInput,
-        propWingUserButtonInput,
+        // propWingUserButtonInput, // REMOVED
         propPlaylistPlayModeSelect, // Added
-        // propTrimStartTimeInput, // These are handled by waveformControls now
-        // propTrimEndTimeInput,   // These are handled by waveformControls now
     ];
 
     inputsToAutoSave.forEach(input => {
@@ -266,7 +237,6 @@ function bindSidebarEventListeners() {
         propShufflePlaylistCheckbox,
         propRepeatOnePlaylistItemCheckbox,
         propOscTriggerEnabledCheckbox,
-        propWingMixerTriggerEnabledCheckbox,
     ];
 
     checkboxesToAutoSave.forEach(checkbox => {
@@ -350,24 +320,7 @@ function openPropertiesSidebar(cue) {
         propOscTriggerPathInput.value = cue.oscTrigger && cue.oscTrigger.path ? cue.oscTrigger.path : '';
     }
     
-    // Populate WING Mixer Trigger fields
-    if (wingTriggerSettingsDiv && currentAppConfig) {
-        const wingIntegrationActive = currentAppConfig.mixerIntegrationEnabled && currentAppConfig.mixerType === 'behringer_wing';
-        wingTriggerSettingsDiv.style.display = wingIntegrationActive ? 'block' : 'none';
-
-        if (wingIntegrationActive) {
-            const wingTrigger = cue.wingTrigger || {}; // Default to empty object if not present
-            if (propWingMixerTriggerEnabledCheckbox) {
-                propWingMixerTriggerEnabledCheckbox.checked = wingTrigger.enabled || false;
-            }
-            if (wingUserButtonSubGroupDiv) {
-                wingUserButtonSubGroupDiv.style.display = (wingTrigger.enabled || false) ? 'block' : 'none';
-            }
-            if (propWingUserButtonInput) {
-                propWingUserButtonInput.value = wingTrigger.userButton || '';
-            }
-        }
-    }
+    // Populate WING Mixer Trigger fields - REMOVED
     
     // Reset Learn button state
     if (propOscLearnBtn) {
@@ -511,13 +464,24 @@ async function handleSaveCueProperties() {
     if (cueDataToSave.type === 'single_file' && waveformControls && typeof waveformControls.getCurrentTrimTimes === 'function') {
         const trimTimes = waveformControls.getCurrentTrimTimes();
         if (trimTimes) {
+            // Trim times from waveform regions take priority
             cueDataToSave.trimStartTime = trimTimes.trimStartTime;
             cueDataToSave.trimEndTime = trimTimes.trimEndTime;
             console.log(`Sidebars (DEBUG save): Applied trimTimes from waveformControls: Start=${cueDataToSave.trimStartTime}, End=${cueDataToSave.trimEndTime}`);
         } else {
-            cueDataToSave.trimStartTime = parseFloat(propTrimStartTimeInput.value) || 0;
-            cueDataToSave.trimEndTime = parseFloat(propTrimEndTimeInput.value) || (cueDataToSave.totalDuration || 0);
-            console.log(`Sidebars (DEBUG save): trimTimes from waveformControls was null. Using input fields: Start=${cueDataToSave.trimStartTime}, End=${cueDataToSave.trimEndTime}`);
+            // No trim regions exist - preserve existing trim times from cue if they exist
+            const existingCue = cueStore.getCueById(activePropertiesCueId);
+            if (existingCue && existingCue.trimStartTime !== undefined && existingCue.trimEndTime !== undefined) {
+                // Preserve existing trim times
+                cueDataToSave.trimStartTime = existingCue.trimStartTime;
+                cueDataToSave.trimEndTime = existingCue.trimEndTime;
+                console.log(`Sidebars (DEBUG save): Preserved existing trimTimes from cue: Start=${cueDataToSave.trimStartTime}, End=${cueDataToSave.trimEndTime}`);
+            } else {
+                // Fall back to input fields or defaults
+                cueDataToSave.trimStartTime = parseFloat(propTrimStartTimeInput.value) || 0;
+                cueDataToSave.trimEndTime = parseFloat(propTrimEndTimeInput.value) || (cueDataToSave.totalDuration || 0);
+                console.log(`Sidebars (DEBUG save): trimTimes from waveformControls was null and no existing trim times. Using input fields: Start=${cueDataToSave.trimStartTime}, End=${cueDataToSave.trimEndTime}`);
+            }
         }
     } else if (cueDataToSave.type !== 'single_file') {
         cueDataToSave.trimStartTime = 0;
@@ -526,8 +490,8 @@ async function handleSaveCueProperties() {
     }
     
     // Preserve total duration for single file cues if already known, playlists get it from items
-    if (cueDataToSave.type === 'single_file' && cueDataToSave.totalDuration) {
-        cueDataToSave.totalDuration = cueDataToSave.totalDuration;
+    if (cueDataToSave.type === 'single_file') {
+        // Keep existing totalDuration if it exists
     } else if (cueDataToSave.type === 'playlist') {
         cueDataToSave.totalDuration = stagedPlaylistItems.reduce((acc, item) => acc + (item.duration || 0), 0);
     }
@@ -540,17 +504,7 @@ async function handleSaveCueProperties() {
         };
     }
 
-    // Add WING Mixer Trigger values
-    // Only save if section is visible (i.e., WING integration is active for this app type)
-    if (wingTriggerSettingsDiv && wingTriggerSettingsDiv.style.display !== 'none') {
-        cueDataToSave.wingTrigger = {
-            enabled: propWingMixerTriggerEnabledCheckbox ? propWingMixerTriggerEnabledCheckbox.checked : false,
-            userButton: propWingUserButtonInput ? parseInt(propWingUserButtonInput.value, 10) || null : null
-        };
-        if (!cueDataToSave.wingTrigger.enabled) {
-            cueDataToSave.wingTrigger.userButton = null;
-        }
-    }
+    // Add WING Mixer Trigger values - REMOVED
 
     try {
         console.log('Sidebar: Attempting to save cue with data:', cueDataToSave);
@@ -578,7 +532,6 @@ async function handleDeleteCueProperties() {
         }
         await cueStore.deleteCue(activePropertiesCueId);
         hidePropertiesSidebar();
-        // uiCore.renderCues(); // Core UI should handle re-rendering
     }
 }
 

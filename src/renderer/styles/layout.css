@@ -41,15 +41,9 @@
 }
 
 #bottomWaveformPanel.expanded {
-    height: 400px !important; /* Slightly increased normal size to avoid scrolling */
-    min-height: 400px !important; /* Ensure minimum height */
-    max-height: 47vh !important; /* Never take more than 47% of screen */
-}
-
-#bottomWaveformPanel.large {
-    height: 450px !important; /* Large size is what normal used to be */
-    min-height: 450px !important; /* Ensure minimum height */
-    max-height: 55vh !important; /* Never take more than 55% of screen */
+    height: 400px !important; /* Expanded waveform modal height */
+    min-height: 400px !important;
+    max-height: 55vh !important;
 }
 
 /* Bottom panel header */
@@ -57,12 +51,12 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 15px;
+    padding: 6px 15px;
     background-color: #252526;
     border-bottom: 1px solid var(--border-color);
     color: var(--text-color);
     font-weight: bold;
-    font-size: 0.9em;
+    font-size: 0.8em;
 }
 
 .bottom-panel-title {
@@ -80,7 +74,7 @@
 .bottom-panel-content {
     flex-grow: 1;
     padding: 10px 15px; /* Reduced top/bottom padding */
-    overflow-y: auto; /* Allow scrolling if content is too tall */
+    overflow: hidden; /* No scrolling */
     display: flex;
     flex-direction: column;
     min-height: 0; /* Allow shrinking */

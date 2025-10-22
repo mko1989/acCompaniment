@@ -30,7 +30,7 @@ function sendPlaybackTimeUpdate(cueId, soundInstance, playingState, currentItemN
         console.warn(`AudioPlaybackIPCEmitter: Missing playingState or cue data for cueId: ${cueId}. playingState exists: ${!!playingState}, playingState.cue exists: ${!!(playingState && playingState.cue)}`);
         // Send a minimal stop message if cueId is known, to clear variables
         if (cueId) {
-             ipcBindings.send('playback-time-update', {
+            ipcBindings.send('playback-time-update', {
                 cueId: cueId,
                 cueName: '',
                 playlistItemName: '',
@@ -54,11 +54,11 @@ function sendPlaybackTimeUpdate(cueId, soundInstance, playingState, currentItemN
     const initialCueKnownDuration = cue.knownDuration;
 
     let totalDurationSec = initialPlayingStateDuration || 0;
-    console.log(`[CUE_DURATION_DEBUG ${cueId}] Initial totalDurationSec from playingState.duration (${initialPlayingStateDuration}): ${totalDurationSec}`);
+    // console.log(`[CUE_DURATION_DEBUG ${cueId}] Initial totalDurationSec from playingState.duration (${initialPlayingStateDuration}): ${totalDurationSec}`);
 
     if (totalDurationSec <= 0 && initialCueKnownDuration > 0) {
         totalDurationSec = initialCueKnownDuration;
-        console.log(`[CUE_DURATION_DEBUG ${cueId}] totalDurationSec updated from cue.knownDuration (${initialCueKnownDuration}): ${totalDurationSec}`);
+        // console.log(`[CUE_DURATION_DEBUG ${cueId}] totalDurationSec updated from cue.knownDuration (${initialCueKnownDuration}): ${totalDurationSec}`);
     }
     // END CAPTURE INITIAL VALUES & ADD LOGGING
 
@@ -85,9 +85,6 @@ function sendPlaybackTimeUpdate(cueId, soundInstance, playingState, currentItemN
 
     // If totalDurationSec is not valid from playingState.duration, try cue.knownDuration
     // This specific block is now handled above with logging, but the original logic's intent is preserved.
-    // if (totalDurationSec <= 0 && cue.knownDuration > 0) {
-    //     totalDurationSec = cue.knownDuration;
-    // }
 
     if (!playingState.isPlaylist) {
         // For logging, capture the duration before trimming is applied
@@ -97,8 +94,8 @@ function sendPlaybackTimeUpdate(cueId, soundInstance, playingState, currentItemN
         if (cue.trimStartTime && cue.trimStartTime > 0) {
             // For stopped cues, don't adjust currentTimeSec based on seek position
             if (status !== 'stopped') {
-            const originalSeek = soundInstance ? soundInstance.seek() : currentTimeSec;
-            currentTimeSec = Math.max(0, originalSeek - cue.trimStartTime);
+                const originalSeek = soundInstance ? soundInstance.seek() : currentTimeSec;
+                currentTimeSec = Math.max(0, originalSeek - cue.trimStartTime);
             }
             
             // Use initialCueKnownDuration if available, otherwise preTrimTotalDurationSec (which might itself be from knownDuration or playingState.duration)
@@ -124,18 +121,18 @@ function sendPlaybackTimeUpdate(cueId, soundInstance, playingState, currentItemN
 
     const remainingTimeSec = Math.max(0, totalDurationSec - currentTimeSec);
 
-    // ADD FINAL COMPREHENSIVE LOG
-    console.log(`[CUE_DURATION_DEBUG ${cueId}] Final IPC Payload Values:
-        Status: ${status}
-        Cue Name: ${cue.name || ''}
-        Playlist Item Name: ${playingState.isPlaylist ? (currentItemName || '') : 'N/A'}
-        CurrentTimeSec: ${currentTimeSec} (Formatted: ${formatTimeMMSS(currentTimeSec)})
-        TotalDurationSec: ${totalDurationSec} (Formatted: ${formatTimeMMSS(totalDurationSec)})
-        RemainingTimeSec: ${remainingTimeSec} (Formatted: ${formatTimeMMSS(remainingTimeSec)})
-        Initial playingState.duration: ${initialPlayingStateDuration}
-        Initial cue.knownDuration: ${initialCueKnownDuration}
-        Is Playlist: ${playingState.isPlaylist}
-        Trim Start: ${cue.trimStartTime || 'N/A'}, Trim End: ${cue.trimEndTime || 'N/A'}`);
+    // ADD FINAL COMPREHENSIVE LOG (commented out to reduce log spam)
+    // console.log(`[CUE_DURATION_DEBUG ${cueId}] Final IPC Payload Values:
+    //     Status: ${status}
+    //     Cue Name: ${cue.name || ''}
+    //     Playlist Item Name: ${playingState.isPlaylist ? (currentItemName || '') : 'N/A'}
+    //     CurrentTimeSec: ${currentTimeSec} (Formatted: ${formatTimeMMSS(currentTimeSec)})
+    //     TotalDurationSec: ${totalDurationSec} (Formatted: ${formatTimeMMSS(totalDurationSec)})
+    //     RemainingTimeSec: ${remainingTimeSec} (Formatted: ${formatTimeMMSS(remainingTimeSec)})
+    //     Initial playingState.duration: ${initialPlayingStateDuration}
+    //     Initial cue.knownDuration: ${initialCueKnownDuration}
+    //     Is Playlist: ${playingState.isPlaylist}
+    //     Trim Start: ${cue.trimStartTime || 'N/A'}, Trim End: ${cue.trimEndTime || 'N/A'}`);
 
     // Check if this is a current cue update (for Companion priority)
     const isCurrentCueUpdate = cueId.startsWith('current_cue_');
@@ -160,15 +157,17 @@ function sendPlaybackTimeUpdate(cueId, soundInstance, playingState, currentItemN
         isCurrentCue: isCurrentCueUpdate // Flag for Companion to know this is the priority cue
     };
     
-    console.log(`[IPC_DEBUG] AudioPlaybackIPCEmitter sending to 'playback-time-update':`, {cueId, currentTimeSec, status});
+    // console.log(`[IPC_DEBUG] AudioPlaybackIPCEmitter sending to 'playback-time-update':`, {cueId, currentTimeSec, status});
     ipcBindings.send('playback-time-update', payload);
 }
 
 // Helper function to calculate remaining fade time
 function calculateRemainingFadeTime(playingState) {
-    if (playingState && (playingState.isFadingIn || playingState.isFadingOut) && playingState.fadeStartTime > 0 && playingState.fadeTotalDurationMs > 0) {
-        const elapsedFadeTime = Date.now() - playingState.fadeStartTime;
-        return Math.max(0, playingState.fadeTotalDurationMs - elapsedFadeTime);
+    if (playingState?.isFadingIn || playingState?.isFadingOut) {
+        if (playingState.fadeStartTime > 0 && playingState.fadeTotalDurationMs > 0) {
+            const elapsedFadeTime = Date.now() - playingState.fadeStartTime;
+            return Math.max(0, playingState.fadeTotalDurationMs - elapsedFadeTime);
+        }
     }
     return 0;
 }
