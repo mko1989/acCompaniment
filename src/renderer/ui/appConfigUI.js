@@ -36,10 +36,7 @@ let configDefaultStopAllFadeOutInput;
 let configDefaultStopAllFadeOutGroup;
 let configCrossfadeTimeInput;
 
-// OSC Settings (generic) removed
-let configOscEnabledCheckbox;
-let configOscPortGroup;
-let configOscPortInput;
+// OSC Settings removed
 
 // Audio Settings
 let configAudioOutputDeviceSelect;
@@ -55,9 +52,7 @@ let configHttpRemoteLinksGroup;
 let configHttpRemoteLinksDiv;
 
 // Mixer Integration Elements
-let configMixerIntegrationEnabledCheckbox;
-let configMixerTypeGroup;
-let configMixerTypeSelect;
+// Mixer Integration removed
 
 
 
@@ -129,10 +124,7 @@ function cacheDOMElements() {
     configDefaultStopAllFadeOutGroup = document.getElementById('defaultStopAllFadeOutGroup');
     configCrossfadeTimeInput = document.getElementById('crossfadeTime');
     
-    // Generic OSC UI removed
-    configOscEnabledCheckbox = null;
-    configOscPortGroup = null;
-    configOscPortInput = null;
+    // OSC UI removed
 
     // Audio Settings
     configAudioOutputDeviceSelect = document.getElementById('configAudioOutputDevice');
@@ -144,71 +136,12 @@ function cacheDOMElements() {
     configHttpRemoteLinksGroup = document.getElementById('httpRemoteLinksGroup');
     configHttpRemoteLinksDiv = document.getElementById('httpRemoteLinksDiv');
 
-    // Mixer Integration Elements
-    configMixerIntegrationEnabledCheckbox = document.getElementById('configMixerIntegrationEnabled');
-    configMixerTypeGroup = document.getElementById('mixerTypeGroup');
-    configMixerTypeSelect = document.getElementById('configMixerType');
-
-
-
-
-    // ALPHA BUILD: Hide mixer integration elements via JavaScript
-    hideMixerIntegrationElements();
+    // Mixer Integration removed
 
     console.log('AppConfigUI: DOM elements cached.');
 }
 
-// ALPHA BUILD: Function to hide mixer integration elements
-function hideMixerIntegrationElements() {
-    console.log('AppConfigUI: Hiding mixer integration elements for alpha build...');
-    
-    // Hide mixer integration elements and their parent containers
-    const elementsToHide = [
-        'configMixerIntegrationEnabled',
-        'mixerTypeGroup', 
-        'configMixerType'
-    ];
-    
-    elementsToHide.forEach(id => {
-        const element = document.getElementById(id);
-        if (element) {
-            element.style.display = 'none';
-            console.log(`AppConfigUI: Hidden element with ID: ${id}`);
-            
-            // Also hide parent form-group if it exists
-            const parentFormGroup = element.closest('.form-group');
-            if (parentFormGroup) {
-                parentFormGroup.style.display = 'none';
-                console.log(`AppConfigUI: Hidden parent form-group for: ${id}`);
-            }
-            
-            // Hide checkbox label if it exists
-            const label = document.querySelector(`label[for="${id}"]`);
-            if (label) {
-                label.style.display = 'none';
-                console.log(`AppConfigUI: Hidden label for: ${id}`);
-            }
-        }
-    });
-    
-    // Hide the "Mixer Integration" heading
-    const headings = document.querySelectorAll('#configSidebar h3');
-    headings.forEach(heading => {
-        if (heading.textContent && heading.textContent.includes('Mixer Integration')) {
-            heading.style.display = 'none';
-            console.log('AppConfigUI: Hidden "Mixer Integration" heading');
-            
-            // Hide the HR element before it
-            const prevHr = heading.previousElementSibling;
-            if (prevHr && prevHr.tagName === 'HR') {
-                prevHr.style.display = 'none';
-                console.log('AppConfigUI: Hidden HR before mixer heading');
-            }
-        }
-    });
-    
-    console.log('AppConfigUI: Mixer integration elements hidden for alpha build');
-}
+// Mixer integration elements removed
 
 function bindEventListeners() {
     console.log('AppConfigUI (DEBUG): bindEventListeners CALLED.');
@@ -253,21 +186,7 @@ function bindEventListeners() {
     if (configHttpRemotePortInput) configHttpRemotePortInput.addEventListener('change', handleAppConfigChange);
     if (configHttpRemotePortInput) configHttpRemotePortInput.addEventListener('blur', handleAppConfigChange);
     
-    if (configMixerIntegrationEnabledCheckbox) {
-        configMixerIntegrationEnabledCheckbox.addEventListener('change', () => {
-            handleMixerIntegrationEnabledChange();
-            handleAppConfigChange(); 
-        });
-    }
-    if (configMixerTypeSelect) {
-        configMixerTypeSelect.addEventListener('change', () => {
-            handleMixerTypeChange();
-            handleAppConfigChange(); 
-        });
-    }
-
-
-
+    // Mixer event listeners removed
 
     console.log('AppConfigUI: Event listeners bound.');
 }
@@ -323,17 +242,9 @@ function populateConfigSidebar(config) {
             configAudioOutputDeviceSelect.value = 'default';
         }
 
-        if (configMixerIntegrationEnabledCheckbox) {
-            configMixerIntegrationEnabledCheckbox.checked = currentAppConfig.mixerIntegrationEnabled || false;
-        }
-        if (configMixerTypeSelect) {
-            configMixerTypeSelect.value = currentAppConfig.mixerType || 'none';
-        }
+        // Mixer config population removed
         
-        // Generic OSC removed
         handleHttpRemoteEnabledChange();
-        handleMixerIntegrationEnabledChange(); 
-        handleMixerTypeChange();
         handleStopAllBehaviorChange();
 
 
@@ -476,28 +387,7 @@ window.copyToClipboard = async function(text, button) {
     }
 };
 
-function handleMixerIntegrationEnabledChange() {
-    const isEnabled = configMixerIntegrationEnabledCheckbox ? configMixerIntegrationEnabledCheckbox.checked : false;
-    console.log(`AppConfigUI: handleMixerIntegrationEnabledChange - Checkbox is checked: ${isEnabled}. Element:`, configMixerIntegrationEnabledCheckbox);
-    
-    if (configMixerTypeGroup) {
-        configMixerTypeGroup.style.display = isEnabled ? 'block' : 'none';
-    }
-    
-    // Always hide all mixer-specific input fields when integration is disabled
-    if (!isEnabled) {
-    } else {
-        handleMixerTypeChange();
-    }
-    
-    console.log('AppConfigUI: Mixer Integration Enabled changed.');
-}
-
-function handleMixerTypeChange() {
-    const selectedMixer = configMixerTypeSelect ? configMixerTypeSelect.value : 'none';
-    console.log('AppConfigUI (handleMixerTypeChange): Selected mixer type:', selectedMixer);
-
-}
+// Mixer handlers removed
 
 function handleStopAllBehaviorChange() {
     const behavior = configDefaultStopAllBehaviorSelect ? configDefaultStopAllBehaviorSelect.value : 'stop';
@@ -594,9 +484,6 @@ function setUiApi(api) {
 }
  
 function gatherConfigFromUI() {
-    const mixerEnabled = configMixerIntegrationEnabledCheckbox ? configMixerIntegrationEnabledCheckbox.checked : false;
-    let mixerType = configMixerTypeSelect ? configMixerTypeSelect.value : 'none'; // Default to 'none' if not found
-
     const config = {
         cuesFilePath: configCuesFilePathInput ? configCuesFilePathInput.value : '',
         autoLoadLastWorkspace: configAutoLoadLastWorkspaceCheckbox ? configAutoLoadLastWorkspaceCheckbox.checked : true,
@@ -618,21 +505,10 @@ function gatherConfigFromUI() {
         httpRemotePort: configHttpRemotePortInput ? parseInt(configHttpRemotePortInput.value) : 3000,
         
         audioOutputDeviceId: configAudioOutputDeviceSelect ? configAudioOutputDeviceSelect.value : 'default',
-
-        mixerIntegrationEnabled: mixerEnabled,
-        // mixerType: mixerType, // mixerType will be set based on logic below
         
         // theme setting is not directly edited here, but preserved if it exists
         theme: currentAppConfig.theme || 'system',
     };
-    
-    // Logic for setting mixerType and relevant IP addresses
-    if (mixerEnabled) {
-        config.mixerType = mixerType; // Set the selected mixer type
-
-    } else { // Mixer integration disabled
-        config.mixerType = 'none';
-    }
     
     console.log('AppConfigUI (gatherConfigFromUI): Gathered config:', JSON.parse(JSON.stringify(config)));
     return config;

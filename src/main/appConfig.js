@@ -34,11 +34,6 @@ const DEFAULT_CONFIG = {
   // HTTP Remote Control Settings
   httpRemoteEnabled: true, // Enable/disable HTTP remote
   httpRemotePort: 3000, // Port for HTTP remote server
-  // OSC Settings removed (only mixer-specific OSC remains inside mixer modules)
-  // Mixer Integration Settings (DISABLED FOR ALPHA BUILD)
-  mixerIntegrationEnabled: false,
-  mixerType: 'none', // e.g., 'none'
-  localIpAddress: '', // IP address of this machine for the mixer to send to
   recentWorkspaces: [], // Ensure recentWorkspaces is part of DEFAULT_CONFIG
 };
 
@@ -79,12 +74,30 @@ function loadConfig() {
     if (fs.existsSync(currentConfigFilePath)) {
       const rawData = fs.readFileSync(currentConfigFilePath, 'utf-8');
       const parsedConfig = JSON.parse(rawData);
+      
+      // MIGRATION: Remove obsolete fields from old config files
+      const obsoleteFields = ['mixerIntegrationEnabled', 'mixerType', 'localIpAddress', 'wingIpAddress', 'oscEnabled', 'oscPort', 'video'];
+      let needsSave = false;
+      obsoleteFields.forEach(field => {
+        if (field in parsedConfig) {
+          console.log(`[AppConfig] Removing obsolete field: ${field}`);
+          delete parsedConfig[field];
+          needsSave = true;
+        }
+      });
+      
       // Merge: start with fresh defaults, overlay with loaded file, ensure recentWorkspaces is valid
       appConfig = {
         ...defaultConfigForPath,
         ...parsedConfig,
         recentWorkspaces: Array.isArray(parsedConfig.recentWorkspaces) ? parsedConfig.recentWorkspaces : []
       };
+      
+      // Save config immediately if we removed obsolete fields
+      if (needsSave) {
+        console.log(`[AppConfig] Saving config after removing obsolete fields`);
+        saveConfig();
+      }
       // console.log(`[AppConfig] loadConfig: Successfully loaded and merged from "${currentConfigFilePath}". Loaded config:`, JSON.parse(JSON.stringify(appConfig)));
     } else {
       appConfig = defaultConfigForPath;

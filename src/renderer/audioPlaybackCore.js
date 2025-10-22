@@ -415,6 +415,7 @@ function _proceedWithPlayback(cueId, playingState, filePath, currentItemName, ac
             cueGridAPI: cueGridAPIRef,
             sidebarsAPI: sidebarsAPIRef,
             sendPlaybackTimeUpdate: sendPlaybackTimeUpdateRef,
+            sendPlaybackTimeUpdateRef: sendPlaybackTimeUpdateRef, // Add with correct key name for _handlePlaylistEnd
             _handlePlaylistEnd, 
             _playTargetItem,    
             getGlobalCueById: getGlobalCueByIdRef, 

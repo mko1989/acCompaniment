@@ -17,7 +17,8 @@ export function _handlePlaylistEnd(cueId, errorOccurred = false, context) {
         ipcBindingsRef,
         cueGridAPIRef,
         sidebarsAPIRef,
-        _playTargetItem
+        _playTargetItem,
+        sendPlaybackTimeUpdateRef
     } = context;
 
     const playingState = currentlyPlaying[cueId];
@@ -202,6 +203,18 @@ export function _handlePlaylistEnd(cueId, errorOccurred = false, context) {
             // Send IPC status update immediately
             if (ipcBindingsRef) {
                 ipcBindingsRef.send('cue-status-update', { cueId: cueId, status: 'cued_next', details: { reason: 'playlist_item_ended_cued_next', nextItem: cuedName } });
+            }
+            
+            // CRITICAL FIX: Send playback time update to companion module for cued state
+            // Even though there's no sound instance, we need to inform the companion about the cued status
+            console.log(`[COMPANION_UPDATE_DEBUG] About to send cued state. sendPlaybackTimeUpdateRef exists: ${!!sendPlaybackTimeUpdateRef}, playingState exists: ${!!playingState}, cuedName: ${cuedName}`);
+            if (sendPlaybackTimeUpdateRef && playingState) {
+                console.log(`[COMPANION_UPDATE_DEBUG] Sending cued state update to companion for ${cueId} with item: ${cuedName}`);
+                // Pass null for sound since it's cued, and override status to 'paused' (cued is a type of paused state)
+                sendPlaybackTimeUpdateRef(cueId, null, playingState, cuedName, 'paused');
+                console.log(`[COMPANION_UPDATE_DEBUG] Cued state update sent successfully`);
+            } else {
+                console.warn(`[COMPANION_UPDATE_DEBUG] FAILED to send cued state - sendPlaybackTimeUpdateRef: ${!!sendPlaybackTimeUpdateRef}, playingState: ${!!playingState}`);
             }
         }
         return;

@@ -167,7 +167,8 @@ export function stopAllCues(options = { exceptCueId: null, useFade: true }, cont
                     context.getGlobalCueByIdRef,
                     context._generateShuffleOrder,
                     context.sidebarsAPIRef,
-                    context.cuePlayOrder || []
+                    context.cuePlayOrder || [],
+                    context.sendPlaybackTimeUpdateRef
                 );
             });
         }, restoreDelay);

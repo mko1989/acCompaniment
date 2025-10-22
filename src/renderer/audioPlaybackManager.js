@@ -144,6 +144,7 @@ function createContext() {
         _handlePlaylistEnd,
         _applyDucking: (triggerCueId) => _applyDucking(triggerCueId, currentlyPlaying, getGlobalCueByIdRef),
         _revertDucking: (triggerCueIdStop) => _revertDucking(triggerCueIdStop, currentlyPlaying),
+        _cleanupSoundInstance: (cueId, state, options = {}) => _cleanupSoundInstance(cueId, state, options, createContext()),
         _updateCurrentCueForCompanion,
         getPreloadedSound: audioControllerRef?.getPreloadedSound,
         clearTimeUpdateIntervals
@@ -169,8 +170,8 @@ publicAPIManagerInstance = {
     stopAllCues: (options = { exceptCueId: null, useFade: true }) => stopAllCues(options, createContext()),
     seekInCue: (cueId, positionSec) => seekInCue(cueId, positionSec, createContext()),
     getPlaybackState: (cueId) => getPlaybackState(cueId, createContext()),
-    playlistNavigateNext: (cueId, fromExternal) => playlistNavigateNext(cueId, fromExternal, currentlyPlaying, getGlobalCueByIdRef, (cueId, index, isResume) => _playTargetItem(cueId, index, isResume, createContext()), _generateShuffleOrder, startPlaylistAtPosition, sidebarsAPIRef, cuePlayOrder),
-    playlistNavigatePrevious: (cueId, fromExternal) => playlistNavigatePrevious(cueId, fromExternal, currentlyPlaying, getGlobalCueByIdRef, (cueId, index, isResume) => _playTargetItem(cueId, index, isResume, createContext()), _generateShuffleOrder, startPlaylistAtPosition, sidebarsAPIRef, cuePlayOrder),
+    playlistNavigateNext: (cueId, fromExternal) => playlistNavigateNext(cueId, fromExternal, currentlyPlaying, getGlobalCueByIdRef, (cueId, index, isResume) => _playTargetItem(cueId, index, isResume, createContext()), _generateShuffleOrder, startPlaylistAtPosition, sidebarsAPIRef, cuePlayOrder, sendPlaybackTimeUpdateRef),
+    playlistNavigatePrevious: (cueId, fromExternal) => playlistNavigatePrevious(cueId, fromExternal, currentlyPlaying, getGlobalCueByIdRef, (cueId, index, isResume) => _playTargetItem(cueId, index, isResume, createContext()), _generateShuffleOrder, startPlaylistAtPosition, sidebarsAPIRef, cuePlayOrder, sendPlaybackTimeUpdateRef),
     handleCrossfadeToggle: (cueId) => handleCrossfadeToggle(cueId, getGlobalCueByIdRef, currentlyPlaying, (cueIdToToggle, fromCompanion, retriggerBehaviorOverride) => toggleCue(cueIdToToggle, fromCompanion, retriggerBehaviorOverride, createContext()), (newCueId, newCue) => _handleCrossfadeStart(newCueId, newCue, currentlyPlaying, getAppConfigFuncRef, cueGridAPIRef, (cueId, useFade, fromCompanion, isRetriggerStop, stopReason) => stop(cueId, useFade, fromCompanion, isRetriggerStop, stopReason, createContext()), (cue, isResume) => play(cue, isResume, createContext()), (cueId, index, isResume) => _playTargetItem(cueId, index, isResume, createContext()))),
     getCurrentlyPlayingInstances: () => currentlyPlaying, // Expose currently playing instances for device switching
     // Ducking functions - exposed for internal use by playbackInstanceHandler

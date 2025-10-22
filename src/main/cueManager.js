@@ -287,34 +287,7 @@ function triggerCueById(cueId, source = 'unknown') {
   }
 }
 
-// Function to trigger a cue based on a mixer button ID
-function triggerCueByMixerButtonId(buttonId, mixerType, value) {
-  console.log(`CueManager: Received trigger by Mixer Button ID: ${buttonId}, Type: ${mixerType}, Value: ${value}`);
-  const cueToTrigger = cues.find(cue => 
-    cue.mixerTrigger && 
-    cue.mixerTrigger.enabled && 
-    cue.mixerTrigger.buttonId === buttonId &&
-    cue.mixerTrigger.mixerType === mixerType
-  );
-
-  if (cueToTrigger) {
-    console.log(`CueManager: Found cue "${cueToTrigger.name}" (ID: ${cueToTrigger.id}) linked to mixer button ${buttonId} (${mixerType}). Triggering.`);
-    // The 'value' from the mixer (e.g., button press/release, fader level) might be used by the renderer
-    // to decide on specific actions (e.g., play on press, stop on release, set volume).
-    if (mainWindowRef && mainWindowRef.webContents && !mainWindowRef.webContents.isDestroyed()) {
-      mainWindowRef.webContents.send('trigger-cue-by-id-from-main', { 
-        cueId: cueToTrigger.id, 
-        source: `mixer_${mixerType}_button`,
-        mixerButtonId: buttonId,
-        value: value // Pass the value along
-      });
-    } else {
-      console.error('CueManager: Cannot send trigger IPC for mixer button - mainWindowRef or webContents issue.');
-    }
-  } else {
-    // console.warn(`CueManager: No cue found linked to mixer button ID ${buttonId} of type ${mixerType} or trigger is disabled.`);
-  }
-}
+// Mixer trigger function removed
 
 // Function to get audio file duration (used internally)
 async function getAudioFileDuration(filePath) {
@@ -563,6 +536,6 @@ module.exports = {
   updateCueKnownDuration, // Export new function
   updateCueItemDuration, // Export the new combined function
   triggerCueById, // Export the new function
-  triggerCueByMixerButtonId, // Export the new function
+  // Mixer function removed
   getDefaultCuesPath                 // Added for menu functionality
 }; 

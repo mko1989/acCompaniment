@@ -11,7 +11,7 @@ const navigationBlocked = new Set();
 const lastPlaylistPositions = new Map();
 
 // Helper function to cue a playlist at a specific position (without playing)
-function _cuePlaylistAtPosition(cueId, targetIndex, currentlyPlaying, getGlobalCueByIdRef, _generateShuffleOrder, sidebarsAPIRef, cuePlayOrder) {
+function _cuePlaylistAtPosition(cueId, targetIndex, currentlyPlaying, getGlobalCueByIdRef, _generateShuffleOrder, sidebarsAPIRef, cuePlayOrder, sendPlaybackTimeUpdateRef = null) {
     console.log(`🔵 AudioPlaybackManager: _cuePlaylistAtPosition called for ${cueId}, index ${targetIndex}`);
     
     const cue = getGlobalCueByIdRef(cueId);
@@ -68,6 +68,14 @@ function _cuePlaylistAtPosition(cueId, targetIndex, currentlyPlaying, getGlobalC
     } else if (typeof window !== 'undefined' && window.uiModules?.cueGrid?.updateButtonPlayingState) {
         console.log(`🔵 AudioPlaybackManager: Using fallback UI to show cued state for ${cueId}: ${cuedName}`);
         window.uiModules.cueGrid.updateButtonPlayingState(cueId, false, `Next: ${cuedName}`, true);
+    }
+    
+    // CRITICAL FIX: Send playback time update to companion module for cued state
+    // Even though there's no sound instance, we need to inform the companion about the cued status
+    if (sendPlaybackTimeUpdateRef && playlistState) {
+        console.log(`AudioPlaybackManager: Sending cued state update to companion for ${cueId}`);
+        // Pass null for sound since it's cued, and override status to 'paused' (cued is a type of paused state)
+        sendPlaybackTimeUpdateRef(cueId, null, playlistState, cuedName, 'paused');
     }
     
     console.log(`🔵 AudioPlaybackManager: Playlist ${cueId} cued at index ${clampedIndex} (${cuedName})`);
@@ -148,7 +156,7 @@ function startPlaylistAtPosition(cueId, targetIndex, currentlyPlaying, getGlobal
     return { success: true, cuePlayOrder: updatedCuePlayOrder };
 }
 
-function playlistNavigateNext(cueId, fromExternal, currentlyPlaying, getGlobalCueByIdRef, _playTargetItem, _generateShuffleOrder, startPlaylistAtPosition, sidebarsAPIRef, cuePlayOrder) {
+function playlistNavigateNext(cueId, fromExternal, currentlyPlaying, getGlobalCueByIdRef, _playTargetItem, _generateShuffleOrder, startPlaylistAtPosition, sidebarsAPIRef, cuePlayOrder, sendPlaybackTimeUpdateRef = null) {
     const timestamp = new Date().toISOString();
     log.debug(`Playlist navigate next for cue ${cueId} at ${timestamp}`);
     
@@ -216,7 +224,7 @@ function playlistNavigateNext(cueId, fromExternal, currentlyPlaying, getGlobalCu
         lastPlaylistPositions.set(cueId, startIndex);
         
         // CUE the playlist at this position (don't play it)
-        _cuePlaylistAtPosition(cueId, startIndex, currentlyPlaying, getGlobalCueByIdRef, _generateShuffleOrder, sidebarsAPIRef, cuePlayOrder || []);
+        _cuePlaylistAtPosition(cueId, startIndex, currentlyPlaying, getGlobalCueByIdRef, _generateShuffleOrder, sidebarsAPIRef, cuePlayOrder || [], sendPlaybackTimeUpdateRef);
         return true;
     }
     
@@ -309,7 +317,7 @@ function playlistNavigateNext(cueId, fromExternal, currentlyPlaying, getGlobalCu
     return true;
 }
 
-function playlistNavigatePrevious(cueId, fromExternal, currentlyPlaying, getGlobalCueByIdRef, _playTargetItem, _generateShuffleOrder, startPlaylistAtPosition, sidebarsAPIRef, cuePlayOrder) {
+function playlistNavigatePrevious(cueId, fromExternal, currentlyPlaying, getGlobalCueByIdRef, _playTargetItem, _generateShuffleOrder, startPlaylistAtPosition, sidebarsAPIRef, cuePlayOrder, sendPlaybackTimeUpdateRef = null) {
     const timestamp = new Date().toISOString();
     log.debug(`Playlist navigate previous for cue ${cueId} at ${timestamp}`);
     
@@ -352,7 +360,7 @@ function playlistNavigatePrevious(cueId, fromExternal, currentlyPlaying, getGlob
         lastPlaylistPositions.set(cueId, prevIndex);
         
         // CUE the playlist at this position (don't play it)
-        _cuePlaylistAtPosition(cueId, prevIndex, currentlyPlaying, getGlobalCueByIdRef, _generateShuffleOrder, sidebarsAPIRef, cuePlayOrder || []);
+        _cuePlaylistAtPosition(cueId, prevIndex, currentlyPlaying, getGlobalCueByIdRef, _generateShuffleOrder, sidebarsAPIRef, cuePlayOrder || [], sendPlaybackTimeUpdateRef);
         return true;
     }
     
