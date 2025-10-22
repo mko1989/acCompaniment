@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu, dialog, screen, nativeTheme, session } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, dialog, nativeTheme, session } = require('electron');
 const path = require('node:path');
 const fs = require('fs-extra'); // For file system operations
 
@@ -13,9 +13,7 @@ console.log('MAIN_JS: Importing appConfigManager...');
 const appConfigManager = require('./src/main/appConfig');
 console.log('MAIN_JS: Importing workspaceManager...');
 const workspaceManager = require('./src/main/workspaceManager');
-// Generic OSC listener removed
-console.log('MAIN_JS: Importing mixerIntegrationManager...');
-const mixerIntegrationManager = require('./src/main/mixerIntegrationManager');
+// Mixer integration removed as per requirements
 console.log('MAIN_JS: Importing httpServer...');
 const httpServer = require('./src/main/httpServer'); // Added: Import httpServer
 console.log('MAIN_JS: All main modules imported.');
@@ -30,30 +28,39 @@ function openEasterEggGameWindow() {
         return;
     }
 
-    easterEggWindow = new BrowserWindow({
-        width: 700, // Adjust as needed
-        height: 560, // Adjust as needed
-        parent: mainWindow, // Optional: to make it a child window
-        modal: false,       // Optional: set to true to make it a modal dialog
-        resizable: false,
-        show: false, // Don't show until content is loaded
-        webPreferences: {
-            nodeIntegration: false, // Important for security
-            contextIsolation: true, // Important for security
-            // preload: path.join(__dirname, 'preloadForGame.js'), // If you need a specific preload for the game
-        }
-    });
+    try {
+        // Easter egg game window dimensions
+        const EASTER_EGG_WIDTH = 700;
+        const EASTER_EGG_HEIGHT = 560;
+        
+        easterEggWindow = new BrowserWindow({
+            width: EASTER_EGG_WIDTH,
+            height: EASTER_EGG_HEIGHT,
+            parent: mainWindow, // Optional: to make it a child window
+            modal: false,       // Optional: set to true to make it a modal dialog
+            resizable: false,
+            show: false, // Don't show until content is loaded
+            webPreferences: {
+                nodeIntegration: false, // Important for security
+                contextIsolation: true, // Important for security
+                // preload: path.join(__dirname, 'preloadForGame.js'), // If you need a specific preload for the game
+            }
+        });
 
-    easterEggWindow.loadFile(path.join(__dirname, 'src', 'renderer', 'easter_egg_game', 'game.html'));
+        easterEggWindow.loadFile(path.join(__dirname, 'src', 'renderer', 'easter_egg_game', 'game.html'));
 
-    easterEggWindow.once('ready-to-show', () => {
-        easterEggWindow.show();
-        // easterEggWindow.webContents.openDevTools(); // Optional: for debugging the game window
-    });
+        easterEggWindow.once('ready-to-show', () => {
+            easterEggWindow.show();
+            // easterEggWindow.webContents.openDevTools(); // Optional: for debugging the game window
+        });
 
-    easterEggWindow.on('closed', () => {
+        easterEggWindow.on('closed', () => {
+            easterEggWindow = null;
+        });
+    } catch (error) {
+        console.error('Failed to open Easter Egg game window:', error);
         easterEggWindow = null;
-    });
+    }
 }
 // --- END NEW FUNCTION ---
 
@@ -113,10 +120,7 @@ async function createWindow() {
     
     await websocketServer.startServer(currentConfig.websocketPort, currentConfig.websocketEnabled);
 
-    // Generic OSC listener initialization removed
-
-    
-    mixerIntegrationManager.initialize(currentConfig, mainWindow, cueManager);
+    // Mixer integration removed as per requirements
     
 
     // Added: Initialize httpServer with app config
@@ -126,12 +130,13 @@ async function createWindow() {
     
 
     
-    initializeIpcHandlers(app, mainWindow, cueManager, appConfigManager, workspaceManager, websocketServer, null, httpServer, mixerIntegrationManager, openEasterEggGameWindow);
+    initializeIpcHandlers(app, mainWindow, cueManager, appConfigManager, workspaceManager, websocketServer, null, httpServer, null, openEasterEggGameWindow);
     
 
-    appConfigManager.addConfigChangeListener(async (newConfig) => {
-      // ... existing code ...
-    });
+    // Configuration change listener can be added here if needed
+    // appConfigManager.addConfigChangeListener(async (newConfig) => {
+    //   // Handle configuration changes
+    // });
 
     const menu = Menu.buildFromTemplate(getMenuTemplate(mainWindow, cueManager, workspaceManager, appConfigManager));
     Menu.setApplicationMenu(menu);
@@ -318,7 +323,7 @@ function getMenuTemplate(mainWindow, cueManager, workspaceManager, appConfigMana
           label: 'Learn More',
           click: async () => {
             const { shell } = require('electron');
-            await shell.openExternal('https://github.com/YourRepo/acCompaniment'); 
+            await shell.openExternal('https://github.com/mko1989/acCompaniment'); 
           }
         }
       ]
@@ -346,18 +351,8 @@ app.whenReady().then(async () => {
   await createWindow();
   console.log('MAIN_JS: createWindow has completed.');
 
-  // Register global shortcut for Easter Egg game
-  // const { globalShortcut } = require('electron');
-  // const ret = globalShortcut.register('Shift+CommandOrControl+P', () => {
-  //   console.log('MAIN_JS: Shift+CommandOrControl+P pressed, opening Easter Egg game.');
-  //   openEasterEggGameWindow();
-  // });
-
-  // if (!ret) {
-  //   console.error('MAIN_JS: globalShortcut registration failed for Shift+CommandOrControl+P');
-  // } else {
-  //   console.log('MAIN_JS: globalShortcut Shift+CommandOrControl+P registered successfully.');
-  // }
+  // Global shortcut registration can be enabled here if needed
+  // Currently disabled to avoid conflicts
 
   app.on('activate', () => {
     console.log('MAIN_JS: app.on(activate) - START');
@@ -386,10 +381,8 @@ app.on('will-quit', () => {
   }
   appConfigManager.saveConfig(); 
   console.log('MAIN_JS: App is quitting.');
-  // Unregister all shortcuts.
-  // const { globalShortcut } = require('electron'); // Ensure it's in scope
-  // globalShortcut.unregisterAll();
-  // console.log('MAIN_JS: All global shortcuts unregistered.');
+  // Global shortcuts cleanup can be enabled here if needed
+  // Currently disabled since no shortcuts are registered
 });
 console.log('MAIN_JS: will-quit listener attached');
 
@@ -398,12 +391,13 @@ if (process.platform === 'darwin') {
 }
 console.log('MAIN_JS: Script end');
 
-// Example: Listen for a message from renderer to open a new window
-ipcMain.on('open-new-window-example', () => {
-    // ... existing new window example code ...
-});
+// IPC handlers for opening new windows can be added here if needed
+// Example:
+// ipcMain.on('open-new-window-example', () => {
+//     // Implementation for opening new windows
+// });
 
-// Handle request to open Easter Egg game window (this is for the dev button)
+// Easter Egg game window handler (currently disabled)
 // ipcMain.on('open-easter-egg-game', () => {
 //     openEasterEggGameWindow();
 // }); 

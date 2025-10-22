@@ -1,6 +1,6 @@
 {
   "name": "accompaniment",
-  "version": "0.2.3",
+  "version": "0.2.5",
   "description": "A soundboard app",
   "main": "main.js",
   "scripts": {
@@ -37,9 +37,7 @@
     "fs-extra": "^11.2.0",
     "howler": "^2.2.4",
     "music-metadata": "^11.2.3",
-    "node-osc": "^9.1.5",
     "node-web-audio-api": "^1.0.4",
-    "osc": "^2.4.5",
     "uuid": "^11.1.0",
     "waveform-data": "^4.5.1",
     "wavesurfer.js": "^7.9.5",

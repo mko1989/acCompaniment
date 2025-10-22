@@ -1,5 +1,4 @@
 const { contextBridge, ipcRenderer } = require('electron');
-// const path = require('path'); // Temporarily commented out for diagnosis
 
 console.log("PRELOAD_DEBUG: Script start. Setting up mainProcessReadyPromise...");
 
@@ -63,6 +62,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'toggle-audio-by-id',
       'stop-all-audio',
       'trigger-cue-by-id-from-main',
+      // Playlist navigation channels
+      'playlist-navigate-next-from-main',
+      'playlist-navigate-previous-from-main',
       // Add other channels as needed
       'mixer-subscription-feedback',
       'playback-time-update-from-main',
@@ -95,7 +97,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppConfig: () => ipcRenderer.invoke('get-initial-config'),
   saveAppConfig: (config) => ipcRenderer.invoke('save-app-config', config),
   getAudioOutputDevices: () => ipcRenderer.invoke('get-audio-output-devices'),
-        getHttpRemoteInfo: () => ipcRenderer.invoke('get-http-remote-info'),
+  getHttpRemoteInfo: () => ipcRenderer.invoke('get-http-remote-info'),
   getAudioFileBuffer: (filePath) => ipcRenderer.invoke('get-audio-file-buffer', filePath),
 
 
@@ -133,7 +135,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // UUID Generation
   generateUUID: () => ipcRenderer.invoke('generate-uuid'),
-  // getMediaDuration: (filePath) => ipcRenderer.invoke('get-media-duration', filePath), // Duplicated from Waveform related - ensure one source
 
   // File System Access Proxies
   checkFileExists: (filePath) => ipcRenderer.invoke('fs-check-file-exists', filePath),
@@ -155,6 +156,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // App Info
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
 
+  // Clipboard
+  writeToClipboard: (text) => ipcRenderer.invoke('write-to-clipboard', text),
+
   // Generic way to register multiple listeners, if preferred by a module
   registerListeners: (listeners) => {
     const unsubscribers = [];
@@ -172,35 +176,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openEasterEggGame: () => ipcRenderer.send('open-easter-egg-game')
 });
 
-// REMOVE THE FOLLOWING DOMContentLoaded LISTENER AND ITS CONTENTS
-/*
-document.addEventListener('DOMContentLoaded', () => {
-  const dragArea = document.body; // Or a more specific element
-
-  dragArea.addEventListener('dragover', (event) => {
-    event.preventDefault(); // Necessary to allow drop
-    event.stopPropagation();
-    // Add visual cues if desired
-  });
-
-  dragArea.addEventListener('dragleave', (event) => {
-    // Remove visual cues if desired
-  });
-
-  dragArea.addEventListener('drop', (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const files = event.dataTransfer.files;
-    if (files.length > 0) {
-      const filePaths = Array.from(files).map(file => file.path);
-      console.log('Files dropped in preload (will be sent to main - THIS LOGIC IS BEING REMOVED):', filePaths);
-      // Send file paths to the main process to then be relayed to renderer
-      // This is a more secure way than directly accessing fs in renderer
-      // ipcRenderer.send('files-dropped-in-preload', filePaths); // THIS LINE IS REMOVED
-    }
-  });
-});
-*/
 
 console.log('Preload script loaded (Drag/drop listeners removed from preload)'); 
