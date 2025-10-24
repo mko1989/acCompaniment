@@ -23,6 +23,8 @@ export function createOnloaderrorHandler(cueId, filePath, currentItemNameForEven
             console.warn(`[ERROR_HANDLER ${cueId}] .m4a file failed to load. This might be due to codec issues. Consider converting to .mp3 or .wav for better compatibility.`);
         } else if (fileExtension === 'mp3') {
             console.warn(`[ERROR_HANDLER ${cueId}] .mp3 file failed to load. This might be due to codec issues or file corruption. Consider re-encoding the file or converting to .wav for better compatibility.`);
+        } else if (fileExtension === 'wav') {
+            console.warn(`[ERROR_HANDLER ${cueId}] .wav file failed to load. This might be due to file corruption, unsupported sample rate, or bit depth. WAV files should use Web Audio API (not HTML5). Check file integrity.`);
         }
         
         // Simplified error cleanup

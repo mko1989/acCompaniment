@@ -687,13 +687,15 @@ async function preloadSingleFile(cue) {
             },
             onloaderror: (soundId, error) => {
                 console.warn(`🎵 Preload failed: ${cue.name} -`, error);
+                const fileExt = cue.filePath.toLowerCase().split('.').pop();
                 if (useHtml5) {
-                    const fileExt = cue.filePath.toLowerCase().split('.').pop();
                     if (fileExt === 'm4a') {
                         console.warn(`🎵 .m4a file failed to preload. Consider converting to .mp3 for better compatibility.`);
                     } else if (fileExt === 'mp3') {
                         console.warn(`🎵 .mp3 file failed to preload. Consider re-encoding or converting to .wav for better compatibility.`);
                     }
+                } else if (fileExt === 'wav') {
+                    console.warn(`🎵 .wav file failed to preload. This might be due to file corruption, unsupported sample rate, or bit depth. WAV files use Web Audio API. Check file integrity.`);
                 }
                 reject(error);
             }
@@ -705,8 +707,8 @@ async function preloadPlaylistItem(cueId, item) {
     return new Promise((resolve, reject) => {
         console.log(`🎵 Preloading playlist item: ${item.name} (${item.filePath})`);
         
-        // Use html5 for .m4a files for better compatibility
-        const useHtml5 = item.filePath.toLowerCase().endsWith('.m4a');
+        // Use html5 for .m4a and .mp3 files for better compatibility (consistent with main playback)
+        const useHtml5 = item.filePath.toLowerCase().endsWith('.m4a') || item.filePath.toLowerCase().endsWith('.mp3');
         
         const sound = new Howl({
             src: [item.filePath],
@@ -721,8 +723,15 @@ async function preloadPlaylistItem(cueId, item) {
             },
             onloaderror: (soundId, error) => {
                 console.warn(`🎵 Preload failed for playlist item: ${item.name} -`, error);
+                const fileExt = item.filePath.toLowerCase().split('.').pop();
                 if (useHtml5) {
-                    console.warn(`🎵 .m4a playlist item failed to preload. Consider converting to .mp3 for better compatibility.`);
+                    if (fileExt === 'm4a') {
+                        console.warn(`🎵 .m4a playlist item failed to preload. Consider converting to .mp3 for better compatibility.`);
+                    } else if (fileExt === 'mp3') {
+                        console.warn(`🎵 .mp3 playlist item failed to preload. Consider re-encoding or converting to .wav for better compatibility.`);
+                    }
+                } else if (fileExt === 'wav') {
+                    console.warn(`🎵 .wav playlist item failed to preload. This might be due to file corruption, unsupported sample rate, or bit depth. WAV files use Web Audio API. Check file integrity.`);
                 }
                 reject(error);
             }
