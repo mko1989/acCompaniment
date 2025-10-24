@@ -114,7 +114,7 @@ export function _initializeAndPlayNew(cue, allowMultipleInstances = false, conte
     if (currentlyPlaying[cueId] && !allowMultipleInstances) {
         log.warn(`Lingering state for ${cueId} found. Performing comprehensive cleanup`);
         _cleanupSoundInstance(cueId, currentlyPlaying[cueId], { 
-            forceUnload: true, 
+            forceUnload: false, 
             source: '_initializeAndPlayNew' 
         });
     }
@@ -352,9 +352,9 @@ function _handleFilePathError(cueId, playingState, errorType, filePath, context)
         } else {
             if (currentlyPlaying[cueId]) {
             _cleanupSoundInstance(cueId, currentlyPlaying[cueId], {
-                forceUnload: true,
+                forceUnload: false,
                 source: 'file_path_error'
-            });
+            }, context);
         }
         if (cueGridAPIRef) {
             cueGridAPIRef.updateButtonPlayingState(cueId, false, null, false, true); 
@@ -380,7 +380,8 @@ function _proceedWithPlayback(cueId, playingState, filePath, currentItemName, ac
         _updateCurrentCueForCompanion,
         audioControllerRef,
         allSoundInstances,
-        createPlaybackInstanceRef
+        createPlaybackInstanceRef,
+        getPreloadedSound
     } = context;
 
     try {
@@ -400,7 +401,8 @@ function _proceedWithPlayback(cueId, playingState, filePath, currentItemName, ac
                 const soundToCleanup = playingState.sound;
                 soundToCleanup.off(); // Remove all event listeners to prevent ghost events
                 soundToCleanup.stop();
-                soundToCleanup.unload();
+                // Don't unload to allow reuse via preloading system
+                // soundToCleanup.unload(); // Removed to allow sound reuse
             } catch (cleanupError) {
                 log.warn(`Error cleaning up existing sound for ${cueId}:`, cleanupError);
             }
@@ -425,7 +427,8 @@ function _proceedWithPlayback(cueId, playingState, filePath, currentItemName, ac
             getAppConfigFunc: getAppConfigFuncRef, // Add app config function for performance optimizations
             _updateCurrentCueForCompanion, // Add current cue priority function
             audioControllerRef: audioControllerRef, // Add audioController reference for device switching
-            allSoundInstances: allSoundInstances // Add sound instance tracking for stop all
+            allSoundInstances: allSoundInstances, // Add sound instance tracking for stop all
+            getPreloadedSound: getPreloadedSound // Add preloaded sound accessor from context
         };
     
         log.debug(`Creating playback instance for ${cueId} with file: ${filePath}`);

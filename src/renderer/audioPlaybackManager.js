@@ -32,6 +32,7 @@ let cueGridAPIRef;
 let sidebarsAPIRef;
 let getAppConfigFuncRef; // Changed from currentAppConfigRef
 let audioControllerRef; // Reference to audioController for device switching
+let getPreloadedSoundRef; // Store the getPreloadedSound function
 
 // State variables
 let currentlyPlaying = {}; // cueId: { sound: Howl_instance, cue: cueData, isPaused: boolean, ... }
@@ -57,6 +58,7 @@ function init(dependencies) {
     // cueGridAPIRef and sidebarsAPIRef are set via setUIRefs
     getAppConfigFuncRef = dependencies.getAppConfigFunc; // Store the getter function
     audioControllerRef = dependencies.audioController; // Store the audioController reference
+    getPreloadedSoundRef = dependencies.getPreloadedSound; // Store the getPreloadedSound function directly
 
     // Initialize logging system
     const appConfig = getAppConfigFuncRef ? getAppConfigFuncRef() : {};
@@ -146,7 +148,7 @@ function createContext() {
         _revertDucking: (triggerCueIdStop) => _revertDucking(triggerCueIdStop, currentlyPlaying),
         _cleanupSoundInstance: (cueId, state, options = {}) => _cleanupSoundInstance(cueId, state, options, createContext()),
         _updateCurrentCueForCompanion,
-        getPreloadedSound: audioControllerRef?.getPreloadedSound,
+        getPreloadedSound: getPreloadedSoundRef,
         clearTimeUpdateIntervals
     };
 }

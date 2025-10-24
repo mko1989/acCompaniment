@@ -33,6 +33,8 @@ export function createOnendHandler(cueId, sound, playingState, filePath, current
                 if (playingState.sound.playing && playingState.sound.playing()) {
                     playingState.sound.stop();
                 }
+                // Remove all event listeners to prevent memory leaks and interference
+                playingState.sound.off();
             } catch (error) {
                 console.warn(`[TIME_UPDATE_DEBUG ${cueId}] onend: Error stopping sound during cleanup:`, error);
             }
@@ -231,14 +233,16 @@ export function createOnstopHandler(cueId, sound, playingState, filePath, curren
                 const state = audioControllerContext.currentlyPlaying[cueId];
                 if (typeof audioControllerContext._cleanupSoundInstance === 'function') {
                     audioControllerContext._cleanupSoundInstance(cueId, state, { 
-                        forceUnload: true, 
+                        forceUnload: false, 
                         source: 'onstop_fade_or_retrigger' 
                     });
                 } else {
                     // Fallback to manual cleanup
                     try {
-                        if (state.sound && typeof state.sound.unload === 'function') {
-                            state.sound.unload();
+                        if (state.sound && typeof state.sound.stop === 'function') {
+                            state.sound.stop();
+                            // Remove event listeners to prevent memory leaks
+                            state.sound.off();
                         }
                     } catch (error) {
                         console.warn(`PlaybackEventHandlers: Error during fallback cleanup for ${cueId}:`, error);

@@ -62,7 +62,8 @@ async function init(cs, ipcRendererBindingsInstance, cgAPI, sbAPI) {
             cueGridAPI: cgAPI, 
             sidebarsAPI: sbAPI,
             getAppConfigFunc: getAppConfig, // Pass the local getter
-            audioController: { getCurrentAudioOutputDeviceId } // Pass audioController functions
+            audioController: { getCurrentAudioOutputDeviceId }, // Pass audioController functions
+            getPreloadedSound: getPreloadedSound // Pass preloaded sound accessor
         });
         console.log('AudioController: playbackManagerModule.init() called successfully.');
 
@@ -671,8 +672,10 @@ async function preloadSingleFile(cue) {
     return new Promise((resolve, reject) => {
         console.log(`🎵 Preloading: ${cue.name} (${cue.filePath})`);
         
-        // Use html5 for .m4a and .mp3 files for better compatibility
-        const useHtml5 = cue.filePath.toLowerCase().endsWith('.m4a') || cue.filePath.toLowerCase().endsWith('.mp3');
+        // Use html5 for .m4a, .mp3, and .wav files for better compatibility
+        const useHtml5 = cue.filePath.toLowerCase().endsWith('.m4a') || 
+                        cue.filePath.toLowerCase().endsWith('.mp3') || 
+                        cue.filePath.toLowerCase().endsWith('.wav');
         
         const sound = new Howl({
             src: [cue.filePath],
@@ -707,8 +710,10 @@ async function preloadPlaylistItem(cueId, item) {
     return new Promise((resolve, reject) => {
         console.log(`🎵 Preloading playlist item: ${item.name} (${item.filePath})`);
         
-        // Use html5 for .m4a and .mp3 files for better compatibility (consistent with main playback)
-        const useHtml5 = item.filePath.toLowerCase().endsWith('.m4a') || item.filePath.toLowerCase().endsWith('.mp3');
+        // Use html5 for .m4a, .mp3, and .wav files for better compatibility (consistent with main playback)
+        const useHtml5 = item.filePath.toLowerCase().endsWith('.m4a') || 
+                        item.filePath.toLowerCase().endsWith('.mp3') || 
+                        item.filePath.toLowerCase().endsWith('.wav');
         
         const sound = new Howl({
             src: [item.filePath],
@@ -741,7 +746,12 @@ async function preloadPlaylistItem(cueId, item) {
 
 // Function to get preloaded sound by key
 function getPreloadedSound(key) {
-    return preloadedSounds.get(key) || null;
+    const sound = preloadedSounds.get(key) || null;
+    console.log(`🎵 getPreloadedSound called with key: ${key}, found: ${!!sound}`);
+    if (sound) {
+        console.log(`🎵 Preloaded sound state: ${sound.state()}`);
+    }
+    return sound;
 }
 
 export default {

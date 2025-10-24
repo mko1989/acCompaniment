@@ -63,24 +63,32 @@ export function createPlaybackInstance(
     
     // Try to get preloaded sound from audioController
     if (audioControllerContext.getPreloadedSound) {
+        console.log(`🎵 Checking for preloaded sound with key: ${preloadKey}`);
         sound = audioControllerContext.getPreloadedSound(preloadKey);
         if (sound) {
-            console.log(`🎵 Using preloaded sound for ${cueId} (${currentItemNameForEvents})`);
-            // Clone the preloaded sound with new settings
-            sound = sound.clone();
-            sound.volume(initialVolume);
-            sound.loop(playingState.isPlaylist ? false : (mainCue.loop || false));
+            console.log(`🎵 Preloaded sound found for ${cueId} (${currentItemNameForEvents}), creating new instance with same source`);
+            console.log(`🎵 Preloaded sound state: ${sound.state()}, playing: ${sound.playing()}`);
+            // Don't use the preloaded sound directly, but create a new instance with the same file
+            // This ensures we have a fresh instance for each playback
+            sound = null; // Fall back to creating new instance, but we know the file is preloaded
+        } else {
+            console.log(`🎵 No preloaded sound found for key: ${preloadKey}`);
         }
+    } else {
+        console.log(`🎵 getPreloadedSound function not available in audioControllerContext`);
     }
     
     // If no preloaded sound available, create new one
     if (!sound) {
         console.log(`🎵 Creating new sound instance for ${cueId} (${currentItemNameForEvents})`);
         
-        // Use html5 for .m4a files and problematic MP3 files as they often have decoding issues with Web Audio API
-        const useHtml5 = filePath.toLowerCase().endsWith('.m4a') || filePath.toLowerCase().endsWith('.mp3');
+        // Use html5 for .m4a, .mp3, and .wav files for better compatibility and replay capability
+        const useHtml5 = filePath.toLowerCase().endsWith('.m4a') || 
+                        filePath.toLowerCase().endsWith('.mp3') || 
+                        filePath.toLowerCase().endsWith('.wav');
         
         // Create the sound instance
+        console.log(`🎵 Creating Howl instance for ${cueId}: html5=${useHtml5}, filePath=${filePath}`);
         sound = new Howl({
             src: [filePath],
             volume: initialVolume,

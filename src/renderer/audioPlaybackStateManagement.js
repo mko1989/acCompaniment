@@ -136,10 +136,18 @@ export function _cleanupSoundInstance(cueId, state, options = {}, context) {
                 sound.stop();
             }
             
-            // Always unload to free memory, unless explicitly prevented
-            if (forceUnload || !sound.playing()) {
-                log.verbose(`_cleanupSoundInstance: Unloading sound for ${cueId}`);
+            // Remove all event listeners to prevent memory leaks and interference
+            log.verbose(`_cleanupSoundInstance: Removing event listeners for ${cueId}`);
+            sound.off();
+            
+            // Only unload if explicitly forced (e.g., during app shutdown)
+            // For normal cleanup, just stop and remove event listeners to allow reuse
+            if (forceUnload) {
+                log.verbose(`_cleanupSoundInstance: Force unloading sound for ${cueId}`);
                 sound.unload();
+            } else {
+                log.verbose(`_cleanupSoundInstance: Stopping sound for ${cueId} (preserving for reuse)`);
+                // Just stop the sound, don't unload to allow reuse via preloading system
             }
             
         } catch (error) {
