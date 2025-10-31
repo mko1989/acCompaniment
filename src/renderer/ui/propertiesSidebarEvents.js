@@ -16,6 +16,7 @@ let debouncedSaveCueProperties;
 let activePropertiesCueId;
 let cueStore;
 let domElements;
+let ipcRendererBindingsModule;
 
 /**
  * Initialize event handlers
@@ -23,12 +24,14 @@ let domElements;
  * @param {Function} setActiveCueId - Function to set active cue ID
  * @param {Object} csModule - Cue store module
  * @param {Object} elements - DOM elements object
+ * @param {Object} ipcAPI - IPC renderer bindings module
  */
-function initEventHandlers(saveCallback, setActiveCueId, csModule, elements) {
+function initEventHandlers(saveCallback, setActiveCueId, csModule, elements, ipcAPI) {
     debouncedSaveCueProperties = saveCallback;
     activePropertiesCueId = setActiveCueId;
     cueStore = csModule;
     domElements = elements;
+    ipcRendererBindingsModule = ipcAPI;
 }
 
 /**
@@ -145,7 +148,7 @@ function bindPropertiesSidebarEventListeners(hidePropertiesSidebar, handleDelete
  * @param {Function} renderPlaylistInProperties - Function to render playlist
  * @param {Function} setStagedPlaylistItems - Function to set staged playlist items
  */
-function handleCueTypeChange(e, renderPlaylistInProperties, setStagedPlaylistItems) {
+async function handleCueTypeChange(e, renderPlaylistInProperties, setStagedPlaylistItems) {
     const isPlaylist = e.target.value === 'playlist';
     
     if(domElements.propPlaylistConfigDiv) {
@@ -172,8 +175,51 @@ function handleCueTypeChange(e, renderPlaylistInProperties, setStagedPlaylistIte
     
     if (isPlaylist) {
         waveformControls.hideAndDestroyWaveform();
+        
+        // Convert single file to playlist item if there's a filePath
+        const cue = typeof activePropertiesCueId === 'function' ? null : (activePropertiesCueId ? cueStore.getCueById(activePropertiesCueId) : null);
+        const currentFilePath = domElements.propFilePathInput ? domElements.propFilePathInput.value.trim() : null;
+        
+        // Get existing playlist items or initialize empty array
+        const existingPlaylistItems = (cue && cue.playlistItems && Array.isArray(cue.playlistItems)) ? cue.playlistItems : [];
+        
+        // If converting from single_file to playlist and there's a filePath, convert it to a playlist item
+        if (currentFilePath && existingPlaylistItems.length === 0) {
+            try {
+                const itemId = ipcRendererBindingsModule && typeof ipcRendererBindingsModule.generateUUID === 'function' 
+                    ? await ipcRendererBindingsModule.generateUUID() 
+                    : `item_${Date.now()}_${Math.random()}`;
+                
+                // Extract name from file path (filename without extension)
+                const fileName = currentFilePath.split(/[\\\/]/).pop() || 'Playlist Item';
+                const itemName = fileName.includes('.') ? fileName.split('.').slice(0, -1).join('.') : fileName;
+                
+                const newPlaylistItem = {
+                    id: itemId,
+                    path: currentFilePath,
+                    name: itemName || 'Playlist Item'
+                };
+                
+                setStagedPlaylistItems([newPlaylistItem]);
+                renderPlaylistInProperties(domElements.propPlaylistItemsUl, domElements.propPlaylistFilePathDisplay);
+                
+                // Clear the filePath input since it's now a playlist item
+                if (domElements.propFilePathInput) {
+                    domElements.propFilePathInput.value = '';
+                }
+            } catch (error) {
+                console.error('[PropertiesSidebar] Error converting filePath to playlist item:', error);
+                // Fallback: still set empty array if conversion fails
+                setStagedPlaylistItems([]);
+                renderPlaylistInProperties(domElements.propPlaylistItemsUl, domElements.propPlaylistFilePathDisplay);
+            }
+        } else {
+            // If no filePath or already has playlist items, just render existing items
+            setStagedPlaylistItems(existingPlaylistItems);
+            renderPlaylistInProperties(domElements.propPlaylistItemsUl, domElements.propPlaylistFilePathDisplay);
+        }
     } else {
-        const cue = activePropertiesCueId ? cueStore.getCueById(activePropertiesCueId) : null;
+        const cue = typeof activePropertiesCueId === 'function' ? null : (activePropertiesCueId ? cueStore.getCueById(activePropertiesCueId) : null);
         const currentFilePath = domElements.propFilePathInput ? domElements.propFilePathInput.value : null;
         if (cue && cue.filePath) {
             waveformControls.showWaveformForCue(cue);
@@ -182,6 +228,9 @@ function handleCueTypeChange(e, renderPlaylistInProperties, setStagedPlaylistIte
         } else {
             waveformControls.hideAndDestroyWaveform();
         }
+        
+        // Clear playlist items when converting back to single file
+        setStagedPlaylistItems([]);
     }
 }
 

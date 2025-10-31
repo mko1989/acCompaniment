@@ -93,7 +93,7 @@ function initPropertiesSidebar(csModule, acModule, ipcAPI, uiCoreInterfaceRef) {
         propPlaylistFilePathDisplay: getDOMElement('propPlaylistFilePathDisplay')
     };
     
-    initEventHandlers(debouncedSaveCueProperties, (cueId) => { activePropertiesCueId = cueId; }, cueStore, domElements);
+    initEventHandlers(debouncedSaveCueProperties, (cueId) => { activePropertiesCueId = cueId; }, cueStore, domElements, ipcRendererBindingsModule);
     bindPropertiesSidebarEventListeners(hidePropertiesSidebar, handleDeleteCueProperties, renderPlaylistInPropertiesWrapper, setStagedPlaylistItems);
     
     console.log('Properties Sidebar Module Initialized');

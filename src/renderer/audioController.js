@@ -672,10 +672,10 @@ async function preloadSingleFile(cue) {
     return new Promise((resolve, reject) => {
         console.log(`🎵 Preloading: ${cue.name} (${cue.filePath})`);
         
-        // Use html5 for .m4a, .mp3, and .wav files for better compatibility
+        // Use html5 for .m4a and .mp3 files for better compatibility
+        // WAV files should use Web Audio API (html5: false) for reliable playback
         const useHtml5 = cue.filePath.toLowerCase().endsWith('.m4a') || 
-                        cue.filePath.toLowerCase().endsWith('.mp3') || 
-                        cue.filePath.toLowerCase().endsWith('.wav');
+                        cue.filePath.toLowerCase().endsWith('.mp3');
         
         const sound = new Howl({
             src: [cue.filePath],
@@ -710,10 +710,10 @@ async function preloadPlaylistItem(cueId, item) {
     return new Promise((resolve, reject) => {
         console.log(`🎵 Preloading playlist item: ${item.name} (${item.filePath})`);
         
-        // Use html5 for .m4a, .mp3, and .wav files for better compatibility (consistent with main playback)
+        // Use html5 for .m4a and .mp3 files for better compatibility (consistent with main playback)
+        // WAV files should use Web Audio API (html5: false) for reliable playback
         const useHtml5 = item.filePath.toLowerCase().endsWith('.m4a') || 
-                        item.filePath.toLowerCase().endsWith('.mp3') || 
-                        item.filePath.toLowerCase().endsWith('.wav');
+                        item.filePath.toLowerCase().endsWith('.mp3');
         
         const sound = new Howl({
             src: [item.filePath],

@@ -96,12 +96,27 @@ export function createOnloadHandler(cueId, sound, playingState, filePath, curren
             sound.seek(effectiveStartTime);
         }
         
-        const fadeInDuration = playingState.isPlaylist ? 
-                               (playingState.originalPlaylistItems[actualItemIndexInOriginalList].fadeInTime !== undefined ? playingState.originalPlaylistItems[actualItemIndexInOriginalList].fadeInTime : (mainCue.fadeInTime !== undefined ? mainCue.fadeInTime : 0)) :
-                               (mainCue.fadeInTime !== undefined ? mainCue.fadeInTime : 0);
+        // Check if this is a crossfade situation - use crossfade duration instead of cue's fadeInTime
+        const isCrossfadeIn = playingState.crossfadeInfo && playingState.crossfadeInfo.isCrossfadeIn;
+        let fadeInDuration;
+        let fadeInTargetVolume;
+        
+        if (isCrossfadeIn && playingState.crossfadeInfo) {
+            // Use crossfade duration and target volume from crossfade info
+            fadeInDuration = playingState.crossfadeInfo.crossfadeDuration || 2000;
+            fadeInTargetVolume = playingState.crossfadeInfo.targetVolume || 1;
+            console.log(`PlaybackEventHandlers: Crossfade-in detected - applying ${fadeInDuration}ms crossfade to volume ${fadeInTargetVolume}`);
+        } else {
+            // Use normal cue fade-in settings
+            fadeInDuration = playingState.isPlaylist ? 
+                           (playingState.originalPlaylistItems[actualItemIndexInOriginalList].fadeInTime !== undefined ? playingState.originalPlaylistItems[actualItemIndexInOriginalList].fadeInTime : (mainCue.fadeInTime !== undefined ? mainCue.fadeInTime : 0)) :
+                           (mainCue.fadeInTime !== undefined ? mainCue.fadeInTime : 0);
+            fadeInTargetVolume = sound.volume(); // Use current volume as target
+        }
+        
         if (fadeInDuration > 0 && !playingState.isPaused) {
-            console.log(`PlaybackEventHandlers: Applying fade-in (${fadeInDuration}ms) for ${currentItemNameForEvents}`);
-            sound.fade(0, sound.volume(), fadeInDuration); // Fade from 0 to target volume
+            console.log(`PlaybackEventHandlers: Applying fade-in (${fadeInDuration}ms) for ${currentItemNameForEvents} to volume ${fadeInTargetVolume}`);
+            sound.fade(0, fadeInTargetVolume, fadeInDuration); // Fade from 0 to target volume
             // Play is called by Howler after fade starts, or implicitly by fade itself if it's smart.
             // However, to be certain, and if fade doesn't auto-play, we might need it.
             // Let's assume fade handles triggering playback. If not, add sound.play() here.

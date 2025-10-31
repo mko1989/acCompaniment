@@ -82,17 +82,20 @@ export function createPlaybackInstance(
     if (!sound) {
         console.log(`🎵 Creating new sound instance for ${cueId} (${currentItemNameForEvents})`);
         
-        // Use html5 for .m4a, .mp3, and .wav files for better compatibility and replay capability
+        // Use html5 for .m4a and .mp3 files for better compatibility and replay capability
+        // WAV files should use Web Audio API (html5: false) for reliable playback
         const useHtml5 = filePath.toLowerCase().endsWith('.m4a') || 
-                        filePath.toLowerCase().endsWith('.mp3') || 
-                        filePath.toLowerCase().endsWith('.wav');
+                        filePath.toLowerCase().endsWith('.mp3');
         
         // Create the sound instance
         console.log(`🎵 Creating Howl instance for ${cueId}: html5=${useHtml5}, filePath=${filePath}`);
+        // For seamless looping: Disable Howler's loop if trim times are set, as scheduleTrimEndEnforcement handles it
+        const hasTrimTimes = (mainCue.trimStartTime && mainCue.trimStartTime > 0) || (mainCue.trimEndTime && mainCue.trimEndTime > 0);
+        const shouldUseHowlerLoop = !hasTrimTimes && (playingState.isPlaylist ? false : (mainCue.loop || false));
         sound = new Howl({
             src: [filePath],
             volume: initialVolume,
-            loop: playingState.isPlaylist ? false : (mainCue.loop || false),
+            loop: shouldUseHowlerLoop,
             html5: useHtml5, // Use HTML5 for .m4a and .mp3 files, Web Audio API for others
             preload: true, // Preload for better loop performance
             format: ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac'], // Specify supported formats
@@ -109,10 +112,21 @@ export function createPlaybackInstance(
     }
 
     // Set up event handlers after sound instance is created
-    sound.on('load', createOnloadHandler(
+    const onloadHandler = createOnloadHandler(
         cueId, sound, playingState, filePath, currentItemNameForEvents, 
         actualItemIndexInOriginalList, isResumeForSeekAndFade, mainCue, audioControllerContext
-    ));
+    );
+    sound.on('load', onloadHandler);
+    
+    // If sound is already loaded, manually trigger the onload handler
+    // This happens when the sound loads before the handler is attached
+    if (sound.state() === 'loaded') {
+        console.log(`[AUDIO_INSTANCE ${cueId}] Sound already loaded, manually triggering onload handler for: ${filePath}`);
+        // Use setTimeout to ensure the handler is fully attached first
+        setTimeout(() => {
+            onloadHandler();
+        }, 0);
+    }
     sound.on('play', createOnplayHandler(
         cueId, sound, playingState, filePath, currentItemNameForEvents, 
         actualItemIndexInOriginalList, isResumeForSeekAndFade, mainCue, audioControllerContext

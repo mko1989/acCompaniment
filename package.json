@@ -1,6 +1,6 @@
 {
   "name": "accompaniment",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A soundboard app",
   "main": "main.js",
   "scripts": {
@@ -62,10 +62,7 @@
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
       "extendInfo": {
-        "NSMicrophoneUsageDescription": null,
-        "NSCameraUsageDescription": null,
-        "NSBluetoothAlwaysUsageDescription": null,
-        "NSBluetoothPeripheralUsageDescription": null
+        "NSMicrophoneUsageDescription": "This app needs microphone access to enumerate audio output devices."
       }
     },
     "win": {

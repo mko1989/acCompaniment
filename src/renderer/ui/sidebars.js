@@ -439,14 +439,22 @@ function handleRemovePlaylistItem(event) {
 }
 
 async function handleSaveCueProperties() {
-    if (!activePropertiesCueId || !uiCore) {
-        console.warn('Sidebar: No active cue to save or uiCore not available.');
+    if (!activePropertiesCueId || !uiCore || !cueStore) {
+        console.warn('Sidebar: No active cue to save or uiCore/cueStore not available.');
         return;
     }
+    
+    // Verify the cue still exists in the store before trying to save
+    const existingCue = cueStore.getCueById(activePropertiesCueId);
+    if (!existingCue) {
+        console.warn('Sidebar: Active cue not found in cueStore:', activePropertiesCueId);
+        return;
+    }
+    
     const currentAppConfig = uiCore.getCurrentAppConfig();
 
     const cueDataToSave = {
-        ...cueStore.getCueById(activePropertiesCueId),
+        ...existingCue,
         name: propCueNameInput.value,
         type: propCueTypeSelect.value,
         filePath: propFilePathInput.value,

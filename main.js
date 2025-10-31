@@ -336,14 +336,14 @@ function getMenuTemplate(mainWindow, cueManager, workspaceManager, appConfigMana
 app.whenReady().then(async () => {
   console.log('MAIN_JS: App is ready, starting createWindow...');
 
-  // Block microphone/camera permission prompts unless explicitly allowed later
+  // Allow media permissions (needed for audio device enumeration on macOS)
   try {
     session.defaultSession.setPermissionRequestHandler((wc, permission, callback, details) => {
       if (permission === 'media') {
-        console.log('Permission request (media) blocked by default. Details:', details);
-        return callback(false);
+        console.log('Permission request (media) granted. Details:', details);
+        return callback(true);
       }
-      callback(false);
+      callback(true);
     });
   } catch (e) {
     console.warn('Failed to set permission request handler:', e);

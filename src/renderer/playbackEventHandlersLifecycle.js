@@ -20,13 +20,20 @@ export function createOnendHandler(cueId, sound, playingState, filePath, current
     return () => {
         // console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Fired for ${filePath}.`);
         
+        // Determine if this is a looping single cue - if so, don't cleanup, let Howler handle the loop
+        const isLoopingSingleCue = !playingState.isPlaylist && mainCue.loop && !mainCue.trimStartTime && !mainCue.trimEndTime;
+        
         // CRITICAL FIX: Clear time update intervals IMMEDIATELY to prevent continued "playing" status updates
         // This must happen before any other processing to stop the race condition
-        clearTimeUpdateIntervals(cueId, playingState, audioControllerContext);
-        // console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Time update intervals cleared immediately to prevent race condition.`);
+        // BUT: Don't clear intervals if looping - we want time updates to continue during loop
+        if (!isLoopingSingleCue) {
+            clearTimeUpdateIntervals(cueId, playingState, audioControllerContext);
+            // console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Time update intervals cleared immediately to prevent race condition.`);
+        }
 
         // CRITICAL FIX: Clear sound object immediately to prevent getPlaybackState from thinking it's still playing
-        if (playingState.sound) {
+        // BUT: Don't stop/cleanup if looping - Howler needs the sound instance to continue looping
+        if (playingState.sound && !isLoopingSingleCue) {
             // console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Clearing sound object immediately to prevent false playing state.`);
             // Force stop the sound if it's still running (defensive programming)
             try {
@@ -48,9 +55,11 @@ export function createOnendHandler(cueId, sound, playingState, filePath, current
         // For other cases, send 'stopped' status now.
         const isStopAndCueNextPlaylist = playingState.isPlaylist && mainCue.playlistPlayMode === 'stop_and_cue_next';
 
-        if (!isStopAndCueNextPlaylist) {
+        if (!isStopAndCueNextPlaylist && !isLoopingSingleCue) {
             console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Not a 'stop_and_cue_next' playlist or not a playlist. Sending 'stopped' status.`);
             audioControllerContext.sendPlaybackTimeUpdate(cueId, sound, playingState, currentItemNameForEvents, 'stopped');
+        } else if (isLoopingSingleCue) {
+            console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Looping single cue - skipping stopped status update. Howler will handle loop.`);
         } else {
             console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Is a 'stop_and_cue_next' playlist. Deferring specific status update to _handlePlaylistEnd.`);
         }
@@ -72,6 +81,7 @@ export function createOnendHandler(cueId, sound, playingState, filePath, current
                 sound.seek(mainCue.trimStartTime);
             }
             // Note: We don't call sound.play() here because Howler's loop flag handles the restart
+            // Also note: We don't cleanup the sound here because Howler needs it to continue looping
         } else {
             // Single cue, not looping, and not a playlist - it just ended.
             console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Single cue, no loop. Processing complete.`);

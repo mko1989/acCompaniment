@@ -196,7 +196,7 @@ function populateFormWithCueData(cue, domElements, setStagedPlaylistItems, rende
 
     if(domElements.propCueIdInput) domElements.propCueIdInput.value = cue.id;
     if(domElements.propCueNameInput) domElements.propCueNameInput.value = cue.name || '';
-    if(domElements.propCueTypeSelect) domElements.propCueTypeSelect.value = cue.type || 'single';
+    if(domElements.propCueTypeSelect) domElements.propCueTypeSelect.value = cue.type || 'single_file';
     
     const isPlaylist = cue.type === 'playlist';
     if(domElements.propPlaylistConfigDiv) domElements.propPlaylistConfigDiv.style.display = isPlaylist ? 'block' : 'none';
