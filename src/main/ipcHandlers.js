@@ -66,6 +66,16 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
         return { success: true };
     });
 
+    ipcMain.handle('save-reordered-cues', async (event, reorderedCues) => {
+        console.log(`IPC_HANDLER: 'save-reordered-cues' received for ${reorderedCues.length} cues.`);
+        if (cueManagerRef && typeof cueManagerRef.setCues === 'function') {
+            cueManagerRef.setCues(reorderedCues);
+            if (workspaceManagerRef) workspaceManagerRef.markWorkspaceAsEdited();
+            return { success: true };
+        }
+        return { success: false, error: 'CueManager not available' };
+    });
+
     ipcMain.handle('generate-uuid', async () => {
         return uuidv4();
     });
@@ -655,6 +665,113 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
         }
         return { success: false, error: 'Main window not available' };
     });
+
+    ipcMain.handle('playlist-jump-to-item', async (event, cueId, targetIndex) => {
+        console.log(`IPC_HANDLER: 'playlist-jump-to-item' received for cueId: ${cueId}, index: ${targetIndex}`);
+        if (mainWindowRef && mainWindowRef.webContents && !mainWindowRef.webContents.isDestroyed()) {
+            mainWindowRef.webContents.send('playlist-jump-to-item-from-main', { cueId, targetIndex });
+            return { success: true };
+        }
+        return { success: false, error: 'Main window not available' };
+    });
+
+    ipcMain.handle('get-app-version', async (event) => {
+        const packageJson = require('../../package.json');
+        return packageJson.version;
+    });
+
+    ipcMain.handle('check-for-update', async (event) => {
+        try {
+            const https = require('https');
+            const packageJson = require('../../package.json');
+            const currentVersion = packageJson.version;
+            
+            return new Promise((resolve) => {
+                const options = {
+                    hostname: 'api.github.com',
+                    path: '/repos/mko1989/acCompaniment/releases/latest',
+                    method: 'GET',
+                    headers: {
+                        'User-Agent': 'acCompaniment'
+                    }
+                };
+
+                const req = https.request(options, (res) => {
+                    let data = '';
+                    res.on('data', (chunk) => {
+                        data += chunk;
+                    });
+                    res.on('end', () => {
+                        try {
+                            const release = JSON.parse(data);
+                            const latestVersion = release.tag_name.replace(/^v/, '');
+                            const updateAvailable = compareVersions(latestVersion, currentVersion) > 0;
+                            resolve({
+                                currentVersion,
+                                latestVersion,
+                                updateAvailable,
+                                releaseUrl: release.html_url
+                            });
+                        } catch (error) {
+                            console.error('Error parsing GitHub release data:', error);
+                            resolve({
+                                currentVersion,
+                                latestVersion: null,
+                                updateAvailable: false,
+                                error: 'Failed to check for updates'
+                            });
+                        }
+                    });
+                });
+
+                req.on('error', (error) => {
+                    console.error('Error checking for updates:', error);
+                    resolve({
+                        currentVersion,
+                        latestVersion: null,
+                        updateAvailable: false,
+                        error: 'Network error'
+                    });
+                });
+
+                req.setTimeout(5000, () => {
+                    req.destroy();
+                    resolve({
+                        currentVersion,
+                        latestVersion: null,
+                        updateAvailable: false,
+                        error: 'Timeout'
+                    });
+                });
+
+                req.end();
+            });
+        } catch (error) {
+            console.error('Error checking for updates:', error);
+            const packageJson = require('../../package.json');
+            return {
+                currentVersion: packageJson.version,
+                latestVersion: null,
+                updateAvailable: false,
+                error: error.message
+            };
+        }
+    });
+
+    // Helper function to compare version strings (e.g., "1.0.1" vs "1.0.2")
+    function compareVersions(v1, v2) {
+        const parts1 = v1.split('.').map(Number);
+        const parts2 = v2.split('.').map(Number);
+        const maxLength = Math.max(parts1.length, parts2.length);
+        
+        for (let i = 0; i < maxLength; i++) {
+            const part1 = parts1[i] || 0;
+            const part2 = parts2[i] || 0;
+            if (part1 > part2) return 1;
+            if (part1 < part2) return -1;
+        }
+        return 0;
+    }
 }
 
 // Theme handling function (not directly part of initialize, but used by it and menu)

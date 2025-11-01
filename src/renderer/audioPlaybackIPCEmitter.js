@@ -62,16 +62,22 @@ function sendPlaybackTimeUpdate(cueId, soundInstance, playingState, currentItemN
     }
     // END CAPTURE INITIAL VALUES & ADD LOGGING
 
+    // Check if cue is fading in or out - set status to 'fading' if so
+    const isFading = playingState && (playingState.isFadingIn || playingState.isFadingOut);
+    
     let status = statusOverride || 'stopped'; // Default to stopped if no override
 
     if (soundInstance && soundInstance.playing()) {
         currentTimeSec = soundInstance.seek() || 0;
-        status = statusOverride || 'playing';
+        // If fading, override status to 'fading', otherwise use override or 'playing'
+        status = isFading ? 'fading' : (statusOverride || 'playing');
     } else if (soundInstance && playingState.isPaused) {
         currentTimeSec = soundInstance.seek() || 0; // Get current time even if paused
-        status = statusOverride || 'paused';
+        // If fading, override status to 'fading', otherwise use override or 'paused'
+        status = isFading ? 'fading' : (statusOverride || 'paused');
     } else if (statusOverride) {
-        status = statusOverride;
+        // If fading and no sound instance, still set status to 'fading'
+        status = isFading ? 'fading' : statusOverride;
         // If status is 'paused' but no soundInstance, use last known seek time if available (future enhancement)
         // For now, if 'paused' override with no sound, currentTimeSec remains 0 unless playingState has it
         if (status === 'paused' && playingState.lastSeekPosition !== undefined) {

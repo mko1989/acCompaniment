@@ -627,6 +627,15 @@ function playlistNavigatePrevious(cueId, fromExternal = false) {
     return playbackManagerModule.playlistNavigatePrevious(cueId, fromExternal);
 }
 
+function playlistJumpToItem(cueId, targetIndex, fromExternal = false) {
+    console.log(`AudioController: playlistJumpToItem for cue ${cueId}, index ${targetIndex}, fromExternal=${fromExternal}`);
+    if (!audioControllerInitialized || !playbackManagerModule || !playbackManagerModule.playlistJumpToItem) {
+        console.warn(`AudioController: playlistJumpToItem called for ${cueId} - playbackManager not ready`);
+        return false;
+    }
+    return playbackManagerModule.playlistJumpToItem(cueId, targetIndex, fromExternal);
+}
+
 // Preload audio files for instant playback
 const preloadedSounds = new Map(); // Store preloaded Howl instances
 
@@ -775,6 +784,7 @@ export default {
     playCueByIdFromMain, // Make sure this is exported if called from IPC
     playlistNavigateNext,
     playlistNavigatePrevious,
+    playlistJumpToItem,
     handleCrossfadeToggle: (cueId) => {
         if (!audioControllerInitialized || !playbackManagerModule || !playbackManagerModule.handleCrossfadeToggle) {
             console.error(`AudioController: handleCrossfadeToggle called for ${cueId} before full initialization or playbackManager not ready.`);

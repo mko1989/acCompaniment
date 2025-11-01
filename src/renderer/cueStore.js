@@ -240,4 +240,41 @@ function isCueStoreReady() {
     return isInitialized;
 }
 
-export { init, loadCuesFromServer, getCueById, getAllCues, addOrUpdateCue, deleteCue, isCueStoreReady }; 
+async function reorderCues(newOrder) {
+    // newOrder is an array of cue IDs in the desired order
+    if (!ipcBindings || typeof ipcBindings.saveReorderedCues !== 'function') {
+        console.error('CueStore: IPC bindings or saveReorderedCues function not initialized. Cannot reorder cues.');
+        return { success: false, error: 'IPC bindings not available for reordering cues.' };
+    }
+    
+    const allCues = getAllCues();
+    const reorderedCues = newOrder.map(cueId => 
+        allCues.find(c => c.id === cueId)
+    ).filter(c => c !== undefined);
+    
+    if (reorderedCues.length !== allCues.length) {
+        console.warn('CueStore: Reordered cues count does not match total cues. Some cues may be missing.');
+    }
+    
+    console.log(`CueStore: Reordering ${reorderedCues.length} cues to new order.`);
+    try {
+        const result = await ipcBindings.saveReorderedCues(reorderedCues);
+        if (result && result.success) {
+            console.log(`CueStore: Cues reordered successfully.`);
+        } else {
+            console.error('CueStore: Failed to reorder cues.', result ? result.error : 'Unknown error');
+        }
+        return result;
+    } catch (error) {
+        console.error('CueStore: Error calling saveReorderedCues IPC binding:', error);
+        return { success: false, error: error.message || 'IPC call failed' };
+    }
+}
+
+async function saveReorderedCues(reorderedCues) {
+    // Alias for reorderCues that takes the array directly
+    const newOrder = reorderedCues.map(c => c.id);
+    return reorderCues(newOrder);
+}
+
+export { init, loadCuesFromServer, getCueById, getAllCues, addOrUpdateCue, deleteCue, isCueStoreReady, reorderCues, saveReorderedCues }; 

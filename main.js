@@ -320,6 +320,142 @@ function getMenuTemplate(mainWindow, cueManager, workspaceManager, appConfigMana
       role: 'help',
       submenu: [
         {
+          label: `Version ${app.getVersion()}`,
+          enabled: false
+        },
+        {
+          type: 'separator'
+        },
+        {
+          label: 'Check for Updates...',
+          click: async () => {
+            try {
+              const { ipcMain } = require('electron');
+              const https = require('https');
+              const packageJson = require('./package.json');
+              const currentVersion = packageJson.version;
+              
+              const checkUpdate = () => {
+                return new Promise((resolve) => {
+                  const options = {
+                    hostname: 'api.github.com',
+                    path: '/repos/mko1989/acCompaniment/releases/latest',
+                    method: 'GET',
+                    headers: {
+                      'User-Agent': 'acCompaniment'
+                    }
+                  };
+
+                  const req = https.request(options, (res) => {
+                    let data = '';
+                    res.on('data', (chunk) => {
+                      data += chunk;
+                    });
+                    res.on('end', () => {
+                      try {
+                        const release = JSON.parse(data);
+                        const latestVersion = release.tag_name.replace(/^v/, '');
+                        const parts1 = latestVersion.split('.').map(Number);
+                        const parts2 = currentVersion.split('.').map(Number);
+                        const maxLength = Math.max(parts1.length, parts2.length);
+                        let updateAvailable = false;
+                        for (let i = 0; i < maxLength; i++) {
+                          const part1 = parts1[i] || 0;
+                          const part2 = parts2[i] || 0;
+                          if (part1 > part2) {
+                            updateAvailable = true;
+                            break;
+                          }
+                          if (part1 < part2) break;
+                        }
+                        resolve({
+                          currentVersion,
+                          latestVersion,
+                          updateAvailable,
+                          releaseUrl: release.html_url
+                        });
+                      } catch (error) {
+                        resolve({
+                          currentVersion,
+                          latestVersion: null,
+                          updateAvailable: false,
+                          error: 'Failed to parse release data'
+                        });
+                      }
+                    });
+                  });
+
+                  req.on('error', () => {
+                    resolve({
+                      currentVersion,
+                      latestVersion: null,
+                      updateAvailable: false,
+                      error: 'Network error'
+                    });
+                  });
+
+                  req.setTimeout(5000, () => {
+                    req.destroy();
+                    resolve({
+                      currentVersion,
+                      latestVersion: null,
+                      updateAvailable: false,
+                      error: 'Timeout'
+                    });
+                  });
+
+                  req.end();
+                });
+              };
+
+              const updateInfo = await checkUpdate();
+              if (updateInfo.updateAvailable) {
+                const { dialog } = require('electron');
+                const result = await dialog.showMessageBox(mainWindow, {
+                  type: 'info',
+                  title: 'Update Available',
+                  message: `A new version is available!`,
+                  detail: `Current version: ${updateInfo.currentVersion}\nLatest version: ${updateInfo.latestVersion}\n\nWould you like to visit the releases page?`,
+                  buttons: ['Visit Releases', 'Cancel'],
+                  defaultId: 0
+                });
+                if (result.response === 0) {
+                  const { shell } = require('electron');
+                  await shell.openExternal('https://github.com/mko1989/acCompaniment/releases');
+                }
+              } else if (updateInfo.error) {
+                const { dialog } = require('electron');
+                await dialog.showMessageBox(mainWindow, {
+                  type: 'warning',
+                  title: 'Update Check Failed',
+                  message: `Could not check for updates: ${updateInfo.error}`,
+                  detail: `Current version: ${updateInfo.currentVersion}`
+                });
+              } else {
+                const { dialog } = require('electron');
+                await dialog.showMessageBox(mainWindow, {
+                  type: 'info',
+                  title: 'Up to Date',
+                  message: `You are running the latest version.`,
+                  detail: `Version: ${updateInfo.currentVersion}`
+                });
+              }
+            } catch (error) {
+              console.error('Error checking for updates:', error);
+              const { dialog } = require('electron');
+              await dialog.showMessageBox(mainWindow, {
+                type: 'error',
+                title: 'Error',
+                message: 'Failed to check for updates',
+                detail: error.message
+              });
+            }
+          }
+        },
+        {
+          type: 'separator'
+        },
+        {
           label: 'Learn More',
           click: async () => {
             const { shell } = require('electron');
@@ -330,6 +466,23 @@ function getMenuTemplate(mainWindow, cueManager, workspaceManager, appConfigMana
     }
   ];
   return template;
+}
+
+// --- Single Instance Lock ---
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  console.log('MAIN_JS: Another instance is already running. Exiting.');
+  app.quit();
+} else {
+  app.on('second-instance', (event, commandLine, workingDirectory) => {
+    // Someone tried to run a second instance, focus our window instead
+    console.log('MAIN_JS: Second instance attempted. Focusing existing window.');
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
 }
 
 // --- Electron App Lifecycle Events ---

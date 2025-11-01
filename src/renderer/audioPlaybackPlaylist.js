@@ -443,10 +443,88 @@ function playlistNavigatePrevious(cueId, fromExternal, currentlyPlaying, getGlob
     return true;
 }
 
+// Function to jump to a specific item in a playlist
+function playlistJumpToItem(cueId, targetIndex, fromExternal, currentlyPlaying, getGlobalCueByIdRef, _playTargetItem, _generateShuffleOrder, startPlaylistAtPosition, sidebarsAPIRef, cuePlayOrder, sendPlaybackTimeUpdateRef = null) {
+    const timestamp = new Date().toISOString();
+    log.debug(`Playlist jump to item for cue ${cueId}, index ${targetIndex} at ${timestamp}`);
+    
+    const cue = getGlobalCueByIdRef(cueId);
+    if (!cue || cue.type !== 'playlist' || !cue.playlistItems || cue.playlistItems.length === 0) {
+        log.warn(`playlistJumpToItem called for invalid playlist cue ${cueId}`);
+        return false;
+    }
+    
+    // Clamp target index to valid range
+    const clampedIndex = Math.max(0, Math.min(targetIndex, cue.playlistItems.length - 1));
+    
+    const playingState = currentlyPlaying[cueId];
+    
+    if (!playingState || (!playingState.sound && !playingState.isPaused && !playingState.isCuedNext)) {
+        // Playlist is not currently playing - start it at the target position
+        log.info(`Idle playlist jump: Starting ${cueId} at index ${clampedIndex}`);
+        startPlaylistAtPosition(cueId, clampedIndex, currentlyPlaying, getGlobalCueByIdRef, _playTargetItem, _generateShuffleOrder, cuePlayOrder);
+        return true;
+    }
+    
+    if (!playingState.isPlaylist) {
+        log.warn(`playlistJumpToItem called for non-playlist playingState ${cueId}`);
+        return false;
+    }
+    
+    // Update the current index
+    playingState.currentPlaylistItemIndex = clampedIndex;
+    playingState.isPaused = false;
+    playingState.isCuedNext = false;
+    playingState.isNavigating = true;
+    
+    // Stop current sound if playing
+    if (playingState.sound) {
+        try {
+            playingState.sound.stop();
+            playingState.sound.unload();
+        } catch (error) {
+            console.warn(`Error stopping sound during jump:`, error);
+        }
+        playingState.sound = null;
+    }
+    
+    console.log(`🔵 AudioPlaybackManager: Jumping to item at index ${clampedIndex} for ${cueId}`);
+    
+    // Play the target item immediately - _playTargetItem is already wrapped with context
+    _playTargetItem(cueId, clampedIndex, false);
+    
+    // Update playlist highlighting if available
+    if (sidebarsAPIRef && typeof sidebarsAPIRef.highlightPlayingPlaylistItemInSidebar === 'function') {
+        const mainCue = playingState.cue;
+        let targetOriginalIdx = clampedIndex;
+        if (mainCue.shuffle && playingState.shufflePlaybackOrder && playingState.shufflePlaybackOrder.length > clampedIndex) {
+            targetOriginalIdx = playingState.shufflePlaybackOrder[clampedIndex];
+        }
+        const playingItem = playingState.originalPlaylistItems[targetOriginalIdx];
+        if (playingItem && playingItem.id) {
+            sidebarsAPIRef.highlightPlayingPlaylistItemInSidebar(cueId, playingItem.id);
+        }
+    }
+    
+    // Update last position tracker
+    lastPlaylistPositions.set(cueId, clampedIndex);
+    
+    // Clear navigation flag quickly after the play call completes
+    setTimeout(() => {
+        if (currentlyPlaying[cueId]) {
+            currentlyPlaying[cueId].isNavigating = false;
+            console.log(`🔵 AudioPlaybackManager: Navigation flag cleared for ${cueId}`);
+        }
+    }, 50);
+    
+    return true;
+}
+
 export {
     startPlaylistAtPosition,
     playlistNavigateNext,
     playlistNavigatePrevious,
+    playlistJumpToItem,
     _cuePlaylistAtPosition,
     navigationBlocked,
     lastPlaylistPositions

@@ -4,7 +4,7 @@
 import { log } from './audioPlaybackLogger.js';
 import { _revertDucking } from './audioPlaybackDucking.js';
 import { _generateShuffleOrder } from './audioPlaybackUtils.js';
-import { _removeFromPlayOrder, _updateCurrentCueForCompanion } from './audioPlaybackStateManagement.js';
+import { _removeFromPlayOrder, _updateCurrentCueForCompanion, _cleanupSoundInstance } from './audioPlaybackStateManagement.js';
 
 export function _handlePlaylistEnd(cueId, errorOccurred = false, context) {
     const {
@@ -12,7 +12,6 @@ export function _handlePlaylistEnd(cueId, errorOccurred = false, context) {
         getGlobalCueById: getGlobalCueByIdRef,
         _revertDucking,
         _cleanupSoundInstance,
-        _removeFromPlayOrder,
         _updateCurrentCueForCompanion,
         ipcBindingsRef,
         cueGridAPIRef,
@@ -57,10 +56,22 @@ export function _handlePlaylistEnd(cueId, errorOccurred = false, context) {
     if (errorOccurred) {
         console.error(`AudioPlaybackManager: Error in playlist ${cueId}. Stopping playlist.`);
         // Use comprehensive cleanup for error cases
-        _cleanupSoundInstance(cueId, playingState, { 
-            forceUnload: true, 
-            source: '_handlePlaylistEnd_error' 
-        });
+        // Use the imported base function directly with the existing context
+        if (context) {
+            try {
+                _cleanupSoundInstance(cueId, playingState, { 
+                    forceUnload: true, 
+                    source: '_handlePlaylistEnd_error' 
+                }, context);
+            } catch (cleanupError) {
+                console.error(`AudioPlaybackManager: Error during cleanup for ${cueId}:`, cleanupError);
+                // Fallback: just delete the state without cleanup
+                delete currentlyPlaying[cueId];
+            }
+        } else {
+            console.error(`AudioPlaybackManager: Context is undefined for ${cueId}, deleting state directly`);
+            delete currentlyPlaying[cueId];
+        }
         
         if (ipcBindingsRef && typeof ipcBindingsRef.send === 'function') {
             ipcBindingsRef.send('cue-status-update', { cueId: cueId, status: 'error', details: { details: 'playlist_playback_error' } });
@@ -252,11 +263,26 @@ export function _handlePlaylistEnd(cueId, errorOccurred = false, context) {
             setTimeout(() => _playTargetItem(cueId, 0, false, context), 10);
         } else { // No loop, playlist truly ends
             delete currentlyPlaying[cueId];
-            // Remove from play order and update current cue
-            context.cuePlayOrder = _removeFromPlayOrder(cueId, context.cuePlayOrder);
+            // Remove from play order and update current cue (using imported function directly)
+            // Ensure cuePlayOrder exists before using it
+            const currentCuePlayOrder = context.cuePlayOrder || [];
+            context.cuePlayOrder = _removeFromPlayOrder(cueId, currentCuePlayOrder);
             context.lastCurrentCueId = _updateCurrentCueForCompanion(context.cuePlayOrder, currentlyPlaying, context.lastCurrentCueId, context.sendPlaybackTimeUpdateRef);
             
-            if (cueGridAPIRef) cueGridAPIRef.updateButtonPlayingState(cueId, false);
+            // CRITICAL FIX: Ensure UI is updated to show the playlist is stopped
+            // Update button state to false (not playing), with no cued override
+            if (cueGridAPIRef) {
+                cueGridAPIRef.updateButtonPlayingState(cueId, false, null, false);
+            } else {
+                // Fallback to window.uiModules if cueGridAPIRef is not available
+                try {
+                    if (typeof window !== 'undefined' && window.uiModules && window.uiModules.cueGrid && typeof window.uiModules.cueGrid.updateButtonPlayingState === 'function') {
+                        window.uiModules.cueGrid.updateButtonPlayingState(cueId, false, null, false);
+                    }
+                } catch (error) {
+                    console.error(`AudioPlaybackManager: Error accessing fallback UI ref for ${cueId}:`, error);
+                }
+            }
             // Clear playlist highlighting in properties sidebar
             if (sidebarsAPIRef && typeof sidebarsAPIRef.highlightPlayingPlaylistItemInSidebar === 'function') {
                 sidebarsAPIRef.highlightPlayingPlaylistItemInSidebar(cueId, null);

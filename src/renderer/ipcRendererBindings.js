@@ -82,6 +82,11 @@ async function saveCuesToMain(cues) {
     return electronAPIInstance.invoke('save-cues', cues);
 }
 
+async function saveReorderedCues(reorderedCues) {
+    if (!electronAPIInstance) throw new Error("electronAPIInstance not available for save-reordered-cues");
+    return electronAPIInstance.invoke('save-reordered-cues', reorderedCues);
+}
+
 async function generateUUID() {
     if (!electronAPIInstance) {
         console.error("electronAPIInstance not available for UUID generation, falling back.");
@@ -308,6 +313,16 @@ function setupOtherListeners() {
             console.error('IPC Binding: audioControllerRef.playlistNavigatePrevious not available for external navigation');
         }
     });
+
+    electronAPIInstance.on('playlist-jump-to-item-from-main', (data) => {
+        console.log(`IPC Binding: Received 'playlist-jump-to-item-from-main' from EXTERNAL source for cueId: ${data.cueId}, index: ${data.targetIndex}`);
+        if (audioControllerRef && typeof audioControllerRef.playlistJumpToItem === 'function') {
+            const result = audioControllerRef.playlistJumpToItem(data.cueId, data.targetIndex, true); // true = from external source
+            console.log(`IPC Binding: playlistJumpToItem result for ${data.cueId}: ${result}`);
+        } else {
+            console.error('IPC Binding: audioControllerRef.playlistJumpToItem not available for external navigation');
+        }
+    });
 }
 
 // Note: ipcRendererBindings itself no longer directly calls audioController methods like playCueById, stopCue, etc.
@@ -362,6 +377,7 @@ export {
     setModuleRefs,
     getCuesFromMain,
     saveCuesToMain,
+    saveReorderedCues,
     generateUUID,
     sendCueStatusUpdate,
     getAppConfig,

@@ -274,3 +274,61 @@
     line-height: 1.4;
 }
 
+/* Drag and Drop Styles for Cue Reordering */
+.cue-wrapper.dragging-cue {
+    opacity: 0.5;
+    cursor: grabbing !important;
+}
+
+.cue-wrapper.dragging-cue .cue-button {
+    cursor: grabbing !important;
+}
+
+.cue-wrapper.drag-insert-before {
+    border-left: 3px solid var(--button-primary-bg, #2980b9);
+    margin-left: -3px;
+    position: relative;
+}
+
+.cue-wrapper.drag-insert-before::before {
+    content: '';
+    position: absolute;
+    left: -2px;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background-color: var(--button-primary-bg, #2980b9);
+    box-shadow: 0 0 8px var(--button-primary-bg, #2980b9);
+    z-index: 10;
+}
+
+.cue-wrapper.drag-insert-after {
+    border-right: 3px solid var(--button-primary-bg, #2980b9);
+    margin-right: -3px;
+    position: relative;
+}
+
+.cue-wrapper.drag-insert-after::after {
+    content: '';
+    position: absolute;
+    right: -2px;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background-color: var(--button-primary-bg, #2980b9);
+    box-shadow: 0 0 8px var(--button-primary-bg, #2980b9);
+    z-index: 10;
+}
+
+#cueGridContainer.drag-active {
+    position: relative;
+}
+
+.cue-button.draggable-cue {
+    cursor: grab;
+}
+
+.cue-button.draggable-cue:active {
+    cursor: grabbing;
+}
+

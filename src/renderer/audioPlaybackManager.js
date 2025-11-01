@@ -6,7 +6,7 @@ console.log('AudioPlaybackManager.js: TOP LEVEL EXECUTION START');
 // Import extracted modules
 import { LogLevel, setLogLevel, log, initializeLogging } from './audioPlaybackLogger.js';
 import { _applyDucking, _revertDucking, DUCKING_FADE_DURATION } from './audioPlaybackDucking.js';
-import { startPlaylistAtPosition, playlistNavigateNext, playlistNavigatePrevious, navigationBlocked, lastPlaylistPositions } from './audioPlaybackPlaylist.js';
+import { startPlaylistAtPosition, playlistNavigateNext, playlistNavigatePrevious, playlistJumpToItem, navigationBlocked, lastPlaylistPositions } from './audioPlaybackPlaylist.js';
 import { handleCrossfadeToggle, _handleCrossfadeStart } from './audioPlaybackCrossfade.js';
 import { PERFORMANCE_CACHE, THROTTLE_CACHE, throttle, _generateShuffleOrder, cleanupAllResources, clearPerformanceCache } from './audioPlaybackUtils.js';
 
@@ -125,8 +125,18 @@ function createContext() {
         playbackIntervals,
         pendingRestarts,
         allSoundInstances,
-        cuePlayOrder,
-        lastCurrentCueId,
+        get cuePlayOrder() {
+            return cuePlayOrder;
+        },
+        set cuePlayOrder(value) {
+            cuePlayOrder = value;
+        },
+        get lastCurrentCueId() {
+            return lastCurrentCueId;
+        },
+        set lastCurrentCueId(value) {
+            lastCurrentCueId = value;
+        },
         getGlobalCueByIdRef,
         getPlaybackTimesUtilRef,
         formatTimeMMSSRef,
@@ -174,6 +184,7 @@ publicAPIManagerInstance = {
     getPlaybackState: (cueId) => getPlaybackState(cueId, createContext()),
     playlistNavigateNext: (cueId, fromExternal) => playlistNavigateNext(cueId, fromExternal, currentlyPlaying, getGlobalCueByIdRef, (cueId, index, isResume) => _playTargetItem(cueId, index, isResume, createContext()), _generateShuffleOrder, startPlaylistAtPosition, sidebarsAPIRef, cuePlayOrder, sendPlaybackTimeUpdateRef),
     playlistNavigatePrevious: (cueId, fromExternal) => playlistNavigatePrevious(cueId, fromExternal, currentlyPlaying, getGlobalCueByIdRef, (cueId, index, isResume) => _playTargetItem(cueId, index, isResume, createContext()), _generateShuffleOrder, startPlaylistAtPosition, sidebarsAPIRef, cuePlayOrder, sendPlaybackTimeUpdateRef),
+    playlistJumpToItem: (cueId, targetIndex, fromExternal) => playlistJumpToItem(cueId, targetIndex, fromExternal, currentlyPlaying, getGlobalCueByIdRef, (cueId, index, isResume) => _playTargetItem(cueId, index, isResume, createContext()), _generateShuffleOrder, startPlaylistAtPosition, sidebarsAPIRef, cuePlayOrder, sendPlaybackTimeUpdateRef),
     handleCrossfadeToggle: (cueId) => handleCrossfadeToggle(cueId, getGlobalCueByIdRef, currentlyPlaying, (cueIdToToggle, fromCompanion, retriggerBehaviorOverride) => toggleCue(cueIdToToggle, fromCompanion, retriggerBehaviorOverride, createContext()), (newCueId, newCue) => _handleCrossfadeStart(newCueId, newCue, currentlyPlaying, getAppConfigFuncRef, cueGridAPIRef, (cueId, useFade, fromCompanion, isRetriggerStop, stopReason) => stop(cueId, useFade, fromCompanion, isRetriggerStop, stopReason, createContext()), (cue, isResume) => play(cue, isResume, createContext()), (cueId, index, isResume) => _playTargetItem(cueId, index, isResume, createContext()))),
     getCurrentlyPlayingInstances: () => currentlyPlaying, // Expose currently playing instances for device switching
     // Ducking functions - exposed for internal use by playbackInstanceHandler

@@ -330,7 +330,8 @@ function _handleFilePathError(cueId, playingState, errorType, filePath, context)
         currentlyPlaying,
         ipcBindingsRef,
         cueGridAPIRef,
-        _handlePlaylistEnd
+        _handlePlaylistEnd,
+        _cleanupSoundInstance
     } = context;
 
     log.error(`File path error for cue ${cueId}: ${errorType}`);
@@ -351,10 +352,19 @@ function _handleFilePathError(cueId, playingState, errorType, filePath, context)
             _handlePlaylistEnd(cueId, true, context); 
         } else {
             if (currentlyPlaying[cueId]) {
-            _cleanupSoundInstance(cueId, currentlyPlaying[cueId], {
-                forceUnload: false,
-                source: 'file_path_error'
-            }, context);
+            const { _cleanupSoundInstance: cleanupFn } = context;
+            if (cleanupFn && typeof cleanupFn === 'function') {
+                cleanupFn(cueId, currentlyPlaying[cueId], {
+                    forceUnload: false,
+                    source: 'file_path_error'
+                });
+            } else {
+                // Fallback: call directly with context if wrapper not available
+                _cleanupSoundInstance(cueId, currentlyPlaying[cueId], {
+                    forceUnload: false,
+                    source: 'file_path_error'
+                }, context);
+            }
         }
         if (cueGridAPIRef) {
             cueGridAPIRef.updateButtonPlayingState(cueId, false, null, false, true); 
@@ -381,7 +391,8 @@ function _proceedWithPlayback(cueId, playingState, filePath, currentItemName, ac
         audioControllerRef,
         allSoundInstances,
         createPlaybackInstanceRef,
-        getPreloadedSound
+        getPreloadedSound,
+        _cleanupSoundInstance
     } = context;
 
     try {
@@ -433,7 +444,13 @@ function _proceedWithPlayback(cueId, playingState, filePath, currentItemName, ac
     
         log.debug(`Creating playback instance for ${cueId} with file: ${filePath}`);
         
-        // Create the sound instance
+        // Create the sound instance - ensure createPlaybackInstanceRef is available
+        if (!createPlaybackInstanceRef || typeof createPlaybackInstanceRef !== 'function') {
+            log.error(`createPlaybackInstanceRef is not available or not a function for ${cueId}`);
+            _handleFilePathError(cueId, playingState, 'createPlaybackInstanceRef_not_available', filePath, context);
+            return;
+        }
+        
         playingState.sound = createPlaybackInstanceRef(
         filePath, 
             cueId,
@@ -538,7 +555,9 @@ export function stop(cueId, useFade = true, fromCompanion = false, isRetriggerSt
             if (!isStopAndCueNextPlaylist) {
                 delete currentlyPlaying[cueId];
                 // Remove from play order and update current cue
-                context.cuePlayOrder = _removeFromPlayOrder(cueId, context.cuePlayOrder);
+                // Ensure cuePlayOrder is an array before passing to _removeFromPlayOrder
+                const currentCuePlayOrder = context.cuePlayOrder || [];
+                context.cuePlayOrder = _removeFromPlayOrder(cueId, currentCuePlayOrder);
                 context.lastCurrentCueId = _updateCurrentCueForCompanion(context.cuePlayOrder, currentlyPlaying, context.lastCurrentCueId, context.sendPlaybackTimeUpdateRef);
                 
                 // Clear playlist highlighting

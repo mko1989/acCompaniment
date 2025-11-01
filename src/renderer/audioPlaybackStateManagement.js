@@ -6,6 +6,11 @@ import { PERFORMANCE_CACHE } from './audioPlaybackUtils.js';
 
 // Current cue priority management functions
 export function _addToPlayOrder(cueId, cuePlayOrder) {
+    // Safety check: ensure cuePlayOrder is an array
+    if (!cuePlayOrder || !Array.isArray(cuePlayOrder)) {
+        console.warn('_addToPlayOrder: cuePlayOrder is not an array:', cuePlayOrder);
+        return [cueId];
+    }
     // Remove cueId if it already exists in the array
     const newOrder = cuePlayOrder.filter(id => id !== cueId);
     // Add to the beginning (most recent)
@@ -15,6 +20,11 @@ export function _addToPlayOrder(cueId, cuePlayOrder) {
 }
 
 export function _removeFromPlayOrder(cueId, cuePlayOrder) {
+    // Safety check: ensure cuePlayOrder is an array
+    if (!cuePlayOrder || !Array.isArray(cuePlayOrder)) {
+        console.warn('_removeFromPlayOrder: cuePlayOrder is not an array:', cuePlayOrder);
+        return [];
+    }
     const newOrder = cuePlayOrder.filter(id => id !== cueId);
     console.log(`AudioPlaybackManager: Removed ${cueId} from play order - remaining: [${newOrder.join(', ')}]`);
     return newOrder;
@@ -70,6 +80,26 @@ export function _updateCurrentCueForCompanion(cuePlayOrder, currentlyPlaying, la
 
 // Enhanced memory management utility
 export function _cleanupSoundInstance(cueId, state, options = {}, context) {
+    // Safety check: ensure context is provided
+    if (!context) {
+        log.error(`_cleanupSoundInstance: Context is undefined for ${cueId}`);
+        // Fallback: try to delete from global state if available
+        if (state && typeof state.sound !== 'undefined' && state.sound) {
+            try {
+                if (state.sound.playing && typeof state.sound.playing === 'function' && state.sound.playing()) {
+                    state.sound.stop();
+                }
+                state.sound.off();
+                if (options.forceUnload) {
+                    state.sound.unload();
+                }
+            } catch (error) {
+                log.error(`_cleanupSoundInstance: Error during fallback cleanup for ${cueId}:`, error);
+            }
+        }
+        return;
+    }
+    
     const {
         currentlyPlaying,
         playbackIntervals,
@@ -183,7 +213,9 @@ export function _cleanupSoundInstance(cueId, state, options = {}, context) {
     if (clearState && currentlyPlaying[cueId] === state) {
         delete currentlyPlaying[cueId];
         // Remove from play order and update current cue
-        context.cuePlayOrder = _removeFromPlayOrder(cueId, context.cuePlayOrder);
+        // Ensure cuePlayOrder is an array before passing to _removeFromPlayOrder
+        const currentCuePlayOrder = context.cuePlayOrder || [];
+        context.cuePlayOrder = _removeFromPlayOrder(cueId, currentCuePlayOrder);
         context.lastCurrentCueId = _updateCurrentCueForCompanion(context.cuePlayOrder, currentlyPlaying, context.lastCurrentCueId, context.sendPlaybackTimeUpdateRef);
         
         // Clear playlist highlighting

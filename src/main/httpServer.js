@@ -161,6 +161,13 @@ function initialize(cueMgr, mainWin, appConfig = null) {
                     } else {
                         console.warn('HTTP_SERVER: Cannot send stop all command - mainWindowRef or webContents not available');
                     }
+                } else if (parsedMessage.action === 'playlist_jump_to_item' && parsedMessage.cueId !== undefined && parsedMessage.targetIndex !== undefined) {
+                    if (mainWindowRef && mainWindowRef.webContents) {
+                        mainWindowRef.webContents.send('playlist-jump-to-item-from-main', { cueId: parsedMessage.cueId, targetIndex: parsedMessage.targetIndex });
+                        console.log(`HTTP_SERVER: Playlist jump to item command sent for cue ${parsedMessage.cueId}, index ${parsedMessage.targetIndex}`);
+                    } else {
+                        console.warn('HTTP_SERVER: Cannot send playlist jump to item command - mainWindowRef or webContents not available');
+                    }
                 }
             } catch (error) {
                 console.error('HTTP_SERVER_LOG: Error in ws.on("message") handler:', error);

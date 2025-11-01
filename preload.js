@@ -65,6 +65,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       // Playlist navigation channels
       'playlist-navigate-next-from-main',
       'playlist-navigate-previous-from-main',
+      'playlist-jump-to-item-from-main',
       // Add other channels as needed
       'mixer-subscription-feedback',
       'playback-time-update-from-main',

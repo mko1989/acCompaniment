@@ -262,6 +262,19 @@ function handleCompanionMessage(message) {
                 console.warn(`WebSocket Server: Invalid payload for playlistNavigatePrevious action - missing cueId`);
             }
             break;
+        case 'playlistJumpToItem':
+            if (message.payload && message.payload.cueId !== undefined && message.payload.targetIndex !== undefined) {
+                console.log(`WebSocket Server: Processing playlist jump to item for ${message.payload.cueId}, index ${message.payload.targetIndex}`);
+                try {
+                    mainWindowRef.webContents.send('playlist-jump-to-item-from-main', { cueId: message.payload.cueId, targetIndex: message.payload.targetIndex });
+                    console.log(`WebSocket Server: Successfully sent playlist jump to item IPC message for cue ${message.payload.cueId}, index ${message.payload.targetIndex}`);
+                } catch (error) {
+                    console.error(`WebSocket Server: Error sending playlist jump to item IPC message for cue ${message.payload.cueId}:`, error);
+                }
+            } else {
+                console.warn(`WebSocket Server: Invalid payload for playlistJumpToItem action - missing cueId or targetIndex`);
+            }
+            break;
         default:
             console.warn('WebSocket Server: Unknown action from Companion:', message.action);
     }
