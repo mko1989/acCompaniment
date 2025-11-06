@@ -84,6 +84,8 @@ function renderPlaylistInProperties(propPlaylistItemsUl, propPlaylistFilePathDis
         itemNameSpan.textContent = item.name || (item.path ? item.path.split(/[\\\/]/).pop() : 'Invalid Item');
         itemNameSpan.title = item.path;
         itemNameSpan.classList.add('playlist-item-name');
+        itemNameSpan.dataset.itemId = item.id || '';
+        itemNameSpan.addEventListener('dblclick', handleRenamePlaylistItem);
         li.appendChild(itemNameSpan);
         const itemDurationSpan = document.createElement('span');
         itemDurationSpan.classList.add('playlist-item-duration');
@@ -267,6 +269,95 @@ function handleRemovePlaylistItem(event, propPlaylistItemsUl, propPlaylistFilePa
         renderPlaylistInProperties(propPlaylistItemsUl, propPlaylistFilePathDisplay);
         debouncedSaveCueProperties();
     }
+}
+
+/**
+ * Handle renaming of playlist items
+ * @param {Event} event - Double-click event on playlist item name
+ */
+function handleRenamePlaylistItem(event) {
+    const nameSpan = event.target;
+    if (!nameSpan || nameSpan.tagName !== 'SPAN' || !nameSpan.classList.contains('playlist-item-name')) {
+        return;
+    }
+    
+    const itemId = nameSpan.dataset.itemId;
+    if (!itemId) {
+        console.warn('[PropertiesSidebar] handleRenamePlaylistItem: No item ID found');
+        return;
+    }
+    
+    const item = stagedPlaylistItems.find(p_item => p_item.id === itemId);
+    if (!item) {
+        console.warn('[PropertiesSidebar] handleRenamePlaylistItem: Item not found in staged items');
+        return;
+    }
+    
+    const currentName = item.name || (item.path ? item.path.split(/[\\\/]/).pop() : 'Invalid Item');
+    
+    // Create input field
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentName;
+    input.classList.add('playlist-item-name-input');
+    input.style.width = '100%';
+    input.style.flexGrow = '1';
+    input.style.marginLeft = '5px';
+    input.style.marginRight = '5px';
+    input.style.padding = '2px 4px';
+    input.style.backgroundColor = '#3a3a3a';
+    input.style.border = '1px solid #555555';
+    input.style.color = '#cccccc';
+    input.style.borderRadius = '3px';
+    input.style.fontSize = 'inherit';
+    input.style.fontFamily = 'inherit';
+    input.style.outline = 'none';
+    
+    // Replace span with input
+    nameSpan.parentNode.replaceChild(input, nameSpan);
+    input.focus();
+    input.select();
+    
+    // Save on blur or Enter key
+    const saveRename = () => {
+        const newName = input.value.trim();
+        // Allow empty names (they'll fall back to filename)
+        if (newName !== currentName) {
+            item.name = newName || undefined; // Set to undefined if empty to allow fallback
+            debouncedSaveCueProperties();
+        }
+        
+        // Replace input with span
+        const newSpan = document.createElement('span');
+        newSpan.textContent = item.name || (item.path ? item.path.split(/[\\\/]/).pop() : 'Invalid Item');
+        newSpan.title = item.path;
+        newSpan.classList.add('playlist-item-name');
+        newSpan.dataset.itemId = itemId;
+        newSpan.addEventListener('dblclick', handleRenamePlaylistItem);
+        input.parentNode.replaceChild(newSpan, input);
+    };
+    
+    const cancelRename = () => {
+        // Replace input with span (restore original)
+        const newSpan = document.createElement('span');
+        newSpan.textContent = currentName;
+        newSpan.title = item.path;
+        newSpan.classList.add('playlist-item-name');
+        newSpan.dataset.itemId = itemId;
+        newSpan.addEventListener('dblclick', handleRenamePlaylistItem);
+        input.parentNode.replaceChild(newSpan, input);
+    };
+    
+    input.addEventListener('blur', saveRename);
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            input.blur(); // This will trigger saveRename
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelRename();
+        }
+    });
 }
 
 /**

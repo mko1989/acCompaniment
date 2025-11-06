@@ -107,6 +107,18 @@
     overflow: hidden;
     text-overflow: ellipsis;
     color: #cccccc;
+    cursor: pointer;
+}
+
+#propPlaylistItems li .playlist-item-name:hover {
+    color: #ffffff;
+    text-decoration: underline;
+}
+
+#propPlaylistItems li .playlist-item-name-input {
+    flex-grow: 1;
+    margin-left: 5px;
+    margin-right: 5px;
 }
 
 #propPlaylistItems li .playlist-item-duration {
