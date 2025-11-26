@@ -164,12 +164,6 @@ body {
     box-sizing: border-box;
 }
 
-/* Specific style for OSC Path input to allow it to grow in its flex container */
-#propOscTriggerPath {
-    width: auto; /* Override the general sidebar input width */
-    min-width: 50px; /* Prevent it from becoming too small, adjust as needed */
-    /* flex-grow: 1; is already an inline style, but ensuring it's not overridden */
-}
 
 .sidebar-content input[type="range"] {
     width: calc(70% - 10px); /* Adjust as needed */

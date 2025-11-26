@@ -7,17 +7,6 @@ const { v4: uuidv4 } = require('uuid');
 const CUES_FILE_NAME = 'cues.json';
 let currentCuesFilePath = path.join(app.getPath('userData'), CUES_FILE_NAME); // Default path
 
-// REMOVED DEFAULT_MIDI_TRIGGER
-// const DEFAULT_MIDI_TRIGGER = {
-// enabled: false,
-// type: null,
-// channel: null,
-// note: null,
-// velocity: null,
-// controller: null,
-// value: null
-// };
-
 let cues = [];
 let websocketServerInstance; // To notify on updates
 let httpServerInstance; // Added: To notify remote HTTP clients
@@ -65,17 +54,7 @@ function loadCuesFromFile() {
           return migratedCue;
         });
         
-        
-        // Clean up any lingering midiTrigger and oscTrigger properties from old files
         cues.forEach(cue => {
-          if (cue.hasOwnProperty('midiTrigger')) {
-            console.log(`CueManager: Removing obsolete 'midiTrigger' from cue: ${cue.id}`);
-            delete cue.midiTrigger;
-          }
-          if (cue.hasOwnProperty('oscTrigger')) {
-            console.log(`CueManager: Removing obsolete 'oscTrigger' from cue: ${cue.id}`);
-            delete cue.oscTrigger;
-          }
           if (cue.hasOwnProperty('x32Trigger')) {
             console.log(`CueManager: Removing obsolete 'x32Trigger' from cue: ${cue.id}`);
             delete cue.x32Trigger;
@@ -269,7 +248,7 @@ function updateCueKnownDuration(cueId, duration) {
 }
 
 // ***** NEW FUNCTION *****
-// Function to trigger a cue by its ID, typically called from an external source (MIDI, OSC)
+// Function to trigger a cue by its ID
 function triggerCueById(cueId, source = 'unknown') {
   console.log(`CueManager: triggerCueById called for ID: ${cueId}, Source: ${source}`);
   const cue = cues.find(c => c.id === cueId);
@@ -354,10 +333,6 @@ async function addOrUpdateProcessedCue(cueData, workspacePath) {
       retriggerAction: effectiveRetriggerBehavior, // TODO: Consolidate retriggerAction & retriggerBehavior
       retriggerActionCompanion: effectiveRetriggerBehavior, // TODO: Consolidate
       knownDuration: cueData.knownDuration || 0,
-      // OSC Trigger specific properties - REMOVED
-      // oscTrigger: cueData.oscTrigger ? 
-      //             { enabled: false, path: null, args: [], ...cueData.oscTrigger } : 
-      //             { enabled: false, path: null, args: [] },
       // Playlist specific properties
       playlistItems: cueData.playlistItems || [],
       shuffle: cueData.shuffle || false, // for playlists

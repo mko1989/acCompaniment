@@ -3,6 +3,42 @@ import { formatTime } from './utils.js';
 let isInitialized = false;
 let cueStore, audioController, dragDrop, uiCore; // Scoped module refs
 let cueButtonMap = {}; // To store references to cue button DOM elements
+let cueMeterElements = {}; // Stores meter bar elements per cue
+let cueMeterLevels = {}; // Stores smoothed meter level per cue
+const cueMeterLiveSources = new Set(); // Tracks cues with live analyser-driven meters
+let cueBadgeElements = {}; // Stores references to icon elements per cue
+
+const METER_MIN_HEIGHT_PERCENT = 4; // Prevent meter from collapsing completely when active
+const METER_SMOOTHING = 0.4; // Smoothing factor for visual stability
+const RETRIGGER_ICON_MAP = {
+    restart: '↺',
+    restart_from_beginning: '↺',
+    stop: '■',
+    stop_then_start: '■',
+    toggle: '⏯',
+    toggle_pause: '⏯',
+    resume: '▶',
+    resume_from_position: '▶'
+};
+const RETRIGGER_IMAGE_MAP = {
+    fade: '../../assets/icons/fade&stop.png',
+    fade_out: '../../assets/icons/fade&stop.png',
+    fade_out_and_stop: '../../assets/icons/fade&stop.png',
+    restart: '../../assets/icons/restart.png',
+    restart_from_beginning: '../../assets/icons/restart.png',
+    toggle: '../../assets/icons/playpause.png',
+    toggle_pause: '../../assets/icons/playpause.png',
+    toggle_pause_play: '../../assets/icons/playpause.png',
+    stop: '../../assets/icons/stop.png',
+    stop_then_start: '../../assets/icons/stop.png',
+    do_nothing: '../../assets/icons/donothing.png',
+    do_nothing_if_playing: '../../assets/icons/donothing.png',
+    play_next_item: '../../assets/icons/skip-end.png',
+    replay_current_item: '../../assets/icons/skip-start.png',
+    play_new_instance: '../../assets/icons/playnew.png'
+};
+const DUCK_TRIGGER_ICON_PATH = '../../assets/icons/DUCKING_TRIGGER.png';
+const DUCK_ACTIVE_ICON_PATH = '../../assets/icons/DUCKED.png';
 let dragOverCueId = null;
 let cueGridContainer;
 
@@ -74,6 +110,10 @@ function renderCues() {
         return;
     }
     cueGridContainer.innerHTML = ''; 
+    cueMeterElements = {};
+    cueMeterLevels = {};
+    cueMeterLiveSources.clear();
+    cueBadgeElements = {};
     const cues = cueStore.getAllCues();
 
     // Check if there are no cues and show empty state message
@@ -99,8 +139,9 @@ function renderCues() {
         // Create a wrapper for the cue button and navigation controls
         const cueWrapper = document.createElement('div');
         cueWrapper.className = 'cue-wrapper';
-        cueWrapper.style.position = 'relative';
-        cueWrapper.style.display = 'inline-block';
+
+        const interactiveContainer = document.createElement('div');
+        interactiveContainer.className = 'cue-interactive-container';
         
         const button = document.createElement('div');
         button.className = 'cue-button';
@@ -113,6 +154,35 @@ function renderCues() {
         statusIndicator.id = `cue-status-${cue.id}`;
         button.appendChild(statusIndicator);
 
+        const loopIcon = document.createElement('img');
+        loopIcon.className = 'cue-loop-icon';
+        loopIcon.src = '../../assets/icons/loop.png';
+        loopIcon.alt = 'Loop';
+        button.appendChild(loopIcon);
+
+        const retriggerStrip = document.createElement('div');
+        retriggerStrip.className = 'cue-retrigger-strip';
+        button.appendChild(retriggerStrip);
+
+        const retriggerIcon = document.createElement('span');
+        retriggerIcon.className = 'cue-retrigger-icon';
+        retriggerStrip.appendChild(retriggerIcon);
+
+        const duckStrip = document.createElement('div');
+        duckStrip.className = 'cue-duck-strip';
+        button.appendChild(duckStrip);
+
+        const duckTriggerIcon = document.createElement('img');
+        duckTriggerIcon.className = 'cue-duck-icon duck-trigger-icon';
+        duckTriggerIcon.src = DUCK_TRIGGER_ICON_PATH;
+        duckTriggerIcon.alt = 'Ducking trigger';
+        duckStrip.appendChild(duckTriggerIcon);
+
+        const duckActiveIcon = document.createElement('img');
+        duckActiveIcon.className = 'cue-duck-icon duck-active-icon';
+        duckActiveIcon.src = DUCK_ACTIVE_ICON_PATH;
+        duckActiveIcon.alt = 'Ducked';
+        duckStrip.appendChild(duckActiveIcon);
 
         const nameContainer = document.createElement('div');
         nameContainer.className = 'cue-button-name-container';
@@ -147,8 +217,31 @@ function renderCues() {
         timeContainer.appendChild(timeRemainingElem);
         button.appendChild(timeContainer);
 
-        // Add the button to the wrapper first
-        cueWrapper.appendChild(button);
+        interactiveContainer.appendChild(button);
+
+        const meterContainer = document.createElement('div');
+        meterContainer.className = 'cue-audio-meter-container';
+        meterContainer.setAttribute('data-cue-id', cue.id);
+
+        const meterBar = document.createElement('div');
+        meterBar.className = 'cue-audio-meter-bar';
+        meterBar.id = `cue-meter-${cue.id}`;
+
+        meterContainer.appendChild(meterBar);
+        interactiveContainer.appendChild(meterContainer);
+
+        cueMeterElements[cue.id] = meterBar;
+        cueMeterLevels[cue.id] = 0;
+        cueBadgeElements[cue.id] = {
+            loopIcon,
+            retriggerStrip,
+            retriggerIcon,
+            duckStrip,
+            duckTriggerIcon,
+            duckActiveIcon
+        };
+
+        cueWrapper.appendChild(interactiveContainer);
         
         // Add playlist navigation controls OUTSIDE the button for playlist cues
         if (cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 1) {
@@ -188,6 +281,7 @@ function renderCues() {
         const isCurrentlyCued = audioController.default.isCued(cue.id);
         // Pass the created elements directly for initial setup
         updateButtonPlayingState(cue.id, isCurrentlyPlaying, null, isCurrentlyCued, elementsForTimeUpdate);
+        applyCueBadgeState(cue.id);
 
         button.addEventListener('click', (event) => handleCueButtonClick(event, cue));
 
@@ -616,6 +710,8 @@ function updateButtonPlayingState(cueId, isPlaying, statusTextArg = null, isCued
     if (nameContainer) nameContainer.innerHTML = nameHTML;
     
 
+    applyCueBadgeState(cueId, playbackState);
+
     // Pass the elements through to updateCueButtonTime
     updateCueButtonTime(cueId, elements); 
 
@@ -688,7 +784,18 @@ function updateCueButtonTime(cueId, elements = null, isFadingIn = false, isFadin
         console.warn(`[CueGrid UpdateCueButtonTime] cueId: ${cueId}, getPlaybackTimes returned null. Using default display values.`);
     }
 
+    const hasLiveMeter = cueMeterLiveSources.has(cueId);
+    if (!hasLiveMeter) {
+        const fallbackVolume = cueFromStore && cueFromStore.volume !== undefined ? cueFromStore.volume : 0;
+        const meterVolume = playbackTimes && typeof playbackTimes.volume === 'number'
+            ? playbackTimes.volume
+            : fallbackVolume;
+        const meterActive = !!(playbackTimes && (playbackTimes.isPlaying || playbackTimes.isFadingIn || playbackTimes.isFadingOut) || isFadingIn || isFadingOut);
+        setCueMeterLevel(cueId, meterActive ? meterVolume : 0, { immediate: !meterActive });
+    }
+
     _updateButtonTimeDisplay(button, localElements, displayCurrentTimeFormatted, displayCurrentTime, displayItemDuration, displayItemDurationFormatted, displayItemRemainingTime, displayItemRemainingTimeFormatted, isFadingIn, isFadingOut, fadeTimeRemainingMs);
+    applyCueBadgeState(cueId, playbackTimes);
 }
 
 // New function that uses time data directly from IPC instead of calling audioController.getPlaybackTimes()
@@ -728,7 +835,17 @@ function updateCueButtonTimeWithData(cueId, timeData, elements = null, isFadingI
     const displayItemRemainingTime = timeData.remainingTime || 0;
     const displayItemRemainingTimeFormatted = timeData.remainingTimeFormatted || "";
 
+    const hasLiveMeter = cueMeterLiveSources.has(cueId);
+    if (!hasLiveMeter) {
+        const meterVolume = typeof timeData.volume === 'number' ? timeData.volume : 0;
+        const status = timeData.status || '';
+        const statusActive = status === 'playing' || status === 'fading';
+        const meterActive = statusActive || isFadingIn || isFadingOut;
+        setCueMeterLevel(cueId, meterActive ? meterVolume : 0, { immediate: !meterActive });
+    }
+
     _updateButtonTimeDisplay(button, localElements, displayCurrentTimeFormatted, displayCurrentTime, displayItemDuration, displayItemDurationFormatted, displayItemRemainingTime, displayItemRemainingTimeFormatted, isFadingIn, isFadingOut, fadeTimeRemainingMs);
+    applyCueBadgeState(cueId, timeData);
 }
 
 // Helper function to update the button display (extracted from original updateCueButtonTime)
@@ -784,6 +901,108 @@ function _updateButtonTimeDisplay(button, localElements, displayCurrentTimeForma
     }
 }
 
+function applyCueBadgeState(cueId, playbackState = null) {
+    if (!cueStore) return;
+    const cue = cueStore.getCueById(cueId);
+    if (!cue) return;
+
+    const badges = cueBadgeElements[cueId];
+    if (!badges) return;
+
+    const loopEnabled = !!cue.loop;
+    const isDuckingTrigger = !!cue.isDuckingTrigger;
+    const isCurrentlyDucked = !!(playbackState?.isDucked);
+
+    let retriggerBehavior = cue.retriggerBehavior || cue.retriggerAction || cue.retriggerActionCompanion;
+    if (!retriggerBehavior && uiCore && typeof uiCore.getCurrentAppConfig === 'function') {
+        const config = uiCore.getCurrentAppConfig();
+        retriggerBehavior = config?.defaultRetriggerBehavior || config?.defaultRetriggerAction || null;
+    }
+
+    if (badges.loopIcon) {
+        badges.loopIcon.classList.toggle('enabled', loopEnabled);
+    }
+
+    if (badges.retriggerIcon && badges.retriggerStrip) {
+        if (retriggerBehavior) {
+            const normalized = String(retriggerBehavior).toLowerCase().replace(/\s+/g, '_').replace(/-+/g, '_');
+            const imagePath = RETRIGGER_IMAGE_MAP[normalized];
+            if (imagePath) {
+                badges.retriggerIcon.classList.add('icon-image');
+                badges.retriggerIcon.style.backgroundImage = `url(${imagePath})`;
+                badges.retriggerIcon.textContent = '';
+            } else {
+                const glyph = RETRIGGER_ICON_MAP[normalized] || 'R';
+                badges.retriggerIcon.classList.remove('icon-image');
+                badges.retriggerIcon.style.backgroundImage = 'none';
+                badges.retriggerIcon.textContent = glyph;
+            }
+            badges.retriggerIcon.classList.add('visible');
+            badges.retriggerStrip.style.display = 'flex';
+        } else {
+            badges.retriggerIcon.classList.remove('visible', 'icon-image');
+            badges.retriggerIcon.style.backgroundImage = 'none';
+            badges.retriggerIcon.textContent = '';
+            badges.retriggerStrip.style.display = 'none';
+        }
+    }
+
+    if (badges.duckTriggerIcon) {
+        badges.duckTriggerIcon.classList.toggle('visible', isDuckingTrigger);
+        badges.duckTriggerIcon.classList.toggle('active', isDuckingTrigger);
+    }
+
+    const enableDucking = !!cue.enableDucking;
+    if (badges.duckActiveIcon) {
+        const duckIconShouldShow = enableDucking || isCurrentlyDucked;
+        badges.duckActiveIcon.classList.toggle('visible', duckIconShouldShow);
+        badges.duckActiveIcon.classList.toggle('active', isCurrentlyDucked);
+    }
+
+    if (badges.duckStrip) {
+        const duckVisible =
+            (badges.duckTriggerIcon?.classList.contains('visible') ?? false) ||
+            (badges.duckActiveIcon?.classList.contains('visible') ?? false);
+        badges.duckStrip.style.display = duckVisible ? 'flex' : 'none';
+    }
+}
+
+function setCueMeterLevel(cueId, level, { immediate = false } = {}) {
+    const meter = cueMeterElements[cueId];
+    if (!meter) return;
+
+    const sanitizedLevel = Number.isFinite(level) ? level : 0;
+    const clampedLevel = Math.max(0, Math.min(1, sanitizedLevel));
+    const previousLevel = cueMeterLevels[cueId] ?? 0;
+    const smoothingFactor = immediate ? 1 : METER_SMOOTHING;
+    const smoothedLevel = previousLevel + (clampedLevel - previousLevel) * smoothingFactor;
+    cueMeterLevels[cueId] = smoothedLevel;
+
+    const percentage = smoothedLevel <= 0 ? 0 : Math.max(METER_MIN_HEIGHT_PERCENT, smoothedLevel * 100);
+    meter.style.height = `${percentage}%`;
+
+    const container = meter.parentElement;
+    if (container) {
+        if (smoothedLevel > 0.02) {
+            container.classList.add('cue-audio-meter-active');
+        } else {
+            container.classList.remove('cue-audio-meter-active');
+        }
+    }
+}
+
+function updateCueMeterLevel(cueId, level, { immediate = false } = {}) {
+    cueMeterLiveSources.add(cueId);
+    setCueMeterLevel(cueId, level, { immediate });
+}
+
+function resetCueMeter(cueId, { immediate = true } = {}) {
+    if (cueMeterLiveSources.has(cueId)) {
+        cueMeterLiveSources.delete(cueId);
+    }
+    setCueMeterLevel(cueId, 0, { immediate });
+}
+
 function formatTimeMMSS(timeInSeconds) {
     if (isNaN(timeInSeconds) || timeInSeconds < 0) {
         return "00:00";
@@ -814,5 +1033,7 @@ export {
     updateButtonPlayingState, // Keep this exported if audioController calls it directly
     // updateCueButtonTime is mostly internal to renderCues now, but export if needed elsewhere
     updateCueButtonTime,
-    updateCueButtonTimeWithData // New function for direct time data updates from IPC
+    updateCueButtonTimeWithData, // New function for direct time data updates from IPC
+    updateCueMeterLevel,
+    resetCueMeter
 }; 

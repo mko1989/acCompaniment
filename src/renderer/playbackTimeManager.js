@@ -88,7 +88,34 @@ export function createTimeUpdateInterval(cueId, sound, playingState, currentItem
             if (playingState.timeUpdateInterval === newInterval) {
                 playingState.timeUpdateInterval = null;
             }
+            if (audioControllerContext.cueGridAPI && typeof audioControllerContext.cueGridAPI.resetCueMeter === 'function') {
+                audioControllerContext.cueGridAPI.resetCueMeter(cueId, { immediate: true });
+            }
             return;
+        }
+
+        if (playingState.meterAnalyser && playingState.meterDataArray && audioControllerContext.cueGridAPI && typeof audioControllerContext.cueGridAPI.updateCueMeterLevel === 'function') {
+            try {
+                const analyser = playingState.meterAnalyser;
+                const dataArray = playingState.meterDataArray;
+                analyser.getByteTimeDomainData(dataArray);
+                let peak = 0;
+                for (let i = 0; i < dataArray.length; i++) {
+                    const centered = (dataArray[i] - 128) / 128;
+                    const abs = Math.abs(centered);
+                    if (abs > peak) {
+                        peak = abs;
+                    }
+                }
+                const prevMax = typeof playingState.meterCalibrationMax === 'number' ? playingState.meterCalibrationMax : 0.2;
+                const decayedMax = prevMax * 0.995;
+                const newMax = Math.max(decayedMax, peak, 0.05);
+                playingState.meterCalibrationMax = newMax;
+                const normalizedPeak = newMax > 0 ? Math.min(1, peak / newMax) : 0;
+                audioControllerContext.cueGridAPI.updateCueMeterLevel(cueId, normalizedPeak, { immediate: false });
+            } catch (meterError) {
+                console.warn(`[METER_DEBUG ${cueId}] Error updating analyser meter:`, meterError);
+            }
         }
 
         // Send time update for UI button time display

@@ -109,14 +109,7 @@ async function init(rcvdCueStore, rcvdAudioController, rcvdElectronAPI, rcvdDrag
         showMultipleFilesDropModal: modalsModule.showMultipleFilesDropModal,
         getAudioFileBuffer: electronAPIForPreload.getAudioFileBuffer,
         getOrGenerateWaveformPeaks: electronAPIForPreload.getOrGenerateWaveformPeaks,
-        getMidiDevices: actualIpcBindingsModule.getMidiDevices,
-        sendMidiLearnModeToggle: actualIpcBindingsModule.sendMidiLearnModeToggle,
-        getOscConfig: actualIpcBindingsModule.getOscConfig,
-        sendOscConfig: actualIpcBindingsModule.sendOscConfig,
-        sendOscMessage: actualIpcBindingsModule.sendOscMessage,
         highlightPlayingPlaylistItem: propertiesSidebar.highlightPlayingPlaylistItemInSidebar,
-        handleMidiMessageLearned,
-        handleMidiLearnStatusUpdate,
         toggleConfigSidebar: configSidebar.toggleConfigSidebar
     };
 
@@ -496,23 +489,6 @@ function refreshCueGrid() {
     }
 }
 
-// Added: Handler for learned MIDI message from main process
-function handleMidiMessageLearned(cueId, messageDetails) {
-    if (propertiesSidebar && typeof propertiesSidebar.updateLearnedMidiMessage === 'function') {
-        propertiesSidebar.updateLearnedMidiMessage(cueId, messageDetails);
-    } else {
-        console.warn('UI Core: propertiesSidebar.updateLearnedMidiMessage not available.');
-    }
-}
-
-// Added: Handler for MIDI learn status updates from main process
-function handleMidiLearnStatusUpdate(cueId, learning) {
-    if (propertiesSidebar && typeof propertiesSidebar.updateMidiLearnButtonUI === 'function') {
-        propertiesSidebar.updateMidiLearnButtonUI(cueId, learning);
-    } else {
-        console.warn('UI Core: propertiesSidebar.updateMidiLearnButtonUI not available.');
-    }
-}
 
 // Function called by ipcRendererBindings when playback time updates are received from main
 function updateCueButtonTimeDisplay(data) {
@@ -537,7 +513,10 @@ function updateCueButtonTimeDisplay(data) {
             duration: data.totalDurationSec || 0,
             durationFormatted: data.totalDurationFormatted || '00:00',
             remainingTime: data.remainingTimeSec || 0,
-            remainingTimeFormatted: data.remainingTimeFormatted || '00:00'
+            remainingTimeFormatted: data.remainingTimeFormatted || '00:00',
+            volume: typeof data.volume === 'number' ? data.volume : undefined,
+            status: data.status || '',
+            isDucked: data.isDucked || false
         };
         
         cueGrid.updateCueButtonTimeWithData(cueId, timeData, null, isFadingIn, isFadingOut, fadeTimeRemainingMs);
@@ -567,16 +546,6 @@ export {
     applyAppConfiguration, // Export the new function
     isCrossfadeEnabled, // Export crossfade state
 
-    // MIDI related functions for sidebars
-    // getMidiDevices: electronAPIForPreload.getMidiDevices, // REMOVED
-    // sendMidiLearnModeToggle: electronAPIForPreload.sendMidiLearnModeToggle, // REMOVED
-    // OSC related for sidebars
-    // getOscConfig: electronAPIForPreload.getOscConfig, // REMOVED
-    // sendOscConfig: electronAPIForPreload.sendOscConfig, // REMOVED
-    // sendOscMessage: electronAPIForPreload.sendOscMessage, // REMOVED
-    // UI Functions to route MIDI IPC messages to sidebars
-    handleMidiMessageLearned, // Exposed for ipcRendererBindings
-    handleMidiLearnStatusUpdate, // Exposed for ipcRendererBindings
     updateCueButtonTimeDisplay, // Export the new function
     getCurrentAppMode, // Export for other modules if they need to know mode without shift key override
     isUIFullyInitialized // EXPORT NEW GETTER

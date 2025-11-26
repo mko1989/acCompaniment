@@ -27,12 +27,6 @@
     color: #aaaaaa; /* Lighter placeholder text */
 }
 
-/* Specific style for OSC Path input */
-#propOscTriggerPath {
-    width: auto; /* Override the general sidebar input width */
-    min-width: 50px;
-    flex-grow: 1; /* If in a flex container */
-}
 
 .sidebar-content input[type="range"] {
     width: calc(70% - 10px); /* Adjust as needed */

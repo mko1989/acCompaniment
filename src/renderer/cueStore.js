@@ -10,19 +10,6 @@ let cueGridAPI; // Specifically for refreshing the cue grid
 
 let isInitialized = false; // Flag to indicate if init has completed
 
-// DEFAULT_MIDI_TRIGGER REMOVED
-// const DEFAULT_MIDI_TRIGGER = {
-//     enabled: false,
-//     type: null,
-//     channel: null,
-//     note: null,
-//     velocity: null,
-//     controller: null,
-//     value: null
-// };
-
-// DEFAULT_WING_TRIGGER - REMOVED
-
 // This is the actual handler function
 function _handleCuesUpdated(updatedCues) {
     console.log('**************** CueStore (_handleCuesUpdated) ENTERED ****************');
@@ -33,7 +20,6 @@ function _handleCuesUpdated(updatedCues) {
             console.log(`CueStore (_handleCuesUpdated MAP): Processing cue ID ${cue.id}. Main process version:`, JSON.parse(JSON.stringify(cue)));
             const newMappedCue = {
                 ...cue, // Spread the incoming cue first
-                // wingTrigger: REMOVED
                 enableDucking: cue.enableDucking !== undefined ? cue.enableDucking : false,
                 isDuckingTrigger: cue.isDuckingTrigger !== undefined ? cue.isDuckingTrigger : false,
                 duckingLevel: cue.duckingLevel !== undefined ? cue.duckingLevel : 80,
@@ -124,12 +110,8 @@ async function loadCuesFromServer() {
         console.log('CueStore: Requesting cues from main process...');
         const loadedCues = await ipcBindings.getCuesFromMain();
         if (Array.isArray(loadedCues)) {
-            // Ensure all cues from server have default trigger structures
             cues = loadedCues.map(cue => ({
-                ...cue,
-                // midiTrigger: cue.midiTrigger ? { ...DEFAULT_MIDI_TRIGGER, ...cue.midiTrigger } : { ...DEFAULT_MIDI_TRIGGER }, // REMOVED
-                // wingTrigger: REMOVED
-                // oscTrigger: cue.oscTrigger || { enabled: false, path: '' } // REMOVED
+                ...cue
             }));
             // Clean up any lingering properties that might have been missed or from very old files
 
@@ -181,8 +163,7 @@ async function addOrUpdateCue(cueData) {
     // Sanitize cueData before sending to main process
 
     const sanitizedCueData = {
-        ...cueData,
-        // wingTrigger: REMOVED
+        ...cueData
     };
 
     console.log(`CueStore: Sending cue (ID: ${sanitizedCueData.id || 'new'}) to main process for add/update.`);

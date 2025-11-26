@@ -36,7 +36,8 @@ export function createPlaybackInstance(
     currentItemNameForEvents,
     actualItemIndexInOriginalList,
     isResumeForSeekAndFade,
-    audioControllerContext
+    audioControllerContext,
+    options = {}
 ) {
     const {
         currentlyPlaying,
@@ -50,6 +51,13 @@ export function createPlaybackInstance(
         _applyDucking,
         allSoundInstances
     } = audioControllerContext;
+
+    const {
+        forceHtml5 = false,
+        allowHtml5Fallback = true
+    } = options;
+
+    const fallbackEnabled = allowHtml5Fallback && !forceHtml5;
 
     // Check if this is a crossfade situation
     const isCrossfadeMode = playingState.crossfadeInfo && playingState.crossfadeInfo.isCrossfadeIn;
@@ -78,14 +86,11 @@ export function createPlaybackInstance(
         console.log(`🎵 getPreloadedSound function not available in audioControllerContext`);
     }
     
+    const useHtml5 = !!forceHtml5;
+
     // If no preloaded sound available, create new one
     if (!sound) {
         console.log(`🎵 Creating new sound instance for ${cueId} (${currentItemNameForEvents})`);
-        
-        // Use html5 for .m4a and .mp3 files for better compatibility and replay capability
-        // WAV files should use Web Audio API (html5: false) for reliable playback
-        const useHtml5 = filePath.toLowerCase().endsWith('.m4a') || 
-                        filePath.toLowerCase().endsWith('.mp3');
         
         // Create the sound instance
         console.log(`🎵 Creating Howl instance for ${cueId}: html5=${useHtml5}, filePath=${filePath}`);
@@ -96,18 +101,12 @@ export function createPlaybackInstance(
             src: [filePath],
             volume: initialVolume,
             loop: shouldUseHowlerLoop,
-            html5: useHtml5, // Use HTML5 for .m4a and .mp3 files, Web Audio API for others
-            preload: true, // Preload for better loop performance
-            format: ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac'], // Specify supported formats
+            html5: useHtml5,
+            preload: true,
+            format: ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac'],
             onload: () => {
                 console.log(`[HOWL_ONLOAD ${cueId}] Direct onload event fired for: ${filePath}`);
-            },
-            onloaderror: createOnloaderrorHandler(
-                cueId, filePath, currentItemNameForEvents, audioControllerContext
-            ),
-            onplayerror: createOnplayerrorHandler(
-                cueId, filePath, currentItemNameForEvents, audioControllerContext
-            )
+            }
         });
     }
 
@@ -127,22 +126,110 @@ export function createPlaybackInstance(
             onloadHandler();
         }, 0);
     }
-    sound.on('play', createOnplayHandler(
+
+    const onPlayHandler = createOnplayHandler(
         cueId, sound, playingState, filePath, currentItemNameForEvents, 
         actualItemIndexInOriginalList, isResumeForSeekAndFade, mainCue, audioControllerContext
-    ));
-    sound.on('pause', createOnpauseHandler(
+    );
+    const onPauseHandler = createOnpauseHandler(
         cueId, sound, playingState, currentItemNameForEvents, audioControllerContext
-    ));
-    sound.on('end', createOnendHandler(
+    );
+    const onEndHandler = createOnendHandler(
         cueId, sound, playingState, filePath, currentItemNameForEvents, mainCue, audioControllerContext
-    ));
-    sound.on('stop', createOnstopHandler(
+    );
+    const onStopHandler = createOnstopHandler(
         cueId, sound, playingState, filePath, currentItemNameForEvents, mainCue, audioControllerContext
-    ));
-    sound.on('fade', createOnfadeHandler(
+    );
+    const onFadeHandler = createOnfadeHandler(
         cueId, sound, playingState, filePath, currentItemNameForEvents, mainCue, audioControllerContext
-    ));
+    );
+
+    sound.on('play', onPlayHandler);
+    sound.on('pause', onPauseHandler);
+    sound.on('end', onEndHandler);
+    sound.on('stop', onStopHandler);
+    sound.on('fade', onFadeHandler);
+
+    const teardownAnalyser = () => teardownAnalyserForState(cueId, playingState, audioControllerContext);
+
+    if (!useHtml5) {
+        setupAnalyserForSound(cueId, sound, playingState, audioControllerContext);
+    } else {
+        teardownAnalyser();
+    }
+
+    const onloadErrorBase = createOnloaderrorHandler(
+        cueId, filePath, currentItemNameForEvents, audioControllerContext
+    );
+    const onplayErrorBase = createOnplayerrorHandler(
+        cueId, filePath, currentItemNameForEvents, audioControllerContext
+    );
+
+    let fallbackTriggered = false;
+
+    const attemptHtml5Fallback = (error, source) => {
+        if (!fallbackEnabled || fallbackTriggered) {
+            return false;
+        }
+        fallbackTriggered = true;
+        console.warn(`[AUDIO_FALLBACK ${cueId}] ${source} error encountered (${error}). Retrying with HTML5 audio for ${filePath}.`);
+
+        try {
+            sound.off();
+        } catch (offError) {
+            console.warn(`[AUDIO_FALLBACK ${cueId}] Error removing event listeners before fallback:`, offError);
+        }
+
+        try {
+            sound.unload();
+        } catch (unloadError) {
+            console.warn(`[AUDIO_FALLBACK ${cueId}] Error unloading sound before fallback:`, unloadError);
+        }
+
+        teardownAnalyser();
+
+        if (allSoundInstances && sound._acSoundId && allSoundInstances[sound._acSoundId]) {
+            delete allSoundInstances[sound._acSoundId];
+        }
+
+        const fallbackSound = createPlaybackInstance(
+            filePath,
+            cueId,
+            mainCue,
+            playingState,
+            currentItemNameForEvents,
+            actualItemIndexInOriginalList,
+            isResumeForSeekAndFade,
+            audioControllerContext,
+            { forceHtml5: true, allowHtml5Fallback: false }
+        );
+
+        if (fallbackSound) {
+            playingState.sound = fallbackSound;
+            if (currentlyPlaying && currentlyPlaying[cueId]) {
+                currentlyPlaying[cueId].sound = fallbackSound;
+            }
+        }
+
+        return true;
+    };
+
+    const handleLoadError = (id, err) => {
+        if (attemptHtml5Fallback(err, 'load')) {
+            return;
+        }
+        onloadErrorBase(id, err);
+    };
+
+    const handlePlayError = (id, err) => {
+        if (attemptHtml5Fallback(err, 'play')) {
+            return;
+        }
+        onplayErrorBase(id, err);
+    };
+
+    sound.on('loaderror', handleLoadError);
+    sound.on('playerror', handlePlayError);
     
     // Immediately track all sound instances for stop all functionality
     const soundId = sound._id || `${cueId}_${Date.now()}_${Math.random()}`;
@@ -166,4 +253,97 @@ export function createPlaybackInstance(
     }
     
     return sound;
+}
+
+function setupAnalyserForSound(cueId, sound, playingState, audioControllerContext) {
+    if (!sound || !playingState) return;
+    if (typeof Howler === 'undefined' || !Howler.ctx) {
+        playingState.meterAnalyser = null;
+        playingState.meterDataArray = null;
+        playingState.meterAnalyserSourceNode = null;
+        return;
+    }
+
+    try {
+        const analyser = Howler.ctx.createAnalyser();
+        analyser.fftSize = 512;
+        analyser.smoothingTimeConstant = 0.7;
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+        playingState.meterAnalyser = analyser;
+        playingState.meterDataArray = dataArray;
+        playingState.meterAnalyserSourceNode = null;
+
+        const connectAnalyser = (internalSound) => {
+            if (!internalSound) return;
+            const outputNode = internalSound._panner || internalSound._node;
+            if (!outputNode || typeof outputNode.connect !== 'function') return;
+            if (playingState.meterAnalyserSourceNode === outputNode) return;
+
+            try {
+                outputNode.connect(analyser);
+                playingState.meterAnalyserSourceNode = outputNode;
+                if (audioControllerContext?.cueGridAPI && typeof audioControllerContext.cueGridAPI.updateCueMeterLevel === 'function') {
+                    audioControllerContext.cueGridAPI.updateCueMeterLevel(cueId, 0, { immediate: true });
+                }
+            } catch (connectionError) {
+                console.warn(`[METER_DEBUG ${cueId}] Failed to connect analyser:`, connectionError);
+            }
+        };
+
+        const disconnectAnalyser = () => {
+            if (playingState.meterAnalyserSourceNode && analyser) {
+                try {
+                    playingState.meterAnalyserSourceNode.disconnect(analyser);
+                } catch (disconnectError) {
+                    console.warn(`[METER_DEBUG ${cueId}] Error disconnecting analyser:`, disconnectError);
+                }
+            }
+            playingState.meterAnalyserSourceNode = null;
+            if (audioControllerContext?.cueGridAPI && typeof audioControllerContext.cueGridAPI.resetCueMeter === 'function') {
+                audioControllerContext.cueGridAPI.resetCueMeter(cueId, { immediate: true });
+            }
+        };
+
+        sound.on('play', (soundId) => {
+            const internalSound = typeof sound._soundById === 'function' ? sound._soundById(soundId) : null;
+            connectAnalyser(internalSound);
+            playingState.meterCalibrationMax = 0.25;
+        });
+
+        sound.on('stop', () => disconnectAnalyser());
+        sound.on('end', () => disconnectAnalyser());
+        sound.on('pause', () => {
+            if (audioControllerContext?.cueGridAPI && typeof audioControllerContext.cueGridAPI.updateCueMeterLevel === 'function') {
+                audioControllerContext.cueGridAPI.updateCueMeterLevel(cueId, 0, { immediate: false });
+            }
+        });
+    } catch (analyserError) {
+        console.warn(`[METER_DEBUG ${cueId}] Unable to initialize analyser:`, analyserError);
+        playingState.meterAnalyser = null;
+        playingState.meterDataArray = null;
+        playingState.meterAnalyserSourceNode = null;
+    }
+}
+
+function teardownAnalyserForState(cueId, playingState, audioControllerContext) {
+    if (!playingState) return;
+
+    if (playingState.meterAnalyserSourceNode && playingState.meterAnalyser) {
+        try {
+            playingState.meterAnalyserSourceNode.disconnect(playingState.meterAnalyser);
+        } catch (disconnectError) {
+            console.warn(`[METER_DEBUG ${cueId}] Error disconnecting analyser:`, disconnectError);
+        }
+    }
+
+    playingState.meterAnalyserSourceNode = null;
+    playingState.meterAnalyser = null;
+    playingState.meterDataArray = null;
+
+    if (audioControllerContext?.cueGridAPI && typeof audioControllerContext.cueGridAPI.resetCueMeter === 'function') {
+        audioControllerContext.cueGridAPI.resetCueMeter(cueId, { immediate: true });
+    }
+
+    playingState.meterCalibrationMax = null;
 }

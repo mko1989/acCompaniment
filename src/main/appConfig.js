@@ -76,7 +76,7 @@ function loadConfig() {
       const parsedConfig = JSON.parse(rawData);
       
       // MIGRATION: Remove obsolete fields from old config files
-      const obsoleteFields = ['mixerIntegrationEnabled', 'mixerType', 'localIpAddress', 'wingIpAddress', 'oscEnabled', 'oscPort', 'video'];
+      const obsoleteFields = ['video'];
       let needsSave = false;
       obsoleteFields.forEach(field => {
         if (field in parsedConfig) {

@@ -123,7 +123,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onWorkspaceSaved: (callback) => ipcRenderer.on('workspace-saved', (_event, name, path) => callback(name, path)),
   onSettingsChanged: (callback) => ipcRenderer.on('settings-changed', (_event, settings) => callback(settings)),
 
-  // Audio Playback Control via Main (for OSC/MIDI triggers)
+  // Audio Playback Control via Main
   // No specific sender needed here if main directly sends 'toggle-audio-by-id'
   // However, we need the listener for it if it was previously in ipcRendererBindings
   onToggleAudioById: (callback) => ipcRenderer.on('toggle-audio-by-id', (_event, cueId) => callback(cueId)),

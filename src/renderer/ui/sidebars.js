@@ -25,14 +25,6 @@ let propAddFilesToPlaylistBtn, propPlaylistFileInput;
 let propPlaylistPlayModeSelect; // Added for playlist play mode
 let propVolumeSlider, propVolumeValueDisplay;
 
-
-// OSC Trigger Elements
-let propOscTriggerEnabledCheckbox;
-let propOscTriggerPathInput;
-let propOscLearnBtn;
-
-// WING Mixer Trigger Elements - REMOVED
-
 // --- State for Properties Sidebar ---
 let activePropertiesCueId = null;
 let stagedPlaylistItems = [];
@@ -54,30 +46,6 @@ function initSidebars(cs, ac, ipc, core) {
     debouncedSaveCueProperties = debounce(handleSaveCueProperties, 500); 
     bindSidebarEventListeners();
 
-    // Listen for learned OSC messages
-    if (ipcRendererBindingsModule && typeof ipcRendererBindingsModule.onOscMessageLearned === 'function') {
-        ipcRendererBindingsModule.onOscMessageLearned((learnedPath) => {
-            if (propOscTriggerPathInput && activePropertiesCueId) {
-                propOscTriggerPathInput.value = learnedPath;
-                console.log(`Sidebar: Received learned OSC path: ${learnedPath} for cue ${activePropertiesCueId}`);
-                // Potentially trigger a save or indicate change
-            }
-            if (propOscLearnBtn) {
-                propOscLearnBtn.textContent = 'Learn';
-                propOscLearnBtn.disabled = false;
-            }
-        });
-    }
-    if (ipcRendererBindingsModule && typeof ipcRendererBindingsModule.onOscLearnFailed === 'function') {
-        ipcRendererBindingsModule.onOscLearnFailed((errorMsg) => {
-            console.error(`Sidebar: OSC Learn mode failed or timed out: ${errorMsg}`);
-            alert(`OSC Learn Failed: ${errorMsg}`);
-            if (propOscLearnBtn) {
-                propOscLearnBtn.textContent = 'Learn';
-                propOscLearnBtn.disabled = false;
-            }
-        });
-    }
 
     console.log('Sidebars Module Initialized (now SidebarManager)');
 }
@@ -117,13 +85,6 @@ function cacheSidebarDOMElements() {
     propPlaylistPlayModeSelect = document.getElementById('propPlaylistPlayModeSelect');
     propVolumeSlider = document.getElementById('propVolume');
     propVolumeValueDisplay = document.getElementById('propVolumeValue');
-
-    // Cache OSC Trigger Elements
-    propOscTriggerEnabledCheckbox = document.getElementById('propOscTriggerEnabled');
-    propOscTriggerPathInput = document.getElementById('propOscTriggerPath');
-    propOscLearnBtn = document.getElementById('propOscLearnBtn');
-
-    // Cache WING Mixer Trigger Elements - REMOVED
 
     if (propVolumeSlider && propVolumeValueDisplay) {
         propVolumeSlider.addEventListener('input', (e) => {
@@ -188,26 +149,6 @@ function bindSidebarEventListeners() {
         propPlaylistFileInput.addEventListener('change', handlePropPlaylistFileSelect);
     }
 
-    if (propOscLearnBtn) {
-        propOscLearnBtn.addEventListener('click', () => {
-            if (activePropertiesCueId) {
-                console.log(`Sidebar: OSC Learn button clicked for cue ID: ${activePropertiesCueId}. Requesting learn mode.`);
-                if (ipcRendererBindingsModule && typeof ipcRendererBindingsModule.sendStartOscLearn === 'function') {
-                    ipcRendererBindingsModule.sendStartOscLearn(activePropertiesCueId);
-                    propOscLearnBtn.textContent = 'Learning...';
-                    propOscLearnBtn.disabled = true;
-                } else {
-                    alert('Error: Could not initiate OSC Learn mode (ipc).');
-                    console.error('Error: ipcRendererBindingsModule.sendStartOscLearn is not a function or module not available.');
-                }
-            } else {
-                console.warn('Sidebar: OSC Learn button clicked but no cue is being edited.');
-            }
-        });
-    }
-
-    // WING Mixer Trigger Event Listeners - REMOVED
-
     // --- Attach debounced save to all relevant input fields ---
     const inputsToAutoSave = [
         propCueNameInput, 
@@ -216,8 +157,6 @@ function bindSidebarEventListeners() {
         propFadeOutTimeInput,
         propVolumeRangeInput, // Also propVolumeSlider - they are the same element
         propRetriggerBehaviorSelect,
-        propOscTriggerPathInput,
-        // propWingUserButtonInput, // REMOVED
         propPlaylistPlayModeSelect, // Added
     ];
 
@@ -236,7 +175,6 @@ function bindSidebarEventListeners() {
         propLoopCheckbox,
         propShufflePlaylistCheckbox,
         propRepeatOnePlaylistItemCheckbox,
-        propOscTriggerEnabledCheckbox,
     ];
 
     checkboxesToAutoSave.forEach(checkbox => {
@@ -310,22 +248,6 @@ function openPropertiesSidebar(cue) {
 
     if (propRetriggerBehaviorSelect) {
         propRetriggerBehaviorSelect.value = cue.retriggerBehavior !== undefined ? cue.retriggerBehavior : (currentAppConfig.defaultRetriggerBehavior || 'restart');
-    }
-
-    // Populate OSC Trigger fields
-    if (propOscTriggerEnabledCheckbox) {
-        propOscTriggerEnabledCheckbox.checked = cue.oscTrigger && cue.oscTrigger.enabled ? cue.oscTrigger.enabled : false;
-    }
-    if (propOscTriggerPathInput) {
-        propOscTriggerPathInput.value = cue.oscTrigger && cue.oscTrigger.path ? cue.oscTrigger.path : '';
-    }
-    
-    // Populate WING Mixer Trigger fields - REMOVED
-    
-    // Reset Learn button state
-    if (propOscLearnBtn) {
-        propOscLearnBtn.textContent = 'Learn';
-        propOscLearnBtn.disabled = false;
     }
     
     // Make sure event listeners are bound for dynamic elements like playlist items if not already done
@@ -503,16 +425,6 @@ async function handleSaveCueProperties() {
     } else if (cueDataToSave.type === 'playlist') {
         cueDataToSave.totalDuration = stagedPlaylistItems.reduce((acc, item) => acc + (item.duration || 0), 0);
     }
-
-    // Add the values of the OSC trigger elements
-    if (propOscTriggerEnabledCheckbox || propOscTriggerPathInput) {
-        cueDataToSave.oscTrigger = {
-            enabled: propOscTriggerEnabledCheckbox ? propOscTriggerEnabledCheckbox.checked : false,
-            path: propOscTriggerPathInput ? propOscTriggerPathInput.value.trim() : ''
-        };
-    }
-
-    // Add WING Mixer Trigger values - REMOVED
 
     try {
         console.log('Sidebar: Attempting to save cue with data:', cueDataToSave);

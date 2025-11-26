@@ -225,6 +225,23 @@ export function _cleanupSoundInstance(cueId, state, options = {}, context) {
         
         log.verbose(`_cleanupSoundInstance: Cleared global state for ${cueId}`);
     }
+
+    if (state.meterAnalyserSourceNode && state.meterAnalyser) {
+        try {
+            state.meterAnalyserSourceNode.disconnect(state.meterAnalyser);
+        } catch (disconnectError) {
+            log.warn(`[METER_DEBUG ${cueId}] Error disconnecting analyser during cleanup:`, disconnectError);
+        }
+    }
+    state.meterAnalyserSourceNode = null;
+    state.meterAnalyser = null;
+    state.meterDataArray = null;
+
+    if (context && context.cueGridAPIRef && typeof context.cueGridAPIRef.resetCueMeter === 'function') {
+        context.cueGridAPIRef.resetCueMeter(cueId, { immediate: true });
+    }
+
+    state.meterCalibrationMax = null;
     
     log.debug(`_cleanupSoundInstance: Cleanup complete for ${cueId}`);
 }

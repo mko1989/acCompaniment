@@ -36,8 +36,6 @@ let configDefaultStopAllFadeOutInput;
 let configDefaultStopAllFadeOutGroup;
 let configCrossfadeTimeInput;
 
-// OSC Settings removed
-
 // Audio Settings
 let configAudioOutputDeviceSelect;
 
@@ -123,8 +121,6 @@ function cacheDOMElements() {
     configDefaultStopAllFadeOutInput = document.getElementById('defaultStopAllFadeOut');
     configDefaultStopAllFadeOutGroup = document.getElementById('defaultStopAllFadeOutGroup');
     configCrossfadeTimeInput = document.getElementById('crossfadeTime');
-    
-    // OSC UI removed
 
     // Audio Settings
     configAudioOutputDeviceSelect = document.getElementById('configAudioOutputDevice');
@@ -171,8 +167,6 @@ function bindEventListeners() {
     if (configDefaultStopAllFadeOutInput) {
         configDefaultStopAllFadeOutInput.addEventListener('change', handleAppConfigChange);
     }
-    
-    // Generic OSC UI removed
 
     if (configAudioOutputDeviceSelect) configAudioOutputDeviceSelect.addEventListener('change', handleAppConfigChange);
     
@@ -230,8 +224,6 @@ function populateConfigSidebar(config) {
         if (configDefaultStopAllFadeOutInput) configDefaultStopAllFadeOutInput.value = currentAppConfig.defaultStopAllFadeOutTime || 1500;
         if (configCrossfadeTimeInput) configCrossfadeTimeInput.value = currentAppConfig.crossfadeTime || 2000;
         
-        // OSC Settings not shown in UI
-        
         // HTTP Remote Control Settings
         if (configHttpRemoteEnabledCheckbox) configHttpRemoteEnabledCheckbox.checked = currentAppConfig.httpRemoteEnabled !== false; // Default to true
         if (configHttpRemotePortInput) configHttpRemotePortInput.value = currentAppConfig.httpRemotePort || 3000;
@@ -255,8 +247,6 @@ function populateConfigSidebar(config) {
     }
     console.log('AppConfigUI: DOM elements updated.');
 }
-
-// Generic OSC handling removed
 
 function handleHttpRemoteEnabledChange() {
     const isEnabled = configHttpRemoteEnabledCheckbox && configHttpRemoteEnabledCheckbox.checked;
@@ -498,8 +488,6 @@ function gatherConfigFromUI() {
         defaultStopAllBehavior: configDefaultStopAllBehaviorSelect ? configDefaultStopAllBehaviorSelect.value : 'stop',
         defaultStopAllFadeOutTime: configDefaultStopAllFadeOutInput ? parseInt(configDefaultStopAllFadeOutInput.value) : 1500,
         crossfadeTime: configCrossfadeTimeInput ? parseInt(configCrossfadeTimeInput.value) : 2000,
-
-        // Generic OSC removed from saved config
         
         httpRemoteEnabled: configHttpRemoteEnabledCheckbox ? configHttpRemoteEnabledCheckbox.checked : true,
         httpRemotePort: configHttpRemotePortInput ? parseInt(configHttpRemotePortInput.value) : 3000,

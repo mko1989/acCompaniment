@@ -7,6 +7,23 @@
     flex-grow: 1;
 }
 
+.cue-wrapper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    gap: 6px;
+}
+
+.cue-interactive-container {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+    width: 100%;
+    height: 100%;
+}
+
 .cue-button {
     padding: 10px;
     background-color: var(--cue-default-bg);
@@ -22,6 +39,8 @@
     overflow: hidden;
     color: var(--text-color);
     box-sizing: border-box;
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .cue-button:hover {
@@ -44,20 +63,100 @@
     object-fit: contain;
 }
 
-.wing-link-label {
-    font-size: 0.6em;
-    color: var(--button-primary-bg);
+.cue-loop-icon {
     position: absolute;
-    top: 2px;
-    right: 2px;
-    padding: 1px 3px;
-    background-color: rgba(255,255,255,0.05);
-    border-radius: 3px;
+    top: 4px;
+    left: 22px;
+    width: 14px;
+    height: 14px;
+    display: none;
+    filter: brightness(0) invert(1);
+    transition: opacity 0.15s ease;
+    pointer-events: none;
+}
+
+.cue-loop-icon.enabled {
+    display: block;
+    opacity: 1;
+}
+
+.cue-retrigger-strip,
+.cue-duck-strip {
+    position: absolute;
+    top: 4px;
+    display: none;
+    gap: 4px;
+    pointer-events: none;
+    z-index: 6;
+}
+
+.cue-retrigger-strip {
+    left: 50%;
+    transform: translateX(-50%);
+    justify-content: center;
+    align-items: center;
+}
+
+.cue-retrigger-icon {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.55);
+    color: var(--text-color);
+    font-size: 0.7rem;
     line-height: 1;
-    max-width: 50%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    min-width: 18px;
+}
+
+.cue-retrigger-icon.visible {
+    display: inline-flex;
+}
+
+.cue-retrigger-icon.icon-image {
+    background-color: transparent;
+    border: none;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+}
+
+.cue-button.playing .cue-retrigger-icon {
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.cue-duck-strip {
+    right: 20px;
+    /* Lift ducking strip so larger text icons sit slightly higher, matching the visual line of other icons */
+    top: -4px;
+    justify-content: flex-end;
+    /* Align ducking icons to the top so they line up vertically with loop/retrigger icons */
+    align-items: flex-start;
+}
+
+.cue-duck-icon {
+    /* Match general icon size so duck icons align with loop/retrigger icons */
+    width: 32px;
+    height: 32px;
+    display: none;
+    opacity: 0.35;
+    transition: opacity 0.15s ease;
+    pointer-events: none;
+    object-fit: contain;
+    max-width: 32px;
+    max-height: 32px;
+}
+
+.cue-duck-icon.visible {
+    display: inline-block;
+}
+
+.cue-duck-icon.active {
+    opacity: 1;
 }
 
 .cue-button-name-container {
@@ -141,6 +240,39 @@
     margin-left: 5px;
     font-size: 0.9em;
     color: var(--text-secondary-color);
+}
+
+.cue-audio-meter-container {
+    flex: 0 0 14px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--border-radius);
+    padding: 2px;
+    box-sizing: border-box;
+    pointer-events: none;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.cue-audio-meter-bar {
+    width: 100%;
+    height: 0;
+    background: linear-gradient(180deg, var(--cue-playing-bg, #4CAF50) 0%, var(--cue-playing-border, #45a049) 100%);
+    border-radius: calc(var(--border-radius) - 2px);
+    transition: height 0.12s ease, opacity 0.12s ease;
+    opacity: 0.6;
+}
+
+.cue-audio-meter-container.cue-audio-meter-active {
+    border-color: var(--cue-playing-border, #45a049);
+    background: rgba(76, 175, 80, 0.15);
+}
+
+.cue-audio-meter-container.cue-audio-meter-active .cue-audio-meter-bar {
+    opacity: 1;
 }
 
 /* Cue Button States */

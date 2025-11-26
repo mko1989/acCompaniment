@@ -18,11 +18,6 @@ const setAudioOutputDevice = (deviceId) => electronAPIInstance.invoke('set-audio
 const showMultipleFilesDropModalComplete = (result) => electronAPIInstance.send('multiple-files-drop-modal-complete', result);
 const showOpenDialog = (options) => electronAPIInstance.invoke('show-open-dialog', options);
 const showSaveDialog = (options) => electronAPIInstance.invoke('show-save-dialog', options);
-const sendStartOscLearn = (cueId) => electronAPIInstance.send('start-osc-learn', cueId);
-const sendStopOscLearn = () => electronAPIInstance.send('stop-osc-learn');
-const sendSaveOscConfig = (config) => electronAPIInstance.invoke('save-osc-config', config);
-const sendRequestOscConfig = () => electronAPIInstance.invoke('request-osc-config');
-const sendOscMessageToMixer = (message) => electronAPIInstance.invoke('send-osc-message-to-mixer', message);
 
 
 function initialize(electronAPI) {
@@ -394,10 +389,5 @@ export {
     showMultipleFilesDropModalComplete,
     showOpenDialog,
     showSaveDialog,
-    sendStartOscLearn,
-    sendStopOscLearn,
-    sendSaveOscConfig,
-    sendRequestOscConfig,
-    sendOscMessageToMixer,
     registerCueListUpdatedCallback
 };

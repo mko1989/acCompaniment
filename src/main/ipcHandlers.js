@@ -624,8 +624,6 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
     });
 
     // Note: reset-inactivity-timer listener removal not needed as no listener was registered
-
-    // OSC and mixer integration handlers removed as per requirements
     
     // Handler for 'get-or-generate-waveform-peaks' registered
 
@@ -635,7 +633,6 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
             if (mainWindowRef && mainWindowRef.webContents && !mainWindowRef.webContents.isDestroyed()) {
                 mainWindowRef.webContents.send('app-config-updated', newConfig);
             }
-            // Mixer integration settings update removed as per requirements
             // Update HTTP server with new config (for port changes, etc.)
             if (httpServerRef && typeof httpServerRef.updateConfig === 'function') {
                 httpServerRef.updateConfig(newConfig);
@@ -644,8 +641,6 @@ function initialize(application, mainWin, cueMgrModule, appCfgManager, wsMgr, ws
     } else {
         console.error("IPC_HANDLERS_INIT: appConfigManagerRef or onConfigChange is not available.");
     }
-
-    // Wing button configuration handlers removed as per requirements
     
     // Playlist Navigation Handlers
     ipcMain.handle('playlist-navigate-next', async (event, cueId) => {
