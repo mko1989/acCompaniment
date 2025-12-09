@@ -1,4 +1,4 @@
-# acCompaniment Soundboard
+# acCompaniment
 
 **acCompaniment** is a professional soundboard application built with Electron, designed for live performance, broadcasting, and advanced audio cue management. It offers robust control over audio playback, extensive customization options, and integration capabilities with Bitfocus Companion.
 
@@ -115,7 +115,6 @@ The application is built using Electron. Key technologies include:
 *   **Howler.js:** For audio playback.
 *   **Node.js:** For main process logic and system interactions.
 *   **WebSockets:** For communication with the Bitfocus Companion module.
-*   **OSC (Open Sound Control):** For mixer integration.
 
 ### Project Structure
 
@@ -161,26 +160,6 @@ To control acCompaniment from Bitfocus Companion:
 4.  Configure the IP address and port if necessary (defaults usually work if Companion and acCompaniment are on the same machine).
 5.  Actions, variables, and feedbacks will become available in Companion to control and monitor cues.
 
-## Troubleshooting
-
-### Common Issues
-
-**Audio not playing:**
-- Check that the correct audio output device is selected in Settings
-- Verify audio files are in supported formats (MP3, WAV, M4A, etc.)
-
-**Cues not appearing:**
-- Ensure audio files are being dropped in the main grid area
-- Check that files are not corrupted
-
-**Remote control not working:**
-- Verify HTTP remote control is enabled in Settings
-- Check firewall settings if accessing from another device
-
-**Performance issues:**
-- Close unnecessary applications
-- Reduce the number of simultaneous playing cues
-- Use lower quality audio files if needed
 
 ### Getting Help
 
