@@ -71,15 +71,19 @@ Download the latest release from the [Releases](../../releases) page for your op
 3. **Playing Cues:** Click on any cue button to start playback
 4. **Edit Mode:** Hold Shift while clicking to edit cue properties
 5. **Stop All:** Use the red "Don't Panic" button to stop all playing cues
-6. **Remote Control:** Enable HTTP remote control in settings to access the web interface
+6. **Ducking:** One cue is a ducking trigger, meaning when this cue is played, all the cues with ducking enable will be ducked with the set level.
+7. **Crossfade:** When enabled only one cue is able to play and clicking a new one will trigger a crossfade between them.
+8. **Waveform editing:** In single cue's properties users can set in and out points on the wave form to cut out unnecessary parts.
+9. **Remote Control:** Enable HTTP remote control in settings to access the web interface
 
 #### Main workspace (red in show mode, gray in edit mode)
-<img width="1195" height="782" alt="Screenshot 2025-07-11 at 22 15 53" src="https://github.com/user-attachments/assets/a20d35d7-4578-4073-9304-8b46c461ecdb" />
+<img width="1165" height="655" alt="Screenshot 2025-12-09 at 09 55 36" src="https://github.com/user-attachments/assets/444794ed-9243-4d88-96d7-785881b29f99" />
 
-<img width="666" height="541" alt="Screenshot 2025-07-11 at 18 09 11" src="https://github.com/user-attachments/assets/696e765b-4912-4258-9b9c-0f9083d57e2a" />
+<img width="1161" height="656" alt="Screenshot 2025-12-09 at 09 56 09" src="https://github.com/user-attachments/assets/e6dd92a0-9101-4b2c-a8c8-57f62f30cb07" />
 
 #### Buttons
-<img width="166" height="90" alt="Screenshot 2025-07-11 at 18 07 15" src="https://github.com/user-attachments/assets/90b4ddeb-8559-4334-9f01-a82c2b7a4afe" />
+<img width="215" height="77" alt="Screenshot 2025-12-09 at 09 56 23" src="https://github.com/user-attachments/assets/7af6c51b-566c-4a22-b72b-300593816ab3" />
+<img width="218" height="72" alt="Screenshot 2025-12-09 at 09 56 56" src="https://github.com/user-attachments/assets/15f97635-9200-4627-9d04-118d4656b460" />
 
 #### App config
 <img width="272" height="660" alt="Screenshot 2025-07-11 at 18 06 52" src="https://github.com/user-attachments/assets/c46f8468-0edc-4c4d-8f6d-d346748ced49" />
@@ -98,6 +102,34 @@ Download the latest release from the [Releases](../../releases) page for your op
 
 #### Add multiple files modal
 <img width="350" height="318" alt="Screenshot 2025-07-11 at 18 08 03" src="https://github.com/user-attachments/assets/cd796ad5-f84f-4efc-92b9-4eb94bc968b2" />
+
+#### Cue's settings on buttons
+##### Top left: cue's state. Next: looping if enabled. Middle: retrigger behaviour. Top right: ducking
+<img width="160" height="131" alt="Screenshot 2025-12-09 at 10 09 24" src="https://github.com/user-attachments/assets/92efaf3f-7926-4159-bebc-cdb8cf5a68b5" />
+
+##### Retrigger behaviour: Fade and Stop
+<img width="164" height="140" alt="Screenshot 2025-12-09 at 09 57 25" src="https://github.com/user-attachments/assets/831d1d26-52b1-4d61-849a-39e0c20f07a1" />
+
+##### Retrigger behaviour: Restart
+<img width="166" height="141" alt="Screenshot 2025-12-09 at 09 57 37" src="https://github.com/user-attachments/assets/9ec3996c-e07a-4497-b926-b32d7fce6ffb" />
+
+##### Retrigger behaviour: Play new instance
+<img width="160" height="136" alt="Screenshot 2025-12-09 at 09 57 45" src="https://github.com/user-attachments/assets/7f817baf-f64c-409d-bd7e-5861600a1869" />
+
+##### Retrigger behaviour: Do nothing
+<img width="165" height="133" alt="Screenshot 2025-12-09 at 09 57 52" src="https://github.com/user-attachments/assets/94b2bdfd-5214-459b-a0fd-ca283b1b11ac" />
+
+##### Retrigger behaviour: Stop
+<img width="161" height="135" alt="Screenshot 2025-12-09 at 09 58 01" src="https://github.com/user-attachments/assets/1ceff267-4953-4944-bbea-1e7e687d560d" />
+
+##### Retrigger behaviour: Toggle Play/Pause
+<img width="158" height="136" alt="Screenshot 2025-12-09 at 09 58 10" src="https://github.com/user-attachments/assets/18f1c0a7-4cfc-4a96-950c-aea7a8f03c21" />
+
+##### Retrigger behaviour: Play next playlist item
+<img width="170" height="135" alt="Screenshot 2025-12-09 at 09 58 44" src="https://github.com/user-attachments/assets/6b374174-aff2-4523-abb1-c74ce553fbef" />
+
+##### Retrigger behaviour: Replay current item
+<img width="161" height="140" alt="Screenshot 2025-12-09 at 09 59 57" src="https://github.com/user-attachments/assets/46f36b92-0fd9-411f-963d-54a74efe7851" />
 
 
 #### HTTP Web Remote
