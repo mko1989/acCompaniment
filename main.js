@@ -1,137 +1,138 @@
 const { app, BrowserWindow, ipcMain, Menu, dialog, nativeTheme, session } = require('electron');
 const path = require('node:path');
 const fs = require('fs-extra'); // For file system operations
+const logger = require('./src/main/utils/logger');
 
 // Import main process modules
-console.log('MAIN_JS: Importing cueManager...');
+logger.info('MAIN_JS: Importing cueManager...');
 const cueManager = require('./src/main/cueManager');
-console.log('MAIN_JS: Importing ipcHandlers...');
-const { initialize: initializeIpcHandlers, handleThemeChange } = require('./src/main/ipcHandlers');
-console.log('MAIN_JS: Importing websocketServer...');
+logger.info('MAIN_JS: Importing ipcHandlers...');
+const { initialize: initializeIpcHandlers, handleThemeChange } = require('./src/main/ipc');
+logger.info('MAIN_JS: Importing websocketServer...');
 const websocketServer = require('./src/main/websocketServer');
-console.log('MAIN_JS: Importing appConfigManager...');
+logger.info('MAIN_JS: Importing appConfigManager...');
 const appConfigManager = require('./src/main/appConfig');
-console.log('MAIN_JS: Importing workspaceManager...');
+logger.info('MAIN_JS: Importing workspaceManager...');
 const workspaceManager = require('./src/main/workspaceManager');
 // Mixer integration removed as per requirements
-console.log('MAIN_JS: Importing httpServer...');
+logger.info('MAIN_JS: Importing httpServer...');
 const httpServer = require('./src/main/httpServer'); // Added: Import httpServer
-console.log('MAIN_JS: All main modules imported.');
+logger.info('MAIN_JS: All main modules imported.');
 
 let mainWindow;
 let easterEggWindow = null; // Keep track of the game window
 
 // --- START NEW FUNCTION ---
 function openEasterEggGameWindow() {
-    if (easterEggWindow && !easterEggWindow.isDestroyed()) {
-        easterEggWindow.focus();
-        return;
-    }
+  if (easterEggWindow && !easterEggWindow.isDestroyed()) {
+    easterEggWindow.focus();
+    return;
+  }
 
-    try {
-        // Easter egg game window dimensions
-        const EASTER_EGG_WIDTH = 700;
-        const EASTER_EGG_HEIGHT = 560;
-        
-        easterEggWindow = new BrowserWindow({
-            width: EASTER_EGG_WIDTH,
-            height: EASTER_EGG_HEIGHT,
-            parent: mainWindow, // Optional: to make it a child window
-            modal: false,       // Optional: set to true to make it a modal dialog
-            resizable: false,
-            show: false, // Don't show until content is loaded
-            webPreferences: {
-                nodeIntegration: false, // Important for security
-                contextIsolation: true, // Important for security
-                // preload: path.join(__dirname, 'preloadForGame.js'), // If you need a specific preload for the game
-            }
-        });
+  try {
+    // Easter egg game window dimensions
+    const EASTER_EGG_WIDTH = 700;
+    const EASTER_EGG_HEIGHT = 560;
 
-        easterEggWindow.loadFile(path.join(__dirname, 'src', 'renderer', 'easter_egg_game', 'game.html'));
+    easterEggWindow = new BrowserWindow({
+      width: EASTER_EGG_WIDTH,
+      height: EASTER_EGG_HEIGHT,
+      parent: mainWindow, // Optional: to make it a child window
+      modal: false,       // Optional: set to true to make it a modal dialog
+      resizable: false,
+      show: false, // Don't show until content is loaded
+      webPreferences: {
+        nodeIntegration: false, // Important for security
+        contextIsolation: true, // Important for security
+        // preload: path.join(__dirname, 'preloadForGame.js'), // If you need a specific preload for the game
+      }
+    });
 
-        easterEggWindow.once('ready-to-show', () => {
-            easterEggWindow.show();
-            // easterEggWindow.webContents.openDevTools(); // Optional: for debugging the game window
-        });
+    easterEggWindow.loadFile(path.join(__dirname, 'src', 'renderer', 'easter_egg_game', 'game.html'));
 
-        easterEggWindow.on('closed', () => {
-            easterEggWindow = null;
-        });
-    } catch (error) {
-        console.error('Failed to open Easter Egg game window:', error);
-        easterEggWindow = null;
-    }
+    easterEggWindow.once('ready-to-show', () => {
+      easterEggWindow.show();
+      // easterEggWindow.webContents.openDevTools(); // Optional: for debugging the game window
+    });
+
+    easterEggWindow.on('closed', () => {
+      easterEggWindow = null;
+    });
+  } catch (error) {
+    logger.error('Failed to open Easter Egg game window:', error);
+    easterEggWindow = null;
+  }
 }
 // --- END NEW FUNCTION ---
 
 let isDev = process.env.NODE_ENV !== 'production';
 
 async function createWindow() {
-  console.log('MAIN_JS: createWindow START');
+  logger.info('MAIN_JS: createWindow START');
   try {
     // Reduced verbose logging
-    appConfigManager.loadConfig();
-    
+    await appConfigManager.loadConfig();
+
     const currentConfig = appConfigManager.getConfig(); // getConfig returns a copy
-    
+
 
     mainWindow = new BrowserWindow({
-      width: currentConfig.windowWidth || 1200, 
-      height: currentConfig.windowHeight || 800, 
-      x: currentConfig.windowX, 
-      y: currentConfig.windowY, 
+      width: currentConfig.windowWidth || 1200,
+      height: currentConfig.windowHeight || 800,
+      x: currentConfig.windowX,
+      y: currentConfig.windowY,
       webPreferences: {
         preload: path.join(__dirname, 'preload.js'),
         contextIsolation: true,
         enableRemoteModule: false,
-        nodeIntegration: false, 
+        nodeIntegration: false,
       },
       icon: path.join(__dirname, 'assets', 'icons', 'icon.png'),
       title: "acCompaniment"
     });
-    
+
 
     mainWindow.on('resize', saveWindowBounds);
     mainWindow.on('move', saveWindowBounds);
-    mainWindow.on('close', saveWindowBounds); 
-    
+    mainWindow.on('close', saveWindowBounds);
+
 
     await mainWindow.loadFile(path.join(__dirname, 'src', 'renderer', 'index.html'));
-    
+
 
     // DevTools are now only opened in development mode if explicitly requested
     if (isDev && process.env.OPEN_DEV_TOOLS) {
       mainWindow.webContents.openDevTools();
-      console.log('MAIN_JS: createWindow - DevTools opened');
+      logger.info('MAIN_JS: createWindow - DevTools opened');
     }
 
     // Initialize cue manager
     cueManager.setCuesDirectory(currentConfig.cuesFilePath);
-    
+
     await cueManager.initialize(websocketServer, mainWindow, httpServer);
-    
 
-    
-    workspaceManager.initialize(appConfigManager, cueManager, mainWindow);
-    
 
-    
+
+    await workspaceManager.initialize(appConfigManager, cueManager, mainWindow);
+
+
+
     websocketServer.setContext(mainWindow, cueManager);
-    
+
     await websocketServer.startServer(currentConfig.websocketPort, currentConfig.websocketEnabled);
 
     // Mixer integration removed as per requirements
-    
+
 
     // Added: Initialize httpServer with app config
-    
+
     const currentAppConfig = appConfigManager.getConfig();
     httpServer.initialize(cueManager, mainWindow, currentAppConfig);
-    
 
-    
+
+
     initializeIpcHandlers(app, mainWindow, cueManager, appConfigManager, workspaceManager, websocketServer, null, httpServer, null, openEasterEggGameWindow);
-    
+
 
     // Configuration change listener can be added here if needed
     // appConfigManager.addConfigChangeListener(async (newConfig) => {
@@ -140,26 +141,26 @@ async function createWindow() {
 
     const menu = Menu.buildFromTemplate(getMenuTemplate(mainWindow, cueManager, workspaceManager, appConfigManager));
     Menu.setApplicationMenu(menu);
-    
+
 
     // The theme should be applied based on the config potentially updated by workspaceManager.initialize
     const finalConfigForTheme = appConfigManager.getConfig();
-    const themeToApply = finalConfigForTheme.theme || 'system'; 
-    
-    handleThemeChange(themeToApply, mainWindow, nativeTheme);
-    
+    const themeToApply = finalConfigForTheme.theme || 'system';
+
+    handleThemeChange(themeToApply, mainWindow, nativeTheme, appConfigManager);
+
 
     if (mainWindow && mainWindow.webContents) {
-      
+
       mainWindow.webContents.send('main-process-ready');
     } else {
-        console.error("MAIN_JS: DEBUG Cannot send main-process-ready, mainWindow or webContents is null at the end of try block.");
+      logger.error("MAIN_JS: DEBUG Cannot send main-process-ready, mainWindow or webContents is null at the end of try block.");
     }
 
-    console.log('MAIN_JS: createWindow END - Successfully reached end of try block'); // LOG 29
+    logger.info('MAIN_JS: createWindow END - Successfully reached end of try block'); // LOG 29
 
   } catch (error) {
-    console.error('MAIN_JS: CRITICAL ERROR in createWindow:', error);
+    logger.error('MAIN_JS: CRITICAL ERROR in createWindow:', error);
   }
 }
 
@@ -185,7 +186,7 @@ function getMenuTemplate(mainWindow, cueManager, workspaceManager, appConfigMana
       submenu: [
         { role: 'about' },
         { type: 'separator' },
-        { 
+        {
           label: 'Preferences',
           accelerator: 'CmdOrCtrl+,',
           click: () => {
@@ -334,7 +335,7 @@ function getMenuTemplate(mainWindow, cueManager, workspaceManager, appConfigMana
               const https = require('https');
               const packageJson = require('./package.json');
               const currentVersion = packageJson.version;
-              
+
               const checkUpdate = () => {
                 return new Promise((resolve) => {
                   const options = {
@@ -441,7 +442,7 @@ function getMenuTemplate(mainWindow, cueManager, workspaceManager, appConfigMana
                 });
               }
             } catch (error) {
-              console.error('Error checking for updates:', error);
+              logger.error('Error checking for updates:', error);
               const { dialog } = require('electron');
               await dialog.showMessageBox(mainWindow, {
                 type: 'error',
@@ -459,7 +460,7 @@ function getMenuTemplate(mainWindow, cueManager, workspaceManager, appConfigMana
           label: 'Learn More',
           click: async () => {
             const { shell } = require('electron');
-            await shell.openExternal('https://github.com/mko1989/acCompaniment'); 
+            await shell.openExternal('https://github.com/mko1989/acCompaniment');
           }
         }
       ]
@@ -472,12 +473,12 @@ function getMenuTemplate(mainWindow, cueManager, workspaceManager, appConfigMana
 const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
-  console.log('MAIN_JS: Another instance is already running. Exiting.');
+  logger.info('MAIN_JS: Another instance is already running. Exiting.');
   app.quit();
 } else {
   app.on('second-instance', (event, commandLine, workingDirectory) => {
     // Someone tried to run a second instance, focus our window instead
-    console.log('MAIN_JS: Second instance attempted. Focusing existing window.');
+    logger.info('MAIN_JS: Second instance attempted. Focusing existing window.');
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.focus();
@@ -487,62 +488,62 @@ if (!gotTheLock) {
 
 // --- Electron App Lifecycle Events ---
 app.whenReady().then(async () => {
-  console.log('MAIN_JS: App is ready, starting createWindow...');
+  logger.info('MAIN_JS: App is ready, starting createWindow...');
 
   // Allow media permissions (needed for audio device enumeration on macOS)
   try {
     session.defaultSession.setPermissionRequestHandler((wc, permission, callback, details) => {
       if (permission === 'media') {
-        console.log('Permission request (media) granted. Details:', details);
+        logger.info('Permission request (media) granted. Details:', details);
         return callback(true);
       }
       callback(true);
     });
   } catch (e) {
-    console.warn('Failed to set permission request handler:', e);
+    logger.warn('Failed to set permission request handler:', e);
   }
   await createWindow();
-  console.log('MAIN_JS: createWindow has completed.');
+  logger.info('MAIN_JS: createWindow has completed.');
 
   // Global shortcut registration can be enabled here if needed
   // Currently disabled to avoid conflicts
 
   app.on('activate', () => {
-    console.log('MAIN_JS: app.on(activate) - START');
+    logger.info('MAIN_JS: app.on(activate) - START');
     if (BrowserWindow.getAllWindows().length === 0) {
-      console.log('MAIN_JS: app.on(activate) - No windows open, calling createWindow()');
+      logger.info('MAIN_JS: app.on(activate) - No windows open, calling createWindow()');
       createWindow();
     }
-    console.log('MAIN_JS: app.on(activate) - END');
+    logger.info('MAIN_JS: app.on(activate) - END');
   });
-  console.log('MAIN_JS: app.whenReady() - activate listener attached');
+  logger.info('MAIN_JS: app.whenReady() - activate listener attached');
 });
-console.log('MAIN_JS: app.whenReady() listener attached');
+logger.info('MAIN_JS: app.whenReady() listener attached');
 
 app.on('window-all-closed', () => {
-  console.log('MAIN_JS: window-all-closed event');
+  logger.info('MAIN_JS: window-all-closed event');
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
-console.log('MAIN_JS: window-all-closed listener attached');
+logger.info('MAIN_JS: window-all-closed listener attached');
 
 app.on('will-quit', () => {
-  console.log('MAIN_JS: will-quit event. Ensuring config is saved.');
-  if (mainWindow && !mainWindow.isDestroyed()) { 
+  logger.info('MAIN_JS: will-quit event. Ensuring config is saved.');
+  if (mainWindow && !mainWindow.isDestroyed()) {
     saveWindowBounds();
   }
-  appConfigManager.saveConfig(); 
-  console.log('MAIN_JS: App is quitting.');
+  appConfigManager.saveConfigSync();
+  logger.info('MAIN_JS: App is quitting.');
   // Global shortcuts cleanup can be enabled here if needed
   // Currently disabled since no shortcuts are registered
 });
-console.log('MAIN_JS: will-quit listener attached');
+logger.info('MAIN_JS: will-quit listener attached');
 
 if (process.platform === 'darwin') {
   app.setName('acCompaniment Soundboard');
 }
-console.log('MAIN_JS: Script end');
+logger.info('MAIN_JS: Script end');
 
 // IPC handlers for opening new windows can be added here if needed
 // Example:

@@ -4,6 +4,7 @@ const WebSocket = require('ws');
 const path = require('path');
 const os = require('os');
 const { formatTimeMMSS, calculateEffectiveTrimmedDurationSec } = require('./utils/timeUtils'); // Import utilities
+const logger = require('./utils/logger');
 
 let cueManagerRef;
 let mainWindowRef; // To send messages to the renderer if needed
@@ -20,18 +21,18 @@ let ipcSentForThisRemoteTrigger = {}; // cueId -> boolean : Blocks IPC send if t
 function cleanupIpcTriggerLocks() {
     const now = Date.now();
     const keysToDelete = [];
-    
+
     for (const [cueId, timestamp] of Object.entries(ipcSentForThisRemoteTrigger)) {
         // Remove entries older than 5 seconds (safety margin)
         if (now - timestamp > 5000) {
             keysToDelete.push(cueId);
         }
     }
-    
+
     keysToDelete.forEach(key => delete ipcSentForThisRemoteTrigger[key]);
-    
+
     if (keysToDelete.length > 0) {
-        console.log(`HTTP_SERVER: Cleaned up ${keysToDelete.length} stale IPC trigger locks`);
+        logger.info(`HTTP_SERVER: Cleaned up ${keysToDelete.length} stale IPC trigger locks`);
     }
 }
 
@@ -45,7 +46,7 @@ function initialize(cueMgr, mainWin, appConfig = null) {
     cueManagerRef = cueMgr;
     mainWindowRef = mainWin;
     appConfigRef = appConfig;
-    
+
     // Use configured port if available
     if (appConfig && appConfig.httpRemotePort) {
         configuredPort = appConfig.httpRemotePort;
@@ -62,7 +63,7 @@ function initialize(cueMgr, mainWin, appConfig = null) {
     });
 
     wss.on('connection', (ws) => {
-        console.log('HTTP_SERVER: Remote client connected via WebSocket.');
+        logger.info('HTTP_SERVER: Remote client connected via WebSocket.');
 
         // Send current cues on connection
         if (cueManagerRef) {
@@ -70,7 +71,7 @@ function initialize(cueMgr, mainWin, appConfig = null) {
             const processedCues = rawCues.map(cue => {
                 let initialTrimmedDurationValueS = 0;
                 let originalKnownDurationS = 0;
-                
+
                 if (cue.type === 'single_file') {
                     initialTrimmedDurationValueS = calculateEffectiveTrimmedDurationSec(cue);
                     originalKnownDurationS = cue.knownDuration || 0;
@@ -85,9 +86,9 @@ function initialize(cueMgr, mainWin, appConfig = null) {
                     initialTrimmedDurationValueS = cue.knownDuration || 0;
                     originalKnownDurationS = cue.knownDuration || 0;
                 }
-                
-                console.log(`HTTP_SERVER: Initial cue data for ${cue.id} (${cue.type}): trimmed=${initialTrimmedDurationValueS}s, original=${originalKnownDurationS}s`);
-                
+
+                logger.info(`HTTP_SERVER: Initial cue data for ${cue.id} (${cue.type}): trimmed=${initialTrimmedDurationValueS}s, original=${originalKnownDurationS}s`);
+
                 // Ensure all necessary fields expected by remote are present
                 return {
                     id: cue.id,
@@ -113,73 +114,73 @@ function initialize(cueMgr, mainWin, appConfig = null) {
                 if (parsedMessage.action === 'trigger_cue' && parsedMessage.cueId) {
                     const cueId = parsedMessage.cueId;
                     const now = Date.now();
-                    
+
 
                     const lastTriggerTime = recentlyTriggeredCuesByRemote.get(cueId);
-                    
+
                     if (lastTriggerTime && (now - lastTriggerTime < REMOTE_TRIGGER_DEBOUNCE_MS)) {
-                        console.log(`HTTP_SERVER: Ignoring duplicate trigger for cue ${cueId} (debounced)`);
-                        return; 
+                        logger.info(`HTTP_SERVER: Ignoring duplicate trigger for cue ${cueId} (debounced)`);
+                        return;
                     }
-                    
+
                     recentlyTriggeredCuesByRemote.set(cueId, now);
-                    
+
                     // New Guard: Ensure IPC for this specific trigger event is sent only once
                     if (ipcSentForThisRemoteTrigger[cueId]) {
-                        console.log(`HTTP_SERVER: Ignoring duplicate IPC trigger for cue ${cueId} (already sent)`);
+                        logger.info(`HTTP_SERVER: Ignoring duplicate IPC trigger for cue ${cueId} (already sent)`);
                         // We still want the recentlyTriggeredCuesByRemote timeout to clear normally for the *next* distinct message.
                         // So, we just return from this execution path for THIS message.
-                        return; 
+                        return;
                     }
                     ipcSentForThisRemoteTrigger[cueId] = now;
-                    
+
 
                     // Clear the per-trigger IPC lock after a safe interval
                     setTimeout(() => {
-                        delete ipcSentForThisRemoteTrigger[cueId]; 
+                        delete ipcSentForThisRemoteTrigger[cueId];
                     }, 1000); // 1 second, well after any potential duplicate processing of the same event
-                    
+
                     // Original timeout for inter-message debounce
                     setTimeout(() => {
                         recentlyTriggeredCuesByRemote.delete(cueId);
                     }, REMOTE_TRIGGER_DEBOUNCE_MS);
 
                     if (mainWindowRef && mainWindowRef.webContents) {
-                        const payload = { 
+                        const payload = {
                             cueId: parsedMessage.cueId,
-                            source: 'remote_http' 
+                            source: 'remote_http'
                         };
                         mainWindowRef.webContents.send('trigger-cue-by-id-from-main', payload);
-                        
+
                     } else {
-                        console.warn('HTTP_SERVER: Cannot send trigger message - mainWindowRef or webContents not available');
+                        logger.warn('HTTP_SERVER: Cannot send trigger message - mainWindowRef or webContents not available');
                     }
                 } else if (parsedMessage.action === 'stop_all_cues') {
                     if (mainWindowRef && mainWindowRef.webContents) {
                         mainWindowRef.webContents.send('stop-all-audio');
-                        console.log('HTTP_SERVER: Stop all cues command sent to main window');
+                        logger.info('HTTP_SERVER: Stop all cues command sent to main window');
                     } else {
-                        console.warn('HTTP_SERVER: Cannot send stop all command - mainWindowRef or webContents not available');
+                        logger.warn('HTTP_SERVER: Cannot send stop all command - mainWindowRef or webContents not available');
                     }
                 } else if (parsedMessage.action === 'playlist_jump_to_item' && parsedMessage.cueId !== undefined && parsedMessage.targetIndex !== undefined) {
                     if (mainWindowRef && mainWindowRef.webContents) {
                         mainWindowRef.webContents.send('playlist-jump-to-item-from-main', { cueId: parsedMessage.cueId, targetIndex: parsedMessage.targetIndex });
-                        console.log(`HTTP_SERVER: Playlist jump to item command sent for cue ${parsedMessage.cueId}, index ${parsedMessage.targetIndex}`);
+                        logger.info(`HTTP_SERVER: Playlist jump to item command sent for cue ${parsedMessage.cueId}, index ${parsedMessage.targetIndex}`);
                     } else {
-                        console.warn('HTTP_SERVER: Cannot send playlist jump to item command - mainWindowRef or webContents not available');
+                        logger.warn('HTTP_SERVER: Cannot send playlist jump to item command - mainWindowRef or webContents not available');
                     }
                 }
             } catch (error) {
-                console.error('HTTP_SERVER_LOG: Error in ws.on("message") handler:', error);
+                logger.error('HTTP_SERVER_LOG: Error in ws.on("message") handler:', error);
             }
         });
 
         ws.on('close', () => {
-            console.log('HTTP_SERVER: Remote client disconnected.');
+            logger.info('HTTP_SERVER: Remote client disconnected.');
         });
 
         ws.on('error', (error) => {
-            console.error('HTTP_SERVER: WebSocket error:', error);
+            logger.error('HTTP_SERVER: WebSocket error:', error);
         });
     });
 
@@ -187,23 +188,23 @@ function initialize(cueMgr, mainWin, appConfig = null) {
     function tryStartServer(port, maxRetries = 10) {
         server.listen(port, () => {
             configuredPort = port; // Update the configured port to the actual port used
-            console.log(`HTTP_SERVER: HTTP and WebSocket server started on port ${port}. Access remote at http://localhost:${port}`);
+            logger.info(`HTTP_SERVER: HTTP and WebSocket server started on port ${port}. Access remote at http://localhost:${port}`);
         }).on('error', (error) => {
-            console.error(`HTTP_SERVER: Failed to start server on port ${port}:`, error);
+            logger.error(`HTTP_SERVER: Failed to start server on port ${port}:`, error);
             if (error.code === 'EADDRINUSE') {
                 const nextPort = port + 1;
                 if (nextPort <= configuredPort + maxRetries) {
-                    console.log(`HTTP_SERVER: Port ${port} is already in use. Trying port ${nextPort}...`);
+                    logger.info(`HTTP_SERVER: Port ${port} is already in use. Trying port ${nextPort}...`);
                     tryStartServer(nextPort, maxRetries);
                 } else {
-                    console.error(`HTTP_SERVER: Could not find an available port after trying ${maxRetries} ports starting from ${configuredPort}. Please check your system.`);
+                    logger.error(`HTTP_SERVER: Could not find an available port after trying ${maxRetries} ports starting from ${configuredPort}. Please check your system.`);
                 }
             } else {
-                console.error(`HTTP_SERVER: Server startup failed with error: ${error.message}`);
+                logger.error(`HTTP_SERVER: Server startup failed with error: ${error.message}`);
             }
         });
     }
-    
+
     tryStartServer(configuredPort);
 }
 
@@ -214,7 +215,7 @@ function broadcastToRemotes(message) {
             try {
                 client.send(JSON.stringify(message));
             } catch (error) {
-                console.error('HTTP_SERVER: Error sending message to remote client:', error);
+                logger.error('HTTP_SERVER: Error sending message to remote client:', error);
             }
         }
     });
@@ -224,7 +225,7 @@ function broadcastToRemotes(message) {
 function getNetworkInterfaces() {
     const interfaces = os.networkInterfaces();
     const addresses = [];
-    
+
     for (const interfaceName in interfaces) {
         const interfaceInfo = interfaces[interfaceName];
         for (const info of interfaceInfo) {
@@ -238,7 +239,7 @@ function getNetworkInterfaces() {
             }
         }
     }
-    
+
     return addresses;
 }
 
@@ -254,10 +255,10 @@ function getRemoteInfo() {
 // Function to update configuration (for port changes, etc.)
 function updateConfig(newConfig) {
     appConfigRef = newConfig;
-    
+
     // If port changed, log a warning that restart is needed
     if (newConfig.httpRemotePort && newConfig.httpRemotePort !== configuredPort) {
-        console.log(`HTTP_SERVER: Port change detected (${configuredPort} -> ${newConfig.httpRemotePort}). Server restart required for changes to take effect.`);
+        logger.info(`HTTP_SERVER: Port change detected (${configuredPort} -> ${newConfig.httpRemotePort}). Server restart required for changes to take effect.`);
         // Note: We don't restart the server automatically to avoid disrupting connections
         // The port change will take effect on next app restart
     }

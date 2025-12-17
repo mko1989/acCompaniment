@@ -2,16 +2,17 @@
 // Manages audio playback using Howler.js - now acts as a higher-level orchestrator.
 
 // import { getGlobalCueById } from './ui/utils.js'; // Removed - using cueStore directly instead
-import { getPlaybackTimesUtil, formatTimeMMSS } from './audioTimeUtils.js';
+import { getPlaybackTimesUtil, formatTimeMMSS, calculateEffectiveTrimmedDurationSec } from './audioTimeUtils.js';
 import { init as initEmitter, sendPlaybackTimeUpdate } from './audioPlaybackIPCEmitter.js';
 import { createPlaybackInstance } from './playbackInstanceHandler.js';
+import { log } from './audioPlaybackLogger.js';
 
 // Local function to get cue by ID using cueStore directly
 function getGlobalCueById(cueId) {
     if (cueStoreRef && typeof cueStoreRef.getCueById === 'function') {
         return cueStoreRef.getCueById(cueId);
     }
-    console.warn(`AudioController.getGlobalCueById: cueStoreRef or getCueById is not available. Cue ID: ${cueId}.`);
+    log.warn(`AudioController.getGlobalCueById: cueStoreRef or getCueById is not available. Cue ID: ${cueId}.`);
     return null;
 }
 
@@ -34,21 +35,21 @@ let currentAudioOutputDeviceId = 'default';
 
 // Call this function to initialize the module with dependencies
 async function init(cs, ipcRendererBindingsInstance, cgAPI, sbAPI) {
-    console.log('AudioController: init sequence started.');
+    log.info('AudioController: init sequence started.');
     cueStoreRef = cs;
     ipcBindings = ipcRendererBindingsInstance; // This is the electronAPI from preload
-    
+
     // --- DEBUG LOG --- 
-    console.log(`AudioController: init received cgAPI. Type: ${typeof cgAPI}, Is valid object: ${cgAPI && typeof cgAPI === 'object'}, Has updateCueButtonTime: ${typeof cgAPI?.updateCueButtonTime}`);
+    log.debug(`AudioController: init received cgAPI. Type: ${typeof cgAPI}, Is valid object: ${cgAPI && typeof cgAPI === 'object'}, Has updateCueButtonTime: ${typeof cgAPI?.updateCueButtonTime}`);
 
     // Initialize the audio playback emitter (for sending updates to main)
     initEmitter(ipcBindings, formatTimeMMSS);
-    console.log('AudioController: AudioPlaybackIPCEmitter initialized.');
+    log.info('AudioController: AudioPlaybackIPCEmitter initialized.');
 
     // Dynamically import audioPlaybackManager
-    console.log('AudioController: Attempting to dynamically import audioPlaybackManager.js...');
-    playbackManagerModule = (await import('./audioPlaybackManager.js')).default; 
-    console.log('AudioController: Dynamically imported playbackManagerModule:', playbackManagerModule);
+    log.info('AudioController: Attempting to dynamically import audioPlaybackManager.js...');
+    playbackManagerModule = (await import('./audioPlaybackManager.js')).default;
+    log.info('AudioController: Dynamically imported playbackManagerModule:', playbackManagerModule);
 
     if (playbackManagerModule && typeof playbackManagerModule.init === 'function') {
         playbackManagerModule.init({
@@ -59,143 +60,143 @@ async function init(cs, ipcRendererBindingsInstance, cgAPI, sbAPI) {
             sendPlaybackTimeUpdate: sendPlaybackTimeUpdate,
             cueStore: cueStoreRef,
             ipcBindings: ipcBindings,
-            cueGridAPI: cgAPI, 
+            cueGridAPI: cgAPI,
             sidebarsAPI: sbAPI,
             getAppConfigFunc: getAppConfig, // Pass the local getter
             audioController: { getCurrentAudioOutputDeviceId }, // Pass audioController functions
             getPreloadedSound: getPreloadedSound // Pass preloaded sound accessor
         });
-        console.log('AudioController: playbackManagerModule.init() called successfully.');
+        log.info('AudioController: playbackManagerModule.init() called successfully.');
 
         // Now that playbackManagerModule is initialized, pass the UI refs if they were set beforehand
         if (localCueGridAPI && localSidebarsAPI && typeof playbackManagerModule.setUIRefs === 'function') {
-            console.log('AudioController: Forwarding stored UI refs to playbackManagerModule.');
+            log.info('AudioController: Forwarding stored UI refs to playbackManagerModule.');
             playbackManagerModule.setUIRefs(localCueGridAPI, localSidebarsAPI);
         } else {
-            console.log('AudioController: UI refs not yet available or playbackManagerModule.setUIRefs is not a function when attempting to forward.');
+            log.info('AudioController: UI refs not yet available or playbackManagerModule.setUIRefs is not a function when attempting to forward.');
         }
 
     } else {
-        console.error('AudioController FATAL: playbackManagerModule.js did not load correctly or has no init function.');
-        return; 
+        log.error('AudioController FATAL: playbackManagerModule.js did not load correctly or has no init function.');
+        return;
     }
 
     // Setup IPC listeners that might rely on audioPlaybackManager being ready
     setupIPCListeners();
     audioControllerInitialized = true;
-    console.log('AudioController: Main initialization complete.');
-    
+    log.info('AudioController: Main initialization complete.');
+
     // Start preloading audio files for faster first play
-    console.log('AudioController: Starting audio preloading...');
+    log.info('AudioController: Starting audio preloading...');
     setTimeout(() => preloadAudioFiles(), 1000); // Delay to ensure UI is ready
 }
 
 function setUIRefs(cgAPI, sbAPI) {
     localCueGridAPI = cgAPI;
     localSidebarsAPI = sbAPI;
-    console.log(`AudioController: setUIRefs called. Stored localCueGridAPI: ${!!localCueGridAPI}, localSidebarsAPI: ${!!localSidebarsAPI}`);
+    log.debug(`AudioController: setUIRefs called. Stored localCueGridAPI: ${!!localCueGridAPI}, localSidebarsAPI: ${!!localSidebarsAPI}`);
 
     // If playbackManagerModule is already initialized, pass the refs immediately
     if (playbackManagerModule && typeof playbackManagerModule.setUIRefs === 'function' && audioControllerInitialized) {
-        console.log('AudioController: playbackManagerModule already initialized, calling setUIRefs on it directly.');
+        log.info('AudioController: playbackManagerModule already initialized, calling setUIRefs on it directly.');
         playbackManagerModule.setUIRefs(localCueGridAPI, localSidebarsAPI);
     } else {
-        console.log('AudioController: playbackManagerModule not yet ready, UI refs stored. Will be passed after playbackManager init.');
+        log.info('AudioController: playbackManagerModule not yet ready, UI refs stored. Will be passed after playbackManager init.');
     }
 }
 
 function getAppConfig() {
     if (!appConfigInitialized) {
-        console.log("AudioController: getAppConfig called during initialization. Returning default state.");
+        log.debug("AudioController: getAppConfig called during initialization. Returning default state.");
     }
     return internalAppConfigState;
 }
 
 function _updateInternalAppConfig(newConfig) {
     internalAppConfigState = { ...newConfig };
-    
+
     // Update the current audio output device ID if it changed
     if (newConfig.audioOutputDeviceId !== undefined) {
         currentAudioOutputDeviceId = newConfig.audioOutputDeviceId;
-        console.log(`AudioController: Updated current audio output device ID to: ${currentAudioOutputDeviceId}`);
+        log.info(`AudioController: Updated current audio output device ID to: ${currentAudioOutputDeviceId}`);
     }
-    
+
     appConfigInitialized = true;
-    console.log("AudioController: Internal app config updated and marked as initialized.", internalAppConfigState);
+    log.info("AudioController: Internal app config updated and marked as initialized.", internalAppConfigState);
     // No need to propagate to playbackManager here; it uses getAppConfigFuncRef when needed
 }
 
 function setupIPCListeners() {
     if (!ipcBindings) {
-        console.error("AudioController: setupIPCListeners - ipcBindings not available.");
+        log.error("AudioController: setupIPCListeners - ipcBindings not available.");
         return;
     }
-    console.log("AudioController: Setting up IPC listeners...");
+    log.info("AudioController: Setting up IPC listeners...");
 
     ipcBindings.on('toggle-audio-by-id', (event, { cueId, fromCompanion, retriggerBehaviorOverride }) => {
-        console.log(`AudioController: IPC 'toggle-audio-by-id' received for ${cueId}`);
+        log.debug(`AudioController: IPC 'toggle-audio-by-id' received for ${cueId}`);
         if (playbackManagerModule && playbackManagerModule.toggleCue) {
             playbackManagerModule.toggleCue(cueId, fromCompanion, retriggerBehaviorOverride);
         } else {
-            console.error('AudioController: playbackManagerModule or toggleCue not available for toggle-audio-by-id');
+            log.error('AudioController: playbackManagerModule or toggleCue not available for toggle-audio-by-id');
         }
     });
-    console.log("AudioController: Listener for 'toggle-audio-by-id' registered.");
+    log.info("AudioController: Listener for 'toggle-audio-by-id' registered.");
 
     ipcBindings.on('play-audio-by-id', (event, { cueId }) => {
-        console.log(`AudioController: IPC 'play-audio-by-id' received for ${cueId}`);
+        log.debug(`AudioController: IPC 'play-audio-by-id' received for ${cueId}`);
         const cue = getGlobalCueById(cueId); // Use local function
         if (cue && playbackManagerModule && playbackManagerModule.playCue) {
             playbackManagerModule.playCue(cue, false); // false for isResume
         } else {
-            console.error('AudioController: playbackManagerModule, playCue or cue not available for play-audio-by-id', {cueExists: !!cue});
+            log.error('AudioController: playbackManagerModule, playCue or cue not available for play-audio-by-id', { cueExists: !!cue });
         }
     });
-    console.log("AudioController: Listener for 'play-audio-by-id' registered.");
+    log.info("AudioController: Listener for 'play-audio-by-id' registered.");
 
     ipcBindings.on('stop-audio-by-id', (event, { cueId, useFade }) => {
-        console.log(`AudioController: IPC 'stop-audio-by-id' received for ${cueId}`);
+        log.debug(`AudioController: IPC 'stop-audio-by-id' received for ${cueId}`);
         if (playbackManagerModule && playbackManagerModule.stopCue) {
             playbackManagerModule.stopCue(cueId, useFade);
         } else {
-            console.error('AudioController: playbackManagerModule or stopCue not available for stop-audio-by-id');
+            log.error('AudioController: playbackManagerModule or stopCue not available for stop-audio-by-id');
         }
     });
-    console.log("AudioController: Listener for 'stop-audio-by-id' registered.");
+    log.info("AudioController: Listener for 'stop-audio-by-id' registered.");
 
     ipcBindings.on('stop-all-audio', (event, options) => {
-        console.log("AudioController: IPC 'stop-all-audio' received.");
+        log.debug("AudioController: IPC 'stop-all-audio' received.");
         if (playbackManagerModule && playbackManagerModule.stopAllCues) {
             playbackManagerModule.stopAllCues(options);
         } else {
-            console.error('AudioController: playbackManagerModule or stopAllCues not available for stop-all-audio');
+            log.error('AudioController: playbackManagerModule or stopAllCues not available for stop-all-audio');
         }
     });
-    console.log("AudioController: Listener for 'stop-all-audio' registered.");
+    log.info("AudioController: Listener for 'stop-all-audio' registered.");
 }
 
 // Public interface for audioController
 function toggle(cueId, fromCompanion = false, retriggerBehaviorOverride = null) {
     if (!audioControllerInitialized || !playbackManagerModule || !playbackManagerModule.toggleCue) {
-        console.error(`AudioController: toggle called for ${cueId} before full initialization or playbackManager not ready.`);
+        log.error(`AudioController: toggle called for ${cueId} before full initialization or playbackManager not ready.`);
         return;
     }
-    console.log(`AudioController: Public toggle called for cueId: ${cueId}`);
+    log.debug(`AudioController: Public toggle called for cueId: ${cueId}`);
     playbackManagerModule.toggleCue(cueId, fromCompanion, retriggerBehaviorOverride);
 }
 
 function stopAll(options = { exceptCueId: null, useFade: true }) {
     if (!audioControllerInitialized || !playbackManagerModule || !playbackManagerModule.stopAllCues) {
-        console.error("AudioController: stopAll called before full initialization or playbackManager not ready.");
+        log.error("AudioController: stopAll called before full initialization or playbackManager not ready.");
         return;
     }
-    console.log("AudioController: Public stopAll called.");
+    log.debug("AudioController: Public stopAll called.");
     playbackManagerModule.stopAllCues(options);
 }
 
 function seek(cueId, positionSec) {
     if (!audioControllerInitialized || !playbackManagerModule || !playbackManagerModule.seekInCue) {
-        console.error(`AudioController: seek called for ${cueId} before full initialization or playbackManager not ready.`);
+        log.error(`AudioController: seek called for ${cueId} before full initialization or playbackManager not ready.`);
         return;
     }
     playbackManagerModule.seekInCue(cueId, positionSec);
@@ -210,59 +211,42 @@ function getPlaybackTimes(cueId) {
         if (cueStoreRef) {
             const cue = cueStoreRef.getCueById(cueId);
             if (cue) {
-                const originalKnownDuration = cue.knownDuration || 0;
-                const trimStartTime = cue.trimStartTime || 0;
-                const trimEndTime = (cue.trimEndTime !== undefined && cue.trimEndTime !== null) ? cue.trimEndTime : undefined;
-                let effectiveDuration;
-                if (trimEndTime && trimEndTime > trimStartTime) {
-                    effectiveDuration = trimEndTime - trimStartTime;
-                } else if (trimEndTime && trimEndTime <= trimStartTime && trimEndTime > 0) {
-                    effectiveDuration = 0;
-                    console.warn(`AudioController: Cue ${cue.id} has invalid trim (end <= start). Duration set to 0.`);
-                } else if (trimStartTime > 0) {
-                    effectiveDuration = originalKnownDuration - trimStartTime;
-                } else if (trimEndTime && trimEndTime > 0 && trimEndTime < originalKnownDuration) {
-                    effectiveDuration = trimEndTime;
-                } else {
-                    effectiveDuration = originalKnownDuration;
-                }
-                effectiveDuration = Math.max(0, effectiveDuration);
+                // Use shared utility for time calculations
+                const times = getPlaybackTimesUtil(
+                    null, // No sound
+                    0,    // base duration (ignored for idle single, used for playlist fallback inside util)
+                    cue.playlistItems, 
+                    0,    // logical index 0
+                    cue, 
+                    [],   // no shuffle order
+                    false // isCurrentlyCuedNext
+                );
+
                 let nextItemName = null;
-                let totalPlaylistDuration = 0;
                 let nextItemDuration = 0;
-                
+
                 if (cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0) {
-                    nextItemName = cue.playlistItems[0]?.name || 'Item 1';
-                    nextItemDuration = cue.playlistItems[0]?.knownDuration || 0;
-                    
-                    // Calculate total playlist duration
-                    const itemsWithValidDurations = cue.playlistItems.filter(item => item.knownDuration && item.knownDuration > 0);
-                    if (itemsWithValidDurations.length === cue.playlistItems.length) {
-                        // All items have valid durations, calculate total
-                        totalPlaylistDuration = cue.playlistItems.reduce((total, item) => total + (item.knownDuration || 0), 0);
-                    } else {
-                        // Some items missing durations, use first item duration as fallback
-                        totalPlaylistDuration = nextItemDuration;
-                        console.log(`AudioController: Playlist ${cueId} has ${cue.playlistItems.length - itemsWithValidDurations.length} items without durations, using first item duration as fallback for total`);
-                    }
+                    // For idle playlist, "next" is the first item
+                    const firstItem = cue.playlistItems[0];
+                    nextItemName = firstItem?.name || firstItem?.path?.split(/[\\\/]/).pop() || 'Item 1';
+                    nextItemDuration = firstItem?.knownDuration || 0;
                 } else {
-                    totalPlaylistDuration = effectiveDuration; // For single files, use the trimmed duration
-                    nextItemDuration = effectiveDuration;
+                    nextItemDuration = times.currentItemDuration;
                 }
 
                 return {
-                    currentTime: 0,
-                    duration: totalPlaylistDuration,
-                    currentTimeFormatted: formatTimeMMSS(0),
-                    durationFormatted: formatTimeMMSS(totalPlaylistDuration),
-                    remainingTime: totalPlaylistDuration,
-                    remainingTimeFormatted: formatTimeMMSS(totalPlaylistDuration),
+                    currentTime: times.currentTime,
+                    duration: times.totalPlaylistDuration,
+                    currentTimeFormatted: formatTimeMMSS(times.currentTime),
+                    durationFormatted: formatTimeMMSS(times.totalPlaylistDuration),
+                    remainingTime: times.totalPlaylistDuration, // In idle, remaining is full duration
+                    remainingTimeFormatted: formatTimeMMSS(times.totalPlaylistDuration),
                     isPlaying: false,
                     isPaused: false,
-                    isCued: cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0, // Only cued if it's a playlist with items
+                    isCued: cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0,
                     currentPlaylistItemName: null,
-                    nextPlaylistItemName: nextItemName, // For idle playlist, show first item as next
-                    nextPlaylistItemDuration: nextItemDuration, // Add next item duration for display
+                    nextPlaylistItemName: nextItemName,
+                    nextPlaylistItemDuration: nextItemDuration,
                     isPlaylist: cue.type === 'playlist'
                 };
             }
@@ -274,9 +258,14 @@ function getPlaybackTimes(cueId) {
     }
 
     const state = playbackManagerModule.getPlaybackState(cueId);
-    
-    if (state) { 
+
+    if (state) {
         // console.log(`[AudioController getPlaybackTimes] CueID: ${cueId} - Received state from playbackManager:`, JSON.stringify(state));
+        
+        // CRITICAL FIX: Ensure 'isPlaying' is false if the state is cued, even if the internal logic might think otherwise.
+        // This is a safety override for the UI and external consumers.
+        const effectiveIsPlaying = state.isPlaying && !((state.isCued || state.isCuedNext) && state.isPaused);
+
         // Pass through all relevant state, including names and status flags
         return {
             currentTime: state.currentTime,
@@ -285,7 +274,7 @@ function getPlaybackTimes(cueId) {
             durationFormatted: state.durationFormatted,
             remainingTime: Math.max(0, state.duration - state.currentTime),
             remainingTimeFormatted: formatTimeMMSS(Math.max(0, state.duration - state.currentTime)),
-            isPlaying: state.isPlaying,
+            isPlaying: effectiveIsPlaying,
             isPaused: state.isPaused,
             isCued: state.isCued || state.isCuedNext, // Combine cued flags for general UI use
             currentPlaylistItemName: state.currentPlaylistItemName,
@@ -302,62 +291,42 @@ function getPlaybackTimes(cueId) {
         if (cueStoreRef) { // Try cueStore again as a last resort for some basic info
             const cue = cueStoreRef.getCueById(cueId);
             if (cue) {
-                // CRITICAL FIX: Apply trim calculations in second fallback too
-                const originalKnownDuration = cue.knownDuration || 0;
-                const trimStartTime = cue.trimStartTime || 0;
-                const trimEndTime = (cue.trimEndTime !== undefined && cue.trimEndTime !== null) ? cue.trimEndTime : undefined;
-                let effectiveDuration;
-                
-                // FIX: Don't calculate trimmed duration if original duration is 0
-                if (originalKnownDuration <= 0) {
-                    effectiveDuration = 0;
-                } else if (trimEndTime && trimEndTime > trimStartTime) {
-                    effectiveDuration = trimEndTime - trimStartTime;
-                } else if (trimEndTime && trimEndTime <= trimStartTime && trimEndTime > 0) {
-                    effectiveDuration = 0;
-                    console.warn(`AudioController: Cue ${cue.id} has invalid trim (end <= start) in fallback. Duration set to 0.`);
-                } else if (trimStartTime > 0) {
-                    effectiveDuration = originalKnownDuration - trimStartTime;
-                } else if (trimEndTime && trimEndTime > 0 && trimEndTime < originalKnownDuration) {
-                    effectiveDuration = trimEndTime;
-                } else {
-                    effectiveDuration = originalKnownDuration;
-                }
-                effectiveDuration = Math.max(0, effectiveDuration);
-                
+                // Use shared utility for time calculations
+                const times = getPlaybackTimesUtil(
+                    null, // No sound
+                    0,    // base duration (ignored for idle single, used for playlist fallback inside util)
+                    cue.playlistItems, 
+                    0,    // logical index 0
+                    cue, 
+                    [],   // no shuffle order
+                    false // isCurrentlyCuedNext
+                );
+
                 let nextItemNameFallback = null;
-                let totalPlaylistDuration = 0;
                 let nextItemDuration = 0;
-                
+
                 if (cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0) {
-                    nextItemNameFallback = cue.playlistItems[0]?.name || 'Item 1';
-                    nextItemDuration = cue.playlistItems[0]?.knownDuration || 0;
-                    
-                    // Calculate total playlist duration
-                    const itemsWithValidDurations = cue.playlistItems.filter(item => item.knownDuration && item.knownDuration > 0);
-                    if (itemsWithValidDurations.length === cue.playlistItems.length) {
-                        // All items have valid durations, calculate total
-                        totalPlaylistDuration = cue.playlistItems.reduce((total, item) => total + (item.knownDuration || 0), 0);
-                    } else {
-                        // Some items missing durations, use first item duration as fallback
-                        totalPlaylistDuration = nextItemDuration;
-                        console.log(`AudioController: Playlist ${cueId} has ${cue.playlistItems.length - itemsWithValidDurations.length} items without durations, using first item duration as fallback for total`);
-                    }
+                    // For idle playlist, "next" is the first item
+                    const firstItem = cue.playlistItems[0];
+                    nextItemNameFallback = firstItem?.name || firstItem?.path?.split(/[\\\/]/).pop() || 'Item 1';
+                    nextItemDuration = firstItem?.knownDuration || 0;
                 } else {
-                    totalPlaylistDuration = effectiveDuration; // For single files, use the trimmed duration
-                    nextItemDuration = effectiveDuration;
+                    nextItemDuration = times.currentItemDuration;
                 }
-                
-                // console.log(`AudioController: Second fallback calculated duration for cue ${cueId}: original=${originalKnownDuration}, trimmed=${effectiveDuration}, totalPlaylist=${totalPlaylistDuration}, nextItem=${nextItemDuration}, trimStart=${trimStartTime}, trimEnd=${trimEndTime}`);
-                
+
                 return {
-                    currentTime: 0, duration: totalPlaylistDuration, currentTimeFormatted: '00:00', 
-                    durationFormatted: formatTimeMMSS(totalPlaylistDuration), 
-                    remainingTime: totalPlaylistDuration, remainingTimeFormatted: formatTimeMMSS(totalPlaylistDuration),
-                    isPlaying: false, isPaused: false, 
-                    isCued: cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0, // Only cued if it's a playlist with items
-                    currentPlaylistItemName: null, nextPlaylistItemName: nextItemNameFallback, 
-                    nextPlaylistItemDuration: nextItemDuration, // Add next item duration for display
+                    currentTime: times.currentTime,
+                    duration: times.totalPlaylistDuration,
+                    currentTimeFormatted: formatTimeMMSS(times.currentTime),
+                    durationFormatted: formatTimeMMSS(times.totalPlaylistDuration),
+                    remainingTime: times.totalPlaylistDuration,
+                    remainingTimeFormatted: formatTimeMMSS(times.totalPlaylistDuration),
+                    isPlaying: false,
+                    isPaused: false,
+                    isCued: cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0,
+                    currentPlaylistItemName: null,
+                    nextPlaylistItemName: nextItemNameFallback,
+                    nextPlaylistItemDuration: nextItemDuration,
                     isPlaylist: cue.type === 'playlist'
                 };
             }
@@ -408,25 +377,25 @@ function isCued(cueId) {
 
 // New function to update the internal app config reference
 function updateAppConfig(newConfig) {
-    console.log('AudioController: Config update received:', newConfig);
+    log.debug('AudioController: Config update received:', newConfig);
     if (newConfig) {
         internalAppConfigState = { ...newConfig };
-        console.log('AudioController: App config updated:', internalAppConfigState);
+        log.info('AudioController: App config updated:', internalAppConfigState);
     }
 }
 
 // New function to set the audio output device for Howler
 async function setAudioOutputDevice(deviceId) {
-    console.log(`AudioController: Attempting to set audio output device to: ${deviceId}`);
-    
+    log.info(`AudioController: Attempting to set audio output device to: ${deviceId}`);
+
     // Map 'default' to empty string for Web Audio API
     const sinkId = (deviceId === 'default') ? '' : deviceId;
-    
+
     let success = false;
     let errorMessage = null;
     let successfulSwitches = 0;
     let failedSwitches = 0;
-    
+
     // Store the current state of all playing/paused sounds before switching
     const soundStates = {};
     if (playbackManagerModule && playbackManagerModule.getCurrentlyPlayingInstances) {
@@ -443,59 +412,59 @@ async function setAudioOutputDevice(deviceId) {
             }
         }
     }
-    
+
     // For HTML5 Audio (which is used by default in this app), we need to set the device 
     // on each individual audio element, not the global AudioContext
     if (Object.keys(soundStates).length > 0) {
-        console.log(`AudioController: Setting audio output device on ${Object.keys(soundStates).length} active sounds`);
-        
+        log.info(`AudioController: Setting audio output device on ${Object.keys(soundStates).length} active sounds`);
+
         for (const [cueId, state] of Object.entries(soundStates)) {
             if (playbackManagerModule && playbackManagerModule.getCurrentlyPlayingInstances) {
                 const currentlyPlaying = playbackManagerModule.getCurrentlyPlayingInstances();
                 const playingState = currentlyPlaying[cueId];
-                
+
                 if (playingState && playingState.sound) {
                     try {
                         // Get the underlying HTML5 Audio element from Howler
                         const sound = playingState.sound;
-                        
+
                         // Howler.js exposes the underlying audio nodes
                         // For HTML5 Audio, we need to access the audio element
                         if (sound._sounds && sound._sounds.length > 0) {
                             const audioNode = sound._sounds[0]._node;
                             if (audioNode && typeof audioNode.setSinkId === 'function') {
-                                console.log(`AudioController: Setting sink ID on HTML5 Audio element for cue ${cueId}`);
+                                log.debug(`AudioController: Setting sink ID on HTML5 Audio element for cue ${cueId}`);
                                 await audioNode.setSinkId(sinkId);
                                 successfulSwitches++;
-                                console.log(`AudioController: Successfully set device for cue ${cueId}`);
+                                log.info(`AudioController: Successfully set device for cue ${cueId}`);
                             } else {
-                                console.warn(`AudioController: setSinkId not available on audio element for cue ${cueId}`);
+                                log.warn(`AudioController: setSinkId not available on audio element for cue ${cueId}`);
                                 failedSwitches++;
                             }
                         } else {
-                            console.warn(`AudioController: No audio nodes found for cue ${cueId}`);
+                            log.warn(`AudioController: No audio nodes found for cue ${cueId}`);
                             failedSwitches++;
                         }
                     } catch (error) {
-                        console.error(`AudioController: Failed to set device for cue ${cueId}:`, error);
+                        log.error(`AudioController: Failed to set device for cue ${cueId}:`, error);
                         failedSwitches++;
-                        
+
                         // Handle specific error types and try fallback
                         if (error.name === 'NotFoundError' || error.message.includes('not found')) {
-                            console.log(`AudioController: Device not found, trying fallback to default for cue ${cueId}`);
+                            log.warn(`AudioController: Device not found, trying fallback to default for cue ${cueId}`);
                             try {
                                 // Try to fall back to default device
                                 if (sound._sounds && sound._sounds.length > 0) {
                                     const audioNode = sound._sounds[0]._node;
                                     if (audioNode && typeof audioNode.setSinkId === 'function') {
                                         await audioNode.setSinkId(''); // Empty string for default device
-                                        console.log(`AudioController: Successfully set default device for cue ${cueId}`);
+                                        log.info(`AudioController: Successfully set default device for cue ${cueId}`);
                                         failedSwitches--; // Reduce failed count since fallback succeeded
                                         successfulSwitches++;
                                     }
                                 }
                             } catch (fallbackError) {
-                                console.error(`AudioController: Fallback to default device also failed for cue ${cueId}:`, fallbackError);
+                                log.error(`AudioController: Fallback to default device also failed for cue ${cueId}:`, fallbackError);
                                 errorMessage = `Audio device not found and fallback failed: ${deviceId}`;
                             }
                         } else if (error.name === 'NotAllowedError') {
@@ -507,28 +476,28 @@ async function setAudioOutputDevice(deviceId) {
                 }
             }
         }
-        
+
         success = successfulSwitches > 0;
-        
+
         if (successfulSwitches > 0) {
-            console.log(`AudioController: Successfully switched ${successfulSwitches} sounds to device ${deviceId}`);
+            log.info(`AudioController: Successfully switched ${successfulSwitches} sounds to device ${deviceId}`);
         }
         if (failedSwitches > 0) {
-            console.warn(`AudioController: Failed to switch ${failedSwitches} sounds to device ${deviceId}`);
+            log.warn(`AudioController: Failed to switch ${failedSwitches} sounds to device ${deviceId}`);
         }
     } else {
         // No active sounds, but we can still try to set the global context for future sounds
-        console.log(`AudioController: No active sounds, setting global Howler AudioContext for future sounds`);
-        
+        log.info(`AudioController: No active sounds, setting global Howler AudioContext for future sounds`);
+
         if (Howler.ctx && typeof Howler.ctx.setSinkId === 'function') {
             try {
                 await Howler.ctx.setSinkId(sinkId);
-                console.log(`AudioController: Successfully set global Howler AudioContext to device ${deviceId}`);
+                log.info(`AudioController: Successfully set global Howler AudioContext to device ${deviceId}`);
                 success = true;
             } catch (error) {
-                console.error(`AudioController: Failed to set global Howler AudioContext to device ${deviceId}:`, error);
+                log.error(`AudioController: Failed to set global Howler AudioContext to device ${deviceId}:`, error);
                 errorMessage = error.message;
-                
+
                 // Handle specific error types
                 if (error.name === 'NotFoundError') {
                     errorMessage = `Audio device not found: ${deviceId}`;
@@ -537,21 +506,21 @@ async function setAudioOutputDevice(deviceId) {
                 }
             }
         } else {
-            console.warn('AudioController: setSinkId not supported on AudioContext or Howler.ctx not available');
+            log.warn('AudioController: setSinkId not supported on AudioContext or Howler.ctx not available');
             // For future sounds, we'll need to handle this when they're created
             success = true; // Don't fail if there are no active sounds
         }
     }
-    
-    if (success) {
-        // Store the current device ID for future sounds
-        currentAudioOutputDeviceId = deviceId;
-        console.log(`AudioController: Successfully set audio output device to ${deviceId}`);
-        return { success: true, message: `Audio output switched to device: ${deviceId}` };
-    } else {
-        console.error(`AudioController: Failed to set audio output device to ${deviceId}: ${errorMessage}`);
-        return { success: false, error: errorMessage || 'Audio device switching failed' };
-    }
+
+if (success) {
+    // Store the current device ID for future sounds
+    currentAudioOutputDeviceId = deviceId;
+    log.info(`AudioController: Successfully set audio output device to ${deviceId}`);
+    return { success: true, message: `Audio output switched to device: ${deviceId}` };
+} else {
+    log.error(`AudioController: Failed to set audio output device to ${deviceId}: ${errorMessage}`);
+    return { success: false, error: errorMessage || 'Audio device switching failed' };
+}
 }
 
 // --- Re-export functions from audioPlaybackManager for other UI modules to use ---
@@ -561,41 +530,41 @@ const stop = (cueId, fromCompanion = false, useFade = false) => playbackManagerM
 const pause = (cueId) => playbackManagerModule?.pause(cueId);
 
 function playCueByIdFromMain(cueId, source = 'unknown') {
-    console.log(`AudioController: playCueByIdFromMain called for cueId: ${cueId}, source: ${source}`);
-    
+    log.debug(`AudioController: playCueByIdFromMain called for cueId: ${cueId}, source: ${source}`);
+
     if (!cueStoreRef) {
-        console.error('AudioController: cueStoreRef is not available. Cannot process playCueByIdFromMain.');
+        log.error('AudioController: cueStoreRef is not available. Cannot process playCueByIdFromMain.');
         return;
     }
-    
-    console.log(`AudioController: Looking up cue with ID: ${cueId}`);
+
+    log.debug(`AudioController: Looking up cue with ID: ${cueId}`);
     const cue = cueStoreRef.getCueById(cueId);
-    
+
     if (!cue) {
-        console.warn(`AudioController: Cue with ID ${cueId} not found in cueStoreRef.`);
+        log.warn(`AudioController: Cue with ID ${cueId} not found in cueStoreRef.`);
         return;
     }
-    
-    console.log(`AudioController: Found cue "${cue.name}" (ID: ${cueId}) for source: ${source}`);
-    
+
+    log.info(`AudioController: Found cue "${cue.name}" (ID: ${cueId}) for source: ${source}`);
+
     let determinedRetrigger = source === 'companion' ? (cue.retriggerActionCompanion || cue.retriggerAction || 'restart') : (cue.retriggerAction || 'restart');
-    console.log(`AudioController: Determined retriggerBehavior: '${determinedRetrigger}' for cue '${cue.name}' from source '${source}'`);
-    
+    log.debug(`AudioController: Determined retriggerBehavior: '${determinedRetrigger}' for cue '${cue.name}' from source '${source}'`);
+
     const isFromCompanionFlag = source === 'companion';
-    console.log(`AudioController: isFromCompanionFlag: ${isFromCompanionFlag}`);
-    
+    log.debug(`AudioController: isFromCompanionFlag: ${isFromCompanionFlag}`);
+
     // Call the audioController's own toggle method
     if (typeof toggle === 'function') {
-        console.log(`AudioController: Calling toggle function for cue ID: ${cue.id}`);
+        log.debug(`AudioController: Calling toggle function for cue ID: ${cue.id}`);
         try {
             toggle(cue.id, isFromCompanionFlag, determinedRetrigger);
-            console.log(`AudioController: Successfully called toggle for cue: ${cue.name} (ID: ${cue.id})`);
+            log.info(`AudioController: Successfully called toggle for cue: ${cue.name} (ID: ${cue.id})`);
         } catch (error) {
-            console.error(`AudioController: Error calling toggle for cue: ${cue.name} (ID: ${cue.id}):`, error);
+            log.error(`AudioController: Error calling toggle for cue: ${cue.name} (ID: ${cue.id}):`, error);
         }
     } else {
-        console.error('AudioController: Internal toggle function is not available for playCueByIdFromMain!');
-        console.error('AudioController: typeof toggle:', typeof toggle);
+        log.error('AudioController: Internal toggle function is not available for playCueByIdFromMain!');
+        log.error('AudioController: typeof toggle:', typeof toggle);
     }
 }
 
@@ -607,30 +576,30 @@ function getCurrentAudioOutputDeviceId() {
 // --- Playlist Navigation Functions ---
 
 function playlistNavigateNext(cueId, fromExternal = false) {
-    console.log(`AudioController: playlistNavigateNext for cue ${cueId}, fromExternal=${fromExternal}`);
-    console.log(`AudioController: audioControllerInitialized=${audioControllerInitialized}, playbackManagerModule=${!!playbackManagerModule}`);
+    log.debug(`AudioController: playlistNavigateNext for cue ${cueId}, fromExternal=${fromExternal}`);
+    log.debug(`AudioController: audioControllerInitialized=${audioControllerInitialized}, playbackManagerModule=${!!playbackManagerModule}`);
     if (!audioControllerInitialized || !playbackManagerModule || !playbackManagerModule.playlistNavigateNext) {
-        console.warn(`AudioController: playlistNavigateNext called for ${cueId} - playbackManager not ready`);
+        log.warn(`AudioController: playlistNavigateNext called for ${cueId} - playbackManager not ready`);
         return false;
     }
     const result = playbackManagerModule.playlistNavigateNext(cueId, fromExternal);
-    console.log(`AudioController: playlistNavigateNext result for ${cueId}: ${result}`);
+    log.debug(`AudioController: playlistNavigateNext result for ${cueId}: ${result}`);
     return result;
 }
 
 function playlistNavigatePrevious(cueId, fromExternal = false) {
-    console.log(`AudioController: playlistNavigatePrevious for cue ${cueId}, fromExternal=${fromExternal}`);
+    log.debug(`AudioController: playlistNavigatePrevious for cue ${cueId}, fromExternal=${fromExternal}`);
     if (!audioControllerInitialized || !playbackManagerModule || !playbackManagerModule.playlistNavigatePrevious) {
-        console.warn(`AudioController: playlistNavigatePrevious called for ${cueId} - playbackManager not ready`);
+        log.warn(`AudioController: playlistNavigatePrevious called for ${cueId} - playbackManager not ready`);
         return false;
     }
     return playbackManagerModule.playlistNavigatePrevious(cueId, fromExternal);
 }
 
 function playlistJumpToItem(cueId, targetIndex, fromExternal = false) {
-    console.log(`AudioController: playlistJumpToItem for cue ${cueId}, index ${targetIndex}, fromExternal=${fromExternal}`);
+    log.debug(`AudioController: playlistJumpToItem for cue ${cueId}, index ${targetIndex}, fromExternal=${fromExternal}`);
     if (!audioControllerInitialized || !playbackManagerModule || !playbackManagerModule.playlistJumpToItem) {
-        console.warn(`AudioController: playlistJumpToItem called for ${cueId} - playbackManager not ready`);
+        log.warn(`AudioController: playlistJumpToItem called for ${cueId} - playbackManager not ready`);
         return false;
     }
     return playbackManagerModule.playlistJumpToItem(cueId, targetIndex, fromExternal);
@@ -640,19 +609,19 @@ function playlistJumpToItem(cueId, targetIndex, fromExternal = false) {
 const preloadedSounds = new Map(); // Store preloaded Howl instances
 
 async function preloadAudioFiles() {
-    console.log('🎵 AudioController: Starting audio preloading...');
-    
+    log.info('🎵 AudioController: Starting audio preloading...');
+
     if (!cueStoreRef || !cueStoreRef.getAllCues) {
-        console.warn('🎵 AudioController: CueStore not ready for preloading');
+        log.warn('🎵 AudioController: CueStore not ready for preloading');
         return;
     }
-    
+
     const allCues = cueStoreRef.getAllCues();
-    console.log(`🎵 AudioController: Preloading ${allCues.length} cues...`);
-    
+    log.info(`🎵 AudioController: Preloading ${allCues.length} cues...`);
+
     let preloadedCount = 0;
     let errorCount = 0;
-    
+
     for (const cue of allCues) {
         try {
             if (cue.type === 'single_file' && cue.filePath) {
@@ -669,17 +638,17 @@ async function preloadAudioFiles() {
                 }
             }
         } catch (error) {
-            console.warn(`🎵 AudioController: Error preloading cue ${cue.id}:`, error);
+            log.warn(`🎵 AudioController: Error preloading cue ${cue.id}:`, error);
             errorCount++;
         }
     }
-    
-    console.log(`🎵 AudioController: Preloading complete! Loaded: ${preloadedCount}, Errors: ${errorCount}`);
+
+    log.info(`🎵 AudioController: Preloading complete! Loaded: ${preloadedCount}, Errors: ${errorCount}`);
 }
 
 async function preloadSingleFile(cue) {
     return new Promise((resolve, reject) => {
-        console.log(`🎵 Preloading: ${cue.name} (${cue.filePath})`);
+        log.debug(`🎵 Preloading: ${cue.name} (${cue.filePath})`);
         let sound = null;
         let attemptedHtml5Fallback = false;
 
@@ -693,19 +662,19 @@ async function preloadSingleFile(cue) {
                 onload: () => {
                     sound = currentSound;
                     preloadedSounds.set(cue.id, currentSound);
-                    console.log(`🎵 Preloaded: ${cue.name} (html5=${forceHtml5})`);
+                    log.debug(`🎵 Preloaded: ${cue.name} (html5=${forceHtml5})`);
                     resolve();
                 },
                 onloaderror: (soundId, error) => {
-                    console.warn(`🎵 Preload failed: ${cue.name} (html5=${forceHtml5}) -`, error);
+                    log.warn(`🎵 Preload failed: ${cue.name} (html5=${forceHtml5}) -`, error);
                     if (!forceHtml5 && !attemptedHtml5Fallback) {
                         attemptedHtml5Fallback = true;
-                        console.warn(`🎵 Retrying preload for ${cue.name} using HTML5 audio fallback.`);
+                        log.warn(`🎵 Retrying preload for ${cue.name} using HTML5 audio fallback.`);
                         try {
                             currentSound.off();
                             currentSound.unload();
                         } catch (unloadError) {
-                            console.warn(`🎵 Error unloading Web Audio preload instance for ${cue.name}:`, unloadError);
+                            log.warn(`🎵 Error unloading Web Audio preload instance for ${cue.name}:`, unloadError);
                         }
                         startPreload(true);
                         return;
@@ -714,12 +683,12 @@ async function preloadSingleFile(cue) {
                     const fileExt = cue.filePath.toLowerCase().split('.').pop();
                     if (forceHtml5) {
                         if (fileExt === 'm4a') {
-                            console.warn(`🎵 .m4a file failed to preload via HTML5. Consider converting to .mp3 or .wav.`);
+                            log.warn(`🎵 .m4a file failed to preload via HTML5. Consider converting to .mp3 or .wav.`);
                         } else if (fileExt === 'mp3') {
-                            console.warn(`🎵 .mp3 file failed to preload via HTML5. Consider re-encoding or converting to .wav.`);
+                            log.warn(`🎵 .mp3 file failed to preload via HTML5. Consider re-encoding or converting to .wav.`);
                         }
                     } else if (fileExt === 'wav') {
-                        console.warn(`🎵 .wav file failed to preload with Web Audio. Check file integrity or sample rate.`);
+                        log.warn(`🎵 .wav file failed to preload with Web Audio. Check file integrity or sample rate.`);
                     }
                     reject(error);
                 }
@@ -734,7 +703,7 @@ async function preloadSingleFile(cue) {
 
 async function preloadPlaylistItem(cueId, item) {
     return new Promise((resolve, reject) => {
-        console.log(`🎵 Preloading playlist item: ${item.name} (${item.filePath})`);
+        log.debug(`🎵 Preloading playlist item: ${item.name} (${item.filePath})`);
         let sound = null;
         let attemptedHtml5Fallback = false;
 
@@ -748,19 +717,19 @@ async function preloadPlaylistItem(cueId, item) {
                 onload: () => {
                     sound = currentSound;
                     preloadedSounds.set(`${cueId}_${item.id}`, currentSound);
-                    console.log(`🎵 Preloaded playlist item: ${item.name} (html5=${forceHtml5})`);
+                    log.debug(`🎵 Preloaded playlist item: ${item.name} (html5=${forceHtml5})`);
                     resolve();
                 },
                 onloaderror: (soundId, error) => {
-                    console.warn(`🎵 Preload failed for playlist item: ${item.name} (html5=${forceHtml5}) -`, error);
+                    log.warn(`🎵 Preload failed for playlist item: ${item.name} (html5=${forceHtml5}) -`, error);
                     if (!forceHtml5 && !attemptedHtml5Fallback) {
                         attemptedHtml5Fallback = true;
-                        console.warn(`🎵 Retrying playlist item preload for ${item.name} using HTML5 audio fallback.`);
+                        log.warn(`🎵 Retrying playlist item preload for ${item.name} using HTML5 audio fallback.`);
                         try {
                             currentSound.off();
                             currentSound.unload();
                         } catch (unloadError) {
-                            console.warn(`🎵 Error unloading Web Audio preload instance for playlist item ${item.name}:`, unloadError);
+                            log.warn(`🎵 Error unloading Web Audio preload instance for playlist item ${item.name}:`, unloadError);
                         }
                         startPreload(true);
                         return;
@@ -769,12 +738,12 @@ async function preloadPlaylistItem(cueId, item) {
                     const fileExt = item.filePath.toLowerCase().split('.').pop();
                     if (forceHtml5) {
                         if (fileExt === 'm4a') {
-                            console.warn(`🎵 .m4a playlist item failed to preload via HTML5. Consider converting to .mp3 or .wav.`);
+                            log.warn(`🎵 .m4a playlist item failed to preload via HTML5. Consider converting to .mp3 or .wav.`);
                         } else if (fileExt === 'mp3') {
-                            console.warn(`🎵 .mp3 playlist item failed to preload via HTML5. Consider re-encoding or converting to .wav.`);
+                            log.warn(`🎵 .mp3 playlist item failed to preload via HTML5. Consider re-encoding or converting to .wav.`);
                         }
                     } else if (fileExt === 'wav') {
-                        console.warn(`🎵 .wav playlist item failed to preload with Web Audio. Check file integrity or sample rate.`);
+                        log.warn(`🎵 .wav playlist item failed to preload with Web Audio. Check file integrity or sample rate.`);
                     }
                     reject(error);
                 }
@@ -790,9 +759,9 @@ async function preloadPlaylistItem(cueId, item) {
 // Function to get preloaded sound by key
 function getPreloadedSound(key) {
     const sound = preloadedSounds.get(key) || null;
-    console.log(`🎵 getPreloadedSound called with key: ${key}, found: ${!!sound}`);
+    log.debug(`🎵 getPreloadedSound called with key: ${key}, found: ${!!sound}`);
     if (sound) {
-        console.log(`🎵 Preloaded sound state: ${sound.state()}`);
+        log.debug(`🎵 Preloaded sound state: ${sound.state()}`);
     }
     return sound;
 }

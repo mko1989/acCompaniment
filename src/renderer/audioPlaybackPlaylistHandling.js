@@ -13,12 +13,20 @@ export function _handlePlaylistEnd(cueId, errorOccurred = false, context) {
         _revertDucking,
         _cleanupSoundInstance,
         _updateCurrentCueForCompanion,
-        ipcBindingsRef,
-        cueGridAPIRef,
-        sidebarsAPIRef,
+        ipcBindingsRef: ipcBindingsRefFromContext,
+        ipcBindings: ipcBindingsFromContext,
+        cueGridAPIRef: cueGridAPIRefFromContext,
+        cueGridAPI: cueGridAPIFromContext,
+        sidebarsAPIRef: sidebarsAPIRefFromContext,
+        sidebarsAPI: sidebarsAPIFromContext,
         _playTargetItem,
         sendPlaybackTimeUpdateRef
     } = context;
+
+    // Resolve references from context (handling both Ref and non-Ref naming)
+    const ipcBindingsRef = ipcBindingsRefFromContext || ipcBindingsFromContext;
+    const cueGridAPIRef = cueGridAPIRefFromContext || cueGridAPIFromContext;
+    const sidebarsAPIRef = sidebarsAPIRefFromContext || sidebarsAPIFromContext;
 
     const playingState = currentlyPlaying[cueId];
     if (!playingState || !playingState.isPlaylist) {
@@ -51,6 +59,15 @@ export function _handlePlaylistEnd(cueId, errorOccurred = false, context) {
     if (playingState.trimEndTimer) {
         clearTimeout(playingState.trimEndTimer);
         playingState.trimEndTimer = null;
+    }
+
+    // CRITICAL: Explicitly clear time update intervals before any state changes
+    // This is the primary fix for "zombie" playing status after playlist end
+    const { clearTimeUpdateIntervals } = context;
+    if (typeof clearTimeUpdateIntervals === 'function') {
+        clearTimeUpdateIntervals(cueId, playingState, context);
+    } else {
+        console.error(`AudioPlaybackManager: clearTimeUpdateIntervals is NOT available in context for ${cueId}. Intervals may persist!`);
     }
 
     if (errorOccurred) {
@@ -137,29 +154,44 @@ export function _handlePlaylistEnd(cueId, errorOccurred = false, context) {
                 if (mainCue.shuffle && listLen > 1) _generateShuffleOrder(cueId, currentlyPlaying);
                 playingState.currentPlaylistItemIndex = 0; // Loop back to start
                 cuedOK = true;
-                console.log(`AudioPlaybackManager: Looping playlist ${cueId} - will cue first item`);
+                console.log(`[PLAYLIST_END_DEBUG] AudioPlaybackManager: Looping playlist ${cueId} - will cue first item`);
             } else { // No loop, playlist ends
+                console.log(`[PLAYLIST_END_DEBUG] AudioPlaybackManager: Playlist ${cueId} (stop_and_cue_next) truly ended. Deleting state.`);
                 delete currentlyPlaying[cueId];
-                if (cueGridAPIRef) cueGridAPIRef.updateButtonPlayingState(cueId, false, null, false); // Ensure isCuedOverride is false
-                if (ipcBindingsRef) ipcBindingsRef.send('cue-status-update', { cueId: cueId, status: 'stopped', details: { reason: 'playlist_ended_fully_no_loop_stop_mode' } });
                 
-                console.log(`AudioPlaybackManager: _handlePlaylistEnd (stop_and_cue_next) for ${cueId}. Attempting to check for ducking trigger.`);
-                const fullCueDataStopMode = getGlobalCueByIdRef(cueId);
-                const initialCueDataStopMode = playingState.cue;
+                // Get the name of the first item to show as "Next: ..."
+                let firstItemName = 'Item 1';
+                // Re-fetch the original playlist items because 'playingState' might be stale or partial
+                // However, we need to use what we have. 
+                if (playingState.originalPlaylistItems && playingState.originalPlaylistItems.length > 0) {
+                    const firstItem = playingState.originalPlaylistItems[0];
+                    firstItemName = firstItem.name || firstItem.path.split(/[\\\/]/).pop();
+                }
 
-                console.log(`AudioPlaybackManager: _handlePlaylistEnd (stop_and_cue_next) for ${cueId}. Fresh fullCueData:`, fullCueDataStopMode ? JSON.stringify(fullCueDataStopMode) : 'null');
-                console.log(`AudioPlaybackManager: _handlePlaylistEnd (stop_and_cue_next) for ${cueId}. Initial playingState.cue:`, initialCueDataStopMode ? JSON.stringify(initialCueDataStopMode) : 'null');
-
-                const isTriggerFreshStopMode = fullCueDataStopMode && fullCueDataStopMode.isDuckingTrigger;
-                const isTriggerInitialStopMode = initialCueDataStopMode && initialCueDataStopMode.isDuckingTrigger;
-
-                console.log(`AudioPlaybackManager: _handlePlaylistEnd (stop_and_cue_next) for ${cueId}. isTriggerFresh: ${isTriggerFreshStopMode}, isTriggerInitial: ${isTriggerInitialStopMode}`);
-
-                if (isTriggerFreshStopMode || isTriggerInitialStopMode) {
-                    console.log(`AudioPlaybackManager: Non-looping playlist trigger cue ${cueId} (stop_and_cue_next mode) ended. isDuckingTrigger (fresh/initial): ${isTriggerFreshStopMode}/${isTriggerInitialStopMode}. Reverting ducking.`);
-                    _revertDucking(cueId, currentlyPlaying);
+                // CRITICAL: Force UI update to "stopped" but cued to start.
+                // Because we deleted currentlyPlaying[cueId], the UI helper will see it as stopped.
+                // We pass the 4th arg (isCuedOverride) as true to show the cued state.
+                if (cueGridAPIRef) {
+                    // Force UI update to stopped state with "Next: ..." text
+                    console.log(`[PLAYLIST_END_DEBUG] AudioPlaybackManager: Updating UI for playlist end (stop_and_cue_next) ${cueId}. Next: ${firstItemName}`);
+                    // Arguments: cueId, isPlaying, statusText, isCuedOverride, elements
+                    cueGridAPIRef.updateButtonPlayingState(cueId, false, `Next: ${firstItemName}`, true); 
                 } else {
-                    console.log(`AudioPlaybackManager: Playlist cue ${cueId} (stop_and_cue_next mode) ended but was NOT identified as a ducking trigger (fresh: ${isTriggerFreshStopMode}, initial: ${isTriggerInitialStopMode}). No ducking reversion.`);
+                    console.error(`[PLAYLIST_END_DEBUG] AudioPlaybackManager: cueGridAPIRef MISSING for ${cueId} (stop_and_cue_next end)`);
+                }
+                
+                if (ipcBindingsRef) {
+                    console.log(`[PLAYLIST_END_DEBUG] Sending IPC cue-status-update (stopped) for ${cueId}`);
+                    ipcBindingsRef.send('cue-status-update', { cueId: cueId, status: 'stopped', details: { reason: 'playlist_ended_fully_no_loop_stop_mode' } });
+                }
+                
+                console.log(`AudioPlaybackManager: _handlePlaylistEnd (stop_and_cue_next) for ${cueId}. Checking ducking.`);
+                const fullCueDataStopMode = getGlobalCueByIdRef(cueId);
+                
+                // Check if it WAS a ducking trigger
+                if (fullCueDataStopMode && fullCueDataStopMode.isDuckingTrigger) {
+                    console.log(`AudioPlaybackManager: Playlist trigger ${cueId} ended. Reverting ducking.`);
+                    _revertDucking(cueId, currentlyPlaying);
                 }
                 return;
             }
@@ -192,27 +224,28 @@ export function _handlePlaylistEnd(cueId, errorOccurred = false, context) {
             
             // CRITICAL FIX: Update UI state IMMEDIATELY and synchronously, not with a delay
             if (cueGridAPIRef) {
-                console.log(`AudioPlaybackManager: Updating UI state for cued playlist ${cueId} with next item: ${cuedName}`);
+                console.log(`[PLAYLIST_END_DEBUG] AudioPlaybackManager: Updating UI state for cued playlist ${cueId} with next item: ${cuedName}`);
                 cueGridAPIRef.updateButtonPlayingState(cueId, false, `Next: ${cuedName || 'Item'}`, true);
             } else {
-                console.log(`AudioPlaybackManager: cueGridAPIRef not yet available for UI update of cued playlist ${cueId}, trying fallback`);
+                console.log(`[PLAYLIST_END_DEBUG] AudioPlaybackManager: cueGridAPIRef not yet available for UI update of cued playlist ${cueId}, trying fallback`);
                 
                 // Try to get UI refs from audioController as fallback
                 try {
                     // Access the UI modules through the global window object
                     if (typeof window !== 'undefined' && window.uiModules && window.uiModules.cueGrid && typeof window.uiModules.cueGrid.updateButtonPlayingState === 'function') {
-                        console.log(`AudioPlaybackManager: Using fallback UI ref from window.uiModules.cueGrid for ${cueId}`);
+                        console.log(`[PLAYLIST_END_DEBUG] AudioPlaybackManager: Using fallback UI ref from window.uiModules.cueGrid for ${cueId}`);
                         window.uiModules.cueGrid.updateButtonPlayingState(cueId, false, `Next: ${cuedName || 'Item'}`, true);
                     } else {
-                        console.warn(`AudioPlaybackManager: No fallback UI ref available for ${cueId}. window.uiModules:`, !!window.uiModules, 'cueGrid:', !!window.uiModules?.cueGrid, 'updateButtonPlayingState:', typeof window.uiModules?.cueGrid?.updateButtonPlayingState);
+                        console.warn(`[PLAYLIST_END_DEBUG] AudioPlaybackManager: No fallback UI ref available for ${cueId}. window.uiModules:`, !!window.uiModules, 'cueGrid:', !!window.uiModules?.cueGrid, 'updateButtonPlayingState:', typeof window.uiModules?.cueGrid?.updateButtonPlayingState);
                     }
                 } catch (error) {
-                    console.error(`AudioPlaybackManager: Error accessing fallback UI ref for ${cueId}:`, error);
+                    console.error(`[PLAYLIST_END_DEBUG] AudioPlaybackManager: Error accessing fallback UI ref for ${cueId}:`, error);
                 }
             }
             
             // Send IPC status update immediately
             if (ipcBindingsRef) {
+                console.log(`[PLAYLIST_END_DEBUG] Sending IPC cue-status-update (cued_next) for ${cueId}`);
                 ipcBindingsRef.send('cue-status-update', { cueId: cueId, status: 'cued_next', details: { reason: 'playlist_item_ended_cued_next', nextItem: cuedName } });
             }
             
@@ -261,33 +294,74 @@ export function _handlePlaylistEnd(cueId, errorOccurred = false, context) {
             playingState.isPaused = false;
             playingState.isCuedNext = false;
             setTimeout(() => _playTargetItem(cueId, 0, false, context), 10);
-        } else { // No loop, playlist truly ends
-            delete currentlyPlaying[cueId];
-            // Remove from play order and update current cue (using imported function directly)
-            // Ensure cuePlayOrder exists before using it
-            const currentCuePlayOrder = context.cuePlayOrder || [];
-            context.cuePlayOrder = _removeFromPlayOrder(cueId, currentCuePlayOrder);
-            context.lastCurrentCueId = _updateCurrentCueForCompanion(context.cuePlayOrder, currentlyPlaying, context.lastCurrentCueId, context.sendPlaybackTimeUpdateRef);
-            
-            // CRITICAL FIX: Ensure UI is updated to show the playlist is stopped
-            // Update button state to false (not playing), with no cued override
-            if (cueGridAPIRef) {
-                cueGridAPIRef.updateButtonPlayingState(cueId, false, null, false);
-            } else {
-                // Fallback to window.uiModules if cueGridAPIRef is not available
-                try {
-                    if (typeof window !== 'undefined' && window.uiModules && window.uiModules.cueGrid && typeof window.uiModules.cueGrid.updateButtonPlayingState === 'function') {
-                        window.uiModules.cueGrid.updateButtonPlayingState(cueId, false, null, false);
-                    }
-                } catch (error) {
-                    console.error(`AudioPlaybackManager: Error accessing fallback UI ref for ${cueId}:`, error);
+            } else { // No loop, playlist truly ends
+                console.log(`AudioPlaybackManager: Playlist ${cueId} truly ended (no loop). Deleting state.`);
+                
+                // Use _cleanupSoundInstance for robust removal
+                if (context && typeof context._cleanupSoundInstance === 'function') {
+                    context._cleanupSoundInstance(cueId, playingState, {
+                        forceUnload: false,
+                        clearIntervals: true, // Ensure intervals are cleared
+                        clearTimers: true,
+                        clearState: true, // This deletes from currentlyPlaying
+                        source: '_handlePlaylistEnd_normal'
+                    });
+                } else {
+                    // Fallback manual delete if function missing
+                    console.warn(`AudioPlaybackManager: _cleanupSoundInstance not found for ${cueId}, manual delete.`);
+                    delete currentlyPlaying[cueId];
                 }
-            }
+                
+                // Force clear from play order
+                const currentCuePlayOrder = context.cuePlayOrder || [];
+                context.cuePlayOrder = _removeFromPlayOrder(cueId, currentCuePlayOrder);
+                context.lastCurrentCueId = _updateCurrentCueForCompanion(context.cuePlayOrder, currentlyPlaying, context.lastCurrentCueId, context.sendPlaybackTimeUpdateRef);
+                
+                // Get the name of the first item to show as "Next: ..."
+                let firstItemName = 'Item 1';
+                 if (playingState.originalPlaylistItems && playingState.originalPlaylistItems.length > 0) {
+                     const firstItem = playingState.originalPlaylistItems[0];
+                     firstItemName = firstItem.name || firstItem.path.split(/[\\\/]/).pop();
+                 }
+
+                // CRITICAL FIX: Ensure UI is updated to show the playlist is stopped but cued at start
+                // We pass false for isPlaying. The fact that currentlyPlaying[cueId] is deleted 
+                // ensures that getPlaybackTimes returns null (stopped) when called by updateButtonPlayingState,
+                // allowing our isCuedOverride (4th arg) to take effect.
+                if (cueGridAPIRef) {
+                    console.log(`[PLAYLIST_END_DEBUG] AudioPlaybackManager: Updating UI for playlist end ${cueId}. Next: ${firstItemName}`);
+                    // Use setTimeout to allow the delete currentlyPlaying[cueId] to fully propagate before UI update checks status
+                    setTimeout(() => {
+                        // DEBUG: Verify deletion before calling UI update
+                        if (currentlyPlaying[cueId]) {
+                             console.error(`[PLAYLIST_END_DEBUG] AudioPlaybackManager: [CRITICAL] State for ${cueId} STILL EXISTS after cleanup! Force deleting.`);
+                             delete currentlyPlaying[cueId];
+                        }
+                        cueGridAPIRef.updateButtonPlayingState(cueId, false, `Next: ${firstItemName}`, true);
+                    }, 50); // Increased delay slightly to be safe
+                } else {
+                    // Fallback to window.uiModules if cueGridAPIRef is not available
+                    try {
+                        if (typeof window !== 'undefined' && window.uiModules && window.uiModules.cueGrid && typeof window.uiModules.cueGrid.updateButtonPlayingState === 'function') {
+                            console.log(`[PLAYLIST_END_DEBUG] AudioPlaybackManager: Using fallback UI ref from window.uiModules.cueGrid for ${cueId}`);
+                             setTimeout(() => {
+                                window.uiModules.cueGrid.updateButtonPlayingState(cueId, false, `Next: ${firstItemName}`, true);
+                             }, 50); // Increased delay
+                        } else {
+                            console.error(`[PLAYLIST_END_DEBUG] AudioPlaybackManager: No UI ref available for ${cueId} end.`);
+                        }
+                    } catch (error) {
+                        console.error(`[PLAYLIST_END_DEBUG] AudioPlaybackManager: Error accessing fallback UI ref for ${cueId}:`, error);
+                    }
+                }
             // Clear playlist highlighting in properties sidebar
             if (sidebarsAPIRef && typeof sidebarsAPIRef.highlightPlayingPlaylistItemInSidebar === 'function') {
                 sidebarsAPIRef.highlightPlayingPlaylistItemInSidebar(cueId, null);
             }
-            if (ipcBindingsRef) ipcBindingsRef.send('cue-status-update', { cueId: cueId, status: 'stopped', details: { reason: 'playlist_ended_naturally_no_loop' } });
+            if (ipcBindingsRef) {
+                console.log(`[PLAYLIST_END_DEBUG] Sending IPC cue-status-update (stopped) for ${cueId}`);
+                ipcBindingsRef.send('cue-status-update', { cueId: cueId, status: 'stopped', details: { reason: 'playlist_ended_naturally_no_loop' } });
+            }
             
             console.log(`AudioPlaybackManager: _handlePlaylistEnd (play_through) for ${cueId}. Attempting to check for ducking trigger.`);
             const fullCueDataPlayThrough = getGlobalCueByIdRef(cueId);

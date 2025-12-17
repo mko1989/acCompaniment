@@ -1,4 +1,5 @@
 import { formatTime } from './utils.js';
+import { uiLog } from './uiLogger.js';
 
 let isInitialized = false;
 let cueStore, audioController, dragDrop, uiCore; // Scoped module refs
@@ -43,7 +44,7 @@ let dragOverCueId = null;
 let cueGridContainer;
 
 export function initCueGrid(cs, ac, dd, ui) {
-    console.log('CueGrid: Initializing...');
+    uiLog.info('CueGrid: Initializing...');
     cueStore = cs;
     audioController = ac;
     dragDrop = dd;
@@ -51,7 +52,7 @@ export function initCueGrid(cs, ac, dd, ui) {
     cacheDOMElements();
     bindEventListeners();
     isInitialized = true; // Set initialization flag
-    console.log('CueGrid: Initialized successfully.');
+    uiLog.info('CueGrid: Initialized successfully.');
     // Do not call renderCues() here; let ui.loadAndRenderCues in renderer.js handle the first render.
 }
 
@@ -76,23 +77,23 @@ function bindEventListeners() {
                 
                 // Block rapid clicking at the UI level
                 if (navigationClickBlocked.has(navigationKey)) {
-                    console.log(`🚫 CueGrid: Navigation click blocked for ${cueId} (${buttonType}) - too rapid`);
+                    uiLog.debug(`🚫 CueGrid: Navigation click blocked for ${cueId} (${buttonType}) - too rapid`);
                     return;
                 }
                 
                 // Block this navigation for 200ms at UI level
                 navigationClickBlocked.add(navigationKey);
-                console.log(`🔒 CueGrid: UI-level block added for ${navigationKey}`);
+                uiLog.debug(`🔒 CueGrid: UI-level block added for ${navigationKey}`);
                 setTimeout(() => {
                     navigationClickBlocked.delete(navigationKey);
-                    console.log(`🔓 CueGrid: UI-level block removed for ${navigationKey}`);
+                    uiLog.debug(`🔓 CueGrid: UI-level block removed for ${navigationKey}`);
                 }, 200);
                 
                 if (event.target.classList.contains('playlist-prev-btn')) {
-                    console.log(`CueGrid: Previous playlist item for cue ${cueId}`);
+                    uiLog.debug(`CueGrid: Previous playlist item for cue ${cueId}`);
                     audioController.default.playlistNavigatePrevious(cueId);
                 } else if (event.target.classList.contains('playlist-next-btn')) {
-                    console.log(`CueGrid: Next playlist item for cue ${cueId}`);
+                    uiLog.debug(`CueGrid: Next playlist item for cue ${cueId}`);
                     audioController.default.playlistNavigateNext(cueId);
                 }
             }
@@ -102,11 +103,11 @@ function bindEventListeners() {
 
 function renderCues() {
     if (!isInitialized) {
-        console.warn('renderCues (cueGrid.js) called before initCueGrid has completed. Aborting render.');
+        uiLog.warn('renderCues (cueGrid.js) called before initCueGrid has completed. Aborting render.');
         return;
     }
     if (!cueGridContainer || !cueStore || !audioController || !uiCore) {
-        console.warn("renderCues (cueGrid.js) called before essential modules are initialized.");
+        uiLog.warn("renderCues (cueGrid.js) called before essential modules are initialized.");
         return;
     }
     cueGridContainer.innerHTML = ''; 
@@ -540,28 +541,28 @@ function getDragAfterElement(container, y) {
 
 function handleCueButtonClick(event, cue) {
     if (!cue) {
-        console.error(`UI: Cue not found.`);
+        uiLog.error(`UI: Cue not found.`);
         return;
     }
     if (!uiCore || !audioController) {
-        console.error("cueGrid.handleCueButtonClick: uiCore or audioController not initialized.");
+        uiLog.error("cueGrid.handleCueButtonClick: uiCore or audioController not initialized.");
         return;
     }
 
     // If the effective mode (which considers the shift key via uiCore.isEditMode()) is 'edit',
     // then open properties. Otherwise, toggle the cue.
     if (uiCore.isEditMode()) { 
-        console.log(`UI: Edit mode click on cue ${cue.id}. Opening properties.`);
+        uiLog.debug(`UI: Edit mode click on cue ${cue.id}. Opening properties.`);
         uiCore.openPropertiesSidebar(cue);
     } else { 
         const retriggerBehavior = cue.retriggerBehavior || uiCore.getCurrentAppConfig().defaultRetriggerBehavior || 'restart';
-        console.log(`UI: Show mode action for cue ${cue.id}. Using retrigger behavior: ${retriggerBehavior}`);
+        uiLog.debug(`UI: Show mode action for cue ${cue.id}. Using retrigger behavior: ${retriggerBehavior}`);
         audioController.default.toggle(cue.id, false, retriggerBehavior);
     }
 }
 
 function updateButtonPlayingState(cueId, isPlaying, statusTextArg = null, isCuedOverride = false, elements = null) {
-    // console.log(`[CueGrid UpdateButtonPlayingState ENTRY] cueId: ${cueId}, isPlaying(arg): ${isPlaying}, isCuedOverride: ${isCuedOverride}, elements received:`, elements ? typeof elements : 'null', elements);
+    // uiLog.debug(`[CueGrid UpdateButtonPlayingState ENTRY] cueId: ${cueId}, isPlaying(arg): ${isPlaying}, isCuedOverride: ${isCuedOverride}, elements received:`, elements ? typeof elements : 'null', elements);
     const button = document.getElementById(`cue-btn-${cueId}`);
     if (!button || !cueStore || !audioController) return;
     const cue = cueStore.getCueById(cueId);
@@ -583,6 +584,26 @@ function updateButtonPlayingState(cueId, isPlaying, statusTextArg = null, isCued
         cuedTextIndicator.className = 'cue-cued-text-indicator';
         button.insertBefore(cuedTextIndicator, button.firstChild); // Add to top-left
     }
+    
+    // Ensure instance counter element exists
+    let instanceCounter = button.querySelector('.cue-instance-counter');
+    if (!instanceCounter) {
+        instanceCounter = document.createElement('div');
+        instanceCounter.className = 'cue-instance-counter';
+        // Style it to be centered just above the time container
+        instanceCounter.style.position = 'absolute';
+        instanceCounter.style.left = '50%';
+        instanceCounter.style.transform = 'translateX(-50%)';
+        instanceCounter.style.bottom = '28px'; // Just above the time container
+        instanceCounter.style.fontSize = '11px';
+        instanceCounter.style.color = 'rgba(255, 255, 255, 0.9)'; // Increased opacity
+        instanceCounter.style.fontWeight = 'bold';
+        instanceCounter.style.pointerEvents = 'none';
+        instanceCounter.style.zIndex = '1000'; // Very high Z-index
+        instanceCounter.style.textShadow = '0px 1px 2px rgba(0,0,0,0.8)';
+        button.appendChild(instanceCounter);
+    }
+    instanceCounter.style.display = 'none'; // Default hidden
 
     button.classList.remove('playing', 'paused', 'cued');
     statusIndicator.style.display = 'block'; // Default to visible
@@ -593,7 +614,7 @@ function updateButtonPlayingState(cueId, isPlaying, statusTextArg = null, isCued
     const isCrossfadeText = statusTextArg && (statusTextArg.includes('Fade Out') || statusTextArg.includes('Fade In') || statusTextArg.includes('Crossfade'));
     
     if (isCrossfadeText) {
-        console.log(`🎵 [CueGrid] Displaying crossfade text: "${statusTextArg}" for cue ${cueId}`);
+        uiLog.debug(`🎵 [CueGrid] Displaying crossfade text: "${statusTextArg}" for cue ${cueId}`);
         
         // Apply crossfade styling directly to the button
         button.classList.add('crossfade-active');
@@ -631,7 +652,6 @@ function updateButtonPlayingState(cueId, isPlaying, statusTextArg = null, isCued
 
     // Get comprehensive state from audioController
     const playbackState = audioController.default.getPlaybackTimes(cue.id);
-    // console.log(`[CueGrid updateButtonPlayingState for ${cue.id}] Playback state from AC:`, playbackState ? JSON.parse(JSON.stringify(playbackState)) : null);
 
     if (playbackState) {
         const actualIsPlaying = playbackState.isPlaying;
@@ -640,8 +660,22 @@ function updateButtonPlayingState(cueId, isPlaying, statusTextArg = null, isCued
         const actualIsCued = isCuedOverride || playbackState.isCued;
         const currentItemName = playbackState.currentPlaylistItemName;
         const nextItemName = playbackState.nextPlaylistItemName;
+        const instanceCount = playbackState.instanceCount || 1;
         
-        // console.log(`[CueGrid updateButtonPlayingState for ${cueId}] State analysis: actualIsPlaying=${actualIsPlaying}, actualIsPaused=${actualIsPaused}, actualIsCued=${actualIsCued}, isCuedOverride=${isCuedOverride}, playbackState.isCued=${playbackState.isCued}`);
+        // Update instance counter display
+        const instanceCounter = button.querySelector('.cue-instance-counter');
+        if (instanceCounter) {
+            // Force visibility update based on instance count
+            if (instanceCount > 1) {
+                instanceCounter.textContent = `x${instanceCount}`;
+                instanceCounter.style.display = 'block';
+                // Ensure high z-index and proper positioning are enforced
+                instanceCounter.style.zIndex = '10000';
+                instanceCounter.style.visibility = 'visible';
+            } else {
+                instanceCounter.style.display = 'none';
+            }
+        }
         
         let playlistInfoHTML = ''; // Initialize playlistInfoHTML here
 
@@ -696,18 +730,45 @@ function updateButtonPlayingState(cueId, isPlaying, statusTextArg = null, isCued
                  if (playlistInfoHTML) nameHTML += `<br>${playlistInfoHTML}`;
             }
         }
+        
+        // Update nameContainer with constructed HTML for playing states
+        if (nameContainer) {
+            nameContainer.innerHTML = nameHTML;
+        }
     } else {
         // Fallback if playbackState is null (should be rare with new audioController logic but handle defensively)
-        console.warn(`[CueGrid updateButtonPlayingState for ${cue.id}] Playback state was null. Defaulting to stopped state.`);
-         if (nameContainer && cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0) {
-            // Basic fallback for idle playlist if everything else failed
+        // uiLog.warn(`[CueGrid updateButtonPlayingState for ${cue.id}] Playback state was null. Defaulting to stopped state.`);
+        
+        // CRITICAL FIX: If playbackState is null (stopped), we MUST still check isCuedOverride
+        // This handles the case where currentlyPlaying was deleted but we want to show "Cued Next"
+        if (isCuedOverride) {
+             button.classList.add('cued');
+             statusIconSrc = '../../assets/icons/pause.png';
+             statusIconAlt = 'Cued';
+             
+             // We need to apply statusTextArg if present (e.g., "Next: Item 1")
+             // statusTextArg is usually passed as the 3rd arg to updateButtonPlayingState
+             if (statusTextArg && nameContainer) {
+                 // Rebuild nameHTML for cued state
+                 let playlistInfoHTML = `<span class="next-playlist-item">(${statusTextArg})</span>`;
+                 // Avoid duplicating "Next: Next: ..." if statusTextArg already has it
+                 if (statusTextArg.startsWith("Next:")) {
+                      playlistInfoHTML = `<span class="next-playlist-item">(${statusTextArg})</span>`;
+                 }
+                 nameContainer.innerHTML = `${mainCueNameSpan}<br>${playlistInfoHTML}`;
+             }
+        } else if (nameContainer && cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0) {
+            // Basic fallback for idle playlist if everything else failed and NOT overridden
             const firstItemName = cue.playlistItems[0]?.name || 'Item 1';
-            playlistInfoHTML += `<span class="next-playlist-item">(Next: ${firstItemName})</span>`;
+            let playlistInfoHTML = `<span class="next-playlist-item">(Next: ${firstItemName})</span>`;
             if (playlistInfoHTML) nameHTML += `<br>${playlistInfoHTML}`;
+            nameContainer.innerHTML = nameHTML;
+        } else if (nameContainer) {
+             nameContainer.innerHTML = nameHTML; // Restore original name
         }
     }
 
-    if (nameContainer) nameContainer.innerHTML = nameHTML;
+    // if (nameContainer) nameContainer.innerHTML = nameHTML; // Logic moved inside blocks to avoid overwrite
     
 
     applyCueBadgeState(cueId, playbackState);
@@ -720,22 +781,16 @@ function updateButtonPlayingState(cueId, isPlaying, statusTextArg = null, isCued
     } else {
         statusIndicator.innerHTML = ''; // Clear if hidden to prevent old icon flash
     }
-
-
 }
 
 function updateCueButtonTime(cueId, elements = null, isFadingIn = false, isFadingOut = false, fadeTimeRemainingMs = 0) {
-    // console.log(`[CueGrid UpdateCueButtonTime ENTRY] cueId: ${cueId}, elements received:`, elements ? typeof elements : 'null', elements, `isFadingIn: ${isFadingIn}, isFadingOut: ${isFadingOut}, fadeMs: ${fadeTimeRemainingMs}`);
-
     if (!audioController || !cueStore) {
-        console.warn(`updateCueButtonTime: audioController or cueStore not ready for cue ${cueId}`);
+        uiLog.warn(`updateCueButtonTime: audioController or cueStore not ready for cue ${cueId}`);
         return;
     }
     const cueFromStore = cueStore.getCueById(cueId);
-    // console.log(`[CueGrid UpdateCueButtonTime] cueId: ${cueId}, cueFromStore:`, cueFromStore ? JSON.parse(JSON.stringify(cueFromStore)) : 'null');
 
     if (!cueFromStore) {
-        // console.warn(`updateCueButtonTime: Cue ${cueId} not found in cueStore.`);
         return;
     }
 
@@ -755,9 +810,6 @@ function updateCueButtonTime(cueId, elements = null, isFadingIn = false, isFadin
     }
 
     const playbackTimes = audioController.default.getPlaybackTimes(cueId);
-    // --- START DIAGNOSTIC LOG ---
-    console.log(`[CueGrid updateCueButtonTime] For cue ${cueId}, audioController.getPlaybackTimes returned:`, JSON.stringify(playbackTimes));
-    // --- END DIAGNOSTIC LOG ---
 
     let displayCurrentTimeFormatted = "00:00";
     let displayCurrentTime = 0;
@@ -780,8 +832,25 @@ function updateCueButtonTime(cueId, elements = null, isFadingIn = false, isFadin
             displayItemRemainingTimeFormatted = formatTimeMMSS(displayItemRemainingTime);
         }
 
+        const instanceCount = playbackTimes.instanceCount || 1;
+        
+        // Update instance counter display
+        // Always re-query to be safe, or use the scoped variable if we trust it (we query by class so it should be fine)
+        const instanceCounter = button.querySelector('.cue-instance-counter');
+        if (instanceCounter) {
+            if (instanceCount > 1) {
+                instanceCounter.textContent = `x${instanceCount}`;
+                instanceCounter.style.display = 'block';
+            } else {
+                instanceCounter.style.display = 'none';
+            }
+        }
     } else {
-        console.warn(`[CueGrid UpdateCueButtonTime] cueId: ${cueId}, getPlaybackTimes returned null. Using default display values.`);
+        // Explicitly hide counter if no playback state (stopped)
+        const instanceCounter = button.querySelector('.cue-instance-counter');
+        if (instanceCounter) instanceCounter.style.display = 'none';
+        
+        uiLog.warn(`[CueGrid UpdateCueButtonTime] cueId: ${cueId}, getPlaybackTimes returned null. Using default display values.`);
     }
 
     const hasLiveMeter = cueMeterLiveSources.has(cueId);
@@ -800,10 +869,8 @@ function updateCueButtonTime(cueId, elements = null, isFadingIn = false, isFadin
 
 // New function that uses time data directly from IPC instead of calling audioController.getPlaybackTimes()
 function updateCueButtonTimeWithData(cueId, timeData, elements = null, isFadingIn = false, isFadingOut = false, fadeTimeRemainingMs = 0) {
-    // console.log(`[CueGrid UpdateCueButtonTimeWithData] cueId: ${cueId}, timeData:`, timeData);
-
     if (!cueStore) {
-        console.warn(`updateCueButtonTimeWithData: cueStore not ready for cue ${cueId}`);
+        uiLog.warn(`updateCueButtonTimeWithData: cueStore not ready for cue ${cueId}`);
         return;
     }
 
@@ -1014,7 +1081,7 @@ function formatTimeMMSS(timeInSeconds) {
 
 function updateAllCueButtonTimes() {
     if (!isInitialized || !cueStore || !audioController) {
-        console.warn('updateAllCueButtonTimes: CueGrid not initialized or dependencies missing');
+        uiLog.warn('updateAllCueButtonTimes: CueGrid not initialized or dependencies missing');
         return;
     }
     
@@ -1036,4 +1103,4 @@ export {
     updateCueButtonTimeWithData, // New function for direct time data updates from IPC
     updateCueMeterLevel,
     resetCueMeter
-}; 
+};

@@ -170,6 +170,19 @@ export function stopAllCues(options = { exceptCueId: null, useFade: true }, cont
                     context.cuePlayOrder || [],
                     context.sendPlaybackTimeUpdateRef
                 );
+                
+                // CRITICAL FIX: Explicitly update UI here as well, since _cuePlaylistAtPosition might not trigger a button update if no sound exists yet
+                // Or if the previous updateButtonPlayingState call from stop() cleared it to stopped.
+                if (context.cueGridAPIRef) {
+                    let nextItemName = 'Next Item';
+                    // Try to get actual item name
+                    if (cue.playlistItems && cue.playlistItems.length > currentIndex) {
+                        const nextItem = cue.playlistItems[currentIndex];
+                        nextItemName = nextItem.name || nextItem.path.split(/[\\\/]/).pop();
+                    }
+                    console.log(`🛑 Force updating UI for restored cued playlist ${cueId}. Next: ${nextItemName}`);
+                    context.cueGridAPIRef.updateButtonPlayingState(cueId, false, `Next: ${nextItemName}`, true);
+                }
             });
         }, restoreDelay);
     }

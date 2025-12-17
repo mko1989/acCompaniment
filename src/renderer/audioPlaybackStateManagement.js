@@ -269,7 +269,7 @@ export function getPlaybackState(cueId, context) {
     // Also ensure sound is not null and has valid duration to prevent false "playing" states
     if (sound && sound.playing && typeof sound.playing === 'function' && sound.playing() && 
         sound.duration && sound.duration() > 0 && // Ensure sound has valid duration
-        !(playingState.isPlaylist && (playingState.isCuedNext || playingState.isPaused))) {
+        !(playingState.isPlaylist && (playingState.isCuedNext || playingState.isPaused || playingState.isCued))) { // Add isCued explicitly
         // Cache time calculations to avoid repeated calls
         const times = getPlaybackTimesUtilRef ? getPlaybackTimesUtilRef(
             sound, 
@@ -375,6 +375,7 @@ export function getPlaybackState(cueId, context) {
         response.itemBaseDuration = itemBaseDuration;
         response.currentPlaylistItemName = currentPlaylistItemName;
         response.nextPlaylistItemName = nextPlaylistItemName;
+        response.instanceCount = playingState.instanceCount || 1;
         
         return response;
     } else if (playingState) {

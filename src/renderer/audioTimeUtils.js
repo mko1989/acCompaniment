@@ -1,44 +1,8 @@
-/**
- * Formats time in seconds to MM:SS string.
- * @param {number} totalSeconds
- * @returns {string} Formatted time string
- */
-function formatTimeMMSS(totalSeconds) {
-    if (isNaN(totalSeconds) || totalSeconds < 0) {
-        return '00:00';
-    }
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = Math.floor(totalSeconds % 60);
-    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-}
-
-/**
- * Calculates the effective trimmed duration of a single file cue in seconds.
- * @param {object} cue - The cue object.
- * @returns {number} The effective duration in seconds after trimming.
- */
-function calculateEffectiveTrimmedDurationSec(cue) {
-    if (!cue || cue.type === 'playlist' || typeof cue.knownDuration !== 'number' || cue.knownDuration <= 0) {
-        // For playlists, return known duration or 0, as trimming applies per item or not at all at this level.
-        // Or if knownDuration is invalid for a single cue.
-        return cue && typeof cue.knownDuration === 'number' ? Math.max(0, cue.knownDuration) : 0;
-    }
-
-    let effectiveDuration = cue.knownDuration;
-    const trimStartTime = cue.trimStartTime || 0;
-    const trimEndTime = cue.trimEndTime; // Can be null/undefined
-
-    if (trimStartTime > 0) {
-        effectiveDuration = Math.max(0, cue.knownDuration - trimStartTime);
-        if (trimEndTime && trimEndTime > trimStartTime) {
-            effectiveDuration = Math.min(effectiveDuration, trimEndTime - trimStartTime);
-        }
-    } else if (trimEndTime && trimEndTime > 0 && trimEndTime < cue.knownDuration) {
-        effectiveDuration = Math.min(cue.knownDuration, trimEndTime);
-    }
-    
-    return Math.max(0, effectiveDuration);
-}
+// Retrieve shared utilities from the global scope (loaded via <script> in index.html)
+const { formatTimeMMSS, calculateEffectiveTrimmedDurationSec } = window.timeUtils || {
+    formatTimeMMSS: (s) => '00:00',
+    calculateEffectiveTrimmedDurationSec: () => 0
+};
 
 /**
  * Gets current playback times for a cue.
@@ -67,16 +31,6 @@ function getPlaybackTimesUtil(
     let displayItemRemainingTime = 0;
     let rawSoundDuration = 0; // Actual Howler sound.duration() if available
 
-    // ---- START DETAILED LOGGING ----
-    // console.log(`audioTimeUtils (getPlaybackTimesUtil): Received mainCue:`, mainCue ? JSON.parse(JSON.stringify(mainCue)) : mainCue);
-    const mainCueIdForLog = mainCue && typeof mainCue.id !== 'undefined' ? mainCue.id : 'mainCue.id is undefined';
-    // if (sound && typeof sound.seek === 'function') {
-    //     console.log(`audioTimeUtils (getPlaybackTimesUtil for ${mainCueIdForLog}): Sound object present. sound.playing(): ${sound.playing()}, sound.state(): ${sound.state()}, sound.seek(): ${sound.seek()}`);
-    // } else {
-    //     console.log(`audioTimeUtils (getPlaybackTimesUtil for ${mainCueIdForLog}): Sound object NOT present or not a Howl instance.`);
-    // }
-    // ---- END DETAILED LOGGING ----
-
     if (!mainCue) {
         return { currentTime: 0, totalPlaylistDuration: 0, currentItemDuration: 0, currentItemRemainingTime: 0, rawDuration: 0 };
     }
@@ -97,7 +51,7 @@ function getPlaybackTimesUtil(
                 } else {
                     // Some items missing durations, use current item duration as fallback
                     displayTotalDuration = displayCurrentItemDuration;
-                    console.log(`audioTimeUtils: Playlist ${mainCue.id} has ${playlistOriginalItems.length - itemsWithValidDurations.length} items without durations, using current item duration as fallback`);
+                    // console.log(`audioTimeUtils: Playlist ${mainCue.id} has ${playlistOriginalItems.length - itemsWithValidDurations.length} items without durations, using current item duration as fallback`);
                 }
                 if (mainCue.repeatOne) {
                     // If repeating one item, total duration effectively becomes that item's duration.
@@ -111,9 +65,6 @@ function getPlaybackTimesUtil(
         }
         
         // Adjust for trim times (applies primarily to single file cues, or individual playlist items if they had such properties)
-        // For now, trim logic is simpler and assumes it's for the `mainCue` if it's single,
-        // or that `itemBaseDuration` for playlist items already reflects any per-item trim from a future feature.
-        // Current logic for single cues:
         if (mainCue.type !== 'playlist') {
             let actualSeek = sound.seek(); // Raw seek
             const trimStartTime = mainCue.trimStartTime || 0;
@@ -149,7 +100,7 @@ function getPlaybackTimesUtil(
                 } else {
                     // Some items missing durations, use first item duration as fallback
                     displayTotalDuration = playlistOriginalItems[0]?.knownDuration || 0;
-                    console.log(`audioTimeUtils: Playlist ${mainCue.id} has ${playlistOriginalItems.length - itemsWithValidDurations.length} items without durations in idle state, using first item duration as fallback`);
+                    // console.log(`audioTimeUtils: Playlist ${mainCue.id} has ${playlistOriginalItems.length - itemsWithValidDurations.length} items without durations in idle state, using first item duration as fallback`);
                 }
                 
                 let itemToDisplayIndex = 0; // Default to the first item in logical order
@@ -174,29 +125,12 @@ function getPlaybackTimesUtil(
                 }
             }
         } else { // Single file cue
-            displayCurrentItemDuration = mainCue.knownDuration || 0;
-            // Apply trim for idle display of single cues
-            const trimStartTime = mainCue.trimStartTime || 0;
-            const trimEndTime = mainCue.trimEndTime;
-            if (trimStartTime > 0) {
-                displayCurrentItemDuration = Math.max(0, (mainCue.knownDuration || 0) - trimStartTime);
-                if (trimEndTime && trimEndTime > trimStartTime) {
-                    displayCurrentItemDuration = Math.min(displayCurrentItemDuration, trimEndTime - trimStartTime);
-                }
-                 displayCurrentItemDuration = Math.max(0, displayCurrentItemDuration);
-            } else if (trimEndTime && trimEndTime > 0 && trimEndTime < (mainCue.knownDuration || 0)) {
-                displayCurrentItemDuration = Math.min((mainCue.knownDuration || 0), trimEndTime);
-            }
+            // Use the shared utility for effective duration calculation
+            displayCurrentItemDuration = calculateEffectiveTrimmedDurationSec(mainCue);
             displayTotalDuration = displayCurrentItemDuration;
         }
         displayItemRemainingTime = displayCurrentItemDuration; // In idle, remaining is full item duration
     }
-
-    // ---- DEBUG LOG ----
-    if (!sound && mainCue && mainCue.type !== 'playlist') {
-        console.log(`audioTimeUtils (getPlaybackTimesUtil - idle single cue BEFORE RETURN): displayCurrentItemDuration: ${displayCurrentItemDuration}, typeof: ${typeof displayCurrentItemDuration}, isFinite: ${isFinite(displayCurrentItemDuration)}`);
-    }
-    // ---- END DEBUG LOG ----
 
     return {
         currentTime: typeof currentTime === 'number' ? currentTime : 0,
@@ -209,6 +143,6 @@ function getPlaybackTimesUtil(
 
 export {
     formatTimeMMSS,
-    getPlaybackTimesUtil, // Exported as getPlaybackTimesUtil
-    calculateEffectiveTrimmedDurationSec // Export the new function
-}; 
+    getPlaybackTimesUtil,
+    calculateEffectiveTrimmedDurationSec
+};

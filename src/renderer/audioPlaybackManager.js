@@ -1,5 +1,3 @@
-console.log('AudioPlaybackManager.js: TOP LEVEL EXECUTION START');
-
 // Companion_soundboard/src/renderer/audioPlaybackManager.js
 // Manages core audio playback logic, state, and interactions with Howler instances.
 
@@ -159,7 +157,8 @@ function createContext() {
         _cleanupSoundInstance: (cueId, state, options = {}) => _cleanupSoundInstance(cueId, state, options, createContext()),
         _updateCurrentCueForCompanion,
         getPreloadedSound: getPreloadedSoundRef,
-        clearTimeUpdateIntervals
+        clearTimeUpdateIntervals, // Ensure this is directly available
+        _revertDucking // Re-add this as it was in the original context definition but might have been missed in updates
     };
 }
 
@@ -215,3 +214,4 @@ export default publicAPIManagerInstance;
 //     seekInCue,
 //     getPlaybackState
 // };
+

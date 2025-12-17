@@ -1,6 +1,7 @@
 import * as waveformControls from './waveformControls.js'; // Import the new module
 import { formatWaveformTime } from './waveformControls.js';
 import { debounce } from './utils.js'; // Import debounce
+import { uiLog } from './uiLogger.js';
 
 let cueStore;
 let audioController;
@@ -47,7 +48,7 @@ function initSidebars(cs, ac, ipc, core) {
     bindSidebarEventListeners();
 
 
-    console.log('Sidebars Module Initialized (now SidebarManager)');
+    uiLog.info('Sidebars Module Initialized (now SidebarManager)');
 }
 
 function cacheSidebarDOMElements() {
@@ -362,14 +363,14 @@ function handleRemovePlaylistItem(event) {
 
 async function handleSaveCueProperties() {
     if (!activePropertiesCueId || !uiCore || !cueStore) {
-        console.warn('Sidebar: No active cue to save or uiCore/cueStore not available.');
+        uiLog.warn('Sidebar: No active cue to save or uiCore/cueStore not available.');
         return;
     }
     
     // Verify the cue still exists in the store before trying to save
     const existingCue = cueStore.getCueById(activePropertiesCueId);
     if (!existingCue) {
-        console.warn('Sidebar: Active cue not found in cueStore:', activePropertiesCueId);
+        uiLog.warn('Sidebar: Active cue not found in cueStore:', activePropertiesCueId);
         return;
     }
     
@@ -397,7 +398,7 @@ async function handleSaveCueProperties() {
             // Trim times from waveform regions take priority
             cueDataToSave.trimStartTime = trimTimes.trimStartTime;
             cueDataToSave.trimEndTime = trimTimes.trimEndTime;
-            console.log(`Sidebars (DEBUG save): Applied trimTimes from waveformControls: Start=${cueDataToSave.trimStartTime}, End=${cueDataToSave.trimEndTime}`);
+            uiLog.debug(`Sidebars (DEBUG save): Applied trimTimes from waveformControls: Start=${cueDataToSave.trimStartTime}, End=${cueDataToSave.trimEndTime}`);
         } else {
             // No trim regions exist - preserve existing trim times from cue if they exist
             const existingCue = cueStore.getCueById(activePropertiesCueId);
@@ -405,18 +406,18 @@ async function handleSaveCueProperties() {
                 // Preserve existing trim times
                 cueDataToSave.trimStartTime = existingCue.trimStartTime;
                 cueDataToSave.trimEndTime = existingCue.trimEndTime;
-                console.log(`Sidebars (DEBUG save): Preserved existing trimTimes from cue: Start=${cueDataToSave.trimStartTime}, End=${cueDataToSave.trimEndTime}`);
+                uiLog.debug(`Sidebars (DEBUG save): Preserved existing trimTimes from cue: Start=${cueDataToSave.trimStartTime}, End=${cueDataToSave.trimEndTime}`);
             } else {
                 // Fall back to input fields or defaults
                 cueDataToSave.trimStartTime = parseFloat(propTrimStartTimeInput.value) || 0;
                 cueDataToSave.trimEndTime = parseFloat(propTrimEndTimeInput.value) || (cueDataToSave.totalDuration || 0);
-                console.log(`Sidebars (DEBUG save): trimTimes from waveformControls was null and no existing trim times. Using input fields: Start=${cueDataToSave.trimStartTime}, End=${cueDataToSave.trimEndTime}`);
+                uiLog.debug(`Sidebars (DEBUG save): trimTimes from waveformControls was null and no existing trim times. Using input fields: Start=${cueDataToSave.trimStartTime}, End=${cueDataToSave.trimEndTime}`);
             }
         }
     } else if (cueDataToSave.type !== 'single_file') {
         cueDataToSave.trimStartTime = 0;
         cueDataToSave.trimEndTime = 0;
-        console.log(`Sidebars (DEBUG save): Cue type is not single_file. Clearing trim times.`);
+        uiLog.debug(`Sidebars (DEBUG save): Cue type is not single_file. Clearing trim times.`);
     }
     
     // Preserve total duration for single file cues if already known, playlists get it from items
@@ -427,19 +428,19 @@ async function handleSaveCueProperties() {
     }
 
     try {
-        console.log('Sidebar: Attempting to save cue with data:', cueDataToSave);
+        uiLog.debug('Sidebar: Attempting to save cue with data:', cueDataToSave);
         // Use the correct function name based on preload.js
         if (!ipcRendererBindingsModule || typeof ipcRendererBindingsModule.addOrUpdateCue !== 'function') {
-            console.error('Sidebar: ipcRendererBindingsModule or addOrUpdateCue is not available. Cannot save cue.');
+            uiLog.error('Sidebar: ipcRendererBindingsModule or addOrUpdateCue is not available. Cannot save cue.');
             alert('Error: Could not communicate with the main process to save the cue.');
             return;
         }
         await ipcRendererBindingsModule.addOrUpdateCue(cueDataToSave);
-        console.log(`Sidebar: Cue ${activePropertiesCueId} properties saved successfully.`);
+        uiLog.info(`Sidebar: Cue ${activePropertiesCueId} properties saved successfully.`);
         // Optionally, provide user feedback (e.g., a temporary "Saved!" message)
         // No, we decided against auto-closing: hidePropertiesSidebar(); 
     } catch (error) {
-        console.error('Sidebar: Error saving cue properties:', error);
+        uiLog.error('Sidebar: Error saving cue properties:', error);
         alert(`Error saving cue: ${error.message || error}`);
     }
 }
@@ -506,9 +507,9 @@ function bindPlaylistDragAndRemoveListenersIfNeeded() {
 
 // New function to be called from waveformControls
 function handleCuePropertyChangeFromWaveform(trimStart, trimEnd) {
-    console.log(`Sidebars (DEBUG): handleCuePropertyChangeFromWaveform received - Start: ${trimStart}, End: ${trimEnd}`);
+    uiLog.debug(`Sidebars (DEBUG): handleCuePropertyChangeFromWaveform received - Start: ${trimStart}, End: ${trimEnd}`);
     if (!activePropertiesCueId) {
-        console.warn('Sidebars: Received trim change but no active cue ID.');
+        uiLog.warn('Sidebars: Received trim change but no active cue ID.');
         return;
     }
 

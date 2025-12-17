@@ -6,6 +6,7 @@ import { _applyDucking, _revertDucking } from './audioPlaybackDucking.js';
 import { _generateShuffleOrder } from './audioPlaybackUtils.js';
 import { _addToPlayOrder, _removeFromPlayOrder, _updateCurrentCueForCompanion, _cleanupSoundInstance } from './audioPlaybackStateManagement.js';
 import { _handlePlaylistEnd } from './audioPlaybackPlaylistHandling.js';
+import { clearTimeUpdateIntervals } from './playbackTimeManager.js'; // Import this
 
 // Core playback functions
 export function play(cue, isResume = false, context) {
@@ -49,7 +50,7 @@ export function play(cue, isResume = false, context) {
 
             // CRITICAL FIX: Ensure UI is updated when resuming from pause
             if (cueGridAPIRef && cueGridAPIRef.updateButtonPlayingState) {
-                console.log(`AudioPlaybackManager: Explicitly updating UI for resumed cue ${cueId}`);
+                log.debug(`AudioPlaybackManager: Explicitly updating UI for resumed cue ${cueId}`);
                 cueGridAPIRef.updateButtonPlayingState(cueId, true);
             }
 
@@ -70,16 +71,29 @@ export function play(cue, isResume = false, context) {
         }
         
         if (existingState.sound) {
-            existingState.sound.off(); // Remove event listeners to prevent ghost events
-            existingState.sound.stop(); // This should trigger onstop, which should handle _revertDucking if it was a trigger
+            const sound = existingState.sound;
+            sound.off(); // Remove event listeners to prevent ghost events
+            
+            // Event-driven restart: Wait for stop event before playing new
+            sound.once('stop', () => {
+                log.debug(`Old sound stopped for ${cueId}, proceeding with restart`);
+                try {
+                    sound.unload();
+                } catch (e) {
+                    log.warn(`Error unloading sound for ${cueId}:`, e);
+                }
+                // Ensure state is cleared
+                if (currentlyPlaying[cueId]) {
+                    delete currentlyPlaying[cueId];
+                }
+                _initializeAndPlayNew(cue, false, context);
+            });
+            
+            sound.stop(); 
         } else {
-            delete currentlyPlaying[cueId]; // Should be cleaned up by onstop, but as a fallback
-        }
-        
-        // Increased delay to ensure stop processing (including potential revertDucking) completes
-        setTimeout(() => {
+            delete currentlyPlaying[cueId];
             _initializeAndPlayNew(cue, false, context);
-        }, 150); // Increased from 50ms to 150ms for better state cleanup
+        }
         return;
     }
     
@@ -146,23 +160,26 @@ export function _initializeAndPlayNew(cue, allowMultipleInstances = false, conte
     };
 
     if (allowMultipleInstances) {
-        // For multiple instance mode, create a sound directly without state management
-        log.debug(`Creating independent sound instance for ${cueId} (multiple instances mode)`);
-        if (!cueToUse.filePath) {
-            log.error(`No file path for single cue: ${cueId}`);
-            return;
+        // For multiple instance mode, create a sound directly but maintain state in currentlyPlaying
+        log.debug(`Starting new instance for ${cueId} (multiple instances mode). Replacing current UI state.`);
+        
+        const existingState = currentlyPlaying[cueId];
+        let newInstanceCount = 1;
+        
+        if (existingState) {
+            // Increment count if it exists, otherwise start at 2 (since one is likely playing if we are here)
+            newInstanceCount = (existingState.instanceCount || 1) + 1;
         }
         
-        // Create a minimal playing state for the instance handler
-        const independentPlayingState = {
-            ...initialPlayingState,
-            cue: cueToUse,
-            isIndependentInstance: true // Mark as independent
-        };
+        // Create new state, but don't mark as independent in a way that hides it.
+        // We WANT it to be the "official" state in currentlyPlaying.
         
-        // Create sound instance directly without adding to currentlyPlaying
-        _proceedWithPlayback(cueId, independentPlayingState, cueToUse.filePath, cueToUse.name, undefined, false, context);
-        return;
+        // Update initialPlayingState with instance count
+        initialPlayingState.instanceCount = newInstanceCount;
+        
+        // We skip the return here and let it proceed to creation below
+        // The previous logic of creating an independent sound and returning is removed 
+        // so that currentlyPlaying IS updated.
     }
 
     if (cueToUse.type === 'playlist') {
@@ -439,7 +456,8 @@ function _proceedWithPlayback(cueId, playingState, filePath, currentItemName, ac
             _updateCurrentCueForCompanion, // Add current cue priority function
             audioControllerRef: audioControllerRef, // Add audioController reference for device switching
             allSoundInstances: allSoundInstances, // Add sound instance tracking for stop all
-            getPreloadedSound: getPreloadedSound // Add preloaded sound accessor from context
+            getPreloadedSound: getPreloadedSound, // Add preloaded sound accessor from context
+            clearTimeUpdateIntervals // Add clearTimeUpdateIntervals to instance context
         };
     
         log.debug(`Creating playback instance for ${cueId} with file: ${filePath}`);
@@ -500,7 +518,7 @@ export function stop(cueId, useFade = true, fromCompanion = false, isRetriggerSt
         if (stopReason === 'stop_all') {
             // For stop all, use the global stop all fade out time, not individual cue fade out times
             fadeOutTime = appConfig.defaultStopAllFadeOutTime !== undefined ? appConfig.defaultStopAllFadeOutTime : 1500;
-            console.log(`AudioPlaybackManager: Using stop all fade out time: ${fadeOutTime}ms for cue ${cueId}`);
+            log.info(`AudioPlaybackManager: Using stop all fade out time: ${fadeOutTime}ms for cue ${cueId}`);
         } else {
             // For individual stops, use the cue's fade out time or default
             const defaultFadeOutTimeFromConfig = appConfig.defaultFadeOutTime !== undefined ? appConfig.defaultFadeOutTime : 0;
@@ -569,7 +587,7 @@ export function stop(cueId, useFade = true, fromCompanion = false, isRetriggerSt
                  if (ipcBindingsRef) ipcBindingsRef.send('cue-status-update', { cueId: cueId, status: 'stopped', details: { reason: 'stop_called_no_sound' } });
             } else {
                 // For stop_and_cue_next playlists, let _handlePlaylistEnd handle the state transition
-                console.log(`AudioPlaybackManager: stop() called for stop_and_cue_next playlist ${cueId} with no sound. Preserving state for proper cued transition.`);
+                log.info(`AudioPlaybackManager: stop() called for stop_and_cue_next playlist ${cueId} with no sound. Preserving state for proper cued transition.`);
             }
         }
     }
@@ -586,20 +604,20 @@ export function pause(cueId, context) {
 
     const current = currentlyPlaying[cueId];
     if (current && current.sound && current.sound.playing() && !current.isPaused) {
-        console.log('AudioPlaybackManager: Pausing cue:', cueId);
+        log.info('AudioPlaybackManager: Pausing cue:', cueId);
         current.sound.pause();
         current.isPaused = true; // Ensure isPaused state is accurately set
 
         // If this cue itself is a trigger and is being paused, revert ducking for others.
         const cueData = getGlobalCueByIdRef(cueId);
         if (cueData && cueData.isDuckingTrigger) {
-            console.log(`AudioPlaybackManager: Paused cue ${cueId} is a ducking trigger. Reverting ducking.`);
+            log.info(`AudioPlaybackManager: Paused cue ${cueId} is a ducking trigger. Reverting ducking.`);
             _revertDucking(cueId, currentlyPlaying);
         }
 
         // CRITICAL FIX: Ensure UI is updated even if onpause handler doesn't fire
         if (cueGridAPIRef && cueGridAPIRef.updateButtonPlayingState) {
-            console.log(`AudioPlaybackManager: Explicitly updating UI for paused cue ${cueId}`);
+            log.debug(`AudioPlaybackManager: Explicitly updating UI for paused cue ${cueId}`);
             cueGridAPIRef.updateButtonPlayingState(cueId, false);
         }
         

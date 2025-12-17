@@ -71,12 +71,22 @@ export function createTimeUpdateInterval(cueId, sound, playingState, currentItem
         } else if (latestGlobalState !== playingState) {
             intervalStopReason = "Global state object for cueId CHANGED";
         } else if (latestGlobalState.sound !== sound) {
-            intervalStopReason = "Sound instance in state does not match interval's sound";
+            // CRITICAL FIX: Allow null sound if cue is cued (e.g. playlist between items or at end)
+            // But if sound exists and is different, that's a mismatch
+            if (latestGlobalState.isCued || latestGlobalState.isCuedNext) {
+                // If it's cued, we might want to stop the interval as there's no "playing" time to update
+                intervalStopReason = "State is marked as cued - stopping playback interval";
+            } else {
+                intervalStopReason = "Sound instance in state does not match interval's sound";
+            }
         } else if (latestGlobalState.isPaused) {
-            intervalStopReason = "State is marked as paused";
+            // intervalStopReason = "State is marked as paused"; // Don't stop interval on pause, we need to show paused time
+            // Instead, just ensure we send 'paused' status
         } else if (!sound.playing()) {
-            // CRITICAL FIX: Stop interval immediately if sound is no longer playing
-            intervalStopReason = "Sound is no longer playing (ended/stopped)";
+             // CRITICAL FIX: Stop interval immediately if sound is no longer playing, UNLESS paused
+             if (!latestGlobalState.isPaused) {
+                 intervalStopReason = "Sound is no longer playing (ended/stopped) and not paused";
+             }
         }
 
         if (intervalStopReason) {

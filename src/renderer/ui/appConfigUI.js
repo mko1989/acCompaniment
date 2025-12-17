@@ -2,6 +2,7 @@
 // Manages the App Configuration Sidebar UI, state, and interactions.
 
 import * as ipcRendererBindingsModule from '../ipcRendererBindings.js'; // Import the module
+import { uiLog } from './uiLogger.js';
 
 // let ipcRendererBindings; // REMOVE: This will now refer to the imported module alias
 
@@ -60,7 +61,7 @@ let isPopulatingSidebar = false;
 let audioControllerRef = null; // Reference to audioController for applying device changes
 
 async function init(electronAPI) { // Renamed parameter to avoid confusion
-    console.log('AppConfigUI: Initializing...');
+    uiLog.info('AppConfigUI: Initializing...');
     // ipcRendererBindings is already available as ipcRendererBindingsModule via import
     // No need to store electronAPI here if all IPC calls go through the module.
     cacheDOMElements();
@@ -71,10 +72,10 @@ async function init(electronAPI) { // Renamed parameter to avoid confusion
 
     try {
         await forceLoadAndApplyAppConfiguration();
-        console.log('AppConfigUI: Initial config loaded and populated after init. Returning config.');
+        uiLog.info('AppConfigUI: Initial config loaded and populated after init. Returning config.');
         return currentAppConfig; // Return the loaded config
     } catch (error) {
-        console.error('AppConfigUI: Error during initial config load in init:', error);
+        uiLog.error('AppConfigUI: Error during initial config load in init:', error);
         return {}; // Return empty object or handle error as appropriate
     }
 }
@@ -83,22 +84,22 @@ async function init(electronAPI) { // Renamed parameter to avoid confusion
 function setupDeviceChangeListener() {
     if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
         navigator.mediaDevices.addEventListener('devicechange', () => {
-            console.log('AppConfigUI: Audio devices changed, refreshing device list...');
+            uiLog.info('AppConfigUI: Audio devices changed, refreshing device list...');
             // Debounce the device list refresh to avoid excessive updates
             setTimeout(() => {
                 loadAudioOutputDevices();
             }, 500);
         });
-        console.log('AppConfigUI: Device change listener set up.');
+        uiLog.info('AppConfigUI: Device change listener set up.');
     } else {
-        console.warn('AppConfigUI: navigator.mediaDevices.addEventListener not available, device changes won\'t be detected.');
+        uiLog.warn('AppConfigUI: navigator.mediaDevices.addEventListener not available, device changes won\'t be detected.');
     }
 }
 
 // Function to set the audioController reference
 function setAudioControllerRef(audioController) {
     audioControllerRef = audioController;
-    console.log('AppConfigUI: AudioController reference set');
+    uiLog.info('AppConfigUI: AudioController reference set');
 }
 
 function cacheDOMElements() {
@@ -134,13 +135,13 @@ function cacheDOMElements() {
 
     // Mixer Integration removed
 
-    console.log('AppConfigUI: DOM elements cached.');
+    uiLog.info('AppConfigUI: DOM elements cached.');
 }
 
 // Mixer integration elements removed
 
 function bindEventListeners() {
-    console.log('AppConfigUI (DEBUG): bindEventListeners CALLED.');
+    uiLog.debug('AppConfigUI (DEBUG): bindEventListeners CALLED.');
     if (saveAppConfigButton) saveAppConfigButton.addEventListener('click', handleSaveButtonClick);
     if (closeConfigSidebarButton) closeConfigSidebarButton.addEventListener('click', () => uiAPI.toggleSidebar('configSidebar', false));
 
@@ -150,10 +151,10 @@ function bindEventListeners() {
     if (configDefaultCueTypeSelect) configDefaultCueTypeSelect.addEventListener('change', handleAppConfigChange);
     if (configDefaultFadeInInput) configDefaultFadeInInput.addEventListener('change', handleAppConfigChange);
     if (configDefaultFadeOutInput) {
-        console.log('AppConfigUI (DEBUG): configDefaultFadeOutInput FOUND. Adding event listener.');
+        uiLog.debug('AppConfigUI (DEBUG): configDefaultFadeOutInput FOUND. Adding event listener.');
         configDefaultFadeOutInput.addEventListener('change', handleAppConfigChange);
     } else {
-        console.error('AppConfigUI (DEBUG): configDefaultFadeOutInput NOT FOUND when trying to bind event listener!');
+        uiLog.error('AppConfigUI (DEBUG): configDefaultFadeOutInput NOT FOUND when trying to bind event listener!');
     }
     if (configDefaultLoopSingleCueCheckbox) configDefaultLoopSingleCueCheckbox.addEventListener('change', handleAppConfigChange);
     if (configDefaultRetriggerBehaviorSelect) configDefaultRetriggerBehaviorSelect.addEventListener('change', handleAppConfigChange);
@@ -182,23 +183,23 @@ function bindEventListeners() {
     
     // Mixer event listeners removed
 
-    console.log('AppConfigUI: Event listeners bound.');
+    uiLog.info('AppConfigUI: Event listeners bound.');
 }
 
 function handleSaveButtonClick() {
-    console.log('AppConfigUI: Save button clicked.');
+    uiLog.info('AppConfigUI: Save button clicked.');
     saveAppConfiguration();
 }
 
 const debouncedSaveAppConfiguration = debounce(saveAppConfiguration, 500);
 
 function handleAppConfigChange() {
-    console.log('AppConfigUI (DEBUG): handleAppConfigChange CALLED.');
+    uiLog.debug('AppConfigUI (DEBUG): handleAppConfigChange CALLED.');
     if (isPopulatingSidebar) {
-        console.log('AppConfigUI: App config field change detected during population, save suppressed.');
+        uiLog.debug('AppConfigUI: App config field change detected during population, save suppressed.');
         return;
     }
-    console.log('AppConfigUI: App config field changed, attempting to save (debounced).');
+    uiLog.info('AppConfigUI: App config field changed, attempting to save (debounced).');
     debouncedSaveAppConfiguration();
 }
 
@@ -206,7 +207,7 @@ function populateConfigSidebar(config) {
     isPopulatingSidebar = true;
     try {
         currentAppConfig = config || {}; 
-        console.log('AppConfigUI: Populating sidebar with config:', currentAppConfig);
+        uiLog.debug('AppConfigUI: Populating sidebar with config:', currentAppConfig);
 
         // General
         if (configCuesFilePathInput) configCuesFilePathInput.value = currentAppConfig.cuesFilePath || '';
@@ -241,11 +242,11 @@ function populateConfigSidebar(config) {
 
 
 
-        console.log('AppConfigUI: Sidebar populated (end of try block).');
+        uiLog.debug('AppConfigUI: Sidebar populated (end of try block).');
     } finally {
         isPopulatingSidebar = false; 
     }
-    console.log('AppConfigUI: DOM elements updated.');
+    uiLog.debug('AppConfigUI: DOM elements updated.');
 }
 
 function handleHttpRemoteEnabledChange() {
@@ -268,7 +269,7 @@ async function loadHttpRemoteInfo() {
     
     try {
         const remoteInfo = await ipcRendererBindingsModule.getHttpRemoteInfo();
-        console.log('AppConfigUI: Received HTTP remote info:', remoteInfo);
+        uiLog.info('AppConfigUI: Received HTTP remote info:', remoteInfo);
         
         if (!remoteInfo.enabled) {
             configHttpRemoteLinksDiv.innerHTML = '<p class="small-text">HTTP remote is disabled.</p>';
@@ -305,7 +306,7 @@ async function loadHttpRemoteInfo() {
             });
         });
     } catch (error) {
-        console.error('AppConfigUI: Error loading HTTP remote info:', error);
+        uiLog.error('AppConfigUI: Error loading HTTP remote info:', error);
         configHttpRemoteLinksDiv.innerHTML = '<p class="small-text">Error loading remote info.</p>';
     }
 }
@@ -333,11 +334,11 @@ window.copyToClipboard = async function(text, button) {
                 setBtn('Copied!', 'copied');
                 return;
             } else {
-                console.error('Electron clipboard API failed:', result?.error);
+                uiLog.error('Electron clipboard API failed:', result?.error);
             }
         }
     } catch (error) {
-        console.error('Error using Electron clipboard API:', error);
+        uiLog.error('Error using Electron clipboard API:', error);
     }
     
     // Fallback: Try browser clipboard API
@@ -348,7 +349,7 @@ window.copyToClipboard = async function(text, button) {
             return;
         }
     } catch (error) {
-        console.warn('Browser clipboard API failed, trying execCommand fallback:', error);
+        uiLog.warn('Browser clipboard API failed, trying execCommand fallback:', error);
     }
 
     // Last resort: use textarea + execCommand
@@ -369,10 +370,10 @@ window.copyToClipboard = async function(text, button) {
             setBtn('Copied!', 'copied');
         } else {
             setBtn('Failed');
-            console.error('All clipboard methods failed');
+            uiLog.error('All clipboard methods failed');
         }
     } catch (error) {
-        console.error('Failed to copy to clipboard:', error);
+        uiLog.error('Failed to copy to clipboard:', error);
         setBtn('Failed');
     }
 };
@@ -387,18 +388,18 @@ function handleStopAllBehaviorChange() {
         configDefaultStopAllFadeOutGroup.style.display = showFadeOutTime ? 'block' : 'none';
     }
     
-    console.log('AppConfigUI: Stop All behavior changed to:', behavior, 'Show fade out time:', showFadeOutTime);
+    uiLog.info('AppConfigUI: Stop All behavior changed to:', behavior, 'Show fade out time:', showFadeOutTime);
 }
 
 
 async function loadAudioOutputDevices() {
     if (!configAudioOutputDeviceSelect) {
-        console.warn('AppConfigUI: configAudioOutputDeviceSelect element not found.');
+        uiLog.warn('AppConfigUI: configAudioOutputDeviceSelect element not found.');
         return;
     }
 
     try {
-        console.log('AppConfigUI: Loading audio output devices...');
+        uiLog.info('AppConfigUI: Loading audio output devices...');
         
         // Clear existing options
         configAudioOutputDeviceSelect.innerHTML = '';
@@ -413,11 +414,11 @@ async function loadAudioOutputDevices() {
         if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
             try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
-                console.log('AppConfigUI: Enumerated devices:', devices);
+                uiLog.debug('AppConfigUI: Enumerated devices:', devices);
                 
                 // Filter to only audio output devices
                 const audioOutputDevices = devices.filter(device => device.kind === 'audiooutput');
-                console.log('AppConfigUI: Audio output devices found:', audioOutputDevices.length);
+                uiLog.info('AppConfigUI: Audio output devices found:', audioOutputDevices.length);
                 
                 audioOutputDevices.forEach(device => {
                     const option = document.createElement('option');
@@ -427,13 +428,13 @@ async function loadAudioOutputDevices() {
                 });
                 
                 if (audioOutputDevices.length > 0) {
-                    console.log('AppConfigUI: Added', audioOutputDevices.length, 'audio output devices to selection');
+                    uiLog.info('AppConfigUI: Added', audioOutputDevices.length, 'audio output devices to selection');
                 } else {
-                    console.log('AppConfigUI: No additional audio output devices found, using system default only');
+                    uiLog.info('AppConfigUI: No additional audio output devices found, using system default only');
                 }
             } catch (deviceError) {
-                console.warn('AppConfigUI: Error enumerating devices:', deviceError);
-                console.log('AppConfigUI: Falling back to system default only');
+                uiLog.warn('AppConfigUI: Error enumerating devices:', deviceError);
+                uiLog.info('AppConfigUI: Falling back to system default only');
                 
                 // Add a user-friendly message option
                 const fallbackOption = document.createElement('option');
@@ -442,7 +443,7 @@ async function loadAudioOutputDevices() {
                 configAudioOutputDeviceSelect.appendChild(fallbackOption);
             }
         } else {
-            console.warn('AppConfigUI: navigator.mediaDevices.enumerateDevices not available');
+            uiLog.warn('AppConfigUI: navigator.mediaDevices.enumerateDevices not available');
         }
 
         // Set the selected value based on current config
@@ -452,10 +453,10 @@ async function loadAudioOutputDevices() {
             configAudioOutputDeviceSelect.value = 'default';
         }
 
-        console.log('AppConfigUI: Audio output device selection completed. Selected:', configAudioOutputDeviceSelect.value);
+        uiLog.info('AppConfigUI: Audio output device selection completed. Selected:', configAudioOutputDeviceSelect.value);
 
     } catch (error) {
-        console.error('AppConfigUI: Error loading audio output devices:', error);
+        uiLog.error('AppConfigUI: Error loading audio output devices:', error);
         
         // Clear and add error option
         configAudioOutputDeviceSelect.innerHTML = '';
@@ -498,35 +499,35 @@ function gatherConfigFromUI() {
         theme: currentAppConfig.theme || 'system',
     };
     
-    console.log('AppConfigUI (gatherConfigFromUI): Gathered config:', JSON.parse(JSON.stringify(config)));
+    uiLog.debug('AppConfigUI (gatherConfigFromUI): Gathered config:', JSON.parse(JSON.stringify(config)));
     return config;
 }
 
 async function saveAppConfiguration() {
-    console.log('AppConfigUI (DEBUG): saveAppConfiguration CALLED.');
+    uiLog.debug('AppConfigUI (DEBUG): saveAppConfiguration CALLED.');
     try {
         const configToSave = gatherConfigFromUI();
-        console.log('AppConfigUI (DEBUG): gatherConfigFromUI completed, configToSave:', JSON.stringify(configToSave));
+        uiLog.debug('AppConfigUI (DEBUG): gatherConfigFromUI completed, configToSave:', JSON.stringify(configToSave));
 
         if (!configToSave) {
-            console.error('AppConfigUI: No config data gathered from UI. Aborting save.');
+            uiLog.error('AppConfigUI: No config data gathered from UI. Aborting save.');
             return;
         }
 
-        console.log('AppConfigUI (DEBUG): Attempting to call ipcRendererBindingsModule.saveAppConfig...');
+        uiLog.debug('AppConfigUI (DEBUG): Attempting to call ipcRendererBindingsModule.saveAppConfig...');
         const result = await ipcRendererBindingsModule.saveAppConfig(configToSave);
-        console.log('AppConfigUI (DEBUG): ipcRendererBindingsModule.saveAppConfig call completed, result:', result);
+        uiLog.debug('AppConfigUI (DEBUG): ipcRendererBindingsModule.saveAppConfig call completed, result:', result);
 
         if (result && result.success) {
-            console.log('AppConfigUI: App configuration successfully saved via main process.');
+            uiLog.info('AppConfigUI: App configuration successfully saved via main process.');
             
             // Apply audio output device change if audioControllerRef is available
             if (audioControllerRef && configToSave.audioOutputDeviceId !== currentAppConfig.audioOutputDeviceId) {
-                console.log('AppConfigUI: Audio output device changed from', currentAppConfig.audioOutputDeviceId, 'to', configToSave.audioOutputDeviceId);
-                console.log('AppConfigUI: Applying audio output device change to audio system...');
+                uiLog.info('AppConfigUI: Audio output device changed from', currentAppConfig.audioOutputDeviceId, 'to', configToSave.audioOutputDeviceId);
+                uiLog.info('AppConfigUI: Applying audio output device change to audio system...');
                 try {
                     await audioControllerRef.setAudioOutputDevice(configToSave.audioOutputDeviceId);
-                    console.log('AppConfigUI: Audio output device successfully changed.');
+                    uiLog.info('AppConfigUI: Audio output device successfully changed.');
                     
                     // Get device name for user feedback
                     const deviceSelect = document.getElementById('configAudioOutputDevice');
@@ -534,13 +535,13 @@ async function saveAppConfiguration() {
                     const deviceName = selectedOption ? selectedOption.textContent : 'Selected Device';
                     
                     // Show success feedback (you can replace this with a proper notification system)
-                    console.info(`✅ Audio output switched to: ${deviceName}`);
+                    uiLog.info(`✅ Audio output switched to: ${deviceName}`);
                     
                 } catch (error) {
-                    console.error('AppConfigUI: Error changing audio output device:', error);
+                    uiLog.error('AppConfigUI: Error changing audio output device:', error);
                     
                     // Show error feedback to user
-                    console.error(`❌ Failed to switch audio output: ${error.message}`);
+                    uiLog.error(`❌ Failed to switch audio output: ${error.message}`);
                     
                     // Show user-friendly error notification
                     const errorMsg = `Failed to switch audio output device. ${error.message || 'Unknown error occurred.'}`;
@@ -548,41 +549,41 @@ async function saveAppConfiguration() {
                     // Try to show a more visible error notification
                     if (typeof window !== 'undefined' && window.alert) {
                         // Simple alert as fallback - in a real app you'd want a better notification system
-                        console.error('Audio device change failed:', errorMsg);
+                        uiLog.error('Audio device change failed:', errorMsg);
                         // Note: Using console.error instead of alert to avoid blocking the UI
                     }
                     
                     // Revert the UI selection to the previous device
                     if (configAudioOutputDeviceSelect) {
                         configAudioOutputDeviceSelect.value = currentAppConfig.audioOutputDeviceId || 'default';
-                        console.log('AppConfigUI: Reverted device selection to previous value');
+                        uiLog.info('AppConfigUI: Reverted device selection to previous value');
                     }
                 }
             }
             
             currentAppConfig = { ...currentAppConfig, ...configToSave };
         } else {
-            console.error('AppConfigUI: Failed to save app configuration via main process:', result ? result.error : 'Unknown error');
+            uiLog.error('AppConfigUI: Failed to save app configuration via main process:', result ? result.error : 'Unknown error');
         }
     } catch (error) {
-        console.error('AppConfigUI: Error during saveAppConfiguration:', error);
+        uiLog.error('AppConfigUI: Error during saveAppConfiguration:', error);
     }
 }
 
 async function forceLoadAndApplyAppConfiguration() {
-    console.log('AppConfigUI: Forcing load and apply of app configuration...');
+    uiLog.info('AppConfigUI: Forcing load and apply of app configuration...');
     if (!ipcRendererBindingsModule) {
-        console.error('AppConfigUI: ipcRendererBindingsModule not available. Cannot force load config.');
+        uiLog.error('AppConfigUI: ipcRendererBindingsModule not available. Cannot force load config.');
         return Promise.reject('ipcRendererBindingsModule not available');
     }
     try {
         const loadedConfig = await ipcRendererBindingsModule.getAppConfig();
-        console.log('AppConfigUI: Successfully loaded config from main:', loadedConfig);
+        uiLog.info('AppConfigUI: Successfully loaded config from main:', loadedConfig);
         populateConfigSidebar(loadedConfig);
         await loadAudioOutputDevices();
         return loadedConfig; 
     } catch (error) {
-        console.error('AppConfigUI: Error loading app configuration from main:', error);
+        uiLog.error('AppConfigUI: Error loading app configuration from main:', error);
         populateConfigSidebar({ ...currentAppConfig });
         await loadAudioOutputDevices();
         return Promise.reject(error);

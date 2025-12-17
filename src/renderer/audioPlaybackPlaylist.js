@@ -12,7 +12,7 @@ const lastPlaylistPositions = new Map();
 
 // Helper function to cue a playlist at a specific position (without playing)
 function _cuePlaylistAtPosition(cueId, targetIndex, currentlyPlaying, getGlobalCueByIdRef, _generateShuffleOrder, sidebarsAPIRef, cuePlayOrder, sendPlaybackTimeUpdateRef = null) {
-    console.log(`🔵 AudioPlaybackManager: _cuePlaylistAtPosition called for ${cueId}, index ${targetIndex}`);
+    log.debug(`_cuePlaylistAtPosition called for ${cueId}, index ${targetIndex}`);
     
     const cue = getGlobalCueByIdRef(cueId);
     if (!cue || cue.type !== 'playlist' || !cue.playlistItems || cue.playlistItems.length === 0) {
@@ -63,31 +63,29 @@ function _cuePlaylistAtPosition(cueId, targetIndex, currentlyPlaying, getGlobalC
     
     // Update UI to show cued state
     if (sidebarsAPIRef && typeof sidebarsAPIRef.cueGrid?.updateButtonPlayingState === 'function') {
-        console.log(`🔵 AudioPlaybackManager: Updating UI to show cued state for ${cueId}: ${cuedName}`);
+        log.debug(`Updating UI to show cued state for ${cueId}: ${cuedName}`);
         sidebarsAPIRef.cueGrid.updateButtonPlayingState(cueId, false, `Next: ${cuedName}`, true);
     } else if (typeof window !== 'undefined' && window.uiModules?.cueGrid?.updateButtonPlayingState) {
-        console.log(`🔵 AudioPlaybackManager: Using fallback UI to show cued state for ${cueId}: ${cuedName}`);
+        log.debug(`Using fallback UI to show cued state for ${cueId}: ${cuedName}`);
         window.uiModules.cueGrid.updateButtonPlayingState(cueId, false, `Next: ${cuedName}`, true);
     }
     
-    // CRITICAL FIX: Send playback time update to companion module for cued state
-    // Even though there's no sound instance, we need to inform the companion about the cued status
+    // Send playback time update to companion module for cued state
     if (sendPlaybackTimeUpdateRef && playlistState) {
-        console.log(`AudioPlaybackManager: Sending cued state update to companion for ${cueId}`);
-        // Pass null for sound since it's cued, and override status to 'paused' (cued is a type of paused state)
+        log.debug(`Sending cued state update to companion for ${cueId}`);
         sendPlaybackTimeUpdateRef(cueId, null, playlistState, cuedName, 'paused');
     }
     
-    console.log(`🔵 AudioPlaybackManager: Playlist ${cueId} cued at index ${clampedIndex} (${cuedName})`);
+    log.info(`Playlist ${cueId} cued at index ${clampedIndex} (${cuedName})`);
 }
 
 // Helper function to start a playlist at a specific position
 function startPlaylistAtPosition(cueId, targetIndex, currentlyPlaying, getGlobalCueByIdRef, _playTargetItem, _generateShuffleOrder, cuePlayOrder) {
-    console.log(`🔵 AudioPlaybackManager: startPlaylistAtPosition called for ${cueId}, index ${targetIndex}`);
+    log.debug(`startPlaylistAtPosition called for ${cueId}, index ${targetIndex}`);
     
     // Check if playlist already has state - if so, update it instead of skipping
     if (currentlyPlaying[cueId]) {
-        console.log(`🔵 AudioPlaybackManager: Playlist ${cueId} already has state, updating to index ${targetIndex}`);
+        log.debug(`Playlist ${cueId} already has state, updating to index ${targetIndex}`);
         const existingState = currentlyPlaying[cueId];
         
         // Stop any existing sound
@@ -96,7 +94,7 @@ function startPlaylistAtPosition(cueId, targetIndex, currentlyPlaying, getGlobal
                 existingState.sound.stop();
                 existingState.sound.unload();
             } catch (error) {
-                console.warn(`Error stopping existing sound during restart:`, error);
+                log.warn(`Error stopping existing sound during restart:`, error);
             }
             existingState.sound = null;
         }
@@ -156,295 +154,185 @@ function startPlaylistAtPosition(cueId, targetIndex, currentlyPlaying, getGlobal
     return { success: true, cuePlayOrder: updatedCuePlayOrder };
 }
 
-function playlistNavigateNext(cueId, fromExternal, currentlyPlaying, getGlobalCueByIdRef, _playTargetItem, _generateShuffleOrder, startPlaylistAtPosition, sidebarsAPIRef, cuePlayOrder, sendPlaybackTimeUpdateRef = null) {
+/**
+ * Internal helper to handle playlist navigation (next/prev)
+ * @param {string} cueId 
+ * @param {number} direction 1 for next, -1 for previous
+ * @param {boolean} fromExternal 
+ * @param {object} currentlyPlaying 
+ * @param {function} getGlobalCueByIdRef 
+ * @param {function} _playTargetItem 
+ * @param {function} _generateShuffleOrder 
+ * @param {object} sidebarsAPIRef 
+ * @param {Array} cuePlayOrder 
+ * @param {function} sendPlaybackTimeUpdateRef 
+ */
+function _navigatePlaylist(cueId, direction, fromExternal, currentlyPlaying, getGlobalCueByIdRef, _playTargetItem, _generateShuffleOrder, sidebarsAPIRef, cuePlayOrder, sendPlaybackTimeUpdateRef) {
     const timestamp = new Date().toISOString();
-    log.debug(`Playlist navigate next for cue ${cueId} at ${timestamp}`);
+    log.debug(`Playlist navigate ${direction > 0 ? 'next' : 'previous'} for cue ${cueId} at ${timestamp}`);
     
     // Block rapid navigation calls
     if (navigationBlocked.has(cueId)) {
-        console.log(`🔵 AudioPlaybackManager: Navigation blocked for ${cueId}, ignoring rapid call at ${timestamp}`);
+        log.debug(`Navigation blocked for ${cueId}, ignoring rapid call`);
         return true;
     }
     
-    // Block navigation for this cue for 300ms (reduced to be less aggressive)
+    // Block navigation for this cue for 100ms
     navigationBlocked.add(cueId);
-    console.log(`🔵 AudioPlaybackManager: Navigation blocked added for ${cueId} at ${timestamp}`);
     setTimeout(() => {
         navigationBlocked.delete(cueId);
-        console.log(`🔵 AudioPlaybackManager: Navigation unblocked for ${cueId} at ${new Date().toISOString()}`);
+        log.debug(`Navigation unblocked for ${cueId}`);
     }, 100);
     
-    console.log(`🔵 AudioPlaybackManager: Starting navigation for ${cueId} at ${timestamp}`);
-    
     const playingState = currentlyPlaying[cueId];
-    console.log(`🔵 AudioPlaybackManager: Playing state for ${cueId}:`, playingState ? {
-        isPlaylist: playingState.isPlaylist,
-        currentPlaylistItemIndex: playingState.currentPlaylistItemIndex,
-        isPaused: playingState.isPaused,
-        isCuedNext: playingState.isCuedNext
-    } : 'null');
-    
-    // Get the cue data to check if it's a playlist
     const cue = getGlobalCueByIdRef(cueId);
-    console.log(`🔵 AudioPlaybackManager: Cue data for ${cueId}:`, cue ? {
-        type: cue.type,
-        playlistItemsLength: cue.playlistItems?.length || 0,
-        name: cue.name
-    } : 'null');
     
     if (!cue || cue.type !== 'playlist') {
-        log.warn(`playlistNavigateNext called for non-playlist cue ${cueId}`);
+        log.warn(`_navigatePlaylist called for non-playlist cue ${cueId}`);
         return false;
     }
     
-    // If playlist is not currently playing (no state OR no sound instance), determine next position to CUE (not play)
+    const playlistItems = cue.playlistItems || [];
+    const maxIndex = playlistItems.length - 1;
+
+    // Idle Navigation (Cueing)
     if (!playingState || !playingState.sound) {
-        // Get last known position for this playlist, or start at 0
-        let startIndex = lastPlaylistPositions.get(cueId);
-        if (startIndex === undefined) {
-            startIndex = 0; // Start from beginning if no history
-        }
-        startIndex = startIndex + 1; // Move to next item
-        
-        // Get playlist length to check bounds
-        const cue = getGlobalCueByIdRef(cueId);
-        const maxIndex = (cue.playlistItems || []).length - 1;
-        
-        if (startIndex > maxIndex) {
-            if (cue.loop) {
-                startIndex = 0; // Loop back to start if at end
+        let lastPos = lastPlaylistPositions.get(cueId);
+        let targetIndex;
+
+        if (direction > 0) { // Next
+            // Default to 0 if undefined, then +1 -> index 1. (Preserving original behavior)
+            let startIndex = lastPos !== undefined ? lastPos : 0;
+            targetIndex = startIndex + 1;
+            
+            if (targetIndex > maxIndex) {
+                if (cue.loop) {
+                    targetIndex = 0;
+                } else {
+                    targetIndex = maxIndex; // Stay at end
+                }
+            }
+        } else { // Previous
+            // Default to last item if undefined
+            if (lastPos === undefined || lastPos <= 0) {
+                targetIndex = maxIndex;
             } else {
-                startIndex = maxIndex; // Stay at last item if no loop
+                targetIndex = lastPos - 1;
             }
         }
         
-        log.info(`Idle playlist navigation: Cueing ${cueId} at index ${startIndex} (last position was ${lastPlaylistPositions.get(cueId) || 'start'})`);
+        log.info(`Idle playlist navigation: Cueing ${cueId} at index ${targetIndex} (last pos: ${lastPos})`);
+        lastPlaylistPositions.set(cueId, targetIndex);
         
-        // Update the last position
-        lastPlaylistPositions.set(cueId, startIndex);
-        
-        // CUE the playlist at this position (don't play it)
-        _cuePlaylistAtPosition(cueId, startIndex, currentlyPlaying, getGlobalCueByIdRef, _generateShuffleOrder, sidebarsAPIRef, cuePlayOrder || [], sendPlaybackTimeUpdateRef);
+        _cuePlaylistAtPosition(cueId, targetIndex, currentlyPlaying, getGlobalCueByIdRef, _generateShuffleOrder, sidebarsAPIRef, cuePlayOrder || [], sendPlaybackTimeUpdateRef);
         return true;
     }
     
+    // Playing Navigation
     if (!playingState.isPlaylist) {
-        log.warn(`playlistNavigateNext called for non-playlist playingState ${cueId}`);
+        log.warn(`_navigatePlaylist called for non-playlist playingState ${cueId}`);
         return false;
     }
     
     const mainCue = playingState.cue;
-    
-    // Use current index from the state
     const currentIndex = playingState.currentPlaylistItemIndex;
     const currentOrderLength = (mainCue.shuffle && playingState.shufflePlaybackOrder && playingState.shufflePlaybackOrder.length > 0) 
                               ? playingState.shufflePlaybackOrder.length 
                               : playingState.originalPlaylistItems.length;
     
-    let nextIndex = currentIndex + 1;
+    let nextIndex = currentIndex + direction;
     
-    console.log(`🔵 AudioPlaybackManager: BEFORE NAVIGATION - Current index: ${currentIndex}, Next index: ${nextIndex}, Playlist length: ${currentOrderLength}`);
+    log.debug(`Current index: ${currentIndex}, Target index: ${nextIndex}, Playlist length: ${currentOrderLength}`);
     
-    // Handle end of playlist
-    if (nextIndex >= currentOrderLength) {
-        if (mainCue.loop) {
-            nextIndex = 0; // Loop back to start
-            console.log(`🔵 AudioPlaybackManager: Looping back to start (index 0)`);
-            // Re-shuffle if needed
-            if (mainCue.shuffle && playingState.originalPlaylistItems.length > 1) {
-                _generateShuffleOrder(cueId);
+    // Boundary checks
+    if (direction > 0) { // Next
+        if (nextIndex >= currentOrderLength) {
+            if (mainCue.loop) {
+                nextIndex = 0;
+                log.debug(`Looping back to start (index 0)`);
+                // Re-shuffle if needed
+                if (mainCue.shuffle && playingState.originalPlaylistItems.length > 1) {
+                    _generateShuffleOrder(cueId);
+                }
+            } else {
+                log.info(`Playlist ${cueId} at end, cannot navigate next without loop`);
+                return false;
             }
-        } else {
-            log.info(`Playlist ${cueId} at end, cannot navigate next without loop`);
-            // Stay at current position instead of clearing state
-            return false;
+        }
+    } else { // Previous
+        if (nextIndex < 0) {
+            if (mainCue.loop) {
+                nextIndex = currentOrderLength - 1;
+                log.debug(`Looping to end (index ${nextIndex})`);
+            } else {
+                log.info(`Playlist ${cueId} at beginning, cannot navigate previous without loop`);
+                return false;
+            }
         }
     }
     
-    // Set navigation flag to prevent cleanup during navigation (short duration)
+    // Set navigation flag
     playingState.isNavigating = true;
     
-    // Stop current sound and play next item
+    // Stop current sound
     if (playingState.sound) {
         try {
-            // Remove event listeners before stopping to prevent ghost events
             const soundToStop = playingState.sound;
-            soundToStop.off(); // Remove all event listeners
+            soundToStop.off(); 
             soundToStop.stop();
             soundToStop.unload();
         } catch (error) {
-            console.warn(`Error stopping sound during navigation for ${cueId}:`, error);
+            log.warn(`Error stopping sound during navigation for ${cueId}:`, error);
         }
         playingState.sound = null;
     }
     
-    log.info(`Navigating playlist ${cueId} to next item (index ${nextIndex})`);
+    log.info(`Navigating playlist ${cueId} to ${direction > 0 ? 'next' : 'previous'} item (index ${nextIndex})`);
     
-    // Update the current playlist item index
+    // Update state
     playingState.currentPlaylistItemIndex = nextIndex;
     playingState.isCuedNext = false;
     playingState.isPaused = false;
     
-    console.log(`🔵 AudioPlaybackManager: Playing item at index ${nextIndex} for ${cueId}`);
-    
-    // Play the next item immediately
+    // Play new item
     _playTargetItem(cueId, nextIndex, false);
     
-    // Update playlist highlighting if available
+    // Update sidebar highlight
     if (sidebarsAPIRef && typeof sidebarsAPIRef.highlightPlayingPlaylistItemInSidebar === 'function') {
-        const mainCue = playingState.cue;
-        let cuedOriginalIdx = nextIndex;
+        let targetOriginalIdx = nextIndex;
         if (mainCue.shuffle && playingState.shufflePlaybackOrder && playingState.shufflePlaybackOrder.length > nextIndex) {
-            cuedOriginalIdx = playingState.shufflePlaybackOrder[nextIndex];
+            targetOriginalIdx = playingState.shufflePlaybackOrder[nextIndex];
         }
-        const playingItem = playingState.originalPlaylistItems[cuedOriginalIdx];
+        const playingItem = playingState.originalPlaylistItems[targetOriginalIdx];
         if (playingItem && playingItem.id) {
             sidebarsAPIRef.highlightPlayingPlaylistItemInSidebar(cueId, playingItem.id);
         }
     }
     
-    // Update last position tracker
+    // Update last position
     lastPlaylistPositions.set(cueId, nextIndex);
     
-    // Clear navigation flag quickly after the play call completes
+    // Clear navigation flag
     setTimeout(() => {
         if (currentlyPlaying[cueId]) {
             currentlyPlaying[cueId].isNavigating = false;
-            console.log(`🔵 AudioPlaybackManager: Navigation flag cleared for ${cueId}`);
+            log.debug(`Navigation flag cleared for ${cueId}`);
         }
-    }, 50); // Very short delay just to let the play operation start
+    }, 50);
     
     return true;
 }
 
-function playlistNavigatePrevious(cueId, fromExternal, currentlyPlaying, getGlobalCueByIdRef, _playTargetItem, _generateShuffleOrder, startPlaylistAtPosition, sidebarsAPIRef, cuePlayOrder, sendPlaybackTimeUpdateRef = null) {
-    const timestamp = new Date().toISOString();
-    log.debug(`Playlist navigate previous for cue ${cueId} at ${timestamp}`);
-    
-    // Block rapid navigation calls
-    if (navigationBlocked.has(cueId)) {
-        console.log(`🔵 AudioPlaybackManager: Navigation blocked for ${cueId}, ignoring rapid call at ${timestamp}`);
-        return true;
-    }
-    
-    // Block navigation for this cue for 300ms (reduced to be less aggressive)
-    navigationBlocked.add(cueId);
-    console.log(`🔵 AudioPlaybackManager: Navigation blocked added for ${cueId} at ${timestamp}`);
-    setTimeout(() => {
-        navigationBlocked.delete(cueId);
-        console.log(`🔵 AudioPlaybackManager: Navigation unblocked for ${cueId} at ${new Date().toISOString()}`);
-    }, 100);
-    
-    console.log(`🔵 AudioPlaybackManager: Starting navigation for ${cueId} at ${timestamp}`);
-    
-    const playingState = currentlyPlaying[cueId];
-    
-    // Get the cue data to check if it's a playlist
-    const cue = getGlobalCueByIdRef(cueId);
-    if (!cue || cue.type !== 'playlist') {
-        log.warn(`playlistNavigatePrevious called for non-playlist cue ${cueId}`);
-        return false;
-    }
-    
-    // If playlist is not currently playing, cue it at the previous position
-    if (!playingState || !playingState.sound) {
-        // Get current position or default to last item
-        let prevIndex = lastPlaylistPositions.get(cueId);
-        if (prevIndex === undefined || prevIndex <= 0) {
-            prevIndex = (cue.playlistItems || []).length - 1; // Go to last item
-        } else {
-            prevIndex = prevIndex - 1; // Go to previous item
-        }
-        
-        log.info(`Idle playlist navigation: Cueing ${cueId} at index ${prevIndex}`);
-        lastPlaylistPositions.set(cueId, prevIndex);
-        
-        // CUE the playlist at this position (don't play it)
-        _cuePlaylistAtPosition(cueId, prevIndex, currentlyPlaying, getGlobalCueByIdRef, _generateShuffleOrder, sidebarsAPIRef, cuePlayOrder || [], sendPlaybackTimeUpdateRef);
-        return true;
-    }
-    
-    if (!playingState.isPlaylist) {
-        log.warn(`playlistNavigatePrevious called for non-playlist playingState ${cueId}`);
-        return false;
-    }
-    
-    const mainCue = playingState.cue;
-    const currentOrderLength = (mainCue.shuffle && playingState.shufflePlaybackOrder && playingState.shufflePlaybackOrder.length > 0) 
-                              ? playingState.shufflePlaybackOrder.length 
-                              : playingState.originalPlaylistItems.length;
-    
-    const currentIndex = playingState.currentPlaylistItemIndex;
-    let prevIndex = currentIndex - 1;
-    
-    console.log(`🔵 AudioPlaybackManager: Current index: ${currentIndex}, Previous index: ${prevIndex}, Playlist length: ${currentOrderLength}`);
-    
-    // Handle beginning of playlist
-    if (prevIndex < 0) {
-        if (mainCue.loop) {
-            prevIndex = currentOrderLength - 1; // Loop to end
-            console.log(`🔵 AudioPlaybackManager: Looping to end (index ${prevIndex})`);
-        } else {
-            log.info(`Playlist ${cueId} at beginning, cannot navigate previous without loop`);
-            return false;
-        }
-    }
-    
-    // Set navigation flag to prevent cleanup during navigation (short duration)
-    playingState.isNavigating = true;
-    
-    // Stop current sound and play previous item
-    if (playingState.sound) {
-        try {
-            // Remove event listeners before stopping to prevent ghost events
-            const soundToStop = playingState.sound;
-            soundToStop.off(); // Remove all event listeners
-            soundToStop.stop();
-            soundToStop.unload();
-        } catch (error) {
-            console.warn(`Error stopping sound during navigation for ${cueId}:`, error);
-        }
-        playingState.sound = null;
-    }
-    
-    log.info(`Navigating playlist ${cueId} to previous item (index ${prevIndex})`);
-    
-    // Update the current playlist item index
-    playingState.currentPlaylistItemIndex = prevIndex;
-    playingState.isCuedNext = false;
-    playingState.isPaused = false;
-    
-    console.log(`🔵 AudioPlaybackManager: Playing item at index ${prevIndex} for ${cueId}`);
-    
-    // Play the previous item immediately
-    _playTargetItem(cueId, prevIndex, false);
-    
-    // Update playlist highlighting if available
-    if (sidebarsAPIRef && typeof sidebarsAPIRef.highlightPlayingPlaylistItemInSidebar === 'function') {
-        const mainCue = playingState.cue;
-        let cuedOriginalIdx = prevIndex;
-        if (mainCue.shuffle && playingState.shufflePlaybackOrder && playingState.shufflePlaybackOrder.length > prevIndex) {
-            cuedOriginalIdx = playingState.shufflePlaybackOrder[prevIndex];
-        }
-        const playingItem = playingState.originalPlaylistItems[cuedOriginalIdx];
-        if (playingItem && playingItem.id) {
-            sidebarsAPIRef.highlightPlayingPlaylistItemInSidebar(cueId, playingItem.id);
-        }
-    }
-    
-    // Clear navigation flag quickly after the play call completes
-    setTimeout(() => {
-        if (currentlyPlaying[cueId]) {
-            currentlyPlaying[cueId].isNavigating = false;
-            console.log(`🔵 AudioPlaybackManager: Navigation flag cleared for ${cueId}`);
-        }
-    }, 50); // Very short delay just to let the play operation start
-    
-    return true;
+function playlistNavigateNext(cueId, fromExternal, currentlyPlaying, getGlobalCueByIdRef, _playTargetItem, _generateShuffleOrder, startPlaylistAtPositionRef, sidebarsAPIRef, cuePlayOrder, sendPlaybackTimeUpdateRef = null) {
+    return _navigatePlaylist(cueId, 1, fromExternal, currentlyPlaying, getGlobalCueByIdRef, _playTargetItem, _generateShuffleOrder, sidebarsAPIRef, cuePlayOrder, sendPlaybackTimeUpdateRef);
+}
+
+function playlistNavigatePrevious(cueId, fromExternal, currentlyPlaying, getGlobalCueByIdRef, _playTargetItem, _generateShuffleOrder, startPlaylistAtPositionRef, sidebarsAPIRef, cuePlayOrder, sendPlaybackTimeUpdateRef = null) {
+    return _navigatePlaylist(cueId, -1, fromExternal, currentlyPlaying, getGlobalCueByIdRef, _playTargetItem, _generateShuffleOrder, sidebarsAPIRef, cuePlayOrder, sendPlaybackTimeUpdateRef);
 }
 
 // Function to jump to a specific item in a playlist
-function playlistJumpToItem(cueId, targetIndex, fromExternal, currentlyPlaying, getGlobalCueByIdRef, _playTargetItem, _generateShuffleOrder, startPlaylistAtPosition, sidebarsAPIRef, cuePlayOrder, sendPlaybackTimeUpdateRef = null) {
+function playlistJumpToItem(cueId, targetIndex, fromExternal, currentlyPlaying, getGlobalCueByIdRef, _playTargetItem, _generateShuffleOrder, startPlaylistAtPositionRef, sidebarsAPIRef, cuePlayOrder, sendPlaybackTimeUpdateRef = null) {
     const timestamp = new Date().toISOString();
     log.debug(`Playlist jump to item for cue ${cueId}, index ${targetIndex} at ${timestamp}`);
     
@@ -462,6 +350,11 @@ function playlistJumpToItem(cueId, targetIndex, fromExternal, currentlyPlaying, 
     if (!playingState || (!playingState.sound && !playingState.isPaused && !playingState.isCuedNext)) {
         // Playlist is not currently playing - start it at the target position
         log.info(`Idle playlist jump: Starting ${cueId} at index ${clampedIndex}`);
+        // Note: startPlaylistAtPosition is called here, but we defined it locally.
+        // If it's passed as an argument 'startPlaylistAtPositionRef', we should probably use that or the local one?
+        // The export at the bottom exports the local 'startPlaylistAtPosition'.
+        // The arguments to this function include 'startPlaylistAtPosition', which seems to be the function itself passed in?
+        // Let's use the local one defined in this file to be safe/consistent.
         startPlaylistAtPosition(cueId, clampedIndex, currentlyPlaying, getGlobalCueByIdRef, _playTargetItem, _generateShuffleOrder, cuePlayOrder);
         return true;
     }
@@ -483,14 +376,14 @@ function playlistJumpToItem(cueId, targetIndex, fromExternal, currentlyPlaying, 
             playingState.sound.stop();
             playingState.sound.unload();
         } catch (error) {
-            console.warn(`Error stopping sound during jump:`, error);
+            log.warn(`Error stopping sound during jump:`, error);
         }
         playingState.sound = null;
     }
     
-    console.log(`🔵 AudioPlaybackManager: Jumping to item at index ${clampedIndex} for ${cueId}`);
+    log.info(`Jumping to item at index ${clampedIndex} for ${cueId}`);
     
-    // Play the target item immediately - _playTargetItem is already wrapped with context
+    // Play the target item immediately
     _playTargetItem(cueId, clampedIndex, false);
     
     // Update playlist highlighting if available
@@ -513,7 +406,7 @@ function playlistJumpToItem(cueId, targetIndex, fromExternal, currentlyPlaying, 
     setTimeout(() => {
         if (currentlyPlaying[cueId]) {
             currentlyPlaying[cueId].isNavigating = false;
-            console.log(`🔵 AudioPlaybackManager: Navigation flag cleared for ${cueId}`);
+            log.debug(`Navigation flag cleared for ${cueId}`);
         }
     }, 50);
     
