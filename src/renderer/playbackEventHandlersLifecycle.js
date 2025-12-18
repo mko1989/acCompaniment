@@ -31,21 +31,30 @@ export function createOnendHandler(cueId, sound, playingState, filePath, current
             // console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Time update intervals cleared immediately to prevent race condition.`);
         }
 
+        // CRITICAL: Check if this sound instance is still the active one BEFORE clearing
+        // This prevents race conditions where a new instance has started
+        const currentGlobalState = audioControllerContext.currentlyPlaying[cueId];
+        const isActiveSoundInstance = currentGlobalState && currentGlobalState.sound === sound;
+        
         // CRITICAL FIX: Clear sound object immediately to prevent getPlaybackState from thinking it's still playing
         // BUT: Don't stop/cleanup if looping - Howler needs the sound instance to continue looping
-        if (playingState.sound && !isLoopingSingleCue) {
+        // AND: Only clear if this is still the active sound instance
+        if (isActiveSoundInstance && currentGlobalState.sound && !isLoopingSingleCue) {
             // console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Clearing sound object immediately to prevent false playing state.`);
             // Force stop the sound if it's still running (defensive programming)
             try {
-                if (playingState.sound.playing && playingState.sound.playing()) {
-                    playingState.sound.stop();
+                if (currentGlobalState.sound.playing && currentGlobalState.sound.playing()) {
+                    currentGlobalState.sound.stop();
                 }
                 // Remove all event listeners to prevent memory leaks and interference
-                playingState.sound.off();
+                currentGlobalState.sound.off();
             } catch (error) {
                 console.warn(`[TIME_UPDATE_DEBUG ${cueId}] onend: Error stopping sound during cleanup:`, error);
             }
-            playingState.sound = null;
+            currentGlobalState.sound = null;
+        } else if (!isActiveSoundInstance && !isLoopingSingleCue) {
+            console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Sound instance mismatch detected early. This onend is for a stale instance. Ignoring.`);
+            return; // Early return - this is a stale onend event
         }
 
         let errorOccurred = false; // Placeholder, can be set by other event handlers if needed
@@ -53,15 +62,18 @@ export function createOnendHandler(cueId, sound, playingState, filePath, current
         // Special handling for 'stop_and_cue_next' playlists:
         // The status update will be handled by _handlePlaylistEnd after it sets the cued state.
         // For other cases, send 'stopped' status now.
+        // BUT: Only send if this is still the active sound instance
         const isStopAndCueNextPlaylist = playingState.isPlaylist && mainCue.playlistPlayMode === 'stop_and_cue_next';
 
-        if (!isStopAndCueNextPlaylist && !isLoopingSingleCue) {
+        if (!isStopAndCueNextPlaylist && !isLoopingSingleCue && isActiveSoundInstance) {
             console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Not a 'stop_and_cue_next' playlist or not a playlist. Sending 'stopped' status.`);
-            audioControllerContext.sendPlaybackTimeUpdate(cueId, sound, playingState, currentItemNameForEvents, 'stopped');
+            audioControllerContext.sendPlaybackTimeUpdate(cueId, sound, currentGlobalState, currentItemNameForEvents, 'stopped');
         } else if (isLoopingSingleCue) {
             console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Looping single cue - skipping stopped status update. Howler will handle loop.`);
-        } else {
+        } else if (isStopAndCueNextPlaylist) {
             console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Is a 'stop_and_cue_next' playlist. Deferring specific status update to _handlePlaylistEnd.`);
+        } else if (!isActiveSoundInstance) {
+            console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Stale sound instance - skipping status update.`);
         }
 
         if (playingState.isPlaylist) {
@@ -86,20 +98,19 @@ export function createOnendHandler(cueId, sound, playingState, filePath, current
             // Single cue, not looping, and not a playlist - it just ended.
             console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Single cue, no loop. Processing complete.`);
             // UI and state cleanup for a simple non-looping single cue that finished.
-            if (audioControllerContext.currentlyPlaying[cueId]) { 
+            // We already verified this is the active instance above, so proceed with cleanup
+            if (currentGlobalState) { 
                 // Check if we're navigating - if so, don't delete the state
-                if (audioControllerContext.currentlyPlaying[cueId].isNavigating || audioControllerContext.currentlyPlaying[cueId].preservedForNavigation) {
+                if (currentGlobalState.isNavigating || currentGlobalState.preservedForNavigation) {
                     console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Navigation in progress, preserving state.`);
                     // Don't delete currentlyPlaying during navigation
                 } else {
-                    // CHECK IF THIS SOUND IS THE CURRENT ONE
-                    if (audioControllerContext.currentlyPlaying[cueId].sound === sound) {
-                        delete audioControllerContext.currentlyPlaying[cueId];
-                        if (audioControllerContext.cueGridAPI) audioControllerContext.cueGridAPI.updateButtonPlayingState(cueId, false);
-                    } else {
-                        console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Sound instance mismatch (expected active sound). State preserved for new instance.`);
-                        // Do NOT delete currentlyPlaying or update UI to stopped, because a new instance is running
+                    // This is the active sound instance (verified above), so clean up
+                    delete audioControllerContext.currentlyPlaying[cueId];
+                    if (audioControllerContext.cueGridAPI) {
+                        audioControllerContext.cueGridAPI.updateButtonPlayingState(cueId, false);
                     }
+                    console.log(`[TIME_UPDATE_DEBUG ${cueId}] onend: Single cue cleanup complete. State deleted.`);
                 }
             }
             // IPC status update for 'stopped' was already sent above if not stop_and_cue_next
