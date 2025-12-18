@@ -20,13 +20,15 @@ export function _handlePlaylistEnd(cueId, errorOccurred = false, context) {
         sidebarsAPIRef: sidebarsAPIRefFromContext,
         sidebarsAPI: sidebarsAPIFromContext,
         _playTargetItem,
-        sendPlaybackTimeUpdateRef
+        sendPlaybackTimeUpdateRef: sendPlaybackTimeUpdateRefFromContext,
+        sendPlaybackTimeUpdate: sendPlaybackTimeUpdateFromContext
     } = context;
 
     // Resolve references from context (handling both Ref and non-Ref naming)
     const ipcBindingsRef = ipcBindingsRefFromContext || ipcBindingsFromContext;
     const cueGridAPIRef = cueGridAPIRefFromContext || cueGridAPIFromContext;
     const sidebarsAPIRef = sidebarsAPIRefFromContext || sidebarsAPIFromContext;
+    const sendPlaybackTimeUpdateRef = sendPlaybackTimeUpdateRefFromContext || sendPlaybackTimeUpdateFromContext;
 
     const playingState = currentlyPlaying[cueId];
     if (!playingState || !playingState.isPlaylist) {
@@ -183,6 +185,15 @@ export function _handlePlaylistEnd(cueId, errorOccurred = false, context) {
                 if (ipcBindingsRef) {
                     console.log(`[PLAYLIST_END_DEBUG] Sending IPC cue-status-update (stopped) for ${cueId}`);
                     ipcBindingsRef.send('cue-status-update', { cueId: cueId, status: 'stopped', details: { reason: 'playlist_ended_fully_no_loop_stop_mode' } });
+                }
+                
+                // CRITICAL: Send playback time update to Companion when playlist ends
+                if (sendPlaybackTimeUpdateRef) {
+                    console.log(`[PLAYLIST_END_DEBUG] Sending stopped state update to Companion for ${cueId}`);
+                    // Pass null for sound since playlist ended, and use firstItemName for display
+                    sendPlaybackTimeUpdateRef(cueId, null, playingState, firstItemName, 'stopped');
+                } else {
+                    console.warn(`[PLAYLIST_END_DEBUG] FAILED to send stopped state to Companion - sendPlaybackTimeUpdateRef: ${!!sendPlaybackTimeUpdateRef}`);
                 }
                 
                 console.log(`AudioPlaybackManager: _handlePlaylistEnd (stop_and_cue_next) for ${cueId}. Checking ducking.`);
@@ -361,6 +372,15 @@ export function _handlePlaylistEnd(cueId, errorOccurred = false, context) {
             if (ipcBindingsRef) {
                 console.log(`[PLAYLIST_END_DEBUG] Sending IPC cue-status-update (stopped) for ${cueId}`);
                 ipcBindingsRef.send('cue-status-update', { cueId: cueId, status: 'stopped', details: { reason: 'playlist_ended_naturally_no_loop' } });
+            }
+            
+            // CRITICAL: Send playback time update to Companion when playlist ends
+            if (sendPlaybackTimeUpdateRef) {
+                console.log(`[PLAYLIST_END_DEBUG] Sending stopped state update to Companion for ${cueId}`);
+                // Pass null for sound since playlist ended, and use firstItemName for display
+                sendPlaybackTimeUpdateRef(cueId, null, playingState, firstItemName, 'stopped');
+            } else {
+                console.warn(`[PLAYLIST_END_DEBUG] FAILED to send stopped state to Companion - sendPlaybackTimeUpdateRef: ${!!sendPlaybackTimeUpdateRef}`);
             }
             
             console.log(`AudioPlaybackManager: _handlePlaylistEnd (play_through) for ${cueId}. Attempting to check for ducking trigger.`);

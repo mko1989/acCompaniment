@@ -228,9 +228,12 @@ export function _playTargetItem(cueId, playlistItemIndex, isResumeForSeekAndFade
     const {
         currentlyPlaying,
         getGlobalCueByIdRef,
-        ipcBindingsRef,
-        cueGridAPIRef,
-        sidebarsAPIRef,
+        ipcBindingsRef: ipcBindingsRefFromContext,
+        ipcBindings: ipcBindingsFromContext,
+        cueGridAPIRef: cueGridAPIRefFromContext,
+        cueGridAPI: cueGridAPIFromContext,
+        sidebarsAPIRef: sidebarsAPIRefFromContext,
+        sidebarsAPI: sidebarsAPIFromContext,
         createPlaybackInstanceRef,
         sendPlaybackTimeUpdateRef,
         getAppConfigFuncRef,
@@ -241,6 +244,10 @@ export function _playTargetItem(cueId, playlistItemIndex, isResumeForSeekAndFade
         _revertDucking,
         _updateCurrentCueForCompanion
     } = context;
+
+    const ipcBindingsRef = ipcBindingsRefFromContext || ipcBindingsFromContext;
+    const cueGridAPIRef = cueGridAPIRefFromContext || cueGridAPIFromContext;
+    const sidebarsAPIRef = sidebarsAPIRefFromContext || sidebarsAPIFromContext;
 
     const playingState = currentlyPlaying[cueId];
     if (!playingState) {
@@ -345,11 +352,16 @@ export function _playTargetItem(cueId, playlistItemIndex, isResumeForSeekAndFade
 function _handleFilePathError(cueId, playingState, errorType, filePath, context) {
     const {
         currentlyPlaying,
-        ipcBindingsRef,
-        cueGridAPIRef,
+        ipcBindingsRef: ipcBindingsRefFromContext,
+        ipcBindings: ipcBindingsFromContext,
+        cueGridAPIRef: cueGridAPIRefFromContext,
+        cueGridAPI: cueGridAPIFromContext,
         _handlePlaylistEnd,
         _cleanupSoundInstance
     } = context;
+
+    const ipcBindingsRef = ipcBindingsRefFromContext || ipcBindingsFromContext;
+    const cueGridAPIRef = cueGridAPIRefFromContext || cueGridAPIFromContext;
 
     log.error(`File path error for cue ${cueId}: ${errorType}`);
     
@@ -442,8 +454,11 @@ function _proceedWithPlayback(cueId, playingState, filePath, currentItemName, ac
             currentlyPlaying, 
             playbackIntervals, 
             ipcBindings: ipcBindingsRef,
+            ipcBindingsRef: ipcBindingsRef, // Redundant but robust
             cueGridAPI: cueGridAPIRef,
+            cueGridAPIRef: cueGridAPIRef, // Redundant but robust
             sidebarsAPI: sidebarsAPIRef,
+            sidebarsAPIRef: sidebarsAPIRef, // Redundant but robust
             sendPlaybackTimeUpdate: sendPlaybackTimeUpdateRef,
             sendPlaybackTimeUpdateRef: sendPlaybackTimeUpdateRef, // Add with correct key name for _handlePlaylistEnd
             _handlePlaylistEnd, 

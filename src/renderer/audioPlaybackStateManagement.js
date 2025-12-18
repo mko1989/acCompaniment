@@ -104,10 +104,16 @@ export function _cleanupSoundInstance(cueId, state, options = {}, context) {
         currentlyPlaying,
         playbackIntervals,
         pendingRestarts,
-        sidebarsAPIRef,
+        sidebarsAPIRef: sidebarsAPIRefFromContext,
+        sidebarsAPI: sidebarsAPIFromContext,
+        cueGridAPIRef: cueGridAPIRefFromContext,
+        cueGridAPI: cueGridAPIFromContext,
         _removeFromPlayOrder,
         _updateCurrentCueForCompanion
     } = context;
+
+    const sidebarsAPIRef = sidebarsAPIRefFromContext || sidebarsAPIFromContext;
+    const cueGridAPIRef = cueGridAPIRefFromContext || cueGridAPIFromContext;
 
     const { 
         forceUnload = false, 
@@ -237,8 +243,8 @@ export function _cleanupSoundInstance(cueId, state, options = {}, context) {
     state.meterAnalyser = null;
     state.meterDataArray = null;
 
-    if (context && context.cueGridAPIRef && typeof context.cueGridAPIRef.resetCueMeter === 'function') {
-        context.cueGridAPIRef.resetCueMeter(cueId, { immediate: true });
+if (cueGridAPIRef && typeof cueGridAPIRef.resetCueMeter === 'function') {
+    cueGridAPIRef.resetCueMeter(cueId, { immediate: true });
     }
 
     state.meterCalibrationMax = null;
