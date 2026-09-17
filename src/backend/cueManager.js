@@ -157,14 +157,37 @@ class CueManager {
     
     // Get all cues
     getCues() {
-        return this.cueDataManager.getCues();
+        return this.cueDataManager.getCues().map((cue) => this._mergeLiveState(cue));
     }
-    
+
     // Get cue by ID
     getCue(cueId) {
-        return this.cueDataManager.getCue(cueId);
+        const cue = this.cueDataManager.getCue(cueId);
+        return cue ? this._mergeLiveState(cue) : cue;
     }
-    
+
+    // Playback status (playing/paused/stopped, currentTime, totalTime) is
+    // tracked in the in-memory this.cueStates map, not persisted to disk
+    // (it's ephemeral runtime state, not cue configuration, and shouldn't
+    // survive a restart or cost a disk write on every play/pause/stop).
+    // cueDataManager's stored record only ever has the status it was
+    // created/last-saved with. Without this merge, every REST read
+    // (GET /api/cues, /api/cues/:id, /api/remote/cues) would return a
+    // permanently stale status - WebSocket broadcasts are the only thing
+    // that would ever reflect live state.
+    _mergeLiveState(cue) {
+        const liveState = this.cueStates.get(cue.id);
+        if (!liveState) {
+            return cue;
+        }
+        return {
+            ...cue,
+            status: liveState.status,
+            currentTime: liveState.currentTime ?? cue.currentTime,
+            totalTime: liveState.totalTime ?? cue.totalTime,
+        };
+    }
+
     // Create new cue
     async createCue(cueData) {
         try {

@@ -32,6 +32,9 @@ Options:
   --dev           Enable development mode
   --help          Show this help message
 
+Environment variables:
+  ACCOMPANIMENT_DATA_DIR  Override the data directory (default: ~/.accompaniment)
+
 Examples:
   node start-nodejs.js
   node start-nodejs.js --port=8080

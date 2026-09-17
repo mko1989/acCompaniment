@@ -45,7 +45,7 @@ class AccompanimentServer {
         this.cueManager = null;
         
         // Data directory
-        this.dataDir = path.join(os.homedir(), '.accompaniment');
+        this.dataDir = process.env.ACCOMPANIMENT_DATA_DIR || path.join(os.homedir(), '.accompaniment');
         
         this.setupMiddleware();
         this.setupRoutes();
@@ -61,7 +61,22 @@ class AccompanimentServer {
         // JSON parsing
         this.app.use(express.json({ limit: '50mb' }));
         this.app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-        
+
+        // express.json()/urlencoded() only populate req.body when the
+        // request actually has a matching Content-Type; a POST with no
+        // body at all (a very normal thing for an action endpoint like
+        // "stop" or "stop all") leaves req.body === undefined. Many route
+        // handlers destructure fields straight off req.body
+        // (`const { fadeOut } = req.body`) with no fallback, which throws
+        // and 500s in exactly that case. Guarantee req.body is always at
+        // least {} so every route can destructure safely.
+        this.app.use((req, res, next) => {
+            if (req.body === undefined) {
+                req.body = {};
+            }
+            next();
+        });
+
         // Static files for browser UI
         this.app.use(express.static(path.join(__dirname, 'src', 'frontend')));
         
@@ -126,8 +141,15 @@ class AccompanimentServer {
                 this.audioFileManager.setPcmSampleRate(config.audioSampleRate);
             }
             
-            // Update port from config
-            if (config.httpRemotePort && config.httpRemotePort !== this.port) {
+            // Update port from the saved app config - but never override an
+            // explicit PORT env var. Without this guard, a fresh data
+            // directory (no config file yet) gets one auto-created with the
+            // default httpRemotePort, which would then silently clobber
+            // whatever port the caller explicitly asked for via PORT=.
+            // (The Electron launcher already resolves the config port
+            // itself before spawning and passes it via PORT, so this
+            // doesn't change that path's behavior.)
+            if (!process.env.PORT && config.httpRemotePort && config.httpRemotePort !== this.port) {
                 this.port = config.httpRemotePort;
                 console.log(`Port updated from config: ${this.port}`);
             }
