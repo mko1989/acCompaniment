@@ -599,6 +599,28 @@ mounting `routes/remote.js`, and Express matches routes in registration order, s
 router's richer handler (playback status, connected WebSocket client count) never ran.
 Consolidated into one handler that's a superset of both response shapes.
 
+## G10 — Playwright browser end-to-end tests `[x]`
+**Files:** `playwright.config.js` (new), `test/e2e/*` (new)
+
+Everything through G9 tested the backend directly (HTTP/WebSocket) - none of it ever
+loaded `src/frontend/` in an actual browser. Added Playwright (`npm run test:e2e`,
+included in `npm test`): 10 tests across 3 spec files covering the main UI (page load,
+live WebSocket-driven DOM rendering when a cue is created via the API while the page is
+already open, edit-mode vs show-mode click behavior verified via the real `.playing` CSS
+class, config sidebar, and the file-picker cue-creation flow), the `/remote` page
+(listing, triggering playback cross-checked against the REST API, the audio-engine-error
+banner), and the Ctrl+Alt+P easter egg (real keyboard event → `window.open()`).
+
+Found one real, reproducible issue during development - in the test setup, not the app:
+with Playwright's default 4 parallel workers, one test (`window.open()` under load)
+consistently timed out, but passed reliably every time run in isolation. Unlike the
+Node-level smoke tests (each file gets its own isolated server), every e2e spec shares
+one live server with a real, CPU-hungry RtAudio engine; running several Chromium
+instances at once against that was a genuine resource-contention ceiling on typical dev
+hardware, not a flake to paper over with a longer timeout. Capped `workers: 2`, which
+fixed it consistently across 5 repeated runs and, as a bonus, made the whole suite
+noticeably faster too (~6s vs ~32s).
+
 ---
 
 # Suggested execution order
