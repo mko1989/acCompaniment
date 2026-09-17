@@ -7,6 +7,12 @@ const fs = require('fs-extra');
 
 const HEALTH_CHECK_PATH = '/api/remote/health';
 const HEARTBEAT_INTERVAL_MS = 20000;
+// Consecutive failed heartbeat checks required before actually treating the
+// server as down. A single miss (e.g. the Electron main process itself
+// briefly busy, or one dropped TCP handshake) isn't reliable evidence of a
+// dead server - a real crash is already caught immediately and separately
+// by the child process's own 'close' handler, independent of this timer.
+const HEARTBEAT_FAILURE_THRESHOLD = 3;
 const MAX_RESTART_ATTEMPTS = 3;
 const RESTART_BACKOFF_BASE_MS = 2000;
 const LOG_MAX_BYTES = 5 * 1024 * 1024; // rotate past 5MB
@@ -35,6 +41,7 @@ class AccompanimentLauncher {
         this.nodeHost = 'localhost'; // host the launcher itself uses to reach the server locally
         this.logFilePath = path.join(os.homedir(), '.accompaniment', 'logs', 'accompaniment-server.log');
         this.heartbeatTimer = null;
+        this._heartbeatConsecutiveFailures = 0;
         this.restartAttempts = 0;
         this._deliberateStop = false;
 
@@ -396,6 +403,7 @@ class AccompanimentLauncher {
             const running = await this.checkServerStatus();
             if (running) {
                 console.log('Electron Launcher: Server started successfully');
+                this.isNodeRunning = true;
                 this.isStarting = false;
                 this.restartAttempts = 0;
                 this.updateTrayMenu();
@@ -458,13 +466,45 @@ class AccompanimentLauncher {
      * Polls the health endpoint periodically once the server is up, so a
      * hang (process alive but not responding) is caught even after the
      * initial startup checks stop running - not just a subprocess exit.
+     *
+     * Requires HEARTBEAT_FAILURE_THRESHOLD consecutive misses before
+     * touching isNodeRunning/the tray - a single failed check here doesn't
+     * mean the server died (an actual crash is already caught immediately
+     * and reliably by the child process's own 'close' handler, regardless
+     * of this timer's schedule); it's far more often a transient blip.
      */
     startHeartbeat() {
         this.stopHeartbeat();
+        this._heartbeatConsecutiveFailures = 0;
         this.heartbeatTimer = setInterval(async () => {
             const healthy = await this.checkServerStatus();
-            if (!healthy && this.nodeProcess) {
-                console.warn('Electron Launcher: Heartbeat check failed while process is still alive - server may be hung.');
+
+            if (healthy) {
+                this._heartbeatConsecutiveFailures = 0;
+                // Recover a tray that a previous run of failures had
+                // downgraded, now that the server has proven itself again.
+                if (!this.isNodeRunning) {
+                    this.isNodeRunning = true;
+                    this.updateTrayMenu();
+                }
+                return;
+            }
+
+            if (!this.nodeProcess) {
+                // Already handled by the 'close' listener.
+                return;
+            }
+
+            this._heartbeatConsecutiveFailures += 1;
+            console.warn(
+                `Electron Launcher: Heartbeat check failed while process is still alive `
+                + `(${this._heartbeatConsecutiveFailures}/${HEARTBEAT_FAILURE_THRESHOLD}) - may be a transient blip.`
+            );
+
+            if (this._heartbeatConsecutiveFailures >= HEARTBEAT_FAILURE_THRESHOLD) {
+                console.error('Electron Launcher: Server unresponsive across multiple consecutive health checks.');
+                this.isNodeRunning = false;
+                this.updateTrayMenu();
             }
         }, HEARTBEAT_INTERVAL_MS);
     }
@@ -564,6 +604,21 @@ class AccompanimentLauncher {
         }
     }
 
+    // A pure health probe - resolves true/false and never touches
+    // isNodeRunning or the tray itself. That state belongs to whichever
+    // caller is asking, since "is the port answering right now" means
+    // something different depending on context: during startup polling, no
+    // response legitimately means "not up yet"; during the ongoing
+    // heartbeat, the process was already confirmed alive and working, so a
+    // single missed/timed-out check is far more likely to be a transient
+    // blip (e.g. the Electron main process itself briefly busy opening a
+    // window, delaying its own handling of the response) than an actual
+    // crash - and a real crash is already caught immediately and reliably
+    // by the child process's own 'close' handler regardless of this check.
+    // This function used to flip isNodeRunning to false on any single
+    // failure, including a bare timeout, which could gray out "Open Browser
+    // UI" and show "Server Stopped" while the server was demonstrably still
+    // healthy and serving WebSocket traffic.
     checkServerStatus() {
         return new Promise((resolve) => {
             const options = {
@@ -576,29 +631,21 @@ class AccompanimentLauncher {
 
             const req = http.request(options, (res) => {
                 if (res.statusCode === 200) {
-                    this.isNodeRunning = true;
-                    this.updateTrayMenu();
                     console.log(`Electron Launcher: Server is running and healthy on port ${this.nodePort}`);
                     resolve(true);
                 } else {
-                    this.isNodeRunning = false;
-                    this.updateTrayMenu();
                     console.log(`Electron Launcher: Server health check failed with status: ${res.statusCode}`);
                     resolve(false);
                 }
             });
 
             req.on('error', (error) => {
-                this.isNodeRunning = false;
-                this.updateTrayMenu();
                 console.log(`Electron Launcher: Server health check failed: ${error.message}`);
                 resolve(false);
             });
 
             req.on('timeout', () => {
                 req.destroy();
-                this.isNodeRunning = false;
-                this.updateTrayMenu();
                 console.log(`Electron Launcher: Server health check timed out on port ${this.nodePort}`);
                 resolve(false);
             });

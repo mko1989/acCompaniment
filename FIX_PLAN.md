@@ -736,6 +736,57 @@ having already passed.
 
 ---
 
+## G13 — False "not running" tray state from a single flaky heartbeat check + duplicate stop broadcasts `[x]`
+**Files:** `electron-launcher/main.js`, `src/backend/cueManager.js`,
+`test/websocket-protocol.test.js`
+
+Reported after G12: the tray showed "Server Stopped" (graying out "Open
+Browser UI") while the server was demonstrably fine - it kept handling real
+WebSocket traffic (`get-app-config`, `get-cues`) in the same log excerpt,
+seconds after `checkServerStatus()` logged a single health-check timeout.
+`checkServerStatus()` mutated `isNodeRunning` and repainted the tray on *any*
+single failed probe, including a bare timeout - and once opening the config
+window (a real, if brief, main-process-busy moment) delayed that one HTTP
+round-trip past 5s, the tray got stuck on "stopped" until the next heartbeat
+happened to succeed 20s later. A real crash was already caught immediately
+and reliably by the child process's own `'close'` handler, independent of
+this timer - so the heartbeat's health check was never actually load-bearing
+for detecting a dead process, only for a theoretical hang.
+
+Made `checkServerStatus()` a pure probe with no side effects, and moved state
+ownership to each caller: the startup poll and heartbeat now decide what a
+result means for their own context. The heartbeat specifically requires
+`HEARTBEAT_FAILURE_THRESHOLD` (3) *consecutive* failures - roughly a minute
+of sustained unresponsiveness - before flipping `isNodeRunning` and
+repainting the tray, and recovers it automatically the moment a later check
+succeeds again.
+
+Also fixed, found while in this code: `stopNodeServer()`'s guard
+(`if (!this.isNodeRunning || !this.nodeProcess) return;`) silently no-opped
+while the server was still in its startup window (`nodeProcess` alive,
+`isNodeRunning` not yet `true`) - quitting the app during that window left
+the child process running as an orphan instead of killing it. Now keyed on
+`nodeProcess` alone.
+
+**Separately**, while investigating a report that "the retrigger fails to
+complete its actions on cues," reproduced every `retriggerBehavior` value
+end-to-end against a live server and found `cueManager.stopCue()` sent every
+stop *twice*: it called `stopCuePlayback()` (which already updates
+`cueStates`/`playingCues` and broadcasts `cue_status: stopped` itself), then
+redundantly repeated the same state update and broadcast again immediately
+after - and disagreed with it in the process, since `stopCuePlayback()`
+deletes the cue's live state entirely while `stopCue()`'s repeat put a
+`stopped` entry back. Pre-existing since the baseline commit, not something
+introduced this session. `stopCue()` now just returns `stopCuePlayback()`'s
+result directly. Confirmed via a duplicated-message reproduction script
+before and after; the final playback state was already correct either way
+(so this alone likely isn't the whole story behind the reported symptom -
+still investigating), but the duplicate broadcast was a genuine, real defect
+regardless. Added a regression test asserting exactly one `stopped`
+broadcast per `stop_cue`.
+
+---
+
 # Suggested execution order
 
 1. **A1 → A2 → A3 → A4** (stop data loss & orphan files)

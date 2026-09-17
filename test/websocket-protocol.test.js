@@ -134,10 +134,30 @@ test('event: toggle_cue on a playing cue applies its retrigger behavior', async 
 });
 
 test('event: stop_cue stops playback and responds with cue_stopped', async () => {
+    // Regression check: stopCue() used to call stopCuePlayback() (which
+    // already updates state and broadcasts 'stopped' itself) and then
+    // redundantly repeat both steps, sending every stop twice down the
+    // WebSocket.
+    const stoppedBroadcasts = [];
+    const onMessage = (data) => {
+        try {
+            const parsed = JSON.parse(data.toString());
+            if (parsed.type === 'cue_status' && parsed.payload?.cueId === wsCreatedCueId && parsed.payload?.status === 'stopped') {
+                stoppedBroadcasts.push(parsed);
+            }
+        } catch {
+            // ignore
+        }
+    };
+    ws.on('message', onMessage);
+
     const responsePromise = waitForType(ws, 'cue_stopped');
     wsSend(ws, 'stop_cue', { cueId: wsCreatedCueId });
     const response = await responsePromise;
     assert.equal(response.payload.success, true);
+
+    ws.removeListener('message', onMessage);
+    assert.equal(stoppedBroadcasts.length, 1, `expected exactly one 'stopped' cue_status broadcast, got ${stoppedBroadcasts.length}`);
 });
 
 test('event: stop_all_cues responds with all_cues_stopped', async () => {

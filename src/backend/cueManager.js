@@ -339,29 +339,21 @@ class CueManager {
             if (!cue) {
                 return { success: false, error: 'Cue not found' };
             }
-            
+
             const playbackInfo = this.playingCues.get(cueId);
             if (!playbackInfo) {
                 return { success: true }; // Already stopped
             }
-            
-            // Stop playback
-            await this.stopCuePlayback(cueId, fadeOut ? cue.fadeOutTime : 0);
-            
-            // Update state
-            this.playingCues.delete(cueId);
-            this.cueStates.set(cueId, {
-                status: 'stopped',
-                currentTime: 0,
-                totalTime: 0
-            });
-            
-            // Broadcast status update
-            this.websocketManager.broadcastCueStatus(cueId, 'stopped');
-            
-            console.log(`CueManager: Stopped cue: ${cue.name} (${cueId})`);
-            return { success: true };
-            
+
+            // stopCuePlayback() already updates playingCues/cueStates and
+            // broadcasts the 'stopped' cue_status itself - this used to
+            // redundantly repeat both after it (and, since it re-added a
+            // 'stopped' entry to cueStates right after stopCuePlayback had
+            // just deleted it, briefly disagreed with it about whether the
+            // cue's live state should exist at all), sending every stop
+            // twice down the WebSocket for no reason.
+            return await this.stopCuePlayback(cueId, fadeOut ? cue.fadeOutTime : 0);
+
         } catch (error) {
             console.error(`CueManager: Error stopping cue: ${error.message}`);
             return { success: false, error: error.message };
