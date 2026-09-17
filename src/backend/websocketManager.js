@@ -12,6 +12,19 @@ class WebSocketManager {
     }
     
     setupWebSocketServer() {
+        // The `ws` library re-emits the underlying http.Server's 'error'
+        // event (e.g. EADDRINUSE) as this.wss's own 'error' event. With no
+        // listener here, that re-emit throws synchronously as an
+        // EventEmitter with zero 'error' listeners - which happens INSIDE
+        // the http.Server's own 'error' emit, interrupting it before
+        // server.js's own `server.on('error', ...)` listener (registered
+        // later, in start()) ever runs. Log it here so the underlying
+        // server-level handler in server.js is reached instead of a raw
+        // uncaught exception.
+        this.wss.on('error', (error) => {
+            console.error('WebSocketManager: WebSocket server error:', error.message || error);
+        });
+
         this.wss.on('connection', (ws, req) => {
             console.log(`WebSocketManager: New client connected from ${req.socket.remoteAddress}`);
             
@@ -313,10 +326,14 @@ class WebSocketManager {
                         const interfaces = this.appConfigManager.getNetworkInterfaces();
                         result = {
                             enabled: config.httpRemoteEnabled !== false,
-                            port: config.httpRemotePort || 3000,
+                            port: config.httpRemotePort || 3333,
+                            // These links are surfaced in the config sidebar
+                            // as "HTTP Remote Control" links, so they should
+                            // point at the dedicated /remote page, not the
+                            // full soundboard UI.
                             interfaces: interfaces.map(iface => ({
                                 interface: iface.name,
-                                url: iface.httpUrl
+                                url: `${iface.httpUrl}/remote`
                             }))
                         };
                     } else {
@@ -607,8 +624,10 @@ class WebSocketManager {
     }
     
     broadcast(message) {
-        console.log(`WebSocketManager: Broadcasting to ${this.clients.size} clients:`, message.type);
-        
+        if (this.appConfigManager?.getConfig()?.enableDebugLogging) {
+            console.log(`WebSocketManager: Broadcasting to ${this.clients.size} clients:`, message.type);
+        }
+
         this.clients.forEach(ws => {
             this.sendToClient(ws, message);
         });

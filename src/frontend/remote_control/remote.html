@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>acCompaniment Remote</title>
+    <link rel="icon" type="image/png" href="/assets/icons/icon.png">
+    <style>
+        body {
+            font-family: 'Arial', 'Helvetica', sans-serif;
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .remote-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #2a2a2a;
+            padding: 10px 15px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .remote-header-left {
+            display: flex;
+            align-items: center;
+        }
+        .remote-header-icon {
+            width: 32px;
+            height: 32px;
+            margin-right: 10px;
+        }
+        .remote-header h1 {
+            font-size: 1.6em;
+            color: #e0e0e0;
+            margin: 0;
+        }
+        #connectionBanner {
+            display: none;
+            text-align: center;
+            padding: 8px;
+            font-size: 0.9em;
+        }
+        #connectionBanner.lost {
+            display: block;
+            background-color: #703030;
+            color: white;
+        }
+        #connectionBanner.engine-error {
+            display: block;
+            background-color: #8c5a00;
+            color: white;
+        }
+        #cueGridRemote {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            width: 100%;
+            max-width: 900px;
+            padding: 10px;
+            margin: 0 auto;
+            box-sizing: border-box;
+        }
+        .cue-button-remote {
+            aspect-ratio: 1 / 0.7;
+            background-color: #3a3a3a;
+            border: 1px solid #555555;
+            border-radius: 5px;
+            text-align: center;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+        .cue-button-remote:hover {
+            background-color: #4a4a4a;
+            border-color: #666666;
+        }
+        .cue-button-remote.playing {
+            background-color: #228b22;
+            color: white;
+        }
+        .cue-button-remote.paused {
+            background-color: #d97700;
+            color: white;
+        }
+        .cue-button-remote .name {
+            font-weight: bold;
+            font-size: 0.9em;
+            word-break: break-word;
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+        .cue-button-remote .times {
+            font-size: 0.75em;
+            color: #cccccc;
+            width: 100%;
+            margin-top: 4px;
+        }
+        .cue-button-remote .times .remaining {
+            margin-left: 4px;
+            color: #bbbbbb;
+        }
+        #stopAllButtonRemote {
+            background-color: #703030;
+            color: white;
+            border: 1px solid #8c3c3c;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.95em;
+        }
+        #stopAllButtonRemote:hover {
+            background-color: #8c3c3c;
+        }
+    </style>
+</head>
+<body>
+    <div class="remote-header">
+        <div class="remote-header-left">
+            <img src="/assets/icons/icon.png" alt="acCompaniment" class="remote-header-icon">
+            <h1>acCompaniment</h1>
+        </div>
+        <button id="stopAllButtonRemote">Stop All</button>
+    </div>
+
+    <div id="connectionBanner"></div>
+    <div id="cueGridRemote"></div>
+
+    <script>
+        // Remote control page. Talks to the same server as the main UI:
+        // - WebSocket for live cue list / status / playback-time updates
+        //   (same message envelope the main frontend uses - {type, payload})
+        // - REST endpoints under /api/remote/* for actions, since they
+        //   already exist and are simpler to call than crafting raw
+        //   WebSocket action messages.
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        let ws = null;
+        let reconnectTimer = null;
+
+        const cueGridRemote = document.getElementById('cueGridRemote');
+        const stopAllButtonRemote = document.getElementById('stopAllButtonRemote');
+        const connectionBanner = document.getElementById('connectionBanner');
+        let currentCues = new Map();
+        let triggerLocked = new Set(); // per-cue debounce, mirrors the old global lock but scoped per cue
+
+        function setBanner(text, className) {
+            connectionBanner.textContent = text;
+            connectionBanner.className = className || '';
+        }
+
+        function connect() {
+            ws = new WebSocket(`${wsProtocol}//${window.location.host}`);
+
+            ws.onopen = () => {
+                console.log('Remote: connected to acCompaniment WebSocket');
+                setBanner('', '');
+            };
+
+            ws.onmessage = (event) => {
+                let message;
+                try {
+                    message = JSON.parse(event.data);
+                } catch (error) {
+                    console.error('Remote: failed to parse WebSocket message', error);
+                    return;
+                }
+
+                switch (message.type) {
+                    case 'cues-updated': {
+                        const cues = message.payload?.cues || [];
+                        currentCues = new Map(cues.map((cue) => [cue.id, cue]));
+                        renderAllCues(cues);
+                        break;
+                    }
+                    case 'cue_status': {
+                        const { cueId, status } = message.payload || {};
+                        const cue = currentCues.get(cueId);
+                        if (cue) {
+                            cue.status = status;
+                            updateButtonStatus(cueId, status);
+                        }
+                        break;
+                    }
+                    case 'playback-time-update': {
+                        const payload = message.payload || {};
+                        updateButtonTime(payload.cueId, payload.currentTimeFormatted, payload.remainingTimeFormatted, payload.status);
+                        break;
+                    }
+                    case 'audio-engine-error': {
+                        setBanner(`Audio engine error: ${message.payload?.message || 'unknown error'}`, 'engine-error');
+                        break;
+                    }
+                    default:
+                        break;
+                }
+            };
+
+            ws.onclose = () => {
+                setBanner('Connection lost — retrying...', 'lost');
+                reconnectTimer = setTimeout(connect, 2000);
+            };
+
+            ws.onerror = () => {
+                ws.close();
+            };
+        }
+
+        function formatTimeMMSS(seconds) {
+            if (typeof seconds !== 'number' || isNaN(seconds)) return '0:00';
+            const s = Math.max(0, Math.floor(seconds));
+            return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+        }
+
+        function renderAllCues(cues) {
+            cueGridRemote.innerHTML = '';
+            if (!cues || cues.length === 0) {
+                cueGridRemote.innerHTML = '<p style="text-align: center; color: #888; grid-column: 1 / -1;">No cues available.</p>';
+                return;
+            }
+
+            cues.forEach((cue) => {
+                const button = document.createElement('div');
+                button.className = 'cue-button-remote';
+                button.id = `cue-btn-${cue.id}`;
+                button.innerHTML = `
+                    <span class="name">${escapeHtml(cue.name || 'Unnamed Cue')}</span>
+                    <div class="times">
+                        <span class="current-time">0:00</span>
+                        <span class="remaining"></span>
+                    </div>
+                `;
+                updateButtonStatus(cue.id, cue.status);
+                button.addEventListener('click', () => triggerCue(cue.id));
+                cueGridRemote.appendChild(button);
+            });
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function updateButtonStatus(cueId, status) {
+            const button = document.getElementById(`cue-btn-${cueId}`);
+            if (!button) return;
+            button.classList.remove('playing', 'paused');
+            if (status === 'playing') button.classList.add('playing');
+            else if (status === 'paused') button.classList.add('paused');
+        }
+
+        function updateButtonTime(cueId, currentTimeFormatted, remainingTimeFormatted, status) {
+            const button = document.getElementById(`cue-btn-${cueId}`);
+            if (!button) return;
+            const currentElem = button.querySelector('.current-time');
+            const remainingElem = button.querySelector('.remaining');
+            if (currentElem) currentElem.textContent = currentTimeFormatted || '0:00';
+            if (remainingElem) remainingElem.textContent = remainingTimeFormatted ? `-${remainingTimeFormatted}` : '';
+            if (status) updateButtonStatus(cueId, status);
+        }
+
+        async function triggerCue(cueId) {
+            if (triggerLocked.has(cueId)) return;
+            triggerLocked.add(cueId);
+            setTimeout(() => triggerLocked.delete(cueId), 400);
+
+            try {
+                await fetch(`/api/remote/cues/${cueId}/trigger`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ source: 'remote_http' })
+                });
+            } catch (error) {
+                console.error('Remote: failed to trigger cue', error);
+            }
+        }
+
+        let stopAllLocked = false;
+        stopAllButtonRemote.addEventListener('click', async () => {
+            if (stopAllLocked) return;
+            stopAllLocked = true;
+            setTimeout(() => { stopAllLocked = false; }, 400);
+
+            try {
+                await fetch('/api/remote/cues/stop-all', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+            } catch (error) {
+                console.error('Remote: failed to stop all cues', error);
+            }
+        });
+
+        connect();
+    </script>
+</body>
+</html>

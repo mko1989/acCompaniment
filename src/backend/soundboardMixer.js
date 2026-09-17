@@ -28,6 +28,11 @@ class SoundboardMixer {
         this.channelCount = channelCount;
         this.activeCues = new Map();
         this.onCueComplete = null;
+        this.masterGain = 1.0;
+    }
+
+    setMasterGain(value) {
+        this.masterGain = clamp(Number(value) || 0, 0, 2);
     }
 
     setChannelCount(channelCount) {
@@ -165,6 +170,7 @@ class SoundboardMixer {
             sampleRate: this.sampleRate,
             channelCount: this.channelCount,
             activeCount: this.activeCues.size,
+            masterGain: this.masterGain,
             playing,
         };
     }
@@ -198,7 +204,7 @@ class SoundboardMixer {
                 const left = buf[idx] || 0;
                 const right = buf[idx + 1] ?? left;
 
-                const vol = cue.currentGain;
+                const vol = cue.currentGain * this.masterGain;
                 const outBase = f * nChannels;
                 outputBuffer[outBase + patchL] += left * vol;
                 if (patchR !== patchL) {

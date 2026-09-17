@@ -1,6 +1,11 @@
 # Audio Engine — Server-Primary + Multichannel Plan
 
-Status: **proposed** · Owner: unassigned · Last updated: 2026-06-14
+Status: **implemented** · Owner: unassigned · Last updated: 2026-09-17
+
+This design is live: `src/backend/soundboardMixer.js`, `audioDecoder.js`, and
+`pcmCache.js` implement the `SoundboardMixer` + RtAudio approach described
+below (Option C was chosen). The rest of this document is kept as the
+design rationale for that choice, not a pending proposal.
 
 ---
 

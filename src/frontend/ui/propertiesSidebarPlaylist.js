@@ -163,6 +163,69 @@ function handleDragOverPlaylistItem(event, propPlaylistItemsUl) {
 }
 
 /**
+ * Upload files and append them to the staged playlist. Used both when files
+ * are dropped directly onto an open playlist properties sidebar and when
+ * dropped onto the main grid while a playlist cue's sidebar is open
+ * (ui.js's handleMultipleFileDrop). Mirrors the upload pattern
+ * dragDropHandler.js already uses for single/new-cue drops: POST to
+ * /api/audio/upload with FormData. The returned audioFile record already
+ * carries duration (extracted server-side via music-metadata), so no
+ * separate get-media-duration round trip is needed.
+ * @param {File[]|FileList} files
+ * @param {HTMLElement} propPlaylistItemsUl - The playlist UL element
+ * @param {HTMLElement} propPlaylistFilePathDisplay - Display element for playlist info
+ */
+async function addFilesToStagedPlaylist(files, propPlaylistItemsUl, propPlaylistFilePathDisplay) {
+    const fileArray = Array.from(files || []);
+    const audioFiles = fileArray.filter((file) => file.name.toLowerCase().match(/\.(mp3|wav|aac|m4a|ogg|flac)$/));
+    if (audioFiles.length === 0) {
+        return;
+    }
+
+    for (const file of audioFiles) {
+        try {
+            const formData = new FormData();
+            formData.append('audioFile', file);
+            formData.append('name', file.name.replace(/\.[^/.]+$/, ''));
+
+            const uploadResponse = await fetch('/api/audio/upload', { method: 'POST', body: formData });
+            const uploadResult = await uploadResponse.json();
+
+            if (!uploadResult.success) {
+                console.error(`PropertiesSidebar: Failed to upload ${file.name} for playlist:`, uploadResult.error);
+                continue;
+            }
+
+            const audioFile = uploadResult.audioFile;
+            const newItemId = websocketBindingsModule
+                ? await websocketBindingsModule.invoke('generate-uuid')
+                : `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+            stagedPlaylistItems.push({
+                id: newItemId,
+                name: audioFile.name || file.name,
+                path: audioFile.relativePath,
+                relativePath: audioFile.relativePath,
+                audioFileId: audioFile.id,
+                volume: 1,
+                fadeInTime: 0,
+                fadeOutTime: 0,
+                trimStartTime: 0,
+                trimEndTime: 0,
+                knownDuration: audioFile.duration || 0
+            });
+        } catch (error) {
+            console.error(`PropertiesSidebar: Error uploading ${file.name} for playlist:`, error);
+        }
+    }
+
+    renderPlaylistInProperties(propPlaylistItemsUl, propPlaylistFilePathDisplay);
+    if (debouncedSaveCueProperties) {
+        await debouncedSaveCueProperties();
+    }
+}
+
+/**
  * Handle drop for playlist items
  * @param {DragEvent} event - Drop event
  * @param {HTMLElement} propPlaylistItemsUl - The playlist UL element
@@ -177,33 +240,7 @@ async function handleDropPlaylistItem(event, propPlaylistItemsUl, propPlaylistFi
         return;
     }
     if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
-        const files = Array.from(event.dataTransfer.files);
-        const audioFiles = files.filter(file => file.name.toLowerCase().match(/\.(mp3|wav|aac|m4a|ogg)$/));
-        if (audioFiles.length > 0) {
-            for (const file of audioFiles) {
-                const newItemId = await websocketBindingsModule.invoke('generate-uuid');
-                const itemName = file.name;
-                const itemPath = file.path;
-                let itemDuration = 0;
-                try {
-                    const durationResult = await websocketBindingsModule.invoke('get-media-duration', { filePath: itemPath });
-                    if (durationResult && typeof durationResult === 'number' && durationResult > 0) {
-                        itemDuration = durationResult;
-                    } else {
-                        console.warn(`PropertiesSidebar: Invalid duration result for ${itemPath}:`, durationResult);
-                    }
-                } catch (error) { 
-                    console.error(`PropertiesSidebar: Error getting duration for ${itemPath}:`, error);
-                    // Duration will remain 0, which is handled gracefully in the UI
-                }
-                stagedPlaylistItems.push({
-                    id: newItemId, name: itemName, path: itemPath, volume: 1, fadeInTime: 0, fadeOutTime: 0,
-                    trimStartTime: 0, trimEndTime: 0, knownDuration: itemDuration
-                });
-            }
-            renderPlaylistInProperties(propPlaylistItemsUl, propPlaylistFilePathDisplay);
-            await debouncedSaveCueProperties();
-        }
+        await addFilesToStagedPlaylist(event.dataTransfer.files, propPlaylistItemsUl, propPlaylistFilePathDisplay);
         const draggingElementGlobal = document.querySelector('.dragging-playlist-item');
         if (draggingElementGlobal) draggingElementGlobal.classList.remove('dragging-playlist-item');
         return;
@@ -384,6 +421,7 @@ export {
     setStagedPlaylistItems,
     getStagedPlaylistItems,
     renderPlaylistInProperties,
+    addFilesToStagedPlaylist,
     handleDragStartPlaylistItem,
     handleDragOverPlaylistItem,
     handleDropPlaylistItem,

@@ -5,13 +5,26 @@ const path = require('path');
 const cors = require('cors');
 const os = require('os');
 
-// Import our modules
-const AudioFileManager = require('./src/backend/audioFileManager');
-const CueDataManager = require('./src/backend/cueDataManager');
-const PathManager = require('./src/backend/pathManager');
-const AppConfigManager = require('./src/backend/appConfigManager');
-const WebSocketManager = require('./src/backend/websocketManager');
-const CueManager = require('./src/backend/cueManager');
+// Import our modules. CueManager pulls in AudioPlaybackManager, which loads
+// the native @hamitzor/rtaudio.js addon at require() time - if that binary
+// is missing or was built for the wrong ABI, this throws synchronously here,
+// before any of the class-level error handling below even runs. Catch it
+// and fail with a clear message instead of a raw native-addon stack trace.
+let AudioFileManager, CueDataManager, PathManager, AppConfigManager, WebSocketManager, CueManager;
+try {
+    AudioFileManager = require('./src/backend/audioFileManager');
+    CueDataManager = require('./src/backend/cueDataManager');
+    PathManager = require('./src/backend/pathManager');
+    AppConfigManager = require('./src/backend/appConfigManager');
+    WebSocketManager = require('./src/backend/websocketManager');
+    CueManager = require('./src/backend/cueManager');
+} catch (error) {
+    console.error('Failed to load server modules:', error.message);
+    if (error.cause) {
+        console.error('Caused by:', error.cause.message || error.cause);
+    }
+    process.exit(1);
+}
 
 class AccompanimentServer {
     constructor() {
@@ -21,7 +34,7 @@ class AccompanimentServer {
         
         // Configuration - will be set from config file
         this.port = process.env.PORT || 3333;
-        this.host = '0.0.0.0';
+        this.host = process.env.HOST || '0.0.0.0';
         
         // Managers
         this.audioFileManager = null;
@@ -55,6 +68,12 @@ class AccompanimentServer {
         // Serve main UI
         this.app.get('/', (req, res) => {
             res.sendFile(path.join(__dirname, 'src', 'frontend', 'index.html'));
+        });
+
+        // Dedicated HTTP remote control page (simplified cue grid for
+        // triggering from a phone/tablet on the LAN)
+        this.app.get('/remote', (req, res) => {
+            res.sendFile(path.join(__dirname, 'src', 'frontend', 'remote_control', 'remote.html'));
         });
     }
     
@@ -144,13 +163,28 @@ class AccompanimentServer {
     async start() {
         try {
             await this.initialize();
-            
+
+            // Surface a clear message for listen()-time failures (most
+            // commonly EADDRINUSE) instead of letting them become an
+            // unhandled 'error' event on the http.Server, which crashes the
+            // process with a raw stack trace and no actionable guidance.
+            this.server.on('error', (error) => {
+                if (error.code === 'EADDRINUSE') {
+                    console.error(`Failed to start server: port ${this.port} is already in use.`);
+                    console.error('Another instance of acCompaniment (or something else) is likely already running. ' +
+                        'Stop it, or set a different port via the PORT environment variable / app config.');
+                } else {
+                    console.error('Failed to start server:', error.message || error);
+                }
+                process.exit(1);
+            });
+
             // Start the server on the configured port
             this.server.listen(this.port, this.host, () => {
         console.log(`HTTP Server running at http://${this.host}:${this.port}`);
         console.log(`WebSocket Server running at ws://${this.host}:${this.port}`);
         console.log(`Browser UI: http://localhost:${this.port}`);
-                
+
                 // Log network interfaces
                 const interfaces = os.networkInterfaces();
                 console.log('Network interfaces:');
@@ -162,7 +196,7 @@ class AccompanimentServer {
                     });
                 });
             });
-            
+
         } catch (error) {
             console.error('Failed to start server:', error);
             process.exit(1);
@@ -203,6 +237,42 @@ class AccompanimentServer {
 
 // Handle graceful shutdown - prevent multiple calls
 let isShuttingDown = false;
+
+async function handleFatalError(kind, error) {
+    console.error(`Unhandled ${kind} - shutting down:`, error);
+    if (isShuttingDown) {
+        process.exit(1);
+        return;
+    }
+    isShuttingDown = true;
+    try {
+        if (global.server) {
+            // Best-effort: flush workspace state and release the audio
+            // device before exiting, same as a normal SIGTERM shutdown.
+            // If this itself throws or hangs, stop() has its own 10s
+            // force-exit timeout as a backstop.
+            await global.server.stop();
+        } else {
+            process.exit(1);
+        }
+    } catch (_cleanupError) {
+        process.exit(1);
+    }
+}
+
+// Without these, any stray exception anywhere in the app (including from
+// the native audio render callback) crashes the process instantly with no
+// cleanup and no save of in-progress workspace state. The Electron launcher
+// (electron-launcher/main.js) auto-restarts the server on unexpected exit,
+// so a crash here becomes a brief, logged, self-recovering blip rather than
+// a silent, permanent outage.
+process.on('uncaughtException', (error) => {
+    handleFatalError('exception', error);
+});
+
+process.on('unhandledRejection', (reason) => {
+    handleFatalError('promise rejection', reason);
+});
 
 process.on('SIGINT', async () => {
     if (isShuttingDown) {

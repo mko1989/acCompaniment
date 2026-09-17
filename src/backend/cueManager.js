@@ -37,6 +37,16 @@ class CueManager {
             this.handlePlaybackEnd(cueId);
         });
 
+        // Surface native audio-engine errors (e.g. output device removed
+        // mid-show) to connected clients instead of playback silently
+        // stopping with nothing visible in the UI.
+        this.audioPlaybackManager.setEngineErrorCallback((error) => {
+            this.websocketManager?.broadcast({
+                type: 'audio-engine-error',
+                payload: error,
+            });
+        });
+
         this._startPlaybackTimeBroadcast();
         
         console.log('CueManager: Initialized successfully');
@@ -448,8 +458,14 @@ class CueManager {
                 return { success: true, message: 'Cue already playing' };
                 
             case 'play_new_instance':
-                // TODO: Implement multiple instance playback
-                return { success: false, error: 'Multiple instances not yet implemented' };
+                // Full polyphonic multi-instance playback isn't implemented
+                // (the mixer keys active playback by cue ID, one slot per
+                // cue). Rather than surface an error to the operator
+                // mid-show for choosing this retrigger option, degrade
+                // gracefully to a normal restart.
+                console.warn('CueManager: play_new_instance not implemented - falling back to restart');
+                await this.stopCue(cue.id);
+                return await this.triggerCue(cue.id, options);
                 
             default:
                 return await this.triggerCue(cue.id, options);

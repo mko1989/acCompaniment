@@ -72,6 +72,8 @@ class AudioPlaybackManager {
         this.bufferSize = 512;
         this.deviceId = null;
         this.pcmCacheDir = null;
+        this.masterVolume = 1.0;
+        this.onEngineError = null;
     }
 
     static listOutputDevices() {
@@ -107,6 +109,7 @@ class AudioPlaybackManager {
                 this.mixer.setCueCompleteCallback((cueId) => {
                     this.handlePlaybackEnd(cueId);
                 });
+                this.mixer.setMasterGain(this.masterVolume);
             } else {
                 this.mixer.setSampleRate(this.sampleRate);
                 this.mixer.setChannelCount(this.channelCount);
@@ -181,6 +184,7 @@ class AudioPlaybackManager {
             this.mixer.setCueCompleteCallback((cueId) => {
                 this.handlePlaybackEnd(cueId);
             });
+            this.mixer.setMasterGain(this.masterVolume);
         } else {
             this.mixer.setSampleRate(this.sampleRate);
             this.mixer.setChannelCount(this.channelCount);
@@ -191,6 +195,21 @@ class AudioPlaybackManager {
         const device = this.rt.getDevices().find((d) => d.id === this.deviceId);
         const deviceName = device?.name || `device ${this.deviceId}`;
 
+        // setErrorCallback surfaces native-layer conditions (device removed,
+        // driver-level errors) that would otherwise only be printed to
+        // stderr by the native addon with no way for the app to react. Wire
+        // it to the same onEngineError hook the render-callback catch below
+        // uses, so both paths reach the frontend the same way.
+        if (typeof this.rt.setErrorCallback === 'function') {
+            this.rt.setErrorCallback((errType, message) => {
+                console.error(`AudioPlaybackManager: RtAudio error (${errType}): ${message}`);
+                this.streamOpen = false;
+                if (this.onEngineError) {
+                    this.onEngineError({ type: String(errType), message: String(message) });
+                }
+            });
+        }
+
         this.rt.openStream(
             { deviceId: this.deviceId, nChannels: this.channelCount },
             null,
@@ -199,9 +218,22 @@ class AudioPlaybackManager {
             this.bufferSize,
             null,
             (output, _input, nFrames) => {
-                const sampleCount = nFrames * this.channelCount;
-                const out = new Float32Array(output.buffer, output.byteOffset, sampleCount);
-                this.mixer.render(out, nFrames, this.channelCount);
+                try {
+                    const sampleCount = nFrames * this.channelCount;
+                    const out = new Float32Array(output.buffer, output.byteOffset, sampleCount);
+                    this.mixer.render(out, nFrames, this.channelCount);
+                } catch (error) {
+                    // A throw from inside this native-driven callback would
+                    // otherwise be an uncaught exception with no JS stack
+                    // context tying it back here. Log it, mute this cycle's
+                    // output (buffer is already silence-filled on failure
+                    // paths inside render()), and keep the stream alive
+                    // rather than taking down the whole process.
+                    console.error('AudioPlaybackManager: Error in mixer render callback:', error);
+                    if (this.onEngineError) {
+                        this.onEngineError({ type: 'render-exception', message: error.message });
+                    }
+                }
                 return 0;
             }
         );
@@ -452,7 +484,11 @@ class AudioPlaybackManager {
     }
 
     setMasterVolume(volume) {
-        console.log(`AudioPlaybackManager: Master volume set to ${volume} (not implemented)`);
+        this.masterVolume = Math.max(0, Math.min(2, Number(volume)));
+        if (this.mixer) {
+            this.mixer.setMasterGain(this.masterVolume);
+        }
+        console.log(`AudioPlaybackManager: Master volume set to ${this.masterVolume}`);
     }
 
     getPlaybackStatus() {
@@ -472,6 +508,10 @@ class AudioPlaybackManager {
 
     setPlaybackEndCallback(callback) {
         this.onPlaybackEnd = callback;
+    }
+
+    setEngineErrorCallback(callback) {
+        this.onEngineError = callback;
     }
 
     handlePlaybackEnd(cueId) {

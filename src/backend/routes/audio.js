@@ -34,7 +34,13 @@ function createUpload(req) {
         storage: multer.diskStorage({
             destination: (req, file, cb) => {
                 const subdirectory = req.body.subdirectory || 'imported';
-                const dest = path.join(pathManager.audioDir, subdirectory);
+                // Confine to audioDir via the same resolvePath() helper used
+                // elsewhere (FIX_PLAN F2) - subdirectory comes straight from
+                // the request body and must not be able to escape via `..`.
+                const dest = pathManager.resolvePath(subdirectory, pathManager.audioDir);
+                if (!dest) {
+                    return cb(new Error(`Invalid subdirectory: ${subdirectory}`));
+                }
                 fs.ensureDir(dest)
                     .then(() => cb(null, dest))
                     .catch((err) => cb(err));

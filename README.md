@@ -1,6 +1,6 @@
 # acCompaniment Soundboard
 
-**acCompaniment** is a professional soundboard application built with Electron, designed for live performance, broadcasting, and advanced audio cue management. It offers robust control over audio playback, extensive customization options, and integration capabilities with Bitfocus Companion.
+**acCompaniment** is a professional soundboard application designed for live performance, broadcasting, and advanced audio cue management. It runs as a Node.js audio server with a browser-based UI (wrapped in a minimal Electron tray launcher for system integration), and offers robust control over audio playback, extensive customization options, and integration capabilities with Bitfocus Companion.
 
 ## Features
 
@@ -12,7 +12,8 @@
     *   Drag-and-drop interface for adding audio files.
     *   Automatic discovery of audio file durations.
 *   **Audio Playback Engine:**
-    *   Powered by Howler.js for reliable and performant audio handling.
+    *   Server-side playback via RtAudio and a custom PCM mixer, with
+        per-cue multichannel output routing.
     *   Visual waveform display for trimming audio start/end points.
     *   Precise control over playback: play, pause, stop, stop all, fade out and stop.
 *   **Configuration:**
@@ -107,27 +108,42 @@ Download the latest release from the [Releases](../../releases) page for your op
 
 ## Development
 
+acCompaniment runs as a Node.js server with a browser-based UI, wrapped in a
+minimal Electron tray launcher for system integration. Key technologies:
 
-The application is built using Electron. Key technologies include:
-
-*   **Electron:** For building the cross-platform desktop application.
-*   **HTML, CSS, JavaScript:** For the user interface and core logic.
-*   **Howler.js:** For audio playback.
-*   **Node.js:** For main process logic and system interactions.
-*   **WebSockets:** For communication with the Bitfocus Companion module.
-*   **OSC (Open Sound Control):** For mixer integration.
+*   **Node.js + Express:** HTTP/REST API and static file serving.
+*   **WebSockets (`ws`):** Real-time cue/playback state to the browser UI and
+    to Bitfocus Companion.
+*   **RtAudio (`@hamitzor/rtaudio.js`) + a custom PCM mixer:** Server-side
+    audio output, mixing, fades, and multichannel routing — see
+    `AUDIO_ENGINE_PLAN.md` for the design.
+*   **HTML, CSS, JavaScript (browser, no framework):** The main UI, served
+    to any browser on the LAN.
+*   **Electron:** A thin system-tray launcher only — it starts/stops the
+    Node.js server and shows connection info; it is not where the app's
+    logic lives.
 
 ### Project Structure
 
-The project follows a standard Electron structure:
-- `main.js` - Main Electron process
-- `src/main/` - Main process modules
-- `src/renderer/` - Renderer process (UI) modules
-- `assets/` - Application icons and resources
+- `server.js` — Node.js server entry point (HTTP + WebSocket)
+- `src/backend/` — Server-side logic: cue/workspace management, audio
+  engine, REST routes
+- `src/frontend/` — Browser UI (served by the server), including
+  `remote_control/` (the HTTP remote control page) and `easter_egg_game/`
+- `electron-launcher/` — Minimal Electron app: system tray, starts/stops the
+  server, configuration window
+- `start-nodejs.js` — Headless server launch script (no Electron/tray)
+- `assets/` — Application icons and resources
+- `archive/legacy-electron-app/` — The original, pre-migration monolithic
+  Electron app, kept for reference only (not built or maintained)
 
 ### Available Scripts
 
-*   `npm start` - Start the Electron application in development mode
+*   `npm start` - Start the full app (Electron tray launcher + server)
+*   `npm run start:server` / `npm run start:node` - Start just the Node.js
+    server, headless (no Electron)
+*   `npm test` - Run the audio mixer unit test
+*   `npm run probe:rtaudio` - Diagnose audio device / native module issues
 *   `npm run pack` - Package the application (without creating installers)
 *   `npm run dist` - Build distributables for all platforms
 *   `npm run dist:mac` - Build macOS distributable

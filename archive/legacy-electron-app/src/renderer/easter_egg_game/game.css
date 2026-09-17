@@ -1,0 +1,22 @@
+body {
+    font-family: 'Rewir', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    margin: 0;
+    background-color: #f0f0f0;
+}
+
+#gameCanvas {
+    border: 2px solid #333;
+    background-color: #8FBC8F; /* DarkSeaGreen - a placeholder for grass */
+    /* Define initial size, can be adjusted */
+    width: 640px; 
+    height: 480px;
+}
+
+h1 {
+    color: #333;
+} 

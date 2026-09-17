@@ -67,6 +67,32 @@ async function initWebSocket() {
     });
 }
 
+// Shows a dismissible banner across the top of the app for audio-engine
+// errors broadcast by the server (e.g. output device disconnected).
+function showAudioEngineErrorBanner(message) {
+    let banner = document.getElementById('audioEngineErrorBanner');
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'audioEngineErrorBanner';
+        banner.style.cssText = [
+            'position:fixed', 'top:0', 'left:0', 'right:0', 'z-index:9999',
+            'background:#8c3c00', 'color:#fff', 'padding:10px 16px',
+            'font-size:14px', 'display:flex', 'justify-content:space-between',
+            'align-items:center', 'box-shadow:0 2px 6px rgba(0,0,0,0.4)'
+        ].join(';');
+        const text = document.createElement('span');
+        text.id = 'audioEngineErrorBannerText';
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '✕';
+        closeBtn.style.cssText = 'background:none;border:none;color:#fff;font-size:16px;cursor:pointer;margin-left:12px;';
+        closeBtn.addEventListener('click', () => banner.remove());
+        banner.appendChild(text);
+        banner.appendChild(closeBtn);
+        document.body.appendChild(banner);
+    }
+    document.getElementById('audioEngineErrorBannerText').textContent = `Audio engine error: ${message}`;
+}
+
 // Handle incoming WebSocket messages
 function handleWebSocketMessage(data) {
     console.log('Renderer: Received WebSocket message:', data.type);
@@ -127,7 +153,14 @@ function handleWebSocketMessage(data) {
                 window.audioController.updateServerPlaybackState(data.payload);
             }
             break;
-            
+
+        case 'audio-engine-error':
+            // Native audio engine problem (e.g. output device disconnected
+            // mid-show). Playback may have silently stopped producing
+            // sound - surface it instead of leaving the operator guessing.
+            showAudioEngineErrorBanner(data.payload?.message || 'Unknown audio engine error');
+            break;
+
         default:
             // Check if it's a response to an invoke call
             if (data.requestId && data.type && data.type.endsWith('_response')) {
@@ -352,19 +385,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('Renderer: UI module exposed to window.ui for crossfade access');
         console.log('Renderer: UI.isCrossfadeEnabled available:', typeof ui.isCrossfadeEnabled);
 
-        // Add keyboard shortcut for Easter Egg Game (Control+Alt+P)
-        // TODO: Port easter egg game feature
-        // window.addEventListener('keydown', (event) => {
-        //     if (event.ctrlKey && event.altKey && (event.key === 'P' || event.key === 'p' || event.code === 'KeyP')) {
-        //         event.preventDefault(); 
-        //         console.log('Ctrl+Alt+P shortcut triggered. Sending WebSocket message to open Easter Egg game.');
-        //         if (websocketBindings && typeof websocketBindings.send === 'function') {
-        //             websocketBindings.send('open-easter-egg-game', {});
-        //         } else {
-        //             console.warn('Renderer: websocketBindings.send not available for shortcut.');
-        //         }
-        //     }
-        // });
+        // Add keyboard shortcut for Easter Egg Game (Control+Alt+P).
+        // The game is self-contained static assets (no backend round-trip
+        // needed), so just open it in a new tab/window.
+        window.addEventListener('keydown', (event) => {
+            if (event.ctrlKey && event.altKey && (event.key === 'P' || event.key === 'p' || event.code === 'KeyP')) {
+                event.preventDefault();
+                console.log('Ctrl+Alt+P shortcut triggered. Opening Easter Egg game.');
+                window.open('/easter_egg_game/game.html', 'accompanimentEasterEgg', 'width=680,height=560');
+            }
+        });
 
     } catch (error) {
         console.error('Renderer: Fatal error during initialization:', error);

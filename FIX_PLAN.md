@@ -458,6 +458,60 @@ stored `path`; export writes to process CWD.
 
 ---
 
+# Track G — Finish the migration & production hardening (2026-09-17)
+
+The legacy pre-migration Electron app (`main.js`, `src/main/`, `src/renderer/`) has
+been moved to `archive/legacy-electron-app/` (kept for reference, not built or
+packaged). `package.json` now points at the new architecture
+(`electron-launcher/main.js`), and the following were addressed:
+
+## G1 — Package the new architecture, not the old one `[x]`
+`package.json` `main`/`build` config pointed at the legacy app, so `npm run dist`
+would have shipped unhardened old code. Now points at `electron-launcher/main.js`,
+with an explicit `build.files` allowlist, `asarUnpack` for the native rtaudio addon,
+and `build/entitlements.mac.plist` (was missing entirely).
+
+## G2 — Launcher spawns a system `node`, breaking packaged builds `[x]`
+`electron-launcher/main.js` shelled out to `spawn('node', [...])` — depends on the
+end user having Node.js installed, can't read files inside an asar archive, and
+mismatches the ABI `electron-rebuild` targets. Now spawns `process.execPath` with
+`ELECTRON_RUN_AS_NODE=1` (Electron's own bundled Node), fixing all three.
+
+## G3 — Port default inconsistency (3000 vs 3333) `[x]`
+`appConfigManager.js`'s `DEFAULT_CONFIG.httpRemotePort` and the launcher's
+`nodePort` default were 3000, while `server.js`'s own fallback and the docs said
+3333. Standardized on 3333 everywhere.
+
+## G4 — Crash/robustness hardening `[x]`
+Added `uncaughtException`/`unhandledRejection` handlers, `EADDRINUSE` handling on
+`server.listen()`, a try/catch around the RtAudio render callback, `setErrorCallback`
+wiring (broadcasts `audio-engine-error` on device loss), a friendlier error for a
+missing/wrong-ABI native module, and bounded auto-restart + a heartbeat in the
+Electron launcher. Noisy per-message/100ms-interval `console.log`s are now gated
+behind the (previously dead) `enableDebugLogging` config flag.
+
+## G5 — HTTP remote control page was missing entirely `[x]`
+A README-advertised, screenshotted feature (`/remote`) had no frontend counterpart
+in the new architecture (only the REST API existed). Ported and rewired to the
+`{type, payload}` WebSocket envelope and the existing `/api/remote/*` REST routes.
+
+## G6 — Easter egg game, workspace-change config reload, playlist multi-file drop `[x]`
+Restored the Ctrl+Alt+P easter egg (static assets, no backend needed), wired the
+app-config reload that was commented out on workspace change, and implemented
+`addFilesToStagedPlaylist` (dropping files onto an open playlist's properties
+sidebar never worked, even in the legacy app).
+
+## G7 — Per-cue OSC trigger `[-]`
+**Won't do (for now).** The legacy app had per-cue OSC triggering with a Learn
+mode; it has zero backend support in the new architecture, and the new app's
+global OSC config was already explicitly stripped out. Intentionally deferred —
+this is a real, scoped feature (UDP listener, learn-mode protocol, persistence,
+sidebar UI), not a bug. Companion and the HTTP remote page cover remote-triggering
+needs in the meantime. Revisit if OSC hardware integration becomes a real
+requirement.
+
+---
+
 # Suggested execution order
 
 1. **A1 → A2 → A3 → A4** (stop data loss & orphan files)

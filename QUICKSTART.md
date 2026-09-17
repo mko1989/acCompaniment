@@ -13,24 +13,34 @@ npm install
 
 ### Step 2: Start the Server
 
-You have several options:
+#### Recommended: the full app (system tray + auto-started server)
+```bash
+npm start
+```
+This launches the Electron tray launcher (`electron-launcher/`), which
+starts the Node.js server for you, shows connection/port info in its tray
+menu, and opens the browser UI. This is what end users run.
 
-#### Option 1: Using npm script (Recommended)
+#### Headless server only (no tray icon, no Electron)
+Useful for running on a machine without a GUI, or when developing against
+the server directly.
+
+##### Option 1: Using npm script
 ```bash
 npm run start:node
 ```
 
-#### Option 2: Using the startup script directly
+##### Option 2: Using the startup script directly
 ```bash
 node start-nodejs.js
 ```
 
-#### Option 3: Using the server file directly
+##### Option 3: Using the server file directly
 ```bash
 node server.js
 ```
 
-#### Option 4: Development mode (with auto-restart if using nodemon)
+##### Option 4: Development mode
 ```bash
 npm run dev
 ```
@@ -85,9 +95,10 @@ Once the application is running, you can test:
 ### Troubleshooting
 
 #### Port Already in Use
-If port 3333 is already in use, use a different port:
+If port 3333 is already in use, the server exits with a clear
+"port already in use" message instead of a raw crash. Use a different port:
 ```bash
-node start-nodejs.js --port=3000
+node start-nodejs.js --port=8080
 ```
 
 #### WebSocket Connection Issues

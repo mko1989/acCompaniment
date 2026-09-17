@@ -34,7 +34,7 @@ class AppConfigManager {
             websocketEnabled: true,
             websocketPort: 8877,
             httpRemoteEnabled: true,
-            httpRemotePort: 3000,
+            httpRemotePort: 3333, // matches server.js's own default (process.env.PORT || 3333)
             
             // File management
             audioDirectory: pathManager.audioDir,

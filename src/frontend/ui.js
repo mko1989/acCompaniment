@@ -6,7 +6,6 @@
 import * as cueGrid from './ui/cueGrid.js';
 import * as utils from './ui/utils.js';
 import * as configSidebar from './ui/configSidebar.js';
-// import * as sidebars from './ui/sidebars.js'; // Optional: full sidebars instance
 import * as propertiesSidebar from './ui/propertiesSidebar.js';
 import * as modals from './ui/modals.js';
 import * as appConfigUI from './ui/appConfigUI.js';
@@ -57,21 +56,13 @@ async function init(rcvdCueStore, rcvdAudioController, rcvdWebSocketBindings, rc
 
     let uiModules = {}; // Declare uiModules as an object
 
-    // Populate uiModules for sub-module initialization
-    // TODO: Port these modules
-    // modalsModule = modals;
-    // uiModules.cueGrid = cueGrid; // These are the imported modules
-    // uiModules.configSidebar = configSidebar;
-    // uiModules.sidebars = sidebars; // Add sidebars module for config sidebar toggle
-    // uiModules.propertiesSidebar = propertiesSidebar;
-    // uiModules.waveformControls = waveformControlsModule; // Use the imported waveformControls
-    // uiModules.appConfigUI = appConfigUIModuleInternal; // Use the imported appConfigUI for its functions
-    
-    // Placeholder modules until they're ported
+    // Populate uiModules for sub-module initialization. There is no
+    // separate "sidebars" module here — configSidebar.js and
+    // propertiesSidebar*.js cover everything the legacy sidebars.js did,
+    // except per-cue OSC triggering (intentionally not carried forward).
     modalsModule = modals;
     uiModules.cueGrid = cueGrid;
     uiModules.configSidebar = configSidebar;
-    uiModules.sidebars = null; // TODO: Port sidebars
     uiModules.propertiesSidebar = propertiesSidebar;
     uiModules.waveformControls = waveformControlsModule;
     uiModules.appConfigUI = appConfigUIModuleInternal;
@@ -99,17 +90,13 @@ async function init(rcvdCueStore, rcvdAudioController, rcvdWebSocketBindings, rc
             : () => ({}), // Fallback to empty config
         openNewCueModal: modalsModule.openNewCueModal,
         showMultipleFilesDropModal: modalsModule.showMultipleFilesDropModal,
-        getAudioFileBuffer: null, // TODO: Implement via WebSocket or fetch (for waveform generation)
-        getOrGenerateWaveformPeaks: null, // TODO: Implement via WebSocket or fetch (for waveform generation)
         highlightPlayingPlaylistItem: propertiesSidebar.highlightPlayingPlaylistItemInSidebar,
         toggleConfigSidebar: configSidebar.toggleConfigSidebar
     };
 
     // Pass the *assigned* modules to sub-module initializers
     cueGrid.initCueGrid(cueStoreModule, audioControllerModule, dragDropHandlerModule, uiCoreInterface);
-    // TODO: Port these modules
-    // configSidebar.initConfigSidebar();
-    // sidebars.initSidebars(); // Initialize sidebars module for config sidebar toggle functionality
+    configSidebar.initConfigSidebar();
     propertiesSidebar.initPropertiesSidebar(cueStoreModule, audioControllerModule, actualWebSocketBindingsModule, uiCoreInterface);
     modalsModule.initModals(cueStoreModule, actualWebSocketBindingsModule, uiCoreInterface, waveformControlsModule);
     
@@ -393,11 +380,16 @@ async function handleWorkspaceChange() {
     propertiesSidebar.hidePropertiesSidebar(); // Close properties sidebar as cue context is changing
 
     // Reload application configuration from the new workspace via appConfigUI module
-    // TODO: Port appConfigUI
-    // await appConfigUIModuleInternal.loadAndApplyAppConfig(); 
-    
+    if (appConfigUIModuleInternal && typeof appConfigUIModuleInternal.forceLoadAndApplyAppConfiguration === 'function') {
+        try {
+            await appConfigUIModuleInternal.forceLoadAndApplyAppConfiguration();
+        } catch (error) {
+            console.error('UI Core: Failed to reload app config on workspace change:', error);
+        }
+    }
+
     // Reload and render cues for the new workspace
-    await loadAndRenderCues(); 
+    await loadAndRenderCues();
 
     // No need to explicitly update audioController with appConfig here,
     // as loadAndApplyAppConfig in appConfigUI should handle notifying audioController.
@@ -511,11 +503,12 @@ async function handleMultipleFileDrop(files, dropTargetElement) {
 
     // 1. Try to delegate to properties sidebar if it's the target
     if (propertiesSidebarDOM && !propertiesSidebarDOM.classList.contains('hidden') && propertiesSidebarDOM.contains(dropTargetElement)) {
-        // Convert FileList to array of File objects
-        const fileArray = Array.from(files);
-        // TODO: Implement addFilesToStagedPlaylist for propertiesSidebar
-        // For now, fall through to general drop area handling
-        console.log("UI Core (MultiDrop): Properties sidebar multi-file drop not yet implemented. Using fallback.");
+        const handled = await propertiesSidebar.addFilesToStagedPlaylist(files);
+        if (handled) {
+            console.log("UI Core (MultiDrop): Files added to open playlist's staged items.");
+            return;
+        }
+        console.log("UI Core (MultiDrop): Properties sidebar open but not on a playlist cue. Falling back to general drop handling.");
     }
 
     // 2. If not properties sidebar, check for general drop area to show modal

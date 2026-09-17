@@ -484,28 +484,76 @@ class CueDataManager {
         this.cues = [];
     }
     
-    async exportWorkspace(workspaceId, exportPath, includeAudioFiles = false) {
+    async exportWorkspace(workspaceId, exportPath, includeAudioFiles = false, audioFileManager = null) {
         try {
             const readResult = await this.readWorkspace(workspaceId);
             if (!readResult.success) {
                 return readResult;
             }
-            
+
             const exportData = {
                 ...readResult.workspace,
                 exportedAt: new Date().toISOString(),
                 includeAudioFiles: includeAudioFiles
             };
-            
+
+            let audioFilesCopied = 0;
             if (includeAudioFiles) {
-                console.log('CueDataManager: Audio file export not yet implemented');
+                if (!audioFileManager) {
+                    console.warn('CueDataManager: includeAudioFiles requested but no audioFileManager available - skipping audio export');
+                } else {
+                    // Collect every referenced audio file (single-file cues
+                    // and each playlist item), resolved the same way
+                    // playback does (relativePath -> audioFileManager
+                    // lookup -> absolute path), and copy them into a
+                    // sibling folder next to the exported JSON, preserving
+                    // their relativePath layout so the export stays
+                    // self-describing / portable.
+                    const relativePaths = new Set();
+                    for (const cue of exportData.cues || []) {
+                        if (cue.type === 'single_file' && cue.relativePath) {
+                            relativePaths.add(cue.relativePath);
+                        } else if (cue.type === 'playlist' && Array.isArray(cue.playlistItems)) {
+                            for (const item of cue.playlistItems) {
+                                if (item.relativePath) {
+                                    relativePaths.add(item.relativePath);
+                                }
+                            }
+                        }
+                    }
+
+                    const audioExportDir = path.join(
+                        path.dirname(exportPath),
+                        `${path.basename(exportPath, '.json')}_audio`
+                    );
+
+                    for (const relativePath of relativePaths) {
+                        try {
+                            const audioFile = await audioFileManager.getAudioFileByPath(relativePath);
+                            if (!audioFile || !(await fs.pathExists(audioFile.path))) {
+                                continue;
+                            }
+                            const destPath = path.join(audioExportDir, relativePath);
+                            await fs.ensureDir(path.dirname(destPath));
+                            await fs.copy(audioFile.path, destPath);
+                            audioFilesCopied++;
+                        } catch (copyError) {
+                            console.warn(`CueDataManager: Failed to export audio file ${relativePath}: ${copyError.message}`);
+                        }
+                    }
+
+                    if (audioFilesCopied > 0) {
+                        exportData.audioFilesDir = audioExportDir;
+                    }
+                    console.log(`CueDataManager: Exported ${audioFilesCopied} audio file(s) alongside workspace`);
+                }
             }
-            
+
             await writeJsonAtomic(exportPath, exportData);
-            
+
             console.log(`CueDataManager: Exported workspace to: ${exportPath}`);
-            return { success: true, exportPath };
-            
+            return { success: true, exportPath, audioFilesCopied: includeAudioFiles ? audioFilesCopied : undefined };
+
         } catch (error) {
             console.error(`CueDataManager: Error exporting workspace: ${error.message}`);
             return { success: false, error: error.message };

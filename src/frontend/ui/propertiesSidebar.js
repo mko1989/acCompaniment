@@ -9,11 +9,12 @@ import {
     hidePropertiesSidebar as hideSidebar,
     updateDuckingControlsVisibility 
 } from './propertiesSidebarDOM.js';
-import { 
-    initPlaylistManager, 
-    setStagedPlaylistItems, 
+import {
+    initPlaylistManager,
+    setStagedPlaylistItems,
     getStagedPlaylistItems,
     renderPlaylistInProperties,
+    addFilesToStagedPlaylist,
     highlightPlayingPlaylistItemInSidebar
 } from './propertiesSidebarPlaylist.js';
 import { 
@@ -179,6 +180,26 @@ function renderPlaylistInPropertiesWrapper() {
     renderPlaylistInProperties(propPlaylistItemsUl, propPlaylistFilePathDisplay);
 }
 
+/**
+ * Upload and append files to the currently open playlist cue's staged
+ * playlist. Returns false if there is no open playlist cue to add to (the
+ * caller - ui.js's handleMultipleFileDrop - falls back to the general
+ * new-cue drop flow in that case).
+ */
+async function addFilesToStagedPlaylistWrapper(files) {
+    if (!activePropertiesCueId) {
+        return false;
+    }
+    const activeCue = cueStore ? cueStore.getCueById(activePropertiesCueId) : null;
+    if (!activeCue || activeCue.type !== 'playlist') {
+        return false;
+    }
+    const propPlaylistItemsUl = getDOMElement('propPlaylistItemsUl');
+    const propPlaylistFilePathDisplay = getDOMElement('propPlaylistFilePathDisplay');
+    await addFilesToStagedPlaylist(files, propPlaylistItemsUl, propPlaylistFilePathDisplay);
+    return true;
+}
+
 
 async function handleSaveCueProperties() {
     console.log('[PropertiesSidebar] handleSaveCueProperties CALLED. Active Cue ID:', activePropertiesCueId);
@@ -306,5 +327,6 @@ export {
     setFilePathInProperties,
     handleCuePropertyChangeFromWaveform,
     highlightPlayingPlaylistItemInSidebarWrapper as highlightPlayingPlaylistItemInSidebar,
-    handleSaveCueProperties
-}; 
+    handleSaveCueProperties,
+    addFilesToStagedPlaylistWrapper as addFilesToStagedPlaylist
+};

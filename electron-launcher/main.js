@@ -1,7 +1,15 @@
-const { app, BrowserWindow, Tray, Menu, dialog, shell, ipcMain } = require('electron');
+const { app, BrowserWindow, Tray, Menu, dialog, shell, ipcMain, Notification } = require('electron');
 const path = require('path');
+const os = require('os');
+const http = require('http');
 const { spawn, exec } = require('child_process');
 const fs = require('fs-extra');
+
+const HEALTH_CHECK_PATH = '/api/remote/health';
+const HEARTBEAT_INTERVAL_MS = 20000;
+const MAX_RESTART_ATTEMPTS = 3;
+const RESTART_BACKOFF_BASE_MS = 2000;
+const LOG_MAX_BYTES = 5 * 1024 * 1024; // rotate past 5MB
 
 class AccompanimentLauncher {
     constructor() {
@@ -9,16 +17,20 @@ class AccompanimentLauncher {
         this.configWindow = null;
         this.nodeProcess = null;
         this.isNodeRunning = false;
-        this.nodePort = 3000; // Default, will be updated from config
-        this.nodeHost = 'localhost';
-        
+        this.nodePort = 3333; // Default, matches server.js's own default; updated from config
+        this.nodeHost = 'localhost'; // host the launcher itself uses to reach the server locally
+        this.logFilePath = path.join(os.homedir(), '.accompaniment', 'logs', 'accompaniment-server.log');
+        this.heartbeatTimer = null;
+        this.restartAttempts = 0;
+        this._deliberateStop = false;
+
         this.setupApp();
     }
-    
+
     setupApp() {
         // Suppress security warnings
         process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = '1';
-        
+
         // Handle app ready
         app.whenReady().then(async () => {
             this.createTray();
@@ -27,14 +39,14 @@ class AccompanimentLauncher {
             await this.startNodeServer();
             console.log('Electron Launcher: Ready. Server auto-started.');
         });
-        
+
         // Handle app activation (macOS)
         app.on('activate', () => {
             if (BrowserWindow.getAllWindows().length === 0) {
                 this.showConfigWindow();
             }
         });
-        
+
         // Handle app window closed
         app.on('window-all-closed', () => {
             // Don't quit on macOS when all windows are closed
@@ -42,23 +54,45 @@ class AccompanimentLauncher {
                 app.quit();
             }
         });
-        
+
         // Handle app quit
         app.on('before-quit', () => {
+            this.stopHeartbeat();
             this.stopNodeServer();
         });
-        
+
+        // Electron does NOT translate SIGTERM/SIGINT into a graceful
+        // app.quit() by default - sent directly (e.g. `kill`, a session
+        // logout, a process manager stopping the app), the process is just
+        // terminated immediately, `before-quit` never fires, and the
+        // spawned server child is left running as an orphan holding the
+        // port open. Handle the signals explicitly and route them through
+        // the same graceful quit path.
+        let signalShutdownInProgress = false;
+        const handleTerminationSignal = async (signal) => {
+            if (signalShutdownInProgress) return;
+            signalShutdownInProgress = true;
+            console.log(`Electron Launcher: Received ${signal}, shutting down gracefully...`);
+            this.stopHeartbeat();
+            await this.stopNodeServer();
+            app.quit();
+            // Backstop in case something in app.quit()'s own shutdown path hangs
+            setTimeout(() => process.exit(0), 5000);
+        };
+        process.on('SIGTERM', () => handleTerminationSignal('SIGTERM'));
+        process.on('SIGINT', () => handleTerminationSignal('SIGINT'));
+
         // Set app name
         if (process.platform === 'darwin') {
             app.setName('acCompaniment');
         }
     }
-    
+
     createTray() {
         // Create tray icon - use the properly sized tray icon
         const iconPath = path.join(__dirname, 'assets', 'tray-icon.png');
         const fallbackIconPath = path.join(__dirname, 'assets', 'icon.png');
-        
+
         // Use the proper tray icon if it exists, otherwise fallback
         let finalIconPath = iconPath;
         if (!fs.existsSync(iconPath)) {
@@ -69,28 +103,28 @@ class AccompanimentLauncher {
                 return; // Skip tray creation if no icon available
             }
         }
-        
+
         this.tray = new Tray(finalIconPath);
-        
+
         // Set tooltip
         this.tray.setToolTip('acCompaniment Soundboard');
-        
+
         // Create context menu
         this.updateTrayMenu();
-        
+
         // Handle tray click
         this.tray.on('click', () => {
             this.showConfigWindow();
         });
-        
+
         // Handle double click (Windows/Linux)
         this.tray.on('double-click', () => {
             this.openBrowserUI();
         });
-        
+
         console.log('Electron Launcher: Tray created');
     }
-    
+
     updateTrayMenu() {
         const menu = Menu.buildFromTemplate([
             {
@@ -135,16 +169,16 @@ class AccompanimentLauncher {
                 click: () => app.quit()
             }
         ]);
-        
+
         this.tray.setContextMenu(menu);
     }
-    
+
     showConfigWindow() {
         if (this.configWindow && !this.configWindow.isDestroyed()) {
             this.configWindow.focus();
             return;
         }
-        
+
         this.configWindow = new BrowserWindow({
             width: 500,
             height: 600,
@@ -157,120 +191,234 @@ class AccompanimentLauncher {
             icon: path.join(__dirname, 'assets', 'icon.png'),
             title: 'acCompaniment Configuration'
         });
-        
+
         this.configWindow.loadFile(path.join(__dirname, 'config.html'));
-        
+
         this.configWindow.once('ready-to-show', () => {
             this.configWindow.show();
         });
-        
+
         this.configWindow.on('closed', () => {
             this.configWindow = null;
         });
-        
+
         console.log('Electron Launcher: Configuration window opened');
     }
-    
+
     openBrowserUI() {
         if (!this.isNodeRunning) {
             dialog.showErrorBox('Server Not Running', 'The Node.js server is not running. Please start it first.');
             return;
         }
-        
+
         const url = `http://${this.nodeHost}:${this.nodePort}`;
         shell.openExternal(url);
         console.log(`Electron Launcher: Opened browser UI: ${url}`);
     }
-    
+
+    /**
+     * Appends a line to the persistent server log file, rotating it once it
+     * grows past LOG_MAX_BYTES so "Show Logs" doesn't open an unbounded file.
+     */
+    async _appendToLogFile(text) {
+        try {
+            await fs.ensureDir(path.dirname(this.logFilePath));
+            try {
+                const stat = await fs.stat(this.logFilePath);
+                if (stat.size > LOG_MAX_BYTES) {
+                    await fs.move(this.logFilePath, `${this.logFilePath}.old`, { overwrite: true });
+                }
+            } catch (_statErr) {
+                // file doesn't exist yet - nothing to rotate
+            }
+            await fs.appendFile(this.logFilePath, text);
+        } catch (error) {
+            console.error('Electron Launcher: Failed to write server log file:', error.message);
+        }
+    }
+
     async startNodeServer() {
         if (this.isNodeRunning) {
             console.log('Electron Launcher: Server already running');
             return;
         }
-        
+
         // Update port from config before starting
         await this.updatePortFromConfig();
-        
+
         // Check if server is already running on the port
         const isRunning = await this.checkServerStatus();
         if (isRunning) {
             console.log('Electron Launcher: Server already running on port, connecting to existing instance');
             this.isNodeRunning = true;
             this.updateTrayMenu();
+            this.startHeartbeat();
             return;
         }
-        
+
         try {
-            const serverPath = path.join(__dirname, '..', 'start-nodejs.js');
-            
+            const serverPath = path.join(__dirname, '..', 'server.js');
+
             console.log(`Electron Launcher: Starting Node.js server: ${serverPath}`);
-            
-            this.nodeProcess = spawn('node', [serverPath], {
-                cwd: path.join(__dirname, '..'),
+            this._deliberateStop = false;
+            await this._appendToLogFile(`\n--- acCompaniment server starting ${new Date().toISOString()} (port ${this.nodePort}) ---\n`);
+
+            // Run the server with Electron's own bundled Node runtime
+            // (process.execPath + ELECTRON_RUN_AS_NODE) instead of shelling
+            // out to a system-installed `node` binary. This matters for a
+            // packaged, distributable app: end users won't necessarily have
+            // Node.js installed, a plain `node` binary can't read files
+            // inside this app's asar archive, and Electron's bundled Node
+            // is the exact ABI electron-rebuild already targets for native
+            // modules like @hamitzor/rtaudio.js.
+            //
+            // Deliberately no `cwd` option here: in a packaged build,
+            // __dirname resolves to a path inside app.asar, and child_process
+            // can't chdir() the OS process into a virtual archive path
+            // (fails with ENOTDIR). server.js doesn't depend on cwd - it
+            // resolves everything relative to __dirname or os.homedir() -
+            // so it's safe to just inherit the launcher's own cwd.
+            this.nodeProcess = spawn(process.execPath, [serverPath], {
                 stdio: ['pipe', 'pipe', 'pipe'],
                 env: {
                     ...process.env,
-                    PORT: this.nodePort,
-                    HOST: this.nodeHost
+                    ELECTRON_RUN_AS_NODE: '1',
+                    PORT: this.nodePort
+                    // Intentionally NOT setting HOST here: the server should
+                    // keep binding to 0.0.0.0 for LAN access (Companion,
+                    // remote control from other devices). `this.nodeHost`
+                    // ('localhost') is only used by the launcher itself to
+                    // reach the server on the same machine.
                 }
             });
-            
+
             this.nodeProcess.stdout.on('data', (data) => {
                 const output = data.toString();
                 console.log(`Node.js: ${output}`);
+                this._appendToLogFile(output);
                 this.handleNodeOutput(output);
             });
-            
+
             this.nodeProcess.stderr.on('data', (data) => {
                 const error = data.toString();
                 console.error(`Node.js Error: ${error}`);
+                this._appendToLogFile(`[stderr] ${error}`);
             });
-            
+
             this.nodeProcess.on('close', (code) => {
                 console.log(`Electron Launcher: Node.js process exited with code ${code}`);
+                this._appendToLogFile(`--- acCompaniment server exited (code ${code}) ${new Date().toISOString()} ---\n`);
                 this.isNodeRunning = false;
+                this.nodeProcess = null;
                 this.updateTrayMenu();
+                this.stopHeartbeat();
+
+                if (!this._deliberateStop) {
+                    this._handleUnexpectedExit();
+                }
             });
-            
+
             this.nodeProcess.on('error', (error) => {
                 console.error(`Electron Launcher: Failed to start Node.js: ${error.message}`);
                 dialog.showErrorBox('Server Start Failed', `Failed to start Node.js server: ${error.message}`);
             });
-            
+
             // Wait a moment for server to start, then check status
             setTimeout(async () => {
-                const isRunning = await this.checkServerStatus();
-                if (isRunning) {
+                const running = await this.checkServerStatus();
+                if (running) {
                     console.log('Electron Launcher: Server started successfully');
+                    this.restartAttempts = 0;
+                    this.startHeartbeat();
                 } else {
                     console.log('Electron Launcher: Server may still be starting...');
                     // Try again after another delay
                     setTimeout(async () => {
-                        const isRunning2 = await this.checkServerStatus();
-                        if (isRunning2) {
+                        const running2 = await this.checkServerStatus();
+                        if (running2) {
                             console.log('Electron Launcher: Server started successfully (delayed)');
+                            this.restartAttempts = 0;
                         } else {
                             console.log('Electron Launcher: Server startup may have failed');
                         }
+                        this.startHeartbeat();
                     }, 3000);
                 }
             }, 4000);
-            
+
         } catch (error) {
             console.error(`Electron Launcher: Error starting server: ${error.message}`);
             dialog.showErrorBox('Server Start Error', error.message);
         }
     }
-    
+
+    /**
+     * Called when the server subprocess exits without us having asked it to
+     * (stopNodeServer() wasn't the cause). Attempts a bounded number of
+     * automatic restarts with backoff before giving up and alerting the
+     * user - so a mid-show crash is a brief, self-healing blip instead of a
+     * silent, permanent outage that only shows up as a stale tray label.
+     */
+    _handleUnexpectedExit() {
+        if (this.restartAttempts >= MAX_RESTART_ATTEMPTS) {
+            console.error(`Electron Launcher: Server crashed ${this.restartAttempts} times, giving up on auto-restart.`);
+            this._notifyOrAlert(
+                'acCompaniment server stopped unexpectedly',
+                `The audio server crashed ${this.restartAttempts} times and could not be restarted automatically. Check the logs (tray menu -> Show Logs) and restart the app.`
+            );
+            return;
+        }
+
+        this.restartAttempts += 1;
+        const delay = RESTART_BACKOFF_BASE_MS * this.restartAttempts;
+        console.warn(`Electron Launcher: Server exited unexpectedly. Restart attempt ${this.restartAttempts}/${MAX_RESTART_ATTEMPTS} in ${delay}ms.`);
+        setTimeout(() => {
+            this.startNodeServer();
+        }, delay);
+    }
+
+    _notifyOrAlert(title, body) {
+        if (Notification.isSupported()) {
+            new Notification({ title, body }).show();
+        } else {
+            dialog.showErrorBox(title, body);
+        }
+    }
+
+    /**
+     * Polls the health endpoint periodically once the server is up, so a
+     * hang (process alive but not responding) is caught even after the
+     * initial startup checks stop running - not just a subprocess exit.
+     */
+    startHeartbeat() {
+        this.stopHeartbeat();
+        this.heartbeatTimer = setInterval(async () => {
+            const healthy = await this.checkServerStatus();
+            if (!healthy && this.nodeProcess) {
+                console.warn('Electron Launcher: Heartbeat check failed while process is still alive - server may be hung.');
+            }
+        }, HEARTBEAT_INTERVAL_MS);
+    }
+
+    stopHeartbeat() {
+        if (this.heartbeatTimer) {
+            clearInterval(this.heartbeatTimer);
+            this.heartbeatTimer = null;
+        }
+    }
+
     async stopNodeServer() {
         if (!this.isNodeRunning || !this.nodeProcess) {
             console.log('Electron Launcher: Server not running');
             return;
         }
-        
+
+        this._deliberateStop = true;
+        this.stopHeartbeat();
+
         try {
             console.log('Electron Launcher: Stopping Node.js server...');
-            
+
             // Set up promise to wait for process to actually stop
             return new Promise((resolve) => {
                 const timeout = setTimeout(() => {
@@ -280,7 +428,7 @@ class AccompanimentLauncher {
                     this.updateTrayMenu();
                     resolve();
                 }, 5000);
-                
+
                 this.nodeProcess.on('exit', () => {
                     clearTimeout(timeout);
                     console.log('Electron Launcher: Node.js server stopped');
@@ -289,7 +437,7 @@ class AccompanimentLauncher {
                     this.updateTrayMenu();
                     resolve();
                 });
-                
+
                 if (process.platform === 'win32') {
                     // Windows: Use taskkill
                     exec(`taskkill /pid ${this.nodeProcess.pid} /T /F`, (error) => {
@@ -302,7 +450,7 @@ class AccompanimentLauncher {
                     this.nodeProcess.kill('SIGTERM');
                 }
             });
-            
+
         } catch (error) {
             console.error(`Electron Launcher: Error stopping server: ${error.message}`);
             this.isNodeRunning = false;
@@ -310,18 +458,17 @@ class AccompanimentLauncher {
             this.updateTrayMenu();
         }
     }
-    
+
     checkServerStatus() {
         return new Promise((resolve) => {
-            const http = require('http');
             const options = {
                 hostname: this.nodeHost,
                 port: this.nodePort,
-                path: '/api/remote/health',
+                path: HEALTH_CHECK_PATH,
                 method: 'GET',
                 timeout: 5000
             };
-            
+
             const req = http.request(options, (res) => {
                 if (res.statusCode === 200) {
                     this.isNodeRunning = true;
@@ -335,14 +482,14 @@ class AccompanimentLauncher {
                     resolve(false);
                 }
             });
-            
+
             req.on('error', (error) => {
                 this.isNodeRunning = false;
                 this.updateTrayMenu();
                 console.log(`Electron Launcher: Server health check failed: ${error.message}`);
                 resolve(false);
             });
-            
+
             req.on('timeout', () => {
                 req.destroy();
                 this.isNodeRunning = false;
@@ -350,11 +497,11 @@ class AccompanimentLauncher {
                 console.log(`Electron Launcher: Server health check timed out on port ${this.nodePort}`);
                 resolve(false);
             });
-            
+
             req.end();
         });
     }
-    
+
     handleNodeOutput(output) {
         // Parse Node.js output for status updates
         if (output.includes('HTTP Server running at') || output.includes('All managers initialized successfully')) {
@@ -365,37 +512,32 @@ class AccompanimentLauncher {
             this.updateTrayMenu();
         }
     }
-    
-    showLogs() {
-        // Open a simple log viewer window
-        const logWindow = new BrowserWindow({
-            width: 800,
-            height: 600,
-            webPreferences: {
-                nodeIntegration: true,
-                contextIsolation: false
-            },
-            title: 'acCompaniment Logs'
-        });
-        
-        logWindow.loadFile(path.join(__dirname, 'logs.html'));
-        
-        console.log('Electron Launcher: Logs window opened');
+
+    async showLogs() {
+        try {
+            await fs.ensureDir(path.dirname(this.logFilePath));
+            if (!(await fs.pathExists(this.logFilePath))) {
+                await fs.writeFile(this.logFilePath, `acCompaniment server log - created ${new Date().toISOString()}\n`);
+            }
+            shell.showItemInFolder(this.logFilePath);
+            console.log(`Electron Launcher: Revealed log file: ${this.logFilePath}`);
+        } catch (error) {
+            dialog.showErrorBox('Could Not Open Logs', error.message);
+        }
     }
-    
+
     openDataDirectory() {
-        const os = require('os');
         const dataDir = path.join(os.homedir(), '.accompaniment');
-        
+
         if (fs.existsSync(dataDir)) {
             shell.openPath(dataDir);
         } else {
             dialog.showErrorBox('Directory Not Found', `Data directory not found: ${dataDir}`);
         }
-        
+
         console.log(`Electron Launcher: Opened data directory: ${dataDir}`);
     }
-    
+
     showAbout() {
         dialog.showMessageBox({
             type: 'info',
@@ -405,16 +547,17 @@ class AccompanimentLauncher {
             buttons: ['OK']
         });
     }
-    
+
     setupIpcHandlers() {
         // Handle IPC messages from renderer
-        
+
         ipcMain.handle('start-server', async () => {
             try {
                 // Stop existing server if running
                 if (this.isNodeRunning) {
                     await this.stopNodeServer();
                 }
+                this.restartAttempts = 0;
                 await this.startNodeServer();
                 return { success: true };
             } catch (error) {
@@ -422,46 +565,45 @@ class AccompanimentLauncher {
                 return { success: false, error: error.message };
             }
         });
-        
+
         ipcMain.handle('stop-server', async () => {
             try {
-                this.stopNodeServer();
+                await this.stopNodeServer();
                 return { success: true };
             } catch (error) {
                 console.error('Error stopping server:', error);
                 return { success: false, error: error.message };
             }
         });
-        
-        
+
+
         ipcMain.handle('update-config', async (event, configData) => {
             try {
-                const os = require('os');
                 const configPath = path.join(os.homedir(), '.accompaniment', 'config', 'appConfig.json');
-                
+
                 // Ensure config directory exists
                 await fs.ensureDir(path.dirname(configPath));
-                
+
                 // Read existing config
                 let config = {};
                 if (await fs.pathExists(configPath)) {
                     const configContent = await fs.readFile(configPath, 'utf-8');
                     config = JSON.parse(configContent);
                 }
-                
+
                 // Update config with new data
                 Object.assign(config, configData);
-                
+
                 // Write updated config
                 await fs.writeFile(configPath, JSON.stringify(config, null, 2));
-                
+
                 // Update local port if it changed
                 if (configData.httpRemotePort && configData.httpRemotePort !== this.nodePort) {
                     const oldPort = this.nodePort;
                     this.nodePort = configData.httpRemotePort;
                     console.log(`Electron Launcher: Port updated from ${oldPort} to ${this.nodePort}`);
                     this.updateTrayMenu();
-                    
+
                     // If server is running, restart it with new port
                     if (this.isNodeRunning) {
                         console.log('Electron Launcher: Restarting server with new port...');
@@ -469,18 +611,19 @@ class AccompanimentLauncher {
                         // Wait for server to fully stop before starting
                         setTimeout(async () => {
                             console.log('Electron Launcher: Starting server on new port...');
+                            this.restartAttempts = 0;
                             await this.startNodeServer();
                         }, 3000);
                     }
                 }
-                
+
                 return { success: true };
             } catch (error) {
                 console.error('Error updating config:', error);
                 return { success: false, error: error.message };
             }
         });
-        
+
         ipcMain.handle('get-server-status', async () => {
             return {
                 isRunning: this.isNodeRunning,
@@ -488,47 +631,44 @@ class AccompanimentLauncher {
                 host: this.nodeHost
             };
         });
-        
+
         ipcMain.handle('open-browser-ui', async () => {
             this.openBrowserUI();
             return { success: true };
         });
-        
+
         ipcMain.handle('get-data-directory', async () => {
-            const os = require('os');
             return path.join(os.homedir(), '.accompaniment');
         });
-        
-        
+
+
         ipcMain.handle('get-config', async () => {
             try {
-                const os = require('os');
                 const configPath = path.join(os.homedir(), '.accompaniment', 'config', 'appConfig.json');
-                
+
                 if (await fs.pathExists(configPath)) {
                     const configContent = await fs.readFile(configPath, 'utf-8');
                     return JSON.parse(configContent);
                 }
-                
+
                 return {};
             } catch (error) {
                 console.error('Error reading config:', error);
                 return {};
             }
         });
-        
+
         console.log('Electron Launcher: IPC handlers registered');
     }
-    
+
     async updatePortFromConfig() {
         try {
-            const os = require('os');
             const configPath = path.join(os.homedir(), '.accompaniment', 'config', 'appConfig.json');
-            
+
             if (await fs.pathExists(configPath)) {
                 const configData = await fs.readFile(configPath, 'utf-8');
                 const config = JSON.parse(configData);
-                
+
                 if (config.httpRemotePort && config.httpRemotePort !== this.nodePort) {
                     this.nodePort = config.httpRemotePort;
                     console.log(`Electron Launcher: Port updated from config: ${this.nodePort}`);

@@ -193,16 +193,16 @@ router.delete('/:id', requireUuid('id'), async (req, res) => {
 // Export workspace
 router.post('/:id/export', requireUuid('id'), async (req, res) => {
     try {
-        const { cueDataManager, pathManager } = req.app.locals.managers;
+        const { cueDataManager, pathManager, audioFileManager } = req.app.locals.managers;
         const { includeAudioFiles = false } = req.body;
-        
+
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const exportPath = path.join(
             pathManager.cuesDir,
             `workspace_export_${req.params.id}_${timestamp}.json`
         );
-        
-        const result = await cueDataManager.exportWorkspace(req.params.id, exportPath, includeAudioFiles);
+
+        const result = await cueDataManager.exportWorkspace(req.params.id, exportPath, includeAudioFiles, audioFileManager);
         
         if (result.success) {
             res.json({
