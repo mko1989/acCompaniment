@@ -13,7 +13,7 @@
     "dev": "node start-nodejs.js --dev",
     "test": "npm run test:unit && npm run test:smoke",
     "test:unit": "node scripts/test-soundboard-mixer.js",
-    "test:smoke": "node --test test/smoke.test.js",
+    "test:smoke": "node --test test/*.test.js",
     "probe:rtaudio": "node scripts/probe-rtaudio.js",
     "postinstall": "electron-builder install-app-deps",
     "pack": "electron-builder --dir",

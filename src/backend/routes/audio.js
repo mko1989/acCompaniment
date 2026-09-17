@@ -170,7 +170,7 @@ router.get('/search/:query', async (req, res) => {
     }
 });
 
-// Serve audio file (stream)
+// Serve audio file (stream), with real HTTP Range support
 router.get('/serve/:id', requireUuid('id'), async (req, res) => {
     try {
         const { audioFileManager } = req.app.locals.managers;
@@ -184,13 +184,56 @@ router.get('/serve/:id', requireUuid('id'), async (req, res) => {
             return res.status(404).json({ success: false, error: 'Audio file not found on disk' });
         }
 
+        const stat = await fs.stat(audioFile.path);
+        const fileSize = audioFile.size || stat.size;
+
         res.setHeader('Content-Type', getMimeType(audioFile.path));
-        if (audioFile.size) {
-            res.setHeader('Content-Length', audioFile.size);
-        }
         res.setHeader('Accept-Ranges', 'bytes');
 
-        const stream = fs.createReadStream(audioFile.path);
+        // This was previously advertised (Accept-Ranges: bytes above) but
+        // never actually honored - always returning the full file with a
+        // 200. Real audio players and browsers rely on Range requests for
+        // seeking and progressive loading, so a served-but-unhonored
+        // Accept-Ranges header is actively misleading, not just a missed
+        // optimization.
+        const rangeHeader = req.headers.range;
+        let stream;
+        if (rangeHeader) {
+            const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader);
+            const hasStart = match && match[1] !== '';
+            const hasEnd = match && match[2] !== '';
+            if (!match || (!hasStart && !hasEnd)) {
+                res.setHeader('Content-Range', `bytes */${fileSize}`);
+                return res.status(416).json({ success: false, error: 'Invalid Range header' });
+            }
+
+            let start;
+            let end;
+            if (!hasStart) {
+                // Suffix range, e.g. "bytes=-500" -> last 500 bytes
+                const suffixLength = parseInt(match[2], 10);
+                start = Math.max(0, fileSize - suffixLength);
+                end = fileSize - 1;
+            } else {
+                start = parseInt(match[1], 10);
+                end = hasEnd ? parseInt(match[2], 10) : fileSize - 1;
+            }
+
+            if (Number.isNaN(start) || Number.isNaN(end) || start > end || start >= fileSize) {
+                res.setHeader('Content-Range', `bytes */${fileSize}`);
+                return res.status(416).json({ success: false, error: 'Range not satisfiable' });
+            }
+            end = Math.min(end, fileSize - 1);
+
+            res.status(206);
+            res.setHeader('Content-Range', `bytes ${start}-${end}/${fileSize}`);
+            res.setHeader('Content-Length', end - start + 1);
+            stream = fs.createReadStream(audioFile.path, { start, end });
+        } else {
+            res.setHeader('Content-Length', fileSize);
+            stream = fs.createReadStream(audioFile.path);
+        }
+
         stream.on('error', (streamError) => {
             console.error('Serve audio stream error:', streamError);
             if (!res.headersSent) {
