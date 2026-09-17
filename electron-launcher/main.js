@@ -44,6 +44,7 @@ class AccompanimentLauncher {
         this._heartbeatConsecutiveFailures = 0;
         this.restartAttempts = 0;
         this._deliberateStop = false;
+        this._portConflictDetected = false;
 
         this.setupApp();
     }
@@ -291,8 +292,18 @@ class AccompanimentLauncher {
         // Update port from config before starting
         await this.updatePortFromConfig();
 
-        // Check if server is already running on the port
-        const isRunning = await this.checkServerStatus();
+        // Check if server is already running on the port. Retried rather
+        // than a single shot: a real, already-healthy server (e.g. left
+        // over from a previous launcher instance that exited without
+        // killing its child - see stopNodeServer()'s fix above) can still
+        // fail one HTTP health check under transient load, and trusting
+        // that single miss here is worse than in the heartbeat - it sends
+        // this launcher off to spawn a *competing* second server, which can
+        // only fail with EADDRINUSE against the real one, burn all of
+        // MAX_RESTART_ATTEMPTS retrying that same doomed spawn, and give up
+        // - while the perfectly healthy original instance sits there the
+        // whole time, unreachable because this tray never adopted it.
+        const isRunning = await this._probeServerRunning();
         if (isRunning) {
             console.log('Electron Launcher: Server already running on port, connecting to existing instance');
             this.isNodeRunning = true;
@@ -346,10 +357,14 @@ class AccompanimentLauncher {
                 this.handleNodeOutput(output);
             });
 
+            this._portConflictDetected = false;
             this.nodeProcess.stderr.on('data', (data) => {
                 const error = data.toString();
                 console.error(`Node.js Error: ${error}`);
                 this._appendToLogFile(`[stderr] ${error}`);
+                if (error.includes('EADDRINUSE')) {
+                    this._portConflictDetected = true;
+                }
             });
 
             this.nodeProcess.on('close', (code) => {
@@ -362,7 +377,11 @@ class AccompanimentLauncher {
                 this.stopHeartbeat();
 
                 if (!this._deliberateStop) {
-                    this._handleUnexpectedExit();
+                    if (this._portConflictDetected) {
+                        this._handlePortConflictExit();
+                    } else {
+                        this._handleUnexpectedExit();
+                    }
                 }
             });
 
@@ -427,6 +446,33 @@ class AccompanimentLauncher {
             console.log('Electron Launcher: Server may still be starting...');
             this._pollForStartup(nextElapsed);
         }, STARTUP_POLL_INTERVAL_MS);
+    }
+
+    /**
+     * The child just died specifically from EADDRINUSE - something else is
+     * definitely bound to this port right now, which a blind respawn-with-
+     * backoff (_handleUnexpectedExit()'s normal path) cannot fix: it'll just
+     * hit the same EADDRINUSE again as long as that occupant is still there,
+     * burn all MAX_RESTART_ATTEMPTS, and give up. Most commonly that
+     * occupant is an already-healthy acCompaniment server left over from a
+     * previous launcher instance that exited without killing its child (see
+     * stopNodeServer()'s fix above) - in that case there's nothing to fix,
+     * just adopt it instead of fighting it. If it isn't (something
+     * unrelated is squatting the port), fall through to the normal
+     * bounded-retry-then-alert path so the user still gets told.
+     */
+    async _handlePortConflictExit() {
+        const alreadyRunning = await this._probeServerRunning();
+        if (alreadyRunning) {
+            console.log('Electron Launcher: Port is held by an already-healthy acCompaniment instance - adopting it instead of retrying a competing spawn.');
+            this.isNodeRunning = true;
+            this.isStarting = false;
+            this.restartAttempts = 0;
+            this.updateTrayMenu();
+            this.startHeartbeat();
+            return;
+        }
+        this._handleUnexpectedExit();
     }
 
     /**
@@ -602,6 +648,24 @@ class AccompanimentLauncher {
             this.nodeProcess = null;
             this.updateTrayMenu();
         }
+    }
+
+    /**
+     * Retries checkServerStatus() a few times (short gap between attempts)
+     * before concluding nothing is listening on the port. See the call site
+     * in startNodeServer() for why a single check isn't trustworthy enough
+     * here specifically.
+     */
+    async _probeServerRunning(attempts = 3, intervalMs = 750) {
+        for (let i = 0; i < attempts; i++) {
+            if (await this.checkServerStatus()) {
+                return true;
+            }
+            if (i < attempts - 1) {
+                await new Promise((resolve) => setTimeout(resolve, intervalMs));
+            }
+        }
+        return false;
     }
 
     // A pure health probe - resolves true/false and never touches

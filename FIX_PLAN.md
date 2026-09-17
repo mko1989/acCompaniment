@@ -843,6 +843,51 @@ single-cue retrigger and the "Stop All" fade path.
 
 ---
 
+## G15 — Launcher couldn't recover from a stale orphaned server holding the port `[x]`
+**Files:** `electron-launcher/main.js`
+
+Reported as "now it just doesn't start": the app crash-looped 3 times with
+`EADDRINUSE: address already in use 0.0.0.0:3333`, then gave up. Root cause
+was an orphaned `server.js` process left over from an earlier launcher
+instance that had exited without killing its child (confirmed live: `ps -p
+<pid> -o ppid=` showed the orphan reparented to `launchd`, PID 1 - its
+original launcher was long gone). That orphan was fully healthy and
+listening on 3333 the entire time.
+
+The launcher already had exactly the logic needed to handle this -
+`startNodeServer()` checks whether something's already answering on the
+port before spawning, and adopts it instead of competing - but that check
+was a single, un-retried HTTP request. Spawning a whole new Electron-hosted
+Node process (loading the native RtAudio addon, enumerating audio devices)
+three times in a rapid crash loop is real, substantial CPU work; the same
+class of transient-load flakiness already found and fixed for the ongoing
+heartbeat in G13 was enough to make that single pre-flight check miss a
+perfectly healthy, idle orphan multiple times in a row, sending the launcher
+off to repeatedly spawn a competing server that could only ever fail with
+the same EADDRINUSE - burning all `MAX_RESTART_ATTEMPTS` against a problem
+retrying could never fix, then giving up, while the real server sat there
+the whole time, un-adopted and unreachable via the tray.
+
+Two changes: the pre-flight check (`_probeServerRunning()`) now retries up
+to 3 times, 750ms apart, before concluding nothing's listening. And the
+child's stderr is now watched for `EADDRINUSE` specifically
+(`_portConflictDetected`) - if the process then exits, that's unambiguous
+proof something else already holds the port, so `_handlePortConflictExit()`
+re-probes immediately and adopts the existing instance if it's healthy,
+instead of wasting a bounded-retry cycle blindly repeating a doomed spawn.
+Falls through to the normal `_handleUnexpectedExit()` alert-and-give-up path
+only if the port's occupant genuinely isn't answering.
+
+No test coverage - this project has no Electron test harness (launching a
+full Electron app isn't something the existing Node-level or Playwright
+suites can drive), consistent with the rest of `electron-launcher/` being
+untested territory. Verified by reasoning through the exact reported
+sequence and manually confirming the diagnosis (killing the actual orphaned
+process on the reporting machine immediately unblocked it), not by an
+automated regression test.
+
+---
+
 # Suggested execution order
 
 1. **A1 → A2 → A3 → A4** (stop data loss & orphan files)
