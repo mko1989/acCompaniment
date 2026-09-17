@@ -168,8 +168,21 @@ after(async () => {
         }
 
         await fs.rm(tempDataDir, { recursive: true, force: true }).catch(() => {});
-        assert.notEqual(result.code, 'timeout', 'Server did not exit within 12s of SIGTERM (graceful shutdown may be hanging - see stopStream() deadlock note in AudioPlaybackManager)');
-        assert.notEqual(result.code, 'timeout-after-sigkill', 'Server did not exit even after SIGKILL (unexpected)');
+        assert.notEqual(
+            result.code,
+            'timeout-after-sigkill',
+            'Server did not exit even after SIGKILL (unexpected - investigate, this is not the known deadlock)'
+        );
+        assert.notEqual(
+            result.signal,
+            'SIGKILL',
+            'Graceful SIGTERM shutdown hung and had to be force-killed. This is a known, rare, pre-existing '
+            + 'deadlock inside the third-party @hamitzor/rtaudio.js binding (RtAudio\'s stopStream() can block '
+            + 'against its own CoreAudio I/O thread mid-callback) - see FIX_PLAN.md Track G8. The server process '
+            + 'itself was cleaned up correctly (no orphan left behind); this failure exists to surface the '
+            + 'underlying rarity/frequency, not to indicate broken cleanup. If this starts failing often, that '
+            + 'warrants investigation; an occasional failure here is expected until upstream fixes it.'
+        );
         assert.equal(result.code, 0, `Server should exit 0 on graceful SIGTERM shutdown, got ${result.code}`);
         return;
     }

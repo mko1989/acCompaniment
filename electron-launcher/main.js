@@ -82,6 +82,28 @@ class AccompanimentLauncher {
         process.on('SIGTERM', () => handleTerminationSignal('SIGTERM'));
         process.on('SIGINT', () => handleTerminationSignal('SIGINT'));
 
+        // Last-resort synchronous safety net. Verified in practice: on
+        // SIGTERM, Electron/Chromium's own internal shutdown can tear the
+        // whole launcher process down faster than the async
+        // stopNodeServer() escalation above gets a chance to run (its
+        // SIGKILL timers never fire because the process holding them is
+        // already gone) - confirmed by testing an actual packaged build,
+        // not just dev mode. process.on('exit', ...) only allows
+        // synchronous work, but is reliably called right before the
+        // process actually terminates regardless of *why* it's exiting
+        // (our own graceful path, a faster Electron-internal shutdown, an
+        // uncaught exception), so it's the one place a kill signal is
+        // guaranteed a chance to actually be sent.
+        process.on('exit', () => {
+            if (this.nodeProcess && this.nodeProcess.exitCode === null) {
+                try {
+                    this.nodeProcess.kill('SIGKILL');
+                } catch (_error) {
+                    // best-effort - the process may already be gone
+                }
+            }
+        });
+
         // Set app name
         if (process.platform === 'darwin') {
             app.setName('acCompaniment');
