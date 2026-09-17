@@ -11,12 +11,26 @@ const MAX_RESTART_ATTEMPTS = 3;
 const RESTART_BACKOFF_BASE_MS = 2000;
 const LOG_MAX_BYTES = 5 * 1024 * 1024; // rotate past 5MB
 
+// How long to keep polling for readiness before giving up on a freshly
+// spawned server. The very first launch on a machine (or after any update
+// to the native @hamitzor/rtaudio.js addon) can be substantially slower than
+// every subsequent one - constructing RtAudio synchronously enumerates
+// audio devices via CoreAudio/WASAPI/ALSA, and on macOS specifically the
+// very first execution of a freshly-extracted native binary can be held up
+// for tens of seconds by Gatekeeper's one-time verification scan (cached
+// after that, which is exactly why a second launch right afterward is
+// instant). A short, fixed 7s check window mistook that one-time slowness
+// for a crash. Poll generously instead of declaring failure early.
+const STARTUP_POLL_INTERVAL_MS = 3000;
+const STARTUP_POLL_TIMEOUT_MS = 60000;
+
 class AccompanimentLauncher {
     constructor() {
         this.tray = null;
         this.configWindow = null;
         this.nodeProcess = null;
         this.isNodeRunning = false;
+        this.isStarting = false;
         this.nodePort = 3333; // Default, matches server.js's own default; updated from config
         this.nodeHost = 'localhost'; // host the launcher itself uses to reach the server locally
         this.logFilePath = path.join(os.homedir(), '.accompaniment', 'logs', 'accompaniment-server.log');
@@ -155,7 +169,9 @@ class AccompanimentLauncher {
             },
             { type: 'separator' },
             {
-                label: this.isNodeRunning ? 'Server Running' : 'Server Stopped',
+                label: this.isNodeRunning
+                    ? 'Server Running'
+                    : (this.isStarting ? 'Server Starting…' : 'Server Stopped'),
                 enabled: false
             },
             {
@@ -283,6 +299,8 @@ class AccompanimentLauncher {
 
             console.log(`Electron Launcher: Starting Node.js server: ${serverPath}`);
             this._deliberateStop = false;
+            this.isStarting = true;
+            this.updateTrayMenu();
             await this._appendToLogFile(`\n--- acCompaniment server starting ${new Date().toISOString()} (port ${this.nodePort}) ---\n`);
 
             // Run the server with Electron's own bundled Node runtime
@@ -331,6 +349,7 @@ class AccompanimentLauncher {
                 console.log(`Electron Launcher: Node.js process exited with code ${code}`);
                 this._appendToLogFile(`--- acCompaniment server exited (code ${code}) ${new Date().toISOString()} ---\n`);
                 this.isNodeRunning = false;
+                this.isStarting = false;
                 this.nodeProcess = null;
                 this.updateTrayMenu();
                 this.stopHeartbeat();
@@ -342,36 +361,64 @@ class AccompanimentLauncher {
 
             this.nodeProcess.on('error', (error) => {
                 console.error(`Electron Launcher: Failed to start Node.js: ${error.message}`);
+                this.isStarting = false;
+                this.updateTrayMenu();
                 dialog.showErrorBox('Server Start Failed', `Failed to start Node.js server: ${error.message}`);
             });
 
-            // Wait a moment for server to start, then check status
-            setTimeout(async () => {
-                const running = await this.checkServerStatus();
-                if (running) {
-                    console.log('Electron Launcher: Server started successfully');
-                    this.restartAttempts = 0;
-                    this.startHeartbeat();
-                } else {
-                    console.log('Electron Launcher: Server may still be starting...');
-                    // Try again after another delay
-                    setTimeout(async () => {
-                        const running2 = await this.checkServerStatus();
-                        if (running2) {
-                            console.log('Electron Launcher: Server started successfully (delayed)');
-                            this.restartAttempts = 0;
-                        } else {
-                            console.log('Electron Launcher: Server startup may have failed');
-                        }
-                        this.startHeartbeat();
-                    }, 3000);
-                }
-            }, 4000);
+            this._pollForStartup();
 
         } catch (error) {
             console.error(`Electron Launcher: Error starting server: ${error.message}`);
+            this.isStarting = false;
+            this.updateTrayMenu();
             dialog.showErrorBox('Server Start Error', error.message);
         }
+    }
+
+    /**
+     * Polls the health endpoint until the freshly spawned server answers, up
+     * to STARTUP_POLL_TIMEOUT_MS. Replaces a previous fixed 4s+3s check,
+     * which mistook a slow-but-legitimate first boot (see the constant's
+     * comment above) for a failure, leaving the tray stuck on "Server
+     * Stopped" - misleading during a run that would have succeeded seconds
+     * later if just given the time.
+     */
+    _pollForStartup(elapsedMs = 0) {
+        setTimeout(async () => {
+            // The process may have exited (and already handled its own
+            // cleanup via the 'close' listener) while this poll was
+            // in flight - nothing left to check.
+            if (!this.nodeProcess) {
+                return;
+            }
+
+            const running = await this.checkServerStatus();
+            if (running) {
+                console.log('Electron Launcher: Server started successfully');
+                this.isStarting = false;
+                this.restartAttempts = 0;
+                this.updateTrayMenu();
+                this.startHeartbeat();
+                return;
+            }
+
+            const nextElapsed = elapsedMs + STARTUP_POLL_INTERVAL_MS;
+            if (nextElapsed >= STARTUP_POLL_TIMEOUT_MS) {
+                console.error(`Electron Launcher: Server did not become healthy within ${STARTUP_POLL_TIMEOUT_MS}ms.`);
+                this.isStarting = false;
+                this.updateTrayMenu();
+                this._notifyOrAlert(
+                    'acCompaniment server is taking too long to start',
+                    'The audio server hasn\'t responded after a minute. Check the logs (tray menu -> Show Logs) - it may still finish starting, or it may need a manual restart.'
+                );
+                this.startHeartbeat();
+                return;
+            }
+
+            console.log('Electron Launcher: Server may still be starting...');
+            this._pollForStartup(nextElapsed);
+        }, STARTUP_POLL_INTERVAL_MS);
     }
 
     /**
@@ -430,12 +477,20 @@ class AccompanimentLauncher {
     }
 
     async stopNodeServer() {
-        if (!this.isNodeRunning || !this.nodeProcess) {
+        // Deliberately keyed on nodeProcess alone, not isNodeRunning: a
+        // server that's still starting up (nodeProcess spawned, but the
+        // health check hasn't passed yet - see STARTUP_POLL_TIMEOUT_MS
+        // above) has isNodeRunning === false despite being a live process
+        // that very much needs killing on quit. Guarding on isNodeRunning
+        // here used to silently no-op in that window, leaving the child an
+        // orphan holding the port and audio device.
+        if (!this.nodeProcess) {
             console.log('Electron Launcher: Server not running');
             return;
         }
 
         this._deliberateStop = true;
+        this.isStarting = false;
         this.stopHeartbeat();
 
         try {
@@ -556,9 +611,11 @@ class AccompanimentLauncher {
         // Parse Node.js output for status updates
         if (output.includes('HTTP Server running at') || output.includes('All managers initialized successfully')) {
             this.isNodeRunning = true;
+            this.isStarting = false;
             this.updateTrayMenu();
         } else if (output.includes('Server stopped') || output.includes('Failed to start') || output.includes('Server startup failed')) {
             this.isNodeRunning = false;
+            this.isStarting = false;
             this.updateTrayMenu();
         }
     }

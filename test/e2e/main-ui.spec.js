@@ -84,6 +84,32 @@ test('show mode: clicking a cue plays it, fills its VU meter, and Stop All stops
     }
 });
 
+test('a cue\'s playing state clears on its own once it finishes naturally', async ({ page, request }) => {
+    // Regression test: the frontend used to update the cached server
+    // playback state (audioController.updateServerPlaybackState) *after*
+    // triggering the DOM redraw for the same broadcast, so a natural
+    // stop/completion redraw could read the still-"playing" cache and
+    // re-add the .playing class - and since no further broadcast ever
+    // arrives for a cue once it's stopped, the button stayed stuck showing
+    // "playing" forever. Uses a short cue and never clicks Stop, so the
+    // only thing that can clear .playing is the cue_status "completed"
+    // broadcast the server sends on natural end.
+    await page.goto('/');
+    const cue = await createTestCue(request, { name: 'Natural Completion Cue', durationSec: 1.5 });
+    try {
+        await page.locator('#modeToggleBtn').click();
+        await expect(page.locator('#appContainer')).toHaveClass(/show-mode/);
+
+        const button = page.locator(`.cue-button[data-cue-id="${cue.id}"]`);
+        await expect(button).toBeVisible();
+        await button.click();
+        await expect(button).toHaveClass(/playing/, { timeout: 5000 });
+        await expect(button).not.toHaveClass(/playing/, { timeout: 8000 });
+    } finally {
+        await deleteCue(request, cue.id);
+    }
+});
+
 test('the per-cue retrigger badge reflects each cue\'s retriggerBehavior', async ({ page, request }) => {
     await page.goto('/');
     const cue = await createTestCue(request, { name: 'Retrigger Badge Cue', retriggerBehavior: 'fade_out_and_stop' });

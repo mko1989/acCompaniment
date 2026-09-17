@@ -679,6 +679,63 @@ adding a second one, confirmed stable across 5 repeated clean runs.
 
 ---
 
+## G12 — Stuck "playing" cue buttons + slow first launch mistaken for a crash `[x]`
+**Files:** `src/frontend/renderer.js`, `electron-launcher/main.js`,
+`test/e2e/helpers.js`, `test/e2e/main-ui.spec.js`
+
+Two bugs reported after G11 landed:
+
+**1. Cue buttons stayed showing "playing" after the cue actually stopped.**
+`renderer.js`'s WebSocket message handler updated the DOM (`handleCueStatusUpdate`
+/ `updateCueButtonTimeDisplay`, both of which redraw via
+`cueGrid.updateButtonPlayingState`) *before* updating the cached server
+playback state (`audioController.updateServerPlaybackState`) that
+`updateButtonPlayingState` actually reads its "is this cue playing" answer
+from. On a `stopped`/`completed` transition, the redraw ran first and read
+the stale (still-"playing") cache, re-adding the `.playing` class; the cache
+fix that followed a moment later had nothing left to trigger a re-render, so
+the button never corrected itself - since no further broadcast is ever sent
+for a cue once it's stopped. Fixed by swapping the order in both the
+`cue_status` and `playback-time-update` handlers: update the cache, then
+redraw. Confirmed as the actual cause by reverting just this ordering and
+watching the new regression test below fail exactly as described, then pass
+again with the fix restored.
+
+Added a new test to `test/e2e/main-ui.spec.js` ("a cue's playing state clears
+on its own once it finishes naturally"): triggers a short (1.5s) cue and
+never clicks Stop, asserting `.playing` clears on its own once the cue's
+natural-completion broadcast arrives. (`createTestCue`'s test helper gained
+an optional `durationSec` passthrough to make a short-lived cue easy to
+construct.)
+
+**2. The very first server start after opening the packaged app could look
+like a crash.** The launcher's own readiness check gave a freshly spawned
+server only two chances (at 4s and 7s) to answer its health endpoint before
+logging "startup may have failed" and leaving the tray on a bare "Server
+Stopped" label - no different from an actual crash, from the user's
+perspective. `AudioPlaybackManager.init()` constructs `RtAudio()`
+synchronously during server startup (before the HTTP server starts
+listening), which enumerates audio devices via the OS's audio subsystem; on
+top of that, the very first execution of a freshly-extracted native
+`.node` binary on macOS can be held up for tens of seconds by Gatekeeper's
+one-time verification scan (cached after that - which is exactly why a
+second launch right afterward is instant). A user watching the tray say
+"Server Stopped" for what looks like indefinitely reasonably concludes it
+crashed. Replaced the fixed two-shot check with a bounded poll
+(`_pollForStartup`, every 3s up to 60s) and added a distinct "Server
+Starting…" tray label (`isStarting`) so a legitimately slow first boot reads
+as "still working" instead of "stopped".
+
+Found and fixed a second, related bug while in this code: `stopNodeServer()`
+refused to kill the child process while `isNodeRunning` was still `false` -
+exactly the state during that same startup window. Quitting the app while
+the server was still starting up silently left it running as an orphan
+(holding the port and the audio device) instead of terminating it. The guard
+now keys on the child process existing at all, not on the health check
+having already passed.
+
+---
+
 # Suggested execution order
 
 1. **A1 → A2 → A3 → A4** (stop data loss & orphan files)

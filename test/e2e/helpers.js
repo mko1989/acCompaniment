@@ -57,8 +57,8 @@ async function uploadTestAudio(request, { name = uniqueName('E2E Audio'), durati
 }
 
 /** Uploads a test audio file and creates a single_file cue from it. */
-async function createTestCue(request, { name = uniqueName('E2E Cue'), volume = 0.05, ...overrides } = {}) {
-    const audioFile = await uploadTestAudio(request, { name: `${name} Audio` });
+async function createTestCue(request, { name = uniqueName('E2E Cue'), volume = 0.05, durationSec, ...overrides } = {}) {
+    const audioFile = await uploadTestAudio(request, { name: `${name} Audio`, ...(durationSec != null ? { durationSec } : {}) });
     const res = await request.post('/api/cues', {
         data: {
             name,

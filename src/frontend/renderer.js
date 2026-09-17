@@ -132,9 +132,10 @@ function handleWebSocketMessage(data) {
             break;
             
         case 'playback-time-update':
-            if (data.payload && window.ui && typeof window.ui.updateCueButtonTimeDisplay === 'function') {
-                window.ui.updateCueButtonTimeDisplay(data.payload);
-            }
+            // Update the cached server playback state BEFORE triggering any
+            // UI redraw - updateButtonPlayingState reads that cache via
+            // audioController.getPlaybackTimes(), so updating it after the
+            // redraw call means the redraw sees the stale (pre-update) state.
             if (data.payload?.cueId && window.audioController?.updateServerPlaybackState) {
                 window.audioController.updateServerPlaybackState({
                     cueId: data.payload.cueId,
@@ -143,14 +144,24 @@ function handleWebSocketMessage(data) {
                     totalTimeSec: data.payload.totalDurationSec,
                 });
             }
+            if (data.payload && window.ui && typeof window.ui.updateCueButtonTimeDisplay === 'function') {
+                window.ui.updateCueButtonTimeDisplay(data.payload);
+            }
             break;
 
         case 'cue_status':
-            if (data.payload && window.ui && typeof window.ui.handleCueStatusUpdate === 'function') {
-                window.ui.handleCueStatusUpdate(data.payload);
-            }
+            // Same ordering requirement as playback-time-update above - the
+            // cache must reflect this update before handleCueStatusUpdate
+            // triggers a redraw, otherwise a stop/complete transition can
+            // read the stale "still playing" cache and leave the button
+            // stuck showing .playing indefinitely (no further broadcast
+            // arrives for a cue once it's stopped, so the class never
+            // corrects itself later).
             if (data.payload && window.audioController?.updateServerPlaybackState) {
                 window.audioController.updateServerPlaybackState(data.payload);
+            }
+            if (data.payload && window.ui && typeof window.ui.handleCueStatusUpdate === 'function') {
+                window.ui.handleCueStatusUpdate(data.payload);
             }
             break;
 
