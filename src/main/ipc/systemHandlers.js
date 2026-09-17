@@ -66,7 +66,17 @@ function registerSystemHandlers(ipcMain, { appConfigManager, mainWindow, openEas
                     fallback: 'renderer_enumeration'
                 };
             }
-            logger.info('Audio output device enumeration delegated to renderer process');
+            if (process.platform === 'darwin') {
+                const { listMacOSOutputDevices } = require('../utils/macosAudioOutputDevices');
+                const devices = await listMacOSOutputDevices();
+                logger.info(`get-audio-output-devices: Core Audio listed ${devices.length} output device(s)`);
+                return {
+                    success: true,
+                    devices,
+                    source: 'macos_coreaudio'
+                };
+            }
+            logger.info('Audio output device enumeration delegated to renderer process (non-macOS)');
             return {
                 success: true,
                 devices: [],

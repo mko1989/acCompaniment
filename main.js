@@ -490,14 +490,20 @@ if (!gotTheLock) {
 app.whenReady().then(async () => {
   logger.info('MAIN_JS: App is ready, starting createWindow...');
 
-  // Allow media permissions (needed for audio device enumeration on macOS)
+  // On macOS, granting "media" pairs with microphone prompts from Chromium; we do not use mic or
+  // enumerateDevices() on darwin (see appConfigUI). Deny media there; other platforms may still
+  // use output device enumeration via the Web API.
   try {
     session.defaultSession.setPermissionRequestHandler((wc, permission, callback, details) => {
+      if (process.platform === 'darwin' && permission === 'media') {
+        logger.info('Permission request (media) denied on macOS — app does not use microphone.');
+        return callback(false);
+      }
       if (permission === 'media') {
         logger.info('Permission request (media) granted. Details:', details);
         return callback(true);
       }
-      callback(true);
+      return callback(true);
     });
   } catch (e) {
     logger.warn('Failed to set permission request handler:', e);

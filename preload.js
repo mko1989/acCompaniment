@@ -33,6 +33,9 @@ const mainProcessReadyPromise = new Promise((resolve, reject) => {
 });
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  /** Node process.platform — used to avoid Web APIs that trigger macOS microphone prompts */
+  platform: process.platform,
+
   // Wait for main process to be ready before proceeding with other calls
   whenMainReady: () => mainProcessReadyPromise,
 

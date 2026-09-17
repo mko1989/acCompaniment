@@ -60,14 +60,18 @@ let currentAppConfig = {};
 let isPopulatingSidebar = false;
 let audioControllerRef = null; // Reference to audioController for applying device changes
 
+/** Set from electronAPI.platform in init — avoids navigator.mediaDevices on macOS (mic permission loops). */
+let cachedPlatform = null;
+
 async function init(electronAPI) { // Renamed parameter to avoid confusion
     uiLog.info('AppConfigUI: Initializing...');
+    cachedPlatform = electronAPI?.platform ?? null;
     // ipcRendererBindings is already available as ipcRendererBindingsModule via import
     // No need to store electronAPI here if all IPC calls go through the module.
     cacheDOMElements();
     bindEventListeners();
 
-    // Set up device change listener
+    // Set up device change listener (skipped on macOS — it would re-trigger permission prompts)
     setupDeviceChangeListener();
 
     try {
@@ -82,6 +86,10 @@ async function init(electronAPI) { // Renamed parameter to avoid confusion
 
 // Function to set up device change listener
 function setupDeviceChangeListener() {
+    if (cachedPlatform === 'darwin') {
+        uiLog.info('AppConfigUI: Skipping mediaDevices devicechange listener on macOS (avoids microphone permission prompts).');
+        return;
+    }
     if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
         navigator.mediaDevices.addEventListener('devicechange', () => {
             uiLog.info('AppConfigUI: Audio devices changed, refreshing device list...');
@@ -410,23 +418,40 @@ async function loadAudioOutputDevices() {
         defaultOption.textContent = 'System Default';
         configAudioOutputDeviceSelect.appendChild(defaultOption);
 
-        // Try to enumerate audio devices
-        if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+        // macOS: list outputs via main process (Core Audio), not MediaDevices — no microphone prompt.
+        if (cachedPlatform === 'darwin') {
+            try {
+                const ipcRes = await ipcRendererBindingsModule.getAudioOutputDevices();
+                if (ipcRes && ipcRes.success && Array.isArray(ipcRes.devices)) {
+                    uiLog.info('AppConfigUI: macOS Core Audio output devices:', ipcRes.devices.length);
+                    for (const d of ipcRes.devices) {
+                        if (!d || !d.deviceId) continue;
+                        const option = document.createElement('option');
+                        option.value = d.deviceId;
+                        option.textContent = d.label || d.deviceId;
+                        configAudioOutputDeviceSelect.appendChild(option);
+                    }
+                } else {
+                    uiLog.warn('AppConfigUI: macOS get-audio-output-devices did not return a list:', ipcRes);
+                }
+            } catch (ipcErr) {
+                uiLog.error('AppConfigUI: getAudioOutputDevices IPC failed:', ipcErr);
+            }
+        } else if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
             try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 uiLog.debug('AppConfigUI: Enumerated devices:', devices);
-                
-                // Filter to only audio output devices
+
                 const audioOutputDevices = devices.filter(device => device.kind === 'audiooutput');
                 uiLog.info('AppConfigUI: Audio output devices found:', audioOutputDevices.length);
-                
+
                 audioOutputDevices.forEach(device => {
                     const option = document.createElement('option');
                     option.value = device.deviceId;
                     option.textContent = device.label || `Audio Output Device ${device.deviceId.substring(0, 8)}...`;
                     configAudioOutputDeviceSelect.appendChild(option);
                 });
-                
+
                 if (audioOutputDevices.length > 0) {
                     uiLog.info('AppConfigUI: Added', audioOutputDevices.length, 'audio output devices to selection');
                 } else {
@@ -435,8 +460,7 @@ async function loadAudioOutputDevices() {
             } catch (deviceError) {
                 uiLog.warn('AppConfigUI: Error enumerating devices:', deviceError);
                 uiLog.info('AppConfigUI: Falling back to system default only');
-                
-                // Add a user-friendly message option
+
                 const fallbackOption = document.createElement('option');
                 fallbackOption.value = 'default';
                 fallbackOption.textContent = 'System Default (Device list unavailable)';
@@ -446,12 +470,12 @@ async function loadAudioOutputDevices() {
             uiLog.warn('AppConfigUI: navigator.mediaDevices.enumerateDevices not available');
         }
 
-        // Set the selected value based on current config
-        if (currentAppConfig && currentAppConfig.audioOutputDeviceId) {
-            configAudioOutputDeviceSelect.value = currentAppConfig.audioOutputDeviceId;
-        } else {
-            configAudioOutputDeviceSelect.value = 'default';
-        }
+        // Set the selected value based on current config (must match an existing option)
+        const preferredId = currentAppConfig && currentAppConfig.audioOutputDeviceId
+            ? currentAppConfig.audioOutputDeviceId
+            : 'default';
+        const hasOption = Array.from(configAudioOutputDeviceSelect.options).some((o) => o.value === preferredId);
+        configAudioOutputDeviceSelect.value = hasOption ? preferredId : 'default';
 
         uiLog.info('AppConfigUI: Audio output device selection completed. Selected:', configAudioOutputDeviceSelect.value);
 
