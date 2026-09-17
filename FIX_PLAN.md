@@ -623,6 +623,62 @@ noticeably faster too (~6s vs ~32s).
 
 ---
 
+## G11 — Remove easter egg, gut the dead client audio engine, add per-cue VU meter + retrigger icon `[x]`
+**Files:** `src/frontend/audio/audioController.js` (rewritten), 19 sibling files under
+`src/frontend/audio/` (deleted), `src/frontend/easter_egg_game/` (deleted),
+`test/e2e/easter-egg.spec.js` (deleted), `src/frontend/styles/crossfade.css` (deleted),
+`src/frontend/renderer.js`, `src/frontend/ui.js`, `src/frontend/ui/appConfigUI.js`,
+`src/frontend/ui/cueGrid.js`, `src/frontend/index.html`,
+`src/frontend/styles/cue-grid.css`, `src/backend/soundboardMixer.js`,
+`src/backend/audioPlaybackManager.js`, `src/backend/cueManager.js`,
+`test/smoke.test.js`, `test/websocket-protocol.test.js`, `test/e2e/main-ui.spec.js`
+
+Three related changes, since the app is now genuinely server-primary (real cue
+playback always goes over WebSocket to the Node.js RtAudio mixer) but the frontend
+still carried ~5,677 lines of a dead pre-migration client-side Howler.js playback
+engine (`SERVER_PRIMARY_PLAYBACK = true` was hardcoded, routing everything past it)
+and was missing UI that made that server-side state visible:
+
+- **Removed the Ctrl+Alt+P easter egg** (`src/frontend/easter_egg_game/`) entirely.
+- **Gutted the dead client audio engine**: deleted 19 of the 20 files under
+  `src/frontend/audio/`, replacing them with a single ~200-line
+  `audioController.js` that only does what's actually reachable - send
+  `toggle_cue`/`stop_all_cues`/`playlist_navigate` over WebSocket, track
+  server-broadcast playback state for the UI to read back, and a tiny
+  standalone single-shot `Howl` for the "Preview (local)" button. Also dropped
+  the dead `#audioPlaybackMode` dropdown and the crossfade toggle button (which
+  flipped a CSS class nothing downstream ever consumed - no server-side
+  crossfade exists). Fixed two real bugs found along the way: "Preview (local)"
+  used to broadcast a real `playback-time-update` for the cue's actual ID to
+  every connected client (main grid, `/remote`, Companion), making a local
+  preview flash as "playing" everywhere - the new preview never sends any
+  WebSocket message. Playlist prev/next buttons called straight into the dead
+  local engine and did nothing against real playback; they already called the
+  right `audioController` methods, which now correctly send the real
+  `playlist_navigate` message the backend expects.
+- **Added a per-cue VU meter**: `soundboardMixer.js` tracks a running peak
+  per active cue directly in the `render()` hot path (no allocation), drained
+  by a new `drainPeakLevels()` - deliberately kept separate from `getStatus()`,
+  which several unrelated REST endpoints read and must stay side-effect-free.
+  The existing 100ms `playback-time-update` broadcast now carries a
+  `peakLevel` field per playing cue; the frontend renders it as a thin
+  threshold-colored bar along the bottom of each cue button.
+- **Added a per-cue retrigger-behavior badge**: a small top-right badge on
+  each cue button (glyph + tinted background + title tooltip) reflecting the
+  cue's `retriggerBehavior` (restart/pause-resume/stop/fade-out-and-stop/
+  do-nothing/play-new-instance). Set once per full grid rebuild
+  (`cues-updated` already fires on every cue edit) - no live-patch wiring
+  needed, unlike the VU meter.
+
+While verifying with `npx playwright test`, adding the VU meter as its own
+test (a second concurrently-playing-audio test alongside the existing "show
+mode: Stop All" test) reproduced the same genuine CPU/RtAudio contention flake
+documented in G10 (`workers: 2` was capped for exactly this reason) - fixed by
+folding the VU meter assertions into the existing playback test instead of
+adding a second one, confirmed stable across 5 repeated clean runs.
+
+---
+
 # Suggested execution order
 
 1. **A1 → A2 → A3 → A4** (stop data loss & orphan files)

@@ -26,10 +26,6 @@ let isUIModuleFullyInitialized = false; // NEW FLAG
 let appContainer;
 let modeToggleBtn;
 let stopAllButton;
-let crossfadeToggleBtn;
-
-// Crossfade state
-let crossfadeEnabled = false;
 
 // Core UI State
 let currentMode = 'edit'; // 'edit' or 'show'
@@ -140,7 +136,6 @@ function cacheCoreDOMElements() {
     appContainer = document.getElementById('appContainer');
     modeToggleBtn = document.getElementById('modeToggleBtn');
     stopAllButton = document.getElementById('stopAllButton');
-    crossfadeToggleBtn = document.getElementById('crossfadeToggleBtn');
     configToggleBtn = document.getElementById('configToggleBtn');
     addFilesButton = document.getElementById('addFilesButton');
     fileInput = document.getElementById('fileInput');
@@ -203,20 +198,6 @@ function bindCoreEventListeners() {
                 console.error('🛑 UI: audioController or stopAll function not available!');
             }
         });
-    }
-
-    if (crossfadeToggleBtn) {
-        crossfadeToggleBtn.addEventListener('click', () => {
-            crossfadeEnabled = !crossfadeEnabled;
-            updateCrossfadeButtonState();
-            console.log('UI: Crossfade mode toggled to:', crossfadeEnabled);
-            console.log('UI: window.ui.isCrossfadeEnabled now returns:', window.ui && window.ui.isCrossfadeEnabled && window.ui.isCrossfadeEnabled());
-        });
-        // Initialize the button state
-        updateCrossfadeButtonState();
-        console.log('UI: Crossfade button initialized. Initial state:', crossfadeEnabled);
-    } else {
-        console.error('UI: crossfadeToggleBtn not found! Crossfade will not work.');
     }
 
     window.addEventListener('keydown', (e) => {
@@ -330,26 +311,6 @@ function applyAppConfiguration(newConfig) {
 
 // --- App Configuration Functions (MOVED to appConfigUI.js) ---
 // App configuration functions are now handled by appConfigUI.js module
-
-// --- Crossfade Functions ---
-function updateCrossfadeButtonState() {
-    if (crossfadeToggleBtn) {
-        if (crossfadeEnabled) {
-            crossfadeToggleBtn.classList.remove('crossfade-disabled');
-            crossfadeToggleBtn.classList.add('crossfade-enabled');
-            crossfadeToggleBtn.title = 'Crossfade Mode Enabled - Click to Disable';
-        } else {
-            crossfadeToggleBtn.classList.remove('crossfade-enabled');
-            crossfadeToggleBtn.classList.add('crossfade-disabled');
-            crossfadeToggleBtn.title = 'Crossfade Mode Disabled - Click to Enable';
-        }
-    }
-}
-
-function isCrossfadeEnabled() {
-    console.log('UI: isCrossfadeEnabled() called, returning:', crossfadeEnabled);
-    return crossfadeEnabled;
-}
 
 // --- Workspace Change Handling ---
 async function handleWorkspaceChange() {
@@ -585,6 +546,9 @@ function updateCueButtonTimeDisplay(data) {
             remainingTimeFormatted: data.remainingTimeFormatted || '00:00'
         };
         cueGrid.updateCueButtonTimeWithData(cueId, timeData, null, isFadingIn, isFadingOut, fadeTimeRemainingMs);
+        if (typeof cueGrid.updateCueButtonLevel === 'function') {
+            cueGrid.updateCueButtonLevel(cueId, data.peakLevel || 0);
+        }
         // Update playing state (playing/paused/cued classes) so buttons show visual feedback
         const status = data.status || 'stopped';
         const isPlaying = status === 'playing';
@@ -617,8 +581,6 @@ export {
     handleMultipleFileDrop,
     refreshCueGrid, // Export the new function
     applyAppConfiguration, // Export the new function
-    isCrossfadeEnabled, // Export crossfade state
-
     updateCueButtonTimeDisplay, // Export the new function
     handleCueStatusUpdate,
     getCurrentAppMode, // Export for other modules if they need to know mode without shift key override

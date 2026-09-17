@@ -29,8 +29,6 @@
     *   Display of current playback time, total duration, and remaining time on cue buttons.
     *   Dedicated sidebars for cue properties and application configuration.
     *   Dark theme optimized for live performance environments.
-*   **Easter Egg:**
-    *   A fun, hidden 16-bit style game, "Happy Pig!" accessible through Ctrl+Alt+P.
 
 ## System Requirements
 
@@ -134,7 +132,7 @@ minimal Electron tray launcher for system integration. Key technologies:
 - `src/backend/` — Server-side logic: cue/workspace management, audio
   engine, REST routes
 - `src/frontend/` — Browser UI (served by the server), including
-  `remote_control/` (the HTTP remote control page) and `easter_egg_game/`
+  `remote_control/` (the HTTP remote control page)
 - `electron-launcher/` — Minimal Electron app: system tray, starts/stops the
   server, configuration window
 - `start-nodejs.js` — Headless server launch script (no Electron/tray)

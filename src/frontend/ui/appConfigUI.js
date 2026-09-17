@@ -58,7 +58,6 @@ let currentAppConfig = {};
 let isPopulatingSidebar = false;
 let isLoadingDevices = false;
 let configUIInitialized = false;
-let audioControllerRef = null; // Reference to audioController for applying device changes
 let websocketBindingsModule = null; // Changed from ipcRendererBindingsModule
 
 async function init(websocketAPI) { // Changed parameter from electronAPI to websocketAPI
@@ -101,12 +100,6 @@ function setupDeviceChangeListener() {
     } else {
         console.warn('AppConfigUI: navigator.mediaDevices.addEventListener not available, device changes won\'t be detected.');
     }
-}
-
-// Function to set the audioController reference
-function setAudioControllerRef(audioController) {
-    audioControllerRef = audioController;
-    console.log('AppConfigUI: AudioController reference set');
 }
 
 function cacheDOMElements() {
@@ -583,13 +576,12 @@ function getCurrentAppConfig() {
     return { ...currentAppConfig };
 }
 
-export { 
+export {
     init,
     populateConfigSidebar,
     saveAppConfiguration,
     forceLoadAndApplyAppConfiguration,
     getCurrentAppConfig,
     loadAudioOutputDevices,
-    setUiApi,
-    setAudioControllerRef
+    setUiApi
 };

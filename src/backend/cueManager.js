@@ -82,6 +82,7 @@ class CueManager {
 
             const status = this.audioPlaybackManager.getPlaybackStatus();
             const playing = status.mixer?.playing || [];
+            const peakLevels = this.audioPlaybackManager.drainPeakLevels();
 
             for (const entry of playing) {
                 const cue = this.getCue(entry.cueId);
@@ -102,6 +103,7 @@ class CueManager {
                         totalDurationFormatted: this._formatTimeMMSS(totalTime),
                         remainingTimeFormatted: this._formatTimeMMSS(remaining),
                         status: playbackStatus,
+                        peakLevel: entry.isPaused ? 0 : (peakLevels[entry.cueId] || 0),
                     },
                 });
             }

@@ -510,6 +510,10 @@ class AudioPlaybackManager {
         };
     }
 
+    drainPeakLevels() {
+        return this.mixer ? this.mixer.drainPeakLevels() : {};
+    }
+
     setPlaybackEndCallback(callback) {
         this.onPlaybackEnd = callback;
     }

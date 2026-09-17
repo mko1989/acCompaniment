@@ -92,6 +92,7 @@ class SoundboardMixer {
             stopping: false,
             isPaused: false,
             startedAt: Date.now(),
+            peakAccum: 0,
         };
 
         this.activeCues.set(cueId, cue);
@@ -175,6 +176,22 @@ class SoundboardMixer {
         };
     }
 
+    /**
+     * Returns and resets the peak output level accumulated since the last
+     * drain, per active cue. Deliberately separate from getStatus(), which
+     * is read by several unrelated REST endpoints and must stay a
+     * side-effect-free snapshot — only the playback-time broadcast loop
+     * should be draining peaks.
+     */
+    drainPeakLevels() {
+        const levels = {};
+        for (const [cueId, cue] of this.activeCues) {
+            levels[cueId] = cue.isPaused ? 0 : cue.peakAccum;
+            cue.peakAccum = 0;
+        }
+        return levels;
+    }
+
     render(outputBuffer, nFrames, nChannels) {
         outputBuffer.fill(0);
 
@@ -205,11 +222,18 @@ class SoundboardMixer {
                 const right = buf[idx + 1] ?? left;
 
                 const vol = cue.currentGain * this.masterGain;
+                const outL = left * vol;
+                const outR = right * vol;
                 const outBase = f * nChannels;
-                outputBuffer[outBase + patchL] += left * vol;
+                outputBuffer[outBase + patchL] += outL;
                 if (patchR !== patchL) {
-                    outputBuffer[outBase + patchR] += right * vol;
+                    outputBuffer[outBase + patchR] += outR;
                 }
+
+                const absL = outL < 0 ? -outL : outL;
+                const absR = outR < 0 ? -outR : outR;
+                if (absL > cue.peakAccum) cue.peakAccum = absL;
+                if (absR > cue.peakAccum) cue.peakAccum = absR;
 
                 cue.position++;
 

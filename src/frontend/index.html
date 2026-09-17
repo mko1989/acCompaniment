@@ -13,7 +13,6 @@
     <link rel="stylesheet" href="styles/modals.css">
     <link rel="stylesheet" href="styles/waveform.css">
     <link rel="stylesheet" href="styles/playlist-nav.css">
-    <link rel="stylesheet" href="styles/crossfade.css">
     <script src="vendor/howler/howler.min.js"></script>
     <script defer src="vendor/wavesurfer/wavesurfer.min.js"></script>
     <script defer src="vendor/wavesurfer/regions.min.js"></script>
@@ -36,16 +35,6 @@
                         <label for="configAudioOutputChannelCount">Output Channel Count:</label>
                         <select id="configAudioOutputChannelCount" class="styled-select"></select>
                         <p class="small-text">Number of channels opened on the selected device. Per-cue routing is available when &gt; 2.</p>
-                    </div>
-
-                    <h3>Audio Playback</h3>
-                    <div class="form-group">
-                        <label for="audioPlaybackMode">Audio Playback Mode:</label>
-                        <select id="audioPlaybackMode" class="styled-select">
-                            <option value="client">Client (Browser)</option>
-                            <option value="server">Server (Node.js)</option>
-                        </select>
-                        <p class="small-text">Choose whether audio is played by the browser (client) or the server (Node.js). Server mode provides better audio quality and device control.</p>
                     </div>
 
                     <h3>Default Cue Properties</h3>
@@ -129,10 +118,6 @@
                             </button>
                             <button id="stopAllButton" class="btn" title="Emergency Stop All">
                                 <img src="/assets/icons/dont panic.png" alt="Stop All" class="btn-icon">
-                            </button>
-                            <button id="crossfadeToggleBtn" class="btn crossfade-disabled" title="Toggle Crossfade Mode - Click to Enable">
-                                <img id="crossfadeToggleIcon" src="/assets/icons/crossfade.png" alt="Crossfade" class="btn-icon">
-                                <span class="btn-label">XFADE</span>
                             </button>
                             <button id="modeToggleBtn" class="btn" title="Toggle Edit/Show Mode">
                                 <img id="modeToggleIcon" src="/assets/icons/show_light.png" alt="Toggle Mode" class="btn-icon">

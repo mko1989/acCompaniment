@@ -48,7 +48,7 @@ test('edit mode (default): clicking a cue opens the properties sidebar', async (
     }
 });
 
-test('show mode: clicking a cue plays it, and Stop All stops it', async ({ page, request }) => {
+test('show mode: clicking a cue plays it, fills its VU meter, and Stop All stops it and resets the meter', async ({ page, request }) => {
     await page.goto('/');
     const cue = await createTestCue(request, { name: 'Show Mode Playback Cue' });
     try {
@@ -58,12 +58,41 @@ test('show mode: clicking a cue plays it, and Stop All stops it', async ({ page,
         await expect(page.locator('#appContainer')).toHaveClass(/show-mode/);
 
         const button = page.locator(`.cue-button[data-cue-id="${cue.id}"]`);
+        const meterFill = page.locator(`#cue-vu-meter-${cue.id} .cue-vu-meter-fill`);
         await expect(button).toBeVisible();
+        await expect(meterFill).toHaveCSS('width', '0px');
+
         await button.click();
         await expect(button).toHaveClass(/playing/, { timeout: 5000 });
+        await expect
+            .poll(async () => {
+                const width = await meterFill.evaluate((el) => el.style.width);
+                return parseFloat(width) || 0;
+            }, { timeout: 5000 })
+            .toBeGreaterThan(0);
 
         await page.locator('#stopAllButton').click();
         await expect(button).not.toHaveClass(/playing/, { timeout: 5000 });
+        await expect
+            .poll(async () => {
+                const width = await meterFill.evaluate((el) => el.style.width);
+                return parseFloat(width) || 0;
+            }, { timeout: 5000 })
+            .toBe(0);
+    } finally {
+        await deleteCue(request, cue.id);
+    }
+});
+
+test('the per-cue retrigger badge reflects each cue\'s retriggerBehavior', async ({ page, request }) => {
+    await page.goto('/');
+    const cue = await createTestCue(request, { name: 'Retrigger Badge Cue', retriggerBehavior: 'fade_out_and_stop' });
+    try {
+        const badge = page.locator(`#cue-retrigger-badge-${cue.id}`);
+        await expect(badge).toBeVisible();
+        await expect(badge).toHaveText('⤵');
+        await expect(badge).toHaveAttribute('title', 'Fade Out and Stop');
+        await expect(badge).toHaveClass(/cue-retrigger-badge-fade-stop/);
     } finally {
         await deleteCue(request, cue.id);
     }

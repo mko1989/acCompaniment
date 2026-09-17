@@ -51,11 +51,6 @@ test('serves the HTTP remote control page', async () => {
     assert.match(html, /acCompaniment Remote/);
 });
 
-test('serves the easter egg game', async () => {
-    const res = await fetch(`${server.baseUrl()}/easter_egg_game/game.html`);
-    assert.equal(res.status, 200);
-});
-
 test('rejects a malformed UUID in a route param', async () => {
     const res = await fetch(`${server.baseUrl()}/api/audio/not-a-uuid`);
     assert.equal(res.status, 400);

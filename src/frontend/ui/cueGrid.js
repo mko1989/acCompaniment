@@ -10,6 +10,34 @@ let cueButtonMap = {}; // To store references to cue button DOM elements
 let dragOverCueId = null;
 let cueGridContainer;
 
+const RETRIGGER_BADGE_INFO = {
+    restart: { key: 'restart', glyph: '↻', label: 'Restart' },
+    pause_resume: { key: 'pause-resume', glyph: '⏯', label: 'Pause / Resume' },
+    stop: { key: 'stop', glyph: '■', label: 'Stop' },
+    fade_out_and_stop: { key: 'fade-stop', glyph: '⤵', label: 'Fade Out and Stop' },
+    do_nothing: { key: 'do-nothing', glyph: '–', label: 'Do Nothing' },
+    play_new_instance: { key: 'new-instance', glyph: '+', label: 'Play New Instance' },
+};
+
+function getRetriggerBadgeInfo(retriggerBehavior) {
+    return RETRIGGER_BADGE_INFO[retriggerBehavior] || RETRIGGER_BADGE_INFO.restart;
+}
+
+// Thresholds for the VU meter fill color, on a 0-1 peak scale.
+const VU_METER_AMBER_THRESHOLD = 0.7;
+const VU_METER_RED_THRESHOLD = 0.9;
+
+function updateCueButtonLevel(cueId, level) {
+    const fillElem = document.querySelector(`#cue-vu-meter-${cueId} .cue-vu-meter-fill`);
+    if (!fillElem) {
+        return;
+    }
+    const clamped = Math.max(0, Math.min(1, Number(level) || 0));
+    fillElem.style.width = `${(clamped * 100).toFixed(1)}%`;
+    fillElem.classList.toggle('cue-vu-meter-fill-red', clamped >= VU_METER_RED_THRESHOLD);
+    fillElem.classList.toggle('cue-vu-meter-fill-amber', clamped >= VU_METER_AMBER_THRESHOLD && clamped < VU_METER_RED_THRESHOLD);
+}
+
 function initCueGrid(cs, ac, dd, ui) {
     console.log('CueGrid: Initializing...');
     cueStore = cs;
@@ -117,10 +145,26 @@ function renderCues() {
         statusIndicator.id = `cue-status-${cue.id}`;
         button.appendChild(statusIndicator);
 
+        const retriggerBadge = document.createElement('div');
+        retriggerBadge.className = 'cue-retrigger-badge';
+        retriggerBadge.id = `cue-retrigger-badge-${cue.id}`;
+        const retriggerInfo = getRetriggerBadgeInfo(cue.retriggerBehavior);
+        retriggerBadge.textContent = retriggerInfo.glyph;
+        retriggerBadge.title = retriggerInfo.label;
+        retriggerBadge.classList.add(`cue-retrigger-badge-${retriggerInfo.key}`);
+        button.appendChild(retriggerBadge);
 
         const nameContainer = document.createElement('div');
         nameContainer.className = 'cue-button-name-container';
         button.appendChild(nameContainer);
+
+        const vuMeter = document.createElement('div');
+        vuMeter.className = 'cue-vu-meter';
+        vuMeter.id = `cue-vu-meter-${cue.id}`;
+        const vuMeterFill = document.createElement('div');
+        vuMeterFill.className = 'cue-vu-meter-fill';
+        vuMeter.appendChild(vuMeterFill);
+        button.appendChild(vuMeter);
 
         const timeContainer = document.createElement('div');
         timeContainer.className = 'cue-time-display-container';
@@ -185,9 +229,8 @@ function renderCues() {
         };
 
         const isCurrentlyPlaying = audioController.default.isPlaying(cue.id);
-        const isCurrentlyCued = audioController.default.isCued(cue.id);
         // Pass the created elements directly for initial setup
-        updateButtonPlayingState(cue.id, isCurrentlyPlaying, null, isCurrentlyCued, elementsForTimeUpdate);
+        updateButtonPlayingState(cue.id, isCurrentlyPlaying, null, false, elementsForTimeUpdate);
 
         button.addEventListener('click', (event) => handleCueButtonClick(event, cue));
 
@@ -492,6 +535,12 @@ function updateButtonPlayingState(cueId, isPlaying, statusTextArg = null, isCued
     button.classList.remove('playing', 'paused', 'cued');
     statusIndicator.style.display = 'block'; // Default to visible
     cuedTextIndicator.style.display = 'none'; // Default to hidden
+
+    // No live playback-time-update broadcasts arrive once a cue stops, so the
+    // VU meter would otherwise stick at its last level - reset it here.
+    if (!isPlaying) {
+        updateCueButtonLevel(cueId, 0);
+    }
 
     // Handle crossfade status text (if provided)
     // Only treat as crossfade text if it contains fade-related keywords
@@ -811,5 +860,6 @@ export {
     updateButtonPlayingState, // Keep this exported if audioController calls it directly
     // updateCueButtonTime is mostly internal to renderCues now, but export if needed elsewhere
     updateCueButtonTime,
-    updateCueButtonTimeWithData // New function for direct time data updates from WebSocket
+    updateCueButtonTimeWithData, // New function for direct time data updates from WebSocket
+    updateCueButtonLevel
 };

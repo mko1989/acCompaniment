@@ -317,29 +317,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         cueStore.init(websocketBindings, uiHandles); // Pass uiHandles
         console.log('Renderer: CueStore initialized.');
 
-        // 5. Initialize AudioController (needs cueStore, WebSocket, and UI Handles)
+        // 5. Initialize AudioController (server-primary playback - see
+        // src/frontend/audio/audioController.js for why this only needs
+        // cueStore + the WebSocket, not the UI modules)
         console.log('Renderer: Initializing AudioController...');
-        await audioController.default.init(
-            cueStore, // cueStore module
-            websocket, // WebSocket instance instead of electronAPI
-            uiHandles.cueGridModule, // cueGrid module from ui.init
-            uiHandles.propertiesSidebarModule // Will be null until propertiesSidebar is ported
-        );
+        await audioController.default.init(cueStore, websocket);
         console.log('Renderer: AudioController initialized.');
-
-        // Update AudioController with the configuration obtained from AppConfigUI BEFORE connecting
-        if (initialAppConfig && audioController.default && typeof audioController.default.updateAppConfig === 'function') {
-            console.log('Renderer: Passing initialAppConfig to audioController.default.updateAppConfig.');
-            audioController.default.updateAppConfig(initialAppConfig);
-        }
-        
-        // Set audioController reference in appConfigUI for device changes
-        if (appConfigUI && typeof appConfigUI.setAudioControllerRef === 'function') {
-            console.log('Renderer: Setting audioController reference in appConfigUI.');
-            appConfigUI.setAudioControllerRef(audioController.default);
-        }
-
-        // AudioController reference already set above
 
         // 6. WaveformControls is initialized in ui.js during ui.init()
         // It's already set up with WebSocket bindings and onTrimChange callback
@@ -357,15 +340,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         );
         console.log('Renderer: DragDropHandler initialized.');
 
-        // 9. Update modules that might need specific UI handles from ui.init
-        if (uiHandles.cueGridModule) {
-            console.log('Renderer: Setting UI refs on AudioController...');
-            audioController.default.setUIRefs(uiHandles.cueGridModule, uiHandles.propertiesSidebarModule);
-        } else {
-            console.warn('Renderer: cueGridModule not yet available. AudioController UI refs will be set later.');
-        }
-
-        // 10. Load initial data and render UI (triggers cueGrid.renderCues via ui.js)
+        // 9. Load initial data and render UI (triggers cueGrid.renderCues via ui.js)
         try {
             await ui.loadAndRenderCues(); 
             console.log('Renderer: Cues loaded and UI rendered after all initializations.');
@@ -379,22 +354,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         console.log('Renderer: All core modules initialized successfully.');
 
-        // CRITICAL: Expose UI module to window for crossfade access
         window.ui = ui;
         window.audioController = audioController.default;
-        console.log('Renderer: UI module exposed to window.ui for crossfade access');
-        console.log('Renderer: UI.isCrossfadeEnabled available:', typeof ui.isCrossfadeEnabled);
-
-        // Add keyboard shortcut for Easter Egg Game (Control+Alt+P).
-        // The game is self-contained static assets (no backend round-trip
-        // needed), so just open it in a new tab/window.
-        window.addEventListener('keydown', (event) => {
-            if (event.ctrlKey && event.altKey && (event.key === 'P' || event.key === 'p' || event.code === 'KeyP')) {
-                event.preventDefault();
-                console.log('Ctrl+Alt+P shortcut triggered. Opening Easter Egg game.');
-                window.open('/easter_egg_game/game.html', 'accompanimentEasterEgg', 'width=680,height=560');
-            }
-        });
+        console.log('Renderer: UI module exposed to window.ui');
 
     } catch (error) {
         console.error('Renderer: Fatal error during initialization:', error);

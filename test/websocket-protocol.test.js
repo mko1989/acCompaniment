@@ -111,6 +111,21 @@ test('event: trigger_cue starts playback and responds with cue_triggered', async
     }
 });
 
+test('broadcast: playback-time-update includes a numeric peakLevel while playing', async () => {
+    // The cue from the previous test may have already finished playing (it's
+    // a short 3s tone) - retrigger it fresh so a playback-time-update is
+    // guaranteed to still be in flight when we start listening.
+    const triggeredPromise = waitForType(ws, 'cue_triggered');
+    wsSend(ws, 'trigger_cue', { cueId: wsCreatedCueId });
+    await triggeredPromise;
+
+    const update = await waitForType(ws, 'playback-time-update', 3000);
+    assert.equal(update.payload.cueId, wsCreatedCueId);
+    assert.equal(typeof update.payload.peakLevel, 'number');
+    assert.ok(update.payload.peakLevel >= 0 && update.payload.peakLevel <= 1);
+    assert.ok(update.payload.peakLevel > 0, 'expected a non-zero peak for an actively playing tone');
+});
+
 test('event: toggle_cue on a playing cue applies its retrigger behavior', async () => {
     const responsePromise = waitForType(ws, 'cue_toggled');
     wsSend(ws, 'toggle_cue', { cueId: wsCreatedCueId });

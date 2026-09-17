@@ -71,6 +71,51 @@
     white-space: nowrap;
 }
 
+.cue-retrigger-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 16px;
+    height: 16px;
+    line-height: 16px;
+    text-align: center;
+    font-size: 0.75em;
+    border-radius: 4px;
+    background-color: rgba(255, 255, 255, 0.12);
+    color: var(--text-color);
+}
+
+.cue-retrigger-badge-restart { background-color: rgba(66, 165, 245, 0.35); }
+.cue-retrigger-badge-pause-resume { background-color: rgba(255, 202, 40, 0.35); }
+.cue-retrigger-badge-stop { background-color: rgba(239, 83, 80, 0.35); }
+.cue-retrigger-badge-fade-stop { background-color: rgba(255, 138, 101, 0.35); }
+.cue-retrigger-badge-do-nothing { background-color: rgba(158, 158, 158, 0.35); }
+.cue-retrigger-badge-new-instance { background-color: rgba(102, 187, 106, 0.35); }
+
+.cue-vu-meter {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 4px;
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+.cue-vu-meter-fill {
+    height: 100%;
+    width: 0%;
+    background-color: #4caf50;
+    transition: width 0.08s linear;
+}
+
+.cue-vu-meter-fill-amber {
+    background-color: #ffb300;
+}
+
+.cue-vu-meter-fill-red {
+    background-color: #e53935;
+}
+
 .cue-button-name-container {
     font-weight: bold;
     flex-grow: 1;
