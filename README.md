@@ -147,7 +147,14 @@ minimal Electron tray launcher for system integration. Key technologies:
 *   `npm start` - Start the full app (Electron tray launcher + server)
 *   `npm run start:server` / `npm run start:node` - Start just the Node.js
     server, headless (no Electron)
-*   `npm test` - Run the audio mixer unit test
+*   `npm test` - Run the full test suite (unit + API/WebSocket smoke tests +
+    browser end-to-end tests)
+*   `npm run test:unit` - Just the audio mixer unit test
+*   `npm run test:smoke` - Just the API/WebSocket smoke tests (`test/*.test.js`) -
+    spawns real server instances against isolated temp data directories, no
+    browser needed
+*   `npm run test:e2e` - Just the Playwright browser tests (`test/e2e/`) -
+    requires a one-time `npx playwright install chromium` first
 *   `npm run probe:rtaudio` - Diagnose audio device / native module issues
 *   `npm run pack` - Package the application (without creating installers)
 *   `npm run dist` - Build distributables for all platforms

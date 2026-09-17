@@ -6,3 +6,6 @@ electron-launcher/dist/
 electron-launcher/node_modules/
 *.log
 .claude/
+test-results/
+playwright-report/
+blob-report/

@@ -11,9 +11,10 @@
     "start:node": "node start-nodejs.js",
     "start:server": "node server.js",
     "dev": "node start-nodejs.js --dev",
-    "test": "npm run test:unit && npm run test:smoke",
+    "test": "npm run test:unit && npm run test:smoke && npm run test:e2e",
     "test:unit": "node scripts/test-soundboard-mixer.js",
     "test:smoke": "node --test test/*.test.js",
+    "test:e2e": "playwright test",
     "probe:rtaudio": "node scripts/probe-rtaudio.js",
     "postinstall": "electron-builder install-app-deps",
     "pack": "electron-builder --dir",
@@ -36,6 +37,7 @@
   "email": "m.wardecki89@gmail.com",
   "license": "MIT",
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "electron": "^44.4.1",
     "electron-builder": "^26.15.3"
   },
