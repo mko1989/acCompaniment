@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>acCompaniment Configuration</title>
+    <style>
+        :root {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --bg-tertiary: #3a3a3a;
+            --text-primary: #ffffff;
+            --text-secondary: #cccccc;
+            --text-muted: #888888;
+            --accent-blue: #4a9eff;
+            --accent-green: #4caf50;
+            --accent-red: #f44336;
+            --border-color: #444444;
+            --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            margin: 0;
+            padding: 0;
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+        
+        .app-container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-secondary);
+        }
+        
+        .top-bar {
+            background: var(--bg-tertiary);
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .top-bar h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .status-display {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--accent-red);
+            animation: pulse 2s infinite;
+        }
+        
+        .status-indicator.running {
+            background: var(--accent-green);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        
+        .status-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        
+        .content-area {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .config-section {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .config-section h2 {
+            margin: 0 0 20px 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 15px;
+            align-items: end;
+        }
+        
+        .form-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        
+        .button {
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+            min-width: 80px;
+        }
+        
+        .button:hover {
+            background: #3a8bdf;
+        }
+        
+        .button:disabled {
+            background: var(--text-muted);
+            cursor: not-allowed;
+        }
+        
+        .button.success {
+            background: var(--accent-green);
+        }
+        
+        .button.success:hover {
+            background: #45a049;
+        }
+        
+        .url-display {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 12px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            word-break: break-all;
+            margin: 10px 0;
+        }
+        
+        .info-text {
+            color: var(--text-muted);
+            font-size: 12px;
+            margin-top: 5px;
+            line-height: 1.4;
+        }
+        
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .quick-actions .button {
+            flex: 1;
+            font-size: 13px;
+            padding: 8px 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="main-content">
+            <div class="top-bar">
+                <h1>acCompaniment Configuration</h1>
+                <div class="status-display">
+                    <span id="statusIndicator" class="status-indicator"></span>
+                    <span id="statusText" class="status-text">Server Stopped</span>
+                </div>
+            </div>
+            
+            <div class="content-area">
+                <div class="config-section">
+                    <h2>Server Configuration</h2>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="serverPort">Port:</label>
+                            <input type="number" id="serverPort" value="3000" min="1" max="65535">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="serverHost">Interface:</label>
+                            <select id="serverHost">
+                                <option value="localhost">localhost (Local only)</option>
+                                <option value="0.0.0.0">0.0.0.0 (Network accessible)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <button id="changePortButton" class="button success">Change Port</button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Server URL:</label>
+                        <div class="url-display" id="serverUrl">http://localhost:3000</div>
+                        <div class="info-text">Server will automatically restart when port is changed</div>
+                    </div>
+                </div>
+                
+                <div class="config-section">
+                    <h2>Quick Actions</h2>
+                    <div class="quick-actions">
+                        <button id="openBrowserButton" class="button">Open Browser UI</button>
+                        <button id="openDataDirButton" class="button">Open Data Directory</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const { ipcRenderer } = require('electron');
+        
+        let serverStatus = {
+            isRunning: false,
+            port: 3000,
+            host: 'localhost'
+        };
+        
+        // DOM elements
+        const statusIndicator = document.getElementById('statusIndicator');
+        const statusText = document.getElementById('statusText');
+        const serverUrl = document.getElementById('serverUrl');
+        const openBrowserButton = document.getElementById('openBrowserButton');
+        const serverPort = document.getElementById('serverPort');
+        const serverHost = document.getElementById('serverHost');
+        const changePortButton = document.getElementById('changePortButton');
+        const openDataDirButton = document.getElementById('openDataDirButton');
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadConfig();
+            updateServerStatus();
+            setupEventListeners();
+            updateServerUrl();
+            
+            // Update status every 3 seconds
+            setInterval(updateServerStatus, 3000);
+        });
+        
+        function setupEventListeners() {
+            openBrowserButton.addEventListener('click', openBrowserUI);
+            openDataDirButton.addEventListener('click', openDataDirectory);
+            changePortButton.addEventListener('click', changePort);
+            
+            serverPort.addEventListener('input', updateServerUrl);
+            serverHost.addEventListener('change', updateServerUrl);
+        }
+        
+        async function updateServerStatus() {
+            try {
+                serverStatus = await ipcRenderer.invoke('get-server-status');
+                updateUI();
+            } catch (error) {
+                console.error('Error getting server status:', error);
+            }
+        }
+        
+        function updateUI() {
+            if (serverStatus.isRunning) {
+                statusIndicator.className = 'status-indicator running';
+                statusText.textContent = 'Server Running';
+                openBrowserButton.disabled = false;
+            } else {
+                statusIndicator.className = 'status-indicator';
+                statusText.textContent = 'Server Stopped';
+                openBrowserButton.disabled = true;
+            }
+            
+            updateServerUrl();
+        }
+        
+        function updateServerUrl() {
+            const port = serverPort.value || serverStatus.port;
+            const host = serverHost.value || serverStatus.host;
+            const displayHost = host === '0.0.0.0' ? 'localhost' : host;
+            serverUrl.textContent = `http://${displayHost}:${port}`;
+        }
+        
+        async function changePort() {
+            try {
+                const configData = {
+                    httpRemotePort: parseInt(serverPort.value),
+                    httpRemoteHost: serverHost.value
+                };
+                
+                changePortButton.disabled = true;
+                changePortButton.textContent = 'Changing...';
+                
+                const result = await ipcRenderer.invoke('update-config', configData);
+                
+                if (result.success) {
+                    console.log('Port changed successfully');
+                    // Wait a moment for server to restart
+                    setTimeout(() => {
+                        updateServerStatus();
+                    }, 2000);
+                } else {
+                    console.error('Failed to change port:', result.error);
+                    alert('Failed to change port: ' + result.error);
+                }
+                
+                changePortButton.disabled = false;
+                changePortButton.textContent = 'Change Port';
+            } catch (error) {
+                console.error('Error changing port:', error);
+                alert('Failed to change port: ' + error.message);
+                changePortButton.disabled = false;
+                changePortButton.textContent = 'Change Port';
+            }
+        }
+        
+        async function openBrowserUI() {
+            try {
+                await ipcRenderer.invoke('open-browser-ui');
+            } catch (error) {
+                console.error('Error opening browser UI:', error);
+                alert('Failed to open browser UI: ' + error.message);
+            }
+        }
+        
+        async function openDataDirectory() {
+            try {
+                const dataDir = await ipcRenderer.invoke('get-data-directory');
+                require('electron').shell.openPath(dataDir);
+            } catch (error) {
+                console.error('Error opening data directory:', error);
+                alert('Failed to open data directory: ' + error.message);
+            }
+        }
+        
+        async function loadConfig() {
+            try {
+                const config = await ipcRenderer.invoke('get-config');
+                
+                // Load configuration values into form fields
+                if (config.httpRemotePort) {
+                    serverPort.value = config.httpRemotePort;
+                }
+                
+                if (config.httpRemoteHost) {
+                    serverHost.value = config.httpRemoteHost;
+                } else {
+                    serverHost.value = 'localhost';
+                }
+                
+                console.log('Configuration loaded:', config);
+            } catch (error) {
+                console.error('Error loading config:', error);
+            }
+        }
+    </script>
+</body>
+</html>

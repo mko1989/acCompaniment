@@ -1,0 +1,159 @@
+/* General Button Styling */
+button, .btn {
+    background-color: #555;
+    color: #eee;
+    border: 1px solid #666;
+    padding: 8px 12px;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-family: 'Rewir', sans-serif;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    box-sizing: border-box;
+}
+
+button:hover, .btn:hover {
+    background-color: #666;
+}
+
+button:active, .btn:active {
+    background-color: #777;
+}
+
+/* General icon styling for buttons */
+.btn-icon {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+}
+
+/* Config Toggle Button (now in sidebar) */
+#configToggleBtn {
+    background-color: var(--button-secondary-bg);
+    border: 1px solid var(--button-secondary-border);
+    color: var(--text-color);
+    padding: 8px; /* Adjusted padding */
+}
+
+
+/* Global Controls Buttons in Top Bar */
+
+/* Specific styles for Stop All and Mode Toggle buttons using their IDs directly for higher specificity if needed */
+#stopAllButton {
+    padding: 0 !important; 
+    width: 50px !important; 
+    height: 60px !important;
+    background-color: var(--maroon-bg) !important;
+    border: 1px solid #666 !important; 
+    /* Ensure flex properties from .btn are maintained or re-declared if necessary for icon centering */
+    display: inline-flex !important; 
+    align-items: center !important;
+    justify-content: center !important;
+}
+#stopAllButton:hover {
+    background-color: #600000 !important; 
+}
+#stopAllButton .btn-icon {
+    width: 40px !important; 
+    height: 50px !important;
+    object-fit: contain !important;
+    margin: 0 !important; /* Ensure no margin on icon itself */
+}
+
+#modeToggleBtn {
+    padding: 0 !important; 
+    width: 60px !important; 
+    height: 60px !important;
+    background-color: #555 !important;
+    border: 1px solid #666 !important;
+    /* Ensure flex properties from .btn are maintained or re-declared if necessary for icon centering */
+    display: inline-flex !important; 
+    align-items: center !important;
+    justify-content: center !important;
+}
+#modeToggleBtn:hover {
+    background-color: #666 !important;
+}
+#modeToggleBtn.show-mode-active {
+    background-color: #E74C3C !important; 
+}
+#modeToggleBtn.show-mode-active:hover {
+    background-color: #C0392B !important;
+}
+#modeToggleBtn .btn-icon {
+    width: 55px !important; /* Increased width */
+    height: 55px !important; /* Increased height */
+    object-fit: contain !important;
+    margin: 0 !important; /* Ensure no margin on icon itself */
+}
+
+/* Add Files Button */
+#addFilesButton {
+    padding: 0 !important; 
+    width: 60px !important; 
+    height: 60px !important;
+    background-color: #555 !important; /* Gray background to match other buttons */
+    border: 1px solid #666 !important;
+    display: inline-flex !important; 
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 24px !important;
+    font-weight: bold !important;
+}
+#addFilesButton:hover {
+    background-color: #666 !important; /* Darker gray on hover */
+}
+#addFilesButton .btn-label {
+    color: white !important;
+    font-size: 24px !important;
+    font-weight: bold !important;
+    line-height: 1 !important;
+}
+
+
+
+/* Sidebar action buttons */
+.sidebar-content button {
+    /* General button styles apply here */
+    width: 100%;
+    margin-top: 5px;
+}
+
+
+
+#deleteCuePropertiesButton {
+    background-color: #dc3545; /* Red */
+}
+#deleteCuePropertiesButton:hover {
+    background-color: #c82333; /* Darker Red */
+}
+
+.btn-small {
+    padding: 5px 10px;
+    font-size: 0.9em;
+}
+
+/* Close button styling (generic, used in modals and sidebars) */
+.close-button {
+    color: #aaaaaa;
+    font-size: 28px;
+    font-weight: bold;
+    background: none;
+    border: none;
+    padding: 0;
+    line-height: 1;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: #ffffff;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+#propertiesSidebar .close-button {
+    align-self: flex-end;
+}

@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>acCompaniment Remote</title>
+    <link rel="icon" type="image/png" href="../../assets/icons/icon.png">
+    <style>
+        body {
+            font-family: 'Rewir', 'Arial', 'Helvetica', sans-serif; /* Default font with fallbacks */
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 0; /* Remove body padding, header will manage its own */
+            display: flex;
+            flex-direction: column;
+            /* align-items: center; Removed, header is full width */
+        }
+        .remote-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #2a2a2a; /* Slightly different header background */
+            padding: 10px 15px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .remote-header-left {
+            display: flex;
+            align-items: center;
+        }
+        .remote-header-icon {
+            width: 32px; /* Adjust size as needed */
+            height: 32px;
+            margin-right: 10px;
+        }
+        .remote-header h1 { /* Target h1 inside .remote-header */
+            font-family: 'Apropal', 'Arial', 'Helvetica', sans-serif; /* Title font with fallbacks */
+            font-size: 1.8em; 
+            color: #e0e0e0;
+            margin: 0; /* Remove default h1 margins */
+        }
+        #cueGridRemote {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            width: 100%;
+            max-width: 900px; /* Max width for the grid */
+            padding: 10px; /* Add padding around the grid */
+            margin: 0 auto; /* Center the grid */
+            box-sizing: border-box;
+        }
+        .cue-button-remote {
+            aspect-ratio: 1 / 0.7; /* More rectangular */
+            background-color: #3a3a3a;
+            border: 1px solid #555555;
+            border-radius: 5px;
+            text-align: center;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+        .cue-button-remote:hover {
+            background-color: #4a4a4a;
+            border-color: #666666;
+        }
+        .cue-button-remote.playing {
+            background-color: #228b22; /* ForestGreen */
+            color: white;
+        }
+        .cue-button-remote.playing:hover {
+            background-color: #1e7e1e;
+        }
+         .cue-button-remote.paused {
+            background-color: #d97700; /* DarkOrange */
+            color: white;
+        }
+        .cue-button-remote.paused:hover {
+            background-color: #b36200;
+        }
+        .cue-button-remote.cued {
+            background-color: #ff8c00; /* Orange for cued state */
+            color: white;
+        }
+        .cue-button-remote.cued:hover {
+            background-color: #e67300;
+        }
+        .cue-button-remote .name {
+            font-weight: bold;
+            font-size: 0.9em;
+            word-break: break-word;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+        .cue-button-remote .playlist-item-name {
+            font-size: 0.8em;
+            font-style: italic;
+            color: #bbbbbb;
+            margin-top: 3px;
+        }
+        .cue-button-remote .times {
+            font-size: 0.75em;
+            color: #cccccc;
+            width: 100%;
+            margin-top: 4px;
+        }
+        .cue-button-remote .times .separator {
+            margin: 0 2px;
+        }
+         .cue-button-remote .times .remaining {
+            margin-left: 4px;
+            color: #bbbbbb;
+        }
+        #stopAllButtonRemote {
+            background-color: #703030; /* Dark red */
+            color: white;
+            border: 1px solid #8c3c3c;
+            padding: 8px; 
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 50px; /* Adjusted size for header */
+            height: 70px; /* Adjusted size for header */
+            margin: 0; /* Remove margins, positioning handled by flex parent */
+        }
+        #stopAllButtonRemote:hover {
+            background-color: #8c3c3c;
+        }
+        .btn-icon-remote {
+            width: 40px; /* Adjusted icon size for new button size */
+            height: 40px; 
+        }
+    </style>
+</head>
+<body>
+    <div class="remote-header">
+        <div class="remote-header-left">
+            <img src="../../assets/icons/icon.png" alt="acCompaniment Icon" class="remote-header-icon">
+            <h1>acCompaniment</h1>
+        </div>
+        <button id="stopAllButtonRemote">
+            <img src="../../assets/icons/dont panic.png" alt="Stop All" class="btn-icon-remote">
+        </button>
+    </div>
+    
+    <!-- Diagnostic section removed -->
+    
+    <div id="cueGridRemote"></div>
+
+    <script>
+        // Ensure this path is correct relative to where remote.html is served from
+        // If main.js serves httpServer.js from acCompaniment/src/main, and remote.html is in acCompaniment/src/renderer/remote_control
+        // and assets are in acCompaniment/assets, then the path from the HTML to the asset is indeed ../../assets/icons/
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(`${wsProtocol}//${window.location.host}`);
+
+        const cueGridRemote = document.getElementById('cueGridRemote');
+        const stopAllButtonRemote = document.getElementById('stopAllButtonRemote');
+        let currentCues = {}; // Store current cue data
+        let isTriggeringCueLocked = false; // Global lock for cue triggering
+        const CUE_TRIGGER_LOCK_MS = 500; // Lock duration
+        
+        // Diagnostic UI removed
+
+        // --- DEBOUNCE FUNCTION ---
+        function debounce(func, delay) {
+            let timeout;
+            return function(...args) {
+                const context = this;
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(context, args), delay);
+            };
+        }
+        // --- END DEBOUNCE FUNCTION ---
+        
+        // Diagnostic functions
+        function noop() {}
+        
+        function updateMessageInfo(message) {}
+        
+        function testConnection() {}
+        
+        function logDiagnosticInfo() {}
+        
+        // Diagnostic UI removed
+
+        ws.onopen = () => {
+            console.log('Connected to acCompaniment WebSocket');
+            // Diagnostic UI removed
+            ws.send(JSON.stringify({ action: 'request_all_cues_for_remote' }));
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const message = JSON.parse(event.data);
+                updateMessageInfo(message);
+                
+                if (message.type === 'all_cues') {
+                    currentCues = {}; // Reset
+                    if (message.payload && Array.isArray(message.payload)) {
+                        message.payload.forEach(cue => currentCues[cue.id] = cue);
+                        renderAllCuesRemote(message.payload);
+                        
+                    } else {
+                        console.error('[DIAGNOSTIC] Remote received all_cues but payload is missing or not an array:', message);
+                        renderAllCuesRemote([]); // Render empty or handle error
+                    }
+                } else if (message.type === 'remote_cue_update') {
+                    if (currentCues[message.cue.id]) {
+                        Object.assign(currentCues[message.cue.id], message.cue); // Update stored cue
+                        updateCueButtonRemote(message.cue);
+                        
+                    } else {
+                        currentCues[message.cue.id] = message.cue; // Add if new
+                        // Potentially re-render all or append new, for simplicity, could request all cues again
+                        // or just append. For now, we assume updates are for existing.
+                        // To handle new cues appearing dynamically, we might need to re-render the grid or add intelligently.
+                        // A simple approach for now:
+                        ws.send(JSON.stringify({ action: 'request_all_cues_for_remote' }));
+                        
+                    }
+                } else if (message.action === 'pong') {
+                    
+                } else {
+                    
+                }
+            } catch (error) {
+                console.error('Error parsing WebSocket message:', error);
+                console.error('Raw message:', event.data);
+            }
+        };
+
+        ws.onclose = (event) => {
+            console.log('WebSocket connection closed:', event.code, event.reason);
+            cueGridRemote.innerHTML = `<p style="color: #ff6b6b; text-align: center;">Connection lost. Please refresh the page.</p>`;
+        };
+
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+            cueGridRemote.innerHTML = `<p style="color: #ff6b6b; text-align: center;">Connection error. Please refresh.</p>`;
+        };
+
+        // Debounced triggerCue function
+        const debouncedTriggerCue = debounce(function(cueId) {
+            if (isTriggeringCueLocked) {
+                console.log(`REMOTE.HTML: Trigger for ${cueId} blocked by global lock.`);
+                return;
+            }
+            
+            console.log(`REMOTE.HTML: Sending trigger_cue for ${cueId}`);
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ action: 'trigger_cue', cueId: cueId }));
+                
+                isTriggeringCueLocked = true;
+                console.log(`REMOTE.HTML: Global cue trigger lock ENGAGED for ${CUE_TRIGGER_LOCK_MS}ms.`);
+                setTimeout(() => {
+                    isTriggeringCueLocked = false;
+                    console.log('REMOTE.HTML: Global cue trigger lock RELEASED.');
+                }, CUE_TRIGGER_LOCK_MS);
+            }
+        }, 300); // 300ms debounce
+
+        // Debounced stopAllCues function
+        const debouncedStopAllCues = debounce(function() {
+            console.log('REMOTE.HTML: Sending stop_all_cues');
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ action: 'stop_all_cues' }));
+            }
+        }, 300);
+
+        function formatTimeMMSS(seconds, showMs = false) {
+            if (isNaN(seconds) || seconds === null || seconds === undefined) {
+                return showMs ? "0:00.0" : "0:00";
+            }
+            const isNegative = seconds < 0;
+            const absSeconds = Math.abs(seconds);
+            const m = Math.floor(absSeconds / 60);
+            const s = Math.floor(absSeconds % 60);
+            const ms = Math.floor((absSeconds - Math.floor(absSeconds)) * 10);
+            return `${isNegative ? '-' : ''}${m}:${s < 10 ? '0' : ''}${s}${showMs ? '.' + ms : ''}`;
+        }
+        
+        function updateButtonTextContent(button, cue) {
+            const nameElem = button.querySelector('.name');
+            const timesElem = button.querySelector('.times');
+            const currentElem = button.querySelector('.current-time');
+            const totalElem = button.querySelector('.total-time');
+            const remainingElem = button.querySelector('.remaining-time');
+            const separatorElem = button.querySelector('.separator');
+
+            let baseName = cue.name || 'Unnamed Cue';
+            let playlistInfo = '';
+
+            if (cue.type === 'playlist') {
+                if (cue.status === 'playing' || cue.status === 'paused') {
+                    if (cue.playlistItemName) {
+                        playlistInfo += `<span class="playlist-item-name">(${cue.status === 'playing' ? 'Now' : 'Paused'}: ${cue.playlistItemName})</span>`;
+                    }
+                    if (cue.nextPlaylistItemName) {
+                        playlistInfo += `<span class="playlist-item-name">(Next: ${cue.nextPlaylistItemName})</span>`;
+                    }
+                } else if (cue.status === 'cued' || cue.status === 'stopped' || !cue.status) { // Idle or cued
+                     if (cue.nextPlaylistItemName) {
+                        playlistInfo = `<span class="playlist-item-name">(Next: ${cue.nextPlaylistItemName})</span>`;
+                    }
+                }
+            }
+            nameElem.innerHTML = baseName + (playlistInfo ? `<br>${playlistInfo}` : '');
+            
+            let currentTimeS = cue.currentTimeS || 0;
+            // Prioritize live duration, then initial trimmed, then original known duration.
+            let totalDurationS = cue.currentItemDurationS; // This should be live/actual item duration
+            if (totalDurationS === undefined || totalDurationS === null) {
+                totalDurationS = cue.initialTrimmedDurationS; // From all_cues payload
+            }
+            if (totalDurationS === undefined || totalDurationS === null) {
+                totalDurationS = cue.knownDurationS; // Original file duration from all_cues
+            }
+             if (totalDurationS === undefined || totalDurationS === null) {
+                totalDurationS = 0;
+            }
+
+
+            let remainingTimeS = totalDurationS - currentTimeS;
+            if (remainingTimeS < 0) remainingTimeS = 0;
+
+
+            currentElem.textContent = formatTimeMMSS(currentTimeS);
+            totalElem.textContent = formatTimeMMSS(totalDurationS);
+            remainingElem.textContent = (currentTimeS > 0 || totalDurationS > 0) ? `-${formatTimeMMSS(remainingTimeS)}` : '';
+            separatorElem.style.display = (currentTimeS > 0 || totalDurationS > 0) ? 'inline' : 'none';
+            remainingElem.style.display = (currentTimeS > 0 || totalDurationS > 0) ? 'inline' : 'none';
+        }
+
+
+        function renderAllCuesRemote(cues) {
+            cueGridRemote.innerHTML = ''; // Clear existing
+            if (!cues || cues.length === 0) {
+                cueGridRemote.innerHTML = '<p style="text-align: center; color: #888;">No cues available.</p>';
+                return;
+            }
+            cues.forEach(cue => {
+                const button = document.createElement('div');
+                button.className = 'cue-button-remote';
+                button.dataset.cueId = cue.id;
+                
+                // Unique ID for the button element for easier updates
+                button.id = `cue-btn-${cue.id}`;
+
+                // Structure for name and times
+                button.innerHTML = `
+                    <span class="name"></span>
+                    <div class="times">
+                        <span class="current-time"></span>
+                        <span class="separator">/</span>
+                        <span class="total-time"></span>
+                        <span class="remaining-time"></span>
+                    </div>
+                `;
+                
+                updateButtonTextContent(button, cue); // Initial text and time
+                updateButtonStatusClass(button, cue.status); // Initial appearance
+
+                // Use the debounced function in the event listener
+                button.addEventListener('click', () => debouncedTriggerCue(cue.id)); 
+                
+                cueGridRemote.appendChild(button);
+            });
+        }
+
+        function updateCueButtonRemote(cue) {
+            const button = cueGridRemote.querySelector(`.cue-button-remote[data-cue-id="${cue.id}"]`);
+            if (button) {
+                updateButtonTextContent(button, cue);
+                updateButtonStatusClass(button, cue.status);
+            }
+        }
+
+        function updateButtonStatusClass(button, status) {
+            button.classList.remove('playing', 'paused', 'cued');
+            if (status === 'playing') {
+                button.classList.add('playing');
+            } else if (status === 'paused') {
+                button.classList.add('paused');
+            } else if (status === 'cued') {
+                button.classList.add('cued');
+            }
+        }
+        
+        if (stopAllButtonRemote) {
+            stopAllButtonRemote.addEventListener('click', debouncedStopAllCues);
+        }
+
+    </script>
+</body>
+</html>

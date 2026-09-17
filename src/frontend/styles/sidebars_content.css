@@ -1,0 +1,177 @@
+/* Shared form group styling for sidebars */
+.sidebar-content .form-group {
+    margin-bottom: 10px;
+}
+
+.sidebar-content label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    font-size: 0.9em;
+    color: #cccccc; /* Lighter label text */
+}
+
+.sidebar-content input[type="text"],
+.sidebar-content input[type="number"],
+.sidebar-content select {
+    width: calc(100% - 20px); /* Account for padding inside form-group or direct child of sidebar-content */
+    padding: 8px;
+    border: 1px solid var(--button-secondary-border);
+    border-radius: var(--border-radius);
+    box-sizing: border-box;
+    background-color: var(--button-secondary-bg);
+    color: var(--text-color);
+}
+.sidebar-content input[type="text"]::placeholder,
+.sidebar-content input[type="number"]::placeholder {
+    color: #aaaaaa; /* Lighter placeholder text */
+}
+
+/* Specific style for OSC Path input */
+#propOscTriggerPath {
+    width: auto; /* Override the general sidebar input width */
+    min-width: 50px;
+    flex-grow: 1; /* If in a flex container */
+}
+
+.sidebar-content input[type="range"] {
+    width: calc(70% - 10px); /* Adjust as needed */
+    vertical-align: middle;
+}
+.sidebar-content .volume-display { /* e.g. #defaultVolumeValueDisplay */
+    display: inline-block;
+    width: 25%;
+    text-align: right;
+    vertical-align: middle;
+    font-size: 0.9em;
+    color: #cccccc;
+}
+
+/* Playlist Styling in Properties Sidebar */
+#propPlaylistConfig ul, /* From cue properties */
+#playlistConfig ul /* From old modal style - can be removed if modal has its own specific one */
+{
+    list-style-type: none;
+    padding: 0;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--button-secondary-border);
+    border-radius: var(--border-radius);
+    margin-bottom: 5px;
+    background-color: var(--button-secondary-bg);
+}
+
+#propPlaylistConfig ul li,
+#playlistConfig ul li
+{
+    padding: 6px;
+    font-size: 0.9em;
+    border-bottom: 1px solid #4f4f4f; /* Darker separator */
+    color: #cccccc;
+}
+#propPlaylistConfig ul li:last-child,
+#playlistConfig ul li:last-child
+{
+    border-bottom: none;
+}
+
+#propPlaylistItems li {
+    display: flex;
+    align-items: center;
+    padding: 5px;
+    margin-bottom: 3px;
+    border: 1px solid var(--button-secondary-border);
+    border-radius: 3px;
+    background-color: #333333;
+    color: #cccccc;
+}
+
+.playlist-item-drag-handle {
+    cursor: grab;
+    padding: 0 8px 0 4px;
+    margin-right: 5px;
+    color: #bbbbbb;
+    font-size: 1.2em;
+    line-height: 1;
+}
+
+.playlist-item-drag-handle:active {
+    cursor: grabbing;
+}
+
+#propPlaylistItems li .playlist-item-name {
+    flex-grow: 1;
+    margin-left: 5px;
+    margin-right: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #cccccc;
+}
+
+#propPlaylistItems li .playlist-item-duration {
+    color: #aaaaaa;
+    font-size: 0.9em;
+    margin-left: 8px;
+    white-space: nowrap;
+}
+
+#propPlaylistItems li .remove-playlist-item-btn {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    font-size: 1.2em;
+    line-height: 1;
+    background-color: #555555;
+    border: 1px solid #666666;
+    color: #eeeeee;
+    cursor: pointer;
+    flex-shrink: 0;
+    border-radius: 3px;
+    margin-left: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#propPlaylistItems li .remove-playlist-item-btn:hover {
+    background-color: #6a6a6a;
+    color: #ffffff;
+}
+
+/* Drag-and-drop feedback for playlist items */
+#propPlaylistItems li.dragging-playlist-item {
+    opacity: 0.6;
+    background-color: #404040;
+    border-style: dashed;
+}
+
+#propPlaylistItems li.drag-over-playlist-item {
+    border-color: var(--button-primary-bg);
+    background-color: #2a2d2f;
+}
+
+/* Highlight for currently playing item in properties sidebar playlist */
+.playlist-item-playing {
+    background-color: var(--cue-playing-bg) !important;
+    color: white !important;
+    border-color: #2cb72c !important; /* A slightly lighter green for border */
+    /* Mac M1 rendering fixes */
+    transform: translateZ(0); /* Force hardware acceleration */
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transition: background-color 0.1s ease, color 0.1s ease, border-color 0.1s ease;
+}
+.playlist-item-playing .playlist-item-name,
+.playlist-item-playing .playlist-item-drag-handle {
+    color: white !important;
+    /* Mac M1 rendering fixes */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+}
+.playlist-item-playing .playlist-item-duration {
+    color: #e0e0e0 !important;
+    /* Mac M1 rendering fixes */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+} 

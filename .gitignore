@@ -1,0 +1,8 @@
+node_modules/
+dist/
+tmp/
+.DS_Store
+electron-launcher/dist/
+electron-launcher/node_modules/
+*.log
+.claude/

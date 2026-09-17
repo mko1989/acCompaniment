@@ -1,0 +1,180 @@
+const { contextBridge, ipcRenderer } = require('electron');
+
+console.log("PRELOAD_DEBUG: Script start. Setting up mainProcessReadyPromise...");
+
+// ===== TEMPORARY DIAGNOSTIC LISTENER ======
+let mainReadySignalReceived = false;
+ipcRenderer.on('main-process-ready', () => {
+  mainReadySignalReceived = true;
+  console.log("PRELOAD_DEBUG_INFO: 'main-process-ready' RECEIVED BY DIRECT .on() LISTENER (this is for debug, normal operation uses .once() below).");
+  // Attempt to notify renderer in a very crude way if promise isn't working
+  if (window) { window._manualMainReadySignal = true; }
+});
+// ===== END TEMPORARY DIAGNOSTIC LISTENER ======
+
+// Original Promise that resolves when the main process signals it's ready
+const mainProcessReadyPromise = new Promise((resolve, reject) => {
+  console.log("PRELOAD_DEBUG: mainProcessReadyPromise - ipcRenderer.once for 'main-process-ready' is being set up NOW.");
+  const timeout = setTimeout(() => {
+    console.error("PRELOAD_DEBUG_CRITICAL: Timeout waiting for 'main-process-ready' via ipcRenderer.once. Manually received by .on():", mainReadySignalReceived);
+    if(mainReadySignalReceived) {
+        resolve(true); // If the .on() caught it, resolve the promise
+    } else {
+        reject(new Error('Timeout waiting for main-process-ready signal even with direct .on() check.'));
+    }
+  }, 30000); // 30 second timeout
+
+  ipcRenderer.once('main-process-ready', () => {
+    clearTimeout(timeout);
+    console.log("PRELOAD: Received 'main-process-ready' signal (via .once()).");
+    mainReadySignalReceived = true; // Ensure this is also set here
+    resolve(true);
+  });
+});
+
+contextBridge.exposeInMainWorld('electronAPI', {
+  // Wait for main process to be ready before proceeding with other calls
+  whenMainReady: () => mainProcessReadyPromise,
+
+  // Generic IPC utilities (if still needed directly, though specific ones are better)
+  send: (channel, data) => ipcRenderer.send(channel, data),
+  invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args),
+  on: (channel, callback) => {
+    const validChannels = [
+      'main-process-ready', 
+      'cues-updated-from-main',
+      'app-config-updated-from-main',
+      'cue-status-update',
+      'playback-started',
+      'playback-stopped',
+      'playback-paused',
+      'playback-resumed',
+      'playback-error',
+      'active-cue-changed',
+      'playlist-item-changed',
+      'audio-outputs-updated',
+      'workspace-did-change',
+      'theme-changed-from-main',
+      'test-ipc-event',
+      // Channels for Companion control
+      'play-audio-by-id',
+      'stop-audio-by-id',
+      'toggle-audio-by-id',
+      'stop-all-audio',
+      'trigger-cue-by-id-from-main',
+      // Playlist navigation channels
+      'playlist-navigate-next-from-main',
+      'playlist-navigate-previous-from-main',
+      // Add other channels as needed
+      'mixer-subscription-feedback',
+      'playback-time-update-from-main',
+      'highlight-playing-item'
+    ];
+    if (validChannels.includes(channel)) {
+      // Valid channel: register IPC listener
+      ipcRenderer.on(channel, (event, ...args) => {
+        // Log for ALL valid channels coming through preload
+        console.log(`PRELOAD: IPC event received on channel "${channel}". Args count: ${args.length ? args.length : '0'}. First arg preview:`, args.length > 0 ? (typeof args[0] === 'object' ? JSON.stringify(args[0]).substring(0,100) + '...' : args[0]) : 'N/A');
+        
+        if (channel === 'app-config-updated-from-main') {
+            console.log('PRELOAD DEBUG: app-config-updated-from-main SPECIFICALLY received with args:', args);
+        }
+        if (channel === 'cues-updated-from-main') {
+            console.log('PRELOAD DEBUG: cues-updated-from-main SPECIFICALLY received with args count:', args.length > 0 && args[0] ? args[0].length : 'N/A or empty');
+        }
+        callback(...args);
+      });
+    } else {
+      console.warn(`Preload: Ignoring registration for invalid channel: ${channel}`);
+    }
+  },
+
+  // Specific IPC calls previously in ipcRendererBindings.js (or equivalent)
+  getCuesFromMain: () => ipcRenderer.invoke('get-cues'),
+  saveCuesToMain: (cues) => ipcRenderer.invoke('save-cues', cues),
+  addOrUpdateCue: (cueData) => ipcRenderer.invoke('add-or-update-cue', cueData),
+  deleteCue: (cueId) => ipcRenderer.invoke('delete-cue', cueId),
+  getAppConfig: () => ipcRenderer.invoke('get-initial-config'),
+  saveAppConfig: (config) => ipcRenderer.invoke('save-app-config', config),
+  getAudioOutputDevices: () => ipcRenderer.invoke('get-audio-output-devices'),
+  getHttpRemoteInfo: () => ipcRenderer.invoke('get-http-remote-info'),
+  getAudioFileBuffer: (filePath) => ipcRenderer.invoke('get-audio-file-buffer', filePath),
+
+
+  // Waveform Related
+  getOrGenerateWaveformPeaks: (filePath) => ipcRenderer.invoke('get-or-generate-waveform-peaks', filePath),
+  getAudioFileDuration: (filePath) => ipcRenderer.invoke('get-media-duration', filePath), // Assuming this is the correct channel
+
+  // CueStore related notifications from main
+  onCueListUpdated: (callback) => ipcRenderer.on('cues-updated-from-main', (_event, cues) => callback(cues)),
+  onClearCueSelection: (callback) => ipcRenderer.on('clear-cue-selection', () => callback()),
+
+  // Workspace related IPC calls
+  newWorkspace: () => ipcRenderer.invoke('new-workspace'),
+  openWorkspaceDialog: () => ipcRenderer.invoke('open-workspace-dialog'),
+  loadWorkspace: (filePath) => ipcRenderer.invoke('load-workspace', filePath),
+  saveWorkspace: () => ipcRenderer.invoke('save-workspace'),
+  saveWorkspaceAsDialog: () => ipcRenderer.invoke('save-workspace-as-dialog'),
+  getRecentWorkspaces: () => ipcRenderer.invoke('get-recent-workspaces'),
+  clearRecentWorkspaces: () => ipcRenderer.invoke('clear-recent-workspaces'),
+  onWorkspaceChanged: (callback) => ipcRenderer.on('workspace-did-change', (_event, newPath, newName) => callback(newPath, newName)),
+  onWorkspaceError: (callback) => ipcRenderer.on('workspace-error', (_event, errorMsg) => callback(errorMsg)),
+  onWorkspaceSaved: (callback) => ipcRenderer.on('workspace-saved', (_event, name, path) => callback(name, path)),
+  onSettingsChanged: (callback) => ipcRenderer.on('settings-changed', (_event, settings) => callback(settings)),
+
+  // Audio Playback Control via Main (for OSC/MIDI triggers)
+  // No specific sender needed here if main directly sends 'toggle-audio-by-id'
+  // However, we need the listener for it if it was previously in ipcRendererBindings
+  onToggleAudioById: (callback) => ipcRenderer.on('toggle-audio-by-id', (_event, cueId) => callback(cueId)),
+
+  // UI related
+  showOpenDialog: (options) => ipcRenderer.invoke('show-open-dialog', options),
+  showSaveDialog: (options) => ipcRenderer.invoke('show-save-dialog', options),
+  showErrorBox: (title, content) => ipcRenderer.send('show-error-box', title, content),
+  showConfirmationDialog: (options) => ipcRenderer.invoke('show-confirmation-dialog', options),
+
+  // UUID Generation
+  generateUUID: () => ipcRenderer.invoke('generate-uuid'),
+
+  // File System Access Proxies
+  checkFileExists: (filePath) => ipcRenderer.invoke('fs-check-file-exists', filePath),
+  copyFile: (sourcePath, destPath) => ipcRenderer.invoke('fs-copy-file', sourcePath, destPath),
+  deleteFile: (filePath) => ipcRenderer.invoke('fs-delete-file', filePath),
+
+  // Window Management
+  closeWindow: () => ipcRenderer.send('close-window'),
+  minimizeWindow: () => ipcRenderer.send('minimize-window'),
+  maximizeWindow: () => ipcRenderer.send('maximize-window'),
+  unmaximizeWindow: () => ipcRenderer.send('unmaximize-window'),
+  isWindowMaximized: () => ipcRenderer.invoke('is-window-maximized'),
+  setFullScreen: (flag) => ipcRenderer.send('set-full-screen', flag),
+  isFullScreen: () => ipcRenderer.invoke('is-full-screen'),
+
+  // Menu related
+  updateMenuIPC: () => ipcRenderer.send('update-menu'),
+
+  // App Info
+  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+
+  // Clipboard
+  writeToClipboard: (text) => ipcRenderer.invoke('write-to-clipboard', text),
+
+  // Generic way to register multiple listeners, if preferred by a module
+  registerListeners: (listeners) => {
+    const unsubscribers = [];
+    for (const channel in listeners) {
+      if (typeof listeners[channel] === 'function') {
+        const handler = (event, ...args) => listeners[channel](...args);
+        ipcRenderer.on(channel, handler);
+        unsubscribers.push(() => ipcRenderer.removeListener(channel, handler));
+      }
+    }
+    return () => unsubscribers.forEach(unsub => unsub());
+  },
+
+  // For Easter Egg game
+  openEasterEggGame: () => ipcRenderer.send('open-easter-egg-game')
+});
+
+
+console.log('Preload script loaded (Drag/drop listeners removed from preload)'); 

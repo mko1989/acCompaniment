@@ -1,0 +1,276 @@
+#cueGridContainer {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 150px);
+    gap: 15px;
+    align-content: start;
+    margin-top: 0; /* mainContent has padding */
+    flex-grow: 1;
+}
+
+.cue-button {
+    padding: 10px;
+    background-color: var(--cue-default-bg);
+    border: 1px solid var(--button-secondary-border);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    color: var(--text-color);
+    box-sizing: border-box;
+}
+
+.cue-button:hover {
+    background-color: var(--button-secondary-bg);
+    border-color: var(--button-secondary-border);
+}
+
+.cue-status-indicator {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    line-height: 1;
+}
+
+.cue-status-icon {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.wing-link-label {
+    font-size: 0.6em;
+    color: var(--button-primary-bg);
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    padding: 1px 3px;
+    background-color: rgba(255,255,255,0.05);
+    border-radius: 3px;
+    line-height: 1;
+    max-width: 50%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cue-button-name-container {
+    font-weight: bold;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    color: var(--text-color);
+    overflow: hidden;
+    padding: 0 2px;
+}
+
+.cue-button-main-name,
+.cue-button .playlist-now-playing,
+.cue-button .playlist-next-item-playing,
+.cue-button .next-playlist-item {
+    display: block;
+    width: 100%;
+    text-align: center;
+}
+
+.cue-button-main-name {
+    font-weight: bold;
+    white-space: normal;
+    line-height: 1.2;
+}
+
+/* Make main name of a playlist cue smaller */
+.cue-button:has(.playlist-now-playing) .cue-button-main-name,
+.cue-button:has(.playlist-next-item-playing) .cue-button-main-name,
+.cue-button:has(.next-playlist-item) .cue-button-main-name {
+    font-size: 0.8em; /* Smaller font size for playlist's main name */
+    font-weight: normal; /* Less emphasis */
+    margin-bottom: 0px; /* Reduce space below playlist's main name */
+    line-height: 1.1;
+}
+
+.cue-button .now-playing-item,
+.cue-button .playlist-info,
+.cue-button .playlist-now-playing,
+.cue-button .playlist-next-item-playing,
+.cue-button .next-playlist-item {
+    font-size: 0.8em;
+    font-weight: normal;
+    color: var(--text-secondary-color);
+    margin-top: 0px; /* Reduced margin for tighter packing */
+    line-height: 1.1;
+    white-space: normal; /* Allow wrapping */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-height: calc(1.1em * 2); /* Approx 2 lines (line-height * 2) */
+    /* For a more precise 2-line clamp with ellipsis at the end of the 2nd line, CSS is limited. */
+    /* This will show ellipsis if content exceeds two lines height. */
+}
+
+.cue-button .next-playlist-item {
+    font-size: 0.75em;
+    color: var(--text-secondary-color);
+}
+
+.cue-time-display-container {
+    font-size: 0.85em;
+    color: var(--text-color);
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: auto;
+    padding-top: 2px;
+    flex-shrink: 0;
+}
+
+.cue-time-separator {
+    margin: 0 3px;
+}
+
+.cue-time-remaining {
+    margin-left: 5px;
+    font-size: 0.9em;
+    color: var(--text-secondary-color);
+}
+
+/* Cue Button States */
+.cue-button.playing {
+    background-color: var(--cue-playing-bg, #4CAF50);
+    border-color: var(--cue-playing-border, #45a049);
+}
+.cue-button.playing .cue-status-indicator,
+.cue-button.playing .now-playing-item,
+.cue-button.playing .playlist-now-playing,
+.cue-button.playing .playlist-next-item-playing,
+.cue-button.playing .cue-time-display-container,
+.cue-button.playing .cue-time-remaining {
+    color: white;
+}
+.cue-button.playing:hover {
+    background-color: #4CAF50; /* Lighter green for playing button hover */
+}
+
+/* Enhanced visual feedback for playlist playing state */
+.cue-button.playing[data-cue-type="playlist"] {
+    animation: playlist-playing-pulse 2s ease-in-out infinite;
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+}
+
+@keyframes playlist-playing-pulse {
+    0% {
+        box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(76, 175, 80, 0.8);
+    }
+    100% {
+        box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+    }
+}
+
+.cue-button.paused {
+    background-color: var(--cue-paused-bg, #FF9800);
+    border-color: var(--cue-paused-border, #e68900);
+}
+.cue-button.paused .cue-status-indicator,
+.cue-button.paused .now-playing-item,
+.cue-button.paused .playlist-now-playing,
+.cue-button.paused .playlist-next-item-playing,
+.cue-button.paused .cue-time-display-container,
+.cue-button.paused .cue-time-remaining {
+    color: var(--text-color); /* Lighter orange for text on orange */
+}
+.cue-button.paused:hover {
+    background-color: var(--button-primary-hover-bg); /* Darker orange */
+}
+
+.cue-button.cued {
+    background-color: var(--cue-cued-bg, #ff8c00);
+    border-color: var(--cue-cued-border, #e67300);
+}
+.cue-button.cued .cue-status-indicator,
+.cue-button.cued .now-playing-item,
+.cue-button.cued .next-playlist-item,
+.cue-button.cued .playlist-now-playing,
+.cue-button.cued .playlist-next-item-playing,
+.cue-button.cued .cue-time-display-container,
+.cue-button.cued .cue-time-remaining {
+    color: var(--text-color); /* Lighter blue for text on blue */
+}
+.cue-button .cue-cued-text-indicator {
+    position: absolute;
+    top: 2px;
+    left: 4px;
+    font-size: 10px;
+    color: var(--text-color);
+    background-color: rgba(0, 0, 0, 0.6);
+    padding: 2px 4px;
+    border-radius: 3px;
+    z-index: 5;
+    line-height: 1;
+    display: none;
+}
+.cue-button.cued:hover {
+    background-color: var(--button-primary-hover-bg); /* Darker blue */
+}
+
+.cue-button.drop-target {
+    border: 2px dashed var(--button-primary-bg);
+    background-color: var(--background-darker);
+}
+
+/* Style for fading cues */
+.cue-button.fading {
+    color: white;
+}
+
+/* Specific style for fading-out */
+.cue-button.fading-out {
+    background-color: var(--cue-fading-out-bg, #a52a2a);
+}
+
+/* Optional: Specific style for fading-in */
+.cue-button.fading-in {
+    background-color: var(--cue-fading-in-bg, #2a8fa5);
+}
+
+/* Empty State Message */
+.empty-state-message {
+    grid-column: 1 / -1; /* Span all columns */
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 20px;
+    margin-top: 0;
+}
+
+.empty-state-content {
+    padding: 30px;
+    text-align: center;
+    color: var(--text-secondary-color);
+    max-width: 300px;
+}
+
+.empty-state-content h3 {
+    margin: 0 0 10px 0;
+    color: var(--text-color);
+    font-size: 1.2em;
+    font-weight: normal;
+}
+
+.empty-state-content p {
+    margin: 0;
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+

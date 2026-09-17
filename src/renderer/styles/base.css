@@ -1,0 +1,150 @@
+body {
+    font-family: 'Rewir', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    margin: 0; /* Remove default margin */
+    color: var(--text-color); /* Light text for dark mode */
+    background-color: var(--background-color); /* Dark background for body */
+    display: flex; /* Ensure appContainer takes full height if needed */
+    min-height: 100vh;
+    flex-direction: column;
+}
+
+h1 {
+    color: var(--text-color);
+    font-family: 'Apropal', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif; /* Consistent heading font */
+}
+
+h2, h3, h4, h5, h6 {
+    color: var(--text-color);
+    font-family: 'Rewir', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif; /* Consistent heading font */
+}
+/* General h1 styles - merged with the h1 selector above */
+h1 {
+    color: var(--text-color);
+    font-family: 'Apropal', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif; /* Consistent heading font */
+    text-align: center;
+    font-size: 1.7em; /* Default h1 size from .top-bar h1 */
+    margin: 0.67em 0; /* Default browser margin for h1 */
+}
+
+.small-text {
+    font-size: 0.85em;
+    color: var(--text-secondary-color);
+}
+
+.sidebar-hr {
+    border: 0;
+    height: 1px;
+    background-color: var(--border-color);
+    margin: 15px 0;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    margin-right: 8px;
+}
+
+.styled-select {
+    /* Basic styling, can be expanded */
+    padding: 8px;
+    border: 1px solid var(--button-secondary-border);
+    border-radius: var(--border-radius);
+    background-color: var(--button-secondary-bg);
+    color: var(--text-color);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.config-group {
+    margin-bottom: 15px;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+}
+
+.config-group h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 5px;
+}
+
+.file-path-display {
+    font-size: 0.8em;
+    color: var(--text-secondary-color);
+    word-break: break-all;
+    margin-top: 5px;
+    background-color: var(--background-darkest);
+    padding: 5px;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+}
+
+.osc-message-display,
+.midi-message-display {
+    margin-top: 8px;
+    padding: 8px;
+    background-color: var(--background-darker);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    font-size: 0.9em;
+    color: var(--text-secondary-color);
+    min-height: 2em; /* Ensure it has some height even when empty */
+    word-wrap: break-word;
+} 
+
+/* Remote Links Container */
+.remote-links-container {
+    margin-top: 8px;
+}
+
+.remote-link-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    margin: 4px 0;
+    background-color: var(--background-darker);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+}
+
+.remote-link-info {
+    flex-grow: 1;
+}
+
+.remote-link-interface {
+    font-weight: bold;
+    color: var(--text-color);
+    font-size: 0.9em;
+}
+
+.remote-link-url {
+    color: var(--text-secondary-color);
+    font-size: 0.85em;
+    font-family: monospace;
+}
+
+.remote-link-copy {
+    background-color: var(--button-secondary-bg);
+    border: 1px solid var(--button-secondary-border);
+    color: var(--text-color);
+    padding: 4px 8px;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: 0.8em;
+    margin-left: 8px;
+}
+
+.remote-link-copy:hover {
+    background-color: var(--button-secondary-hover-bg);
+}
+
+.remote-link-copy.copied {
+    background-color: var(--success-color);
+    color: white;
+} 

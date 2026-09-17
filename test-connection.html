@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>acCompaniment Connection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        #log { background-color: #f8f9fa; padding: 10px; border: 1px solid #dee2e6; border-radius: 5px; height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>acCompaniment Connection Test</h1>
+    
+    <div id="status" class="status info">Testing connection...</div>
+    
+    <div>
+        <button onclick="testHTTP()">Test HTTP API</button>
+        <button onclick="testWebSocket()">Test WebSocket</button>
+        <button onclick="testCues()">Test Cues API</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+    
+    <h3>Test Log:</h3>
+    <div id="log"></div>
+
+    <script>
+        let ws = null;
+        
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+        
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+        
+        async function testHTTP() {
+            log('Testing HTTP API...');
+            try {
+                const response = await fetch('/api/remote/health');
+                const data = await response.json();
+                log(`✅ HTTP API working: ${JSON.stringify(data)}`);
+                updateStatus('HTTP API: ✅ Working', 'success');
+            } catch (error) {
+                log(`❌ HTTP API error: ${error.message}`);
+                updateStatus('HTTP API: ❌ Failed', 'error');
+            }
+        }
+        
+        async function testCues() {
+            log('Testing Cues API...');
+            try {
+                const response = await fetch('/api/cues');
+                const data = await response.json();
+                log(`✅ Cues API working: Found ${data.cues.length} cues`);
+                if (data.cues.length > 0) {
+                    log(`   First cue: ${data.cues[0].name} (${data.cues[0].id})`);
+                }
+                updateStatus('Cues API: ✅ Working', 'success');
+            } catch (error) {
+                log(`❌ Cues API error: ${error.message}`);
+                updateStatus('Cues API: ❌ Failed', 'error');
+            }
+        }
+        
+        function testWebSocket() {
+            log('Testing WebSocket connection...');
+            
+            if (ws) {
+                ws.close();
+            }
+            
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}`;
+            
+            log(`Connecting to: ${wsUrl}`);
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                log('✅ WebSocket connected successfully');
+                updateStatus('WebSocket: ✅ Connected', 'success');
+                
+                // Send a ping message
+                ws.send(JSON.stringify({ type: 'ping' }));
+                log('📤 Sent ping message');
+            };
+            
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    log(`📥 Received: ${data.type} - ${JSON.stringify(data.payload || data)}`);
+                } catch (error) {
+                    log(`📥 Received raw message: ${event.data}`);
+                }
+            };
+            
+            ws.onclose = (event) => {
+                log(`🔌 WebSocket closed: Code ${event.code}, Reason: ${event.reason}`);
+                updateStatus('WebSocket: ❌ Disconnected', 'error');
+            };
+            
+            ws.onerror = (error) => {
+                log(`❌ WebSocket error: ${error}`);
+                updateStatus('WebSocket: ❌ Error', 'error');
+            };
+        }
+        
+        // Auto-run tests on page load
+        window.onload = () => {
+            log('Page loaded, starting tests...');
+            testHTTP();
+            setTimeout(testCues, 1000);
+            setTimeout(testWebSocket, 2000);
+        };
+    </script>
+</body>
+</html>

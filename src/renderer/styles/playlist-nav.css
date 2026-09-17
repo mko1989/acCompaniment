@@ -1,0 +1,48 @@
+/* Cue wrapper to contain button and navigation controls */
+.cue-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+/* Playlist navigation controls - positioned outside the cue button */
+.playlist-nav-container {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    display: flex;
+    gap: 2px;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+    z-index: 10; /* Ensure it's above the cue button */
+    pointer-events: auto; /* Ensure clicks are captured */
+}
+
+.cue-wrapper:hover .playlist-nav-container {
+    opacity: 1;
+}
+
+.playlist-nav-btn {
+    background: rgba(52, 152, 219, 0.8);
+    border: none;
+    border-radius: 3px;
+    color: white;
+    font-size: 10px;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    padding: 0;
+    margin: 0;
+}
+
+.playlist-nav-btn:hover {
+    background: rgba(41, 128, 185, 1);
+}
+
+.playlist-nav-btn:active {
+    background: rgba(39, 174, 96, 1);
+    transform: scale(0.95);
+}

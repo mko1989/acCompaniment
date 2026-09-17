@@ -1,0 +1,169 @@
+.modal {
+    position: fixed;
+    z-index: 1000; /* Ensure modal is above other content */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.75); /* Darker modal overlay */
+    padding-top: 60px; /* Space from top for modal content */
+    display: flex; /* Added for centering modal content */
+    align-items: center; /* Vertical centering */
+    justify-content: center; /* Horizontal centering */
+}
+
+.modal-content {
+    background-color: #2b2b2b; /* Dark modal background */
+    /* margin: 5% auto; Removed for flex centering */
+    padding: 20px;
+    border: 1px solid #444444; /* Darker modal border */
+    width: 80%;
+    max-width: 500px;
+    border-radius: var(--border-radius);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 80vh; /* Ensure modal content doesn't exceed viewport height */
+    overflow-y: auto;   /* Allow vertical scrolling for content */
+    color: var(--text-color);
+    position: relative; /* For close button positioning */
+}
+
+.modal-content .close-button {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    /* align-self: flex-end; Alternative if not using absolute */
+}
+
+.modal-content h2 {
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.modal-content label {
+    font-weight: bold;
+    color: #cccccc;
+    display: block; /* Ensure labels take full width for alignment */
+    margin-bottom: 5px;
+}
+
+.modal-content input[type="text"],
+.modal-content input[type="number"],
+.modal-content select {
+    width: 100%; /* Full width within modal content padding */
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid var(--button-secondary-border);
+    border-radius: var(--border-radius);
+    background-color: var(--button-secondary-bg);
+    color: var(--text-color);
+    box-sizing: border-box;
+}
+.modal-content input[type="text"]::placeholder,
+.modal-content input[type="number"]::placeholder {
+    color: #aaaaaa;
+}
+
+.modal-content input[type="range"] {
+    width: calc(100% - 90px); /* Original style for volume slider */
+    vertical-align: middle;
+}
+
+.modal-content #volumeValue, /* Legacy ID, check if still used */
+.modal-content #modalVolumeValueSpan /* Current ID */
+{
+    display: inline-block;
+    width: 50px; /* Check if needs adjustment with full width range input */
+    text-align: right;
+    color: #cccccc;
+    margin-left: 10px;
+}
+
+.modal-content button {
+    /* General button styles will apply */
+    /* Specific modal buttons can override if needed */
+    width: 100%; /* Make buttons full width in modal */
+    margin-top: 5px;
+}
+
+#saveCueButton { /* This ID is from cueConfigModal */
+    background-color: #28a745;
+}
+#saveCueButton:hover {
+    background-color: #218838;
+}
+
+/* General modal action buttons (e.g. in multiple file drop modal) */
+.modal-actions {
+    display: flex;
+    flex-direction: column; /* Stack buttons vertically */
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.modal-actions button {
+    background-color: var(--button-primary-bg);
+}
+.modal-actions button:hover {
+    background-color: var(--button-primary-hover-bg);
+}
+.modal-actions button.cancel-button {
+    background-color: #6c757d;
+}
+.modal-actions button.cancel-button:hover {
+    background-color: #5a6268;
+}
+
+/* Playlist config within modals (e.g., new cue modal) */
+#playlistConfig ul { /* Specific to cueConfigModal */
+    list-style-type: none;
+    padding: 0;
+    max-height: 150px; /* Adjusted height */
+    overflow-y: auto;
+    border: 1px solid var(--button-secondary-border);
+    border-radius: var(--border-radius);
+    margin-bottom: 5px;
+    background-color: var(--button-secondary-bg);
+}
+
+#playlistConfig ul li {
+    padding: 6px;
+    font-size: 0.9em;
+    border-bottom: 1px solid #4f4f4f;
+    color: #cccccc;
+}
+#playlistConfig ul li:last-child {
+    border-bottom: none;
+}
+
+/* Specific styling for the multiple files drop modal content */
+#multipleFilesDropModalContent {
+    width: auto;
+    min-width: 300px;
+    max-width: 400px;
+    /* margin: 10% auto; Already centered by .modal flex */
+}
+
+#dragOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 123, 255, 0.5);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2em;
+    z-index: 2000; /* Above everything */
+    pointer-events: none; /* Initially hidden */
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+}
+#dragOverlay.visible {
+    opacity: 1;
+} 

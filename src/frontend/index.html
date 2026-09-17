@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>acCompaniment</title>
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self';">
+    <link rel="stylesheet" href="styles/_variables.css">
+    <link rel="stylesheet" href="styles/base.css">
+    <link rel="stylesheet" href="styles/layout.css">
+    <link rel="stylesheet" href="styles/buttons.css">
+    <link rel="stylesheet" href="styles/cue-grid.css">
+    <link rel="stylesheet" href="styles/sidebars_content.css">
+    <link rel="stylesheet" href="styles/modals.css">
+    <link rel="stylesheet" href="styles/waveform.css">
+    <link rel="stylesheet" href="styles/playlist-nav.css">
+    <link rel="stylesheet" href="styles/crossfade.css">
+    <script src="vendor/howler/howler.min.js"></script>
+    <script defer src="vendor/wavesurfer/wavesurfer.min.js"></script>
+    <script defer src="vendor/wavesurfer/regions.min.js"></script>
+</head>
+<body>
+    <div id="appContainer" class="edit-mode">
+        <!-- Main horizontal layout container -->
+        <div id="mainLayoutContainer">
+            <div id="configSidebar" class="collapsed">
+                <button id="configToggleBtn" class="btn btn-icon-text" title="Toggle Configuration Sidebar">
+                    <img src="/assets/icons/settings.png" alt="Settings" class="btn-icon">
+                </button>
+                <div class="sidebar-content">
+                    <h2>App Configuration</h2>
+                    <div class="form-group">
+                        <label for="configAudioOutputDevice">Audio Output Device:</label>
+                        <select id="configAudioOutputDevice" class="styled-select"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="configAudioOutputChannelCount">Output Channel Count:</label>
+                        <select id="configAudioOutputChannelCount" class="styled-select"></select>
+                        <p class="small-text">Number of channels opened on the selected device. Per-cue routing is available when &gt; 2.</p>
+                    </div>
+
+                    <h3>Audio Playback</h3>
+                    <div class="form-group">
+                        <label for="audioPlaybackMode">Audio Playback Mode:</label>
+                        <select id="audioPlaybackMode" class="styled-select">
+                            <option value="client">Client (Browser)</option>
+                            <option value="server">Server (Node.js)</option>
+                        </select>
+                        <p class="small-text">Choose whether audio is played by the browser (client) or the server (Node.js). Server mode provides better audio quality and device control.</p>
+                    </div>
+
+                    <h3>Default Cue Properties</h3>
+                    <p class="small-text">These values are applied when new cues are created.</p>
+                    <div class="form-group">
+                        <label for="defaultFadeIn">Fade In (ms):</label>
+                        <input type="number" id="defaultFadeIn" name="defaultFadeIn" value="0" min="0" step="50">
+                    </div>
+                    <div class="form-group">
+                        <label for="defaultFadeOut">Fade Out (ms):</label>
+                        <input type="number" id="defaultFadeOut" name="defaultFadeOut" value="0" min="0" step="50">
+                    </div>
+                    <div class="form-group">
+                        <label for="defaultLoop">Loop:</label>
+                        <input type="checkbox" id="defaultLoop" name="defaultLoop">
+                    </div>
+                    <div class="form-group">
+                        <label for="retriggerBehavior">Retrigger Behavior:</label>
+                        <select id="retriggerBehavior">
+                            <option value="fade_out_and_stop">Fade Out and Stop</option>
+                            <option value="restart">Restart</option>
+                            <option value="play_new_instance">Play New Instance (Caution)</option>
+                            <option value="do_nothing">Do Nothing</option>
+                            <option value="stop">Stop</option>
+                            <option value="toggle_pause_play">Toggle Pause/Play</option>
+                            <option value="replay_current_item">Replay Current Item</option>
+                            <option value="play_next_item">Play Next Item (Playlist Only)</option>
+                        </select>
+                    </div>
+
+                    <h3>Stop All Behavior</h3>
+                    <div class="form-group">
+                        <label for="defaultStopAllBehavior">Stop All Behavior:</label>
+                        <select id="defaultStopAllBehavior">
+                            <option value="stop">Stop</option>
+                            <option value="fade_out_and_stop">Fade Out and Stop</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="defaultStopAllFadeOutGroup">
+                        <label for="defaultStopAllFadeOut">Stop All Fade Out Time (ms):</label>
+                        <input type="number" id="defaultStopAllFadeOut" name="defaultStopAllFadeOut" value="1500" min="0" step="100">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="crossfadeTime">Crossfade Time (ms):</label>
+                        <input type="number" id="crossfadeTime" name="crossfadeTime" value="2000" min="100" max="10000" step="100" title="Duration for crossfading between cues when crossfade mode is enabled">
+                    </div>
+
+                    <h3>HTTP Remote Control</h3>
+                    <div class="form-group">
+                        <label for="configHttpRemoteEnabled">Enable HTTP Remote:</label>
+                        <input type="checkbox" id="configHttpRemoteEnabled" name="configHttpRemoteEnabled" checked>
+                    </div>
+                    <div class="form-group" id="httpRemotePortGroup">
+                        <label for="configHttpRemotePort">Remote Control Port:</label>
+                        <input type="number" id="configHttpRemotePort" name="configHttpRemotePort" value="3000" min="1" max="65535">
+                    </div>
+                    <div class="form-group" id="httpRemoteLinksGroup">
+                        <label>Remote Access Links:</label>
+                        <div id="httpRemoteLinksDiv" class="remote-links-container">
+                            <!-- Links will be populated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- Generic OSC settings removed -->
+
+                    
+                </div>
+            </div>
+            
+            <div id="mainContent">
+                <div id="topBar">
+                    <div class="top-bar">
+                        <div class="title-container">
+                            <img src="/assets/icons/icon.png" alt="acCompaniment Icon" class="app-icon-title">
+                            <h1>acCompaniment</h1>
+                        </div>
+                        <div id="globalControls" class="global-controls">
+                            <button id="addFilesButton" class="btn" title="Add Audio Files">
+                                <span class="btn-label">+</span>
+                            </button>
+                            <button id="stopAllButton" class="btn" title="Emergency Stop All">
+                                <img src="/assets/icons/dont panic.png" alt="Stop All" class="btn-icon">
+                            </button>
+                            <button id="crossfadeToggleBtn" class="btn crossfade-disabled" title="Toggle Crossfade Mode - Click to Enable">
+                                <img id="crossfadeToggleIcon" src="/assets/icons/crossfade.png" alt="Crossfade" class="btn-icon">
+                                <span class="btn-label">XFADE</span>
+                            </button>
+                            <button id="modeToggleBtn" class="btn" title="Toggle Edit/Show Mode">
+                                <img id="modeToggleIcon" src="/assets/icons/show_light.png" alt="Toggle Mode" class="btn-icon">
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div id="mainDropArea">
+                    <div id="cueGridContainer"></div>
+                </div>
+            </div>
+
+            <div id="propertiesSidebar" class="hidden">
+                <div class="sidebar-content">
+                    <h2>Cue Properties</h2>
+                    <span id="closePropertiesSidebarBtn" class="close-button">&times;</span>
+                    <input type="hidden" id="propCueId">
+                    <div class="form-group">
+                        <label for="propCueName">Name:</label>
+                        <input type="text" id="propCueName" name="propCueName">
+                    </div>
+                    <div class="form-group">
+                        <label for="propCueType">Type:</label>
+                        <select id="propCueType" name="propCueType">
+                            <option value="single_file">Single File</option>
+                            <option value="playlist">Playlist</option>
+                        </select>
+                    </div>
+                    
+                    <div id="propSingleFileConfig" class="form-group">
+                        <label for="propFilePath">Audio File:</label>
+                        <input type="text" id="propFilePath" name="propFilePath" readonly placeholder="Drag & drop file">
+                        <div id="waveformDisplay" style="width: 100%; height: 128px; border: 1px solid #555; margin-top: 10px; background-color: #2c2c2c;"></div>
+                        <div id="waveformControls" style="margin-top: 8px;">
+                            <div class="waveform-controls-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <button id="wfSetStartBtn" title="Set Start Point" class="wf-control-btn"><img src="/assets/icons/skip-start.png" alt="Set Start" class="btn-icon-wf"></button>
+                                <button id="wfSetEndBtn" title="Set End Point" class="wf-control-btn"><img src="/assets/icons/skip-end.png" alt="Set End" class="btn-icon-wf"></button>
+                                <button id="expandWaveformBtn" title="Expand Waveform Editor" class="wf-control-btn"><img src="/assets/icons/edit.png" alt="Expand" class="btn-icon-wf"></button>
+                                <button id="wfClearTrimBtn" title="Clear In/Out Points" class="wf-control-btn"><img src="/assets/icons/rubber.png" alt="Clear" class="btn-icon-wf"></button>
+                            </div>
+                            <div class="waveform-controls-row" style="display: flex; align-items: center; margin-bottom: 8px;"> 
+                                <div style="flex-grow: 1;"></div> <!-- Spacer Left -->
+                                <button id="wfPlayPauseBtn" title="Play/Pause" class="wf-control-btn"><img src="/assets/icons/play.png" alt="Play" class="btn-icon-wf-playpause"></button>
+                                <button id="wfStopBtn" title="Stop" class="wf-control-btn" style="margin-left: 5px; margin-right: 5px;"><img src="/assets/icons/stop.png" alt="Stop" class="btn-icon-wf"></button>
+                                <div style="flex-grow: 1; display: flex; justify-content: flex-end;"> <!-- Spacer Right -->
+                                </div>
+                            </div>
+                        </div>
+                        <div id="waveformTimeDisplay" style="margin-top: 10px; text-align: center; font-size: 0.9em; color: #cccccc;">
+                            <span id="wfCurrentTime">0:00.000</span> / <span id="wfTotalDuration">0:00.000</span> (<span id="wfRemainingTime">-0:00.000</span>)
+                        </div>
+                    </div>
+
+                    <!-- Rest of the properties sidebar content stays the same -->
+                    <div id="propPlaylistConfig" style="display: none;">
+                        <p>Playlist Items:</p>
+                        <ul id="propPlaylistItems">
+                            <!-- Playlist items will be rendered here by ui.js -->
+                        </ul>
+                        <div class="form-group">
+                            <label for="propShufflePlaylist">Shuffle Playlist:</label>
+                            <input type="checkbox" id="propShufflePlaylist" name="propShufflePlaylist">
+                        </div>
+                        <div class="form-group">
+                            <label for="propRepeatOnePlaylistItem">Repeat Current Item:</label>
+                            <input type="checkbox" id="propRepeatOnePlaylistItem" name="propRepeatOnePlaylistItem">
+                        </div>
+                        <div class="form-group">
+                            <label for="propPlaylistPlayModeSelect">Playlist Advance Behavior:</label>
+                            <select id="propPlaylistPlayModeSelect" name="propPlaylistPlayModeSelect">
+                                <option value="continue">Continue to next item</option>
+                                <option value="stop_and_cue_next">Stop after item, cue next</option>
+                            </select>
+                        </div>
+                        <p id="propPlaylistFilePathDisplay" class="file-path-display"></p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="propFadeInTime">Fade In (ms):</label>
+                        <input type="number" id="propFadeInTime" name="propFadeInTime" value="0" min="0" step="50">
+                    </div>
+                    <div class="form-group">
+                        <label for="propFadeOutTime">Fade Out (ms):</label>
+                        <input type="number" id="propFadeOutTime" name="propFadeOutTime" value="0" min="0" step="50">
+                    </div>
+                    <div class="form-group">
+                        <label for="propLoop">Loop:</label>
+                        <input type="checkbox" id="propLoop" name="propLoop">
+                    </div>
+                    <div class="form-group">
+                        <label for="propRetriggerBehavior">Retrigger Behavior:</label>
+                        <select id="propRetriggerBehavior">
+                            <option value="fade_out_and_stop">Fade Out and Stop</option>
+                            <option value="restart">Restart</option>
+                            <option value="play_new_instance">Play New Instance (Caution)</option>
+                            <option value="do_nothing">Do Nothing</option>
+                            <option value="stop">Stop</option>
+                            <option value="toggle_pause_play">Toggle Pause/Play</option>
+                            <option value="replay_current_item">Replay Current Item</option>
+                            <option value="play_next_item">Play Next Item (Playlist Only)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="propVolume">Volume (0-1):</label>
+                        <input type="range" id="propVolume" name="propVolume" min="0" max="1" step="0.01" value="1">
+                        <span id="propVolumeValue">1.00</span>
+                    </div>
+
+                    <div class="form-group" id="propOutputPatchGroup" style="display: none;">
+                        <label>Output Channels (server):</label>
+                        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                            <label for="propOutputPatchLeft">Left / Mono</label>
+                            <select id="propOutputPatchLeft" class="styled-select"></select>
+                            <label for="propOutputPatchRight">Right</label>
+                            <select id="propOutputPatchRight" class="styled-select"></select>
+                        </div>
+                    </div>
+
+                    <!-- Ducking Controls -->
+                    <div class="form-group">
+                        <label for="propIsDuckingTrigger">This cue triggers ducking:</label>
+                        <input type="checkbox" id="propIsDuckingTrigger" name="propIsDuckingTrigger">
+                    </div>
+                    <div class="form-group" id="enableDuckingGroup">
+                        <label for="propEnableDucking">Enable ducking for this cue (be affected by triggers):</label>
+                        <input type="checkbox" id="propEnableDucking" name="propEnableDucking">
+                    </div>
+                    <div class="form-group" id="duckingLevelGroup" style="display: none;">
+                        <label for="propDuckingLevel">Ducking level (% of how much to lower the volume):</label>
+                        <input type="range" id="propDuckingLevel" name="propDuckingLevel" min="0" max="100" step="1" value="80">
+                        <span id="propDuckingLevelValue">80</span>
+                    </div>
+                    
+
+                    <div class="form-group">
+                        <button type="button" id="previewCueButton">Preview (local)</button>
+                        <button id="saveCuePropertiesButton" style="display: none;">Save Cue</button>
+                        <button id="deleteCuePropertiesButton">Delete Cue</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Expandable Bottom Waveform Panel -->
+        <div id="bottomWaveformPanel">
+            <div class="bottom-panel-header">
+                <div class="bottom-panel-title">
+                    <span id="bottomPanelCueName">Waveform Editor</span>
+                </div>
+                <div class="bottom-panel-controls">
+                    <button class="size-toggle-btn" id="collapseBottomPanelBtn">×</button>
+                </div>
+            </div>
+            <div class="bottom-panel-content">
+                <div id="expandedWaveformDisplay"></div>
+                <div id="expandedWaveformControls">
+                    <div class="expanded-controls-main-row">
+                        <div class="expanded-controls-buttons">
+                            <button id="expandedWfSetStartBtn" title="Set Start Point" class="expanded-wf-control-btn">
+                                <img src="/assets/icons/skip-start.png" alt="Set Start" class="btn-icon">
+                            </button>
+                            <button id="expandedWfSetEndBtn" title="Set End Point" class="expanded-wf-control-btn">
+                                <img src="/assets/icons/skip-end.png" alt="Set End" class="btn-icon">
+                            </button>
+                            <button id="expandedWfPlayPauseBtn" title="Play/Pause" class="expanded-wf-control-btn play-pause">
+                                <img src="/assets/icons/play.png" alt="Play" class="btn-icon">
+                            </button>
+                            <button id="expandedWfStopBtn" title="Stop" class="expanded-wf-control-btn">
+                                <img src="/assets/icons/stop.png" alt="Stop" class="btn-icon">
+                            </button>
+                            <button id="expandedWfClearTrimBtn" title="Clear In/Out Points" class="expanded-wf-control-btn">
+                                <img src="/assets/icons/rubber.png" alt="Clear" class="btn-icon">
+                            </button>
+                        </div>
+                        <div class="waveform-tips">
+                            <strong>Keyboard:</strong> 
+                            <span class="tip-item">← → Move (1s)</span>
+                            <span class="tip-separator">|</span>
+                            <span class="tip-item">Shift+← → Fine (10ms)</span>
+                            <span class="tip-separator">|</span>
+                            <span class="tip-item">Ctrl/Cmd+← → (100ms)</span>
+                            <span class="tip-separator">|</span>
+                            <span class="tip-item">Wheel = Zoom</span>
+                        </div>
+                    </div>
+                    <div id="expandedWaveformTimeDisplay">
+                        <span id="expandedWfCurrentTime">0:00.000</span> / <span id="expandedWfTotalDuration">0:00.000</span> (<span id="expandedWfRemainingTime">-0:00.000</span>)
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hidden file input for file selection -->
+        <input type="file" id="fileInput" multiple accept=".mp3,.wav,.m4a,.aac,.ogg,.flac" style="display: none;">
+        
+        <!-- Multiple file selection modal -->
+        <div id="multipleFileModal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <h2>Multiple Files Selected</h2>
+                <p>You have selected <span id="fileCount"></span> files. How would you like to add them?</p>
+                <div class="modal-buttons">
+                    <button id="addAsSeparateCuesBtn" class="btn btn-primary">Add as Separate Cues</button>
+                    <button id="addAsPlaylistBtn" class="btn btn-secondary">Add as Single Playlist Cue</button>
+                    <button id="cancelFileSelectionBtn" class="btn btn-secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal dialogs -->
+        <div id="cueConfigModal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <h2>Configure New Sound Cue</h2>
+                <input type="hidden" id="cueId">
+                <div>
+                    <label for="cueName">Name:</label>
+                    <input type="text" id="cueName" name="cueName" value="New Cue">
+                </div>
+                <div>
+                    <label for="cueType">Type:</label>
+                    <select id="cueType" name="cueType">
+                        <option value="single_file">Single File</option>
+                        <option value="playlist">Playlist</option>
+                    </select>
+                </div>
+                
+                <div id="singleFileConfig">
+                    <label for="filePath">Audio File:</label>
+                    <input type="text" id="filePath" name="filePath" readonly placeholder="Drag & drop file or click to select">
+                    <!-- Note: Modal waveform display removed - modal is only for creating new cues -->
+                    <!-- Editing existing cues should use the properties sidebar which has proper waveform display -->
+                </div>
+
+                <div id="playlistConfig" style="display:none;">
+                    <label>Playlist:</label>
+                    <ul id="playlistItems"></ul>
+                    <input type="text" id="playlistFilePathDisplay" readonly placeholder="Drag & drop file(s) here to add">
+                </div>
+
+                <div>
+                    <label for="fadeInTime">Fade In (ms):</label>
+                    <input type="number" id="fadeInTime" name="fadeInTime" value="0" min="0" step="50">
+                </div>
+                <div>
+                    <label for="fadeOutTime">Fade Out (ms):</label>
+                    <input type="number" id="fadeOutTime" name="fadeOutTime" value="0" min="0" step="50">
+                </div>
+                <div>
+                    <label for="loop">Loop:</label>
+                    <input type="checkbox" id="loop" name="loop">
+                </div>
+                <div>
+                    <label for="trimStartTime">Trim Start (seconds):</label>
+                    <input type="text" id="trimStartTime" name="trimStartTime" placeholder="0.000">
+                </div>
+                <div>
+                    <label for="trimEndTime">Trim End (seconds):</label>
+                    <input type="text" id="trimEndTime" name="trimEndTime" placeholder="End">
+                </div>
+                <div>
+                    <label for="volume">Volume (0-1):</label>
+                    <input type="range" id="volume" name="volume" min="0" max="1" step="0.01" value="1">
+                    <span id="volumeValue">1.00</span>
+                </div>
+                <button id="saveCueButton">Save Cue</button>
+            </div>
+        </div>
+
+        <div id="multipleFilesDropModal" class="modal" style="display:none;">
+            <div id="multipleFilesDropModalContent" class="modal-content">
+                <span class="close-button">&times;</span>
+                <h2>Multiple Files Dropped</h2>
+                <p>You've dropped multiple audio files. How would you like to add them?</p>
+                <div class="modal-actions">
+                    <button id="modalAddAsSeparateCues">Add as Separate Cues</button>
+                    <button id="modalAddAsPlaylistCue">Add as Single Playlist Cue</button>
+                    <button id="modalCancelMultipleFilesDrop" class="cancel-button">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="dragOverlay">
+            <p>Drop audio files here to create cues</p>
+        </div>
+        
+        <script type="module" src="app.js"></script>
+    </div>
+</body>
+</html>

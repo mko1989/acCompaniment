@@ -1,0 +1,293 @@
+#appContainer {
+    display: flex;
+    flex-direction: column; /* Changed to column to accommodate bottom panel */
+    flex-grow: 1;
+    width: 100%;
+    height: 100vh; /* Ensure full height */
+    transition: background-color 0.3s ease;
+    overflow: hidden; /* Prevent scrolling at app level */
+}
+
+#appContainer.edit-mode {
+    background-color: #2a2a2a; /* Darker gray for edit mode */
+}
+
+#appContainer.show-mode {
+    background-color: #330000; /* Darker maroon for show mode */
+}
+
+/* Main horizontal layout container */
+#mainLayoutContainer {
+    display: flex;
+    flex-grow: 1;
+    width: 100%;
+    min-height: 0; /* Allow shrinking when bottom panel expands */
+    transition: height 0.3s ease;
+}
+
+/* Bottom waveform panel */
+#bottomWaveformPanel {
+    height: 0;
+    width: 100%;
+    background-color: #1a1a1a;
+    border-top: 1px solid var(--border-color);
+    transition: height 0.3s ease;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    position: relative; /* Ensure proper stacking */
+    z-index: 10; /* Ensure it's above other content */
+}
+
+#bottomWaveformPanel.expanded {
+    height: 400px !important; /* Expanded waveform modal height */
+    min-height: 400px !important;
+    max-height: 55vh !important;
+}
+
+/* Bottom panel header */
+.bottom-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 15px;
+    background-color: #252526;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-color);
+    font-weight: bold;
+    font-size: 0.8em;
+}
+
+.bottom-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.bottom-panel-controls {
+    display: flex;
+    gap: 8px;
+}
+
+/* Bottom panel content */
+.bottom-panel-content {
+    flex-grow: 1;
+    padding: 10px 15px; /* Reduced top/bottom padding */
+    overflow: hidden; /* No scrolling */
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* Allow shrinking */
+}
+
+/* Expanded waveform display - styling moved to waveform.css */
+
+/* Expanded waveform controls */
+#expandedWaveformControls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.expanded-controls-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+}
+
+.expanded-wf-control-btn {
+    width: 40px;
+    height: 40px;
+    background-color: #4f4f4f;
+    border: 1px solid #666;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease;
+}
+
+.expanded-wf-control-btn:hover {
+    background-color: #5a5a5a;
+}
+
+.expanded-wf-control-btn .btn-icon {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+
+.expanded-wf-control-btn.play-pause {
+    width: 50px;
+    height: 50px;
+}
+
+.expanded-wf-control-btn.play-pause .btn-icon {
+    width: 28px;
+    height: 28px;
+}
+
+/* Time display for expanded waveform */
+#expandedWaveformTimeDisplay {
+    text-align: center;
+    font-size: 1.1em;
+    color: #cccccc;
+    margin-top: 10px;
+}
+
+/* Size toggle buttons */
+.size-toggle-btn {
+    background-color: #444;
+    border: 1px solid #666;
+    color: #ccc;
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.8em;
+    transition: background-color 0.2s ease;
+}
+
+.size-toggle-btn:hover {
+    background-color: #555;
+}
+
+.size-toggle-btn.active {
+    background-color: var(--button-primary-bg);
+    color: white;
+}
+
+/* Left Config Sidebar */
+#configSidebar {
+    width: 280px;
+    background-color: #252526; /* Dark sidebar background */
+    padding: 15px;
+    border-right: 1px solid var(--border-color); /* Darker border */
+    transition: width 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden; /* Hide content when collapsed */
+    box-sizing: border-box;
+}
+
+#configSidebar.collapsed {
+    width: 50px; /* Width of the cog icon + padding */
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+#configSidebar.collapsed .sidebar-content {
+    display: none; /* Hide content when collapsed */
+}
+
+#configSidebar .sidebar-content {
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+/* Main Content Area */
+#mainContent {
+    flex-grow: 1; /* Takes up remaining space */
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto; /* Allow scrolling for cue grid if needed */
+    box-sizing: border-box;
+}
+
+/* Top Bar Styles */
+#topBar {
+    /* Ensure this wrapper doesn't add unexpected styling */
+    background-color: transparent !important; /* Explicitly transparent */
+    border: none !important; /* Ensure no border */
+    padding: 5px !important; /* Ensure no padding */
+    margin: 5px !important; /* Ensure no margin */
+    box-shadow: none !important; /* Ensure no shadow */
+}
+
+.top-bar {
+    display: flex;
+    justify-content: space-between; /* Pushes title/icon left, global-controls right */
+    align-items: center;
+    padding: 7px 7px;
+    /* background-color: #1e1e1e; */ /* Changed from var(--background-darker) */
+    /* border-bottom: 1px solid var(--border-color); */ /* This could be the black bar if --border-color is too dark or if there's another border */
+    border: none !important; /* Overriding any potential border */
+    box-shadow: none !important; /* Ensure no shadow here either */
+    height: 60px; /* Fixed height for the top bar */
+    box-sizing: border-box;
+}
+
+.title-container {
+    display: flex;
+    align-items: center;
+    flex-grow: 1; /* Allows it to take up space and push global-controls to the right */
+}
+
+.app-icon-title {
+    width: 32px;  /* Adjust size as needed */
+    height: 32px; /* Adjust size as needed */
+    margin-right: 10px;
+    object-fit: contain;
+}
+
+.top-bar h1 {
+    font-family: 'Apropal', sans-serif;
+    font-size: 1.7em;
+    margin: 0;
+    color: var(--text-color);
+}
+
+.global-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Right Properties Sidebar */
+#propertiesSidebar {
+    width: 320px;
+    background-color: #252526; /* Dark sidebar background */
+    border-left: 1px solid var(--border-color); /* Darker border */
+    padding: 15px;
+    transition: width 0.3s ease, padding 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+    box-sizing: border-box;
+}
+
+#propertiesSidebar.hidden {
+    width: 0;
+    padding: 0;
+    border-left: none;
+    overflow: hidden;
+}
+
+#propertiesSidebar .sidebar-content {
+    flex-grow: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: relative; /* For close button positioning */
+}
+
+#propertiesSidebar h2 {
+    margin-top: 0;
+    text-align: center;
+    color: var(--text-color);
+}
+
+#closePropertiesSidebarBtn {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 1.5em;
+    cursor: pointer;
+    color: #aaaaaa;
+}
+#closePropertiesSidebarBtn:hover {
+    color: #ffffff;
+} 

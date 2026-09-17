@@ -1,0 +1,279 @@
+#waveformDisplay {
+    width: 100%; 
+    height: 128px; 
+    border: 1px solid var(--button-secondary-border);
+    margin-top: 10px; 
+    background-color: var(--background-darker);
+    box-sizing: border-box; /* Add this to include border in width calculation */
+    overflow: hidden; /* Prevent content from overflowing */
+    position: relative; /* Ensure proper positioning context */
+}
+
+#waveformControls {
+    margin-top: 8px;
+}
+
+.waveform-controls-row {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-bottom: 8px;
+}
+
+/* Individual Waveform Control Buttons */
+.wf-control-btn {
+    width: 32px;
+    height: 32px;
+    background-color: var(--button-secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease;
+    margin: 2px; /* Spacing around buttons */
+}
+
+.wf-control-btn:hover {
+    background-color: #5a5a5a;
+}
+
+.btn-icon-wf {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+}
+
+.btn-icon-wf-playpause {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+}
+
+/* Expand button styling */
+#expandWaveformBtn {
+    background-color: #2196F3;
+    border-color: #1976D2;
+    color: white;
+}
+
+#expandWaveformBtn:hover {
+    background-color: #1976D2;
+}
+
+#expandWaveformBtn .btn-icon-wf {
+    filter: brightness(1.2);
+}
+
+#wfSoloBtn { 
+    font-weight: bold; 
+    /* Potentially different styling if it's just text 'S' */
+}
+
+#waveformTimeDisplay {
+    margin-top: 10px; 
+    text-align: center; 
+    font-size: 0.9em; 
+    color: var(--text-secondary-color);
+}
+
+/* Expanded waveform display styling */
+#expandedWaveformDisplay {
+    width: 100%;
+    flex: 1; /* Take up available space */
+    min-height: 200px !important; /* Reduced minimum height */
+    max-height: 285px !important; /* 25% smaller than 380px */
+    border: 1px solid var(--button-secondary-border);
+    background-color: var(--background-darker);
+    border-radius: var(--border-radius);
+    margin-bottom: 10px; /* Slightly more margin */
+    box-sizing: border-box;
+    overflow: hidden;
+    position: relative; /* Ensure proper positioning */
+    display: block; /* Changed from flex to block for better compatibility */
+}
+
+/* Ensure WaveSurfer canvas fills the container properly */
+#expandedWaveformDisplay canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+}
+
+/* Ensure WaveSurfer wrapper fills the container */
+#expandedWaveformDisplay .wavesurfer {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Expanded waveform controls styling */
+#expandedWaveformControls {
+    display: flex;
+    flex-direction: column;
+    gap: 6px; /* Reduced gap */
+    align-items: center;
+    flex-shrink: 0; /* Don't shrink controls */
+}
+
+/* Main row containing buttons and tips side by side */
+.expanded-controls-main-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 20px;
+    width: 100%;
+}
+
+.expanded-controls-buttons {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    grid-column: 2; /* Center column */
+}
+
+.expanded-wf-control-btn {
+    width: 32px; /* Smaller buttons */
+    height: 32px;
+    background-color: var(--button-secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease;
+}
+
+.expanded-wf-control-btn:hover {
+    background-color: #5a5a5a;
+}
+
+.expanded-wf-control-btn.play-pause {
+    width: 40px; /* Smaller play/pause button */
+    height: 40px;
+    background-color: #4CAF50;
+    border-color: #45a049;
+}
+
+.expanded-wf-control-btn.play-pause:hover {
+    background-color: #45a049;
+}
+
+.expanded-wf-control-btn .btn-icon {
+    width: 18px; /* Smaller icons */
+    height: 18px;
+    object-fit: contain;
+}
+
+.expanded-wf-control-btn.play-pause .btn-icon {
+    width: 22px; /* Smaller play/pause icon */
+    height: 22px;
+}
+
+/* Expanded time display styling */
+#expandedWaveformTimeDisplay {
+    text-align: center;
+    font-size: 0.85em; /* Smaller font */
+    color: var(--text-secondary-color);
+    margin-top: 4px; /* Reduced margin */
+    font-family: 'Rewir', 'Apropal', monospace;
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 4px 8px; /* Reduced padding */
+    border-radius: var(--border-radius);
+    border: 1px solid var(--button-secondary-border);
+}
+
+/* Waveform tips styling */
+.waveform-tips {
+    font-size: 11px;
+    color: #b0b0b0;
+    text-align: left;
+    padding: 6px 10px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    line-height: 1.4;
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 4px;
+    grid-column: 3; /* Right column */
+    justify-self: end;
+    white-space: nowrap;
+}
+
+.waveform-tips strong {
+    color: #ffffff;
+    font-weight: 600;
+    margin-right: 3px;
+    flex-shrink: 0;
+}
+
+.tip-item {
+    display: inline-block;
+    padding: 2px 5px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 2px;
+    white-space: nowrap;
+    font-size: 10px;
+    flex-shrink: 0;
+}
+
+.tip-separator {
+    color: #666;
+    flex-shrink: 0;
+    font-size: 10px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .expanded-controls-main-row {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .expanded-controls-buttons {
+        gap: 8px;
+    }
+    
+    .waveform-tips {
+        font-size: 10px;
+        padding: 5px 8px;
+        width: 100%;
+        justify-content: center;
+        justify-self: center;
+    }
+    
+    .tip-item {
+        padding: 1px 4px;
+        font-size: 9px;
+    }
+    
+    .expanded-wf-control-btn {
+        width: 28px; /* Smaller on mobile */
+        height: 28px;
+    }
+    
+    .expanded-wf-control-btn.play-pause {
+        width: 36px; /* Smaller play/pause on mobile */
+        height: 36px;
+    }
+    
+    .expanded-wf-control-btn .btn-icon {
+        width: 16px; /* Smaller icons on mobile */
+        height: 16px;
+    }
+    
+    .expanded-wf-control-btn.play-pause .btn-icon {
+        width: 20px; /* Smaller play icon on mobile */
+        height: 20px;
+    }
+    
+    #expandedWaveformDisplay {
+        height: 300px; /* Slightly smaller on mobile to fit screen */
+    }
+} 

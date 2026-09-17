@@ -1,0 +1,23 @@
+:root {
+    --background-color: #1e1e1e;
+    --background-darker: #171717;
+    --background-darkest: #121212;
+    --text-color: #e0e0e0;
+    --text-secondary-color: #b0b0b0;
+    --border-color: #333333;
+    --button-primary-bg: #007bff;
+    --button-primary-hover-bg: #0056b3;
+    --button-secondary-bg: #444444;
+    --button-secondary-border: #555555;
+    --cue-default-bg: #3a3a3a;
+    --cue-playing-bg: #228b22; /* Forest Green */
+    --cue-paused-bg: #d97700;  /* Orange */
+    --cue-cued-bg: #d97700;    /* Muted Orange */
+    --maroon-bg: #800000;
+    --border-radius: 4px;
+    
+    /* Fading Variables */
+    --cue-fading-bg: #8B0000;         /* Dark Red - General fade background color */
+    --cue-fading-out-bg: #B22222;   /* Firebrick - For fading out background */
+    --cue-fading-in-bg: #20B2AA;    /* Light Sea Green - For fading in background */
+}
