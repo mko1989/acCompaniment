@@ -558,6 +558,47 @@ script) to succeed. CMake is not currently documented as a prerequisite anywhere
 - worth adding to README/QUICKSTART, since relying on the prebuilt binary alone
 is not reliable in practice.
 
+## G9 — Vulnerability fixes, dependency major bumps, expanded smoke coverage `[x]`
+**Severity:** High (the security fixes) · **Files:** `package.json`/`package-lock.json`,
+`electron-launcher/main.js`, `src/backend/routes/audio.js`, `src/backend/cueManager.js`,
+`src/backend/routes/remote.js`, `server.js`, `test/*.test.js` (5 new files + shared
+`test/helpers/harness.js`)
+
+`npm audit`: 42 → 15 findings. Safe transitive-dependency fixes via `npm audit fix`;
+removed `electron-rebuild` (redundant with `electron-builder`'s own rebuild step, and
+its dependency chain was a real chunk of the findings); bumped `electron-builder` 24→26
+and `electron` 38→44 (both major), each re-verified with the full test suite plus an
+actual packaged `electron-builder --dir --mac` build launched for real. The remaining
+15 all trace back to `@hamitzor/rtaudio.js`'s own build-time toolchain (`cmake-js`,
+`prebuild`) with no upstream fix available - build-time only, not shipped runtime code.
+
+That packaged-build verification caught a second real orphan-process bug beyond the one
+already fixed above: the async `SIGKILL`-after-5s escalation assumed the launcher
+process would stay alive long enough for its own timer to fire, but Electron's internal
+shutdown can tear the whole process down faster than that, abandoning the pending timer.
+Fixed with `process.on('exit', ...)` - synchronous-only, but guaranteed to run right
+before the process terminates regardless of *why*. Verified with three consecutive
+launch/`SIGTERM` cycles against the packaged build, zero orphans.
+
+Expanded the smoke suite from 1 file (16 tests) to 8 files (106 tests, running in
+parallel in ~20-27s): playlists, app config, workspace isolation/export/import, audio
+file management (including a **Range-request bug found and fixed** -
+`GET /api/audio/serve/:id` advertised `Accept-Ranges: bytes` but never actually honored
+Range requests, always streaming the full file with a 200), the WebSocket wire protocol
+specifically (both event-style and invoke-style messages - Companion and the browser UI
+speak this, not just REST), every retrigger behavior, pause/resume, and the
+`/api/remote/*` endpoints specifically (separate route handlers from `/api/cues/*`,
+actually used by Companion/the HTTP remote page).
+
+Two more real bugs found this way: `setMasterVolume()` (added in an earlier session)
+was completely unreachable - no route or WS message called it; wired up
+`cueManager.setMasterVolume()`/`getMasterVolume()` and `GET`/`POST
+/api/remote/master-volume`. And `GET /api/remote/health` was 100% dead code -
+`server.js` registered its own simpler inline handler for the same path *before*
+mounting `routes/remote.js`, and Express matches routes in registration order, so the
+router's richer handler (playback status, connected WebSocket client count) never ran.
+Consolidated into one handler that's a superset of both response shapes.
+
 ---
 
 # Suggested execution order
