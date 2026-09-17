@@ -780,10 +780,66 @@ deletes the cue's live state entirely while `stopCue()`'s repeat put a
 introduced this session. `stopCue()` now just returns `stopCuePlayback()`'s
 result directly. Confirmed via a duplicated-message reproduction script
 before and after; the final playback state was already correct either way
-(so this alone likely isn't the whole story behind the reported symptom -
-still investigating), but the duplicate broadcast was a genuine, real defect
-regardless. Added a regression test asserting exactly one `stopped`
-broadcast per `stop_cue`.
+in every case tested, so this alone didn't explain the reported symptom -
+the real cause turned out to be G14 below, found once the user narrowed the
+report down to "fade out and stop" specifically. Added a regression test
+asserting exactly one `stopped` broadcast per `stop_cue`.
+
+---
+
+## G14 — "Fade out and stop" reported cue/broadcast state as stopped instantly, while the audio kept playing for the whole fade `[x]`
+**Files:** `src/backend/cueManager.js`, `src/backend/audioPlaybackManager.js`,
+`src/backend/soundboardMixer.js`, `test/cue-behaviors.test.js`
+
+The actual root cause behind "the retrigger fails to complete its actions on
+cues," once narrowed down to the `fade_out_and_stop` behavior specifically:
+starting a fade-out only *begins* a gain ramp in the mixer's `render()` loop -
+the cue keeps producing audible, gradually-quieter audio for the entire
+configured `fadeOutTime`. But `stopCuePlayback()` and `stopAllCues()` (its
+"Stop All" equivalent, for the `fade_out_and_stop` stop-all behavior) both
+treated *starting* the fade as equivalent to the cue having *already*
+stopped: they immediately deleted the cue's `cueStates`/`playingCues` entries
+and broadcast `cue_status: stopped` to every client the instant the fade
+began, not once it actually finished. A user clicking "fade out and stop"
+saw the cue button go to "not playing" right away while the speakers kept
+playing it, audibly barely quieter, for the next several seconds - which
+reads exactly like "I clicked it and nothing happened," since the one
+thing that visibly changed (the button) said it already worked while the
+one thing that mattered (the sound) hadn't.
+
+Reproduced end-to-end against a live server before fixing: created a cue
+with `fadeOutTime: 3000`, retriggered it with `fade_out_and_stop`, and
+polled `/api/cues/status/playback` every 500ms - confirmed the cue vanished
+from `playingCues` and its `cueStates` entry disappeared within 500ms of the
+retrigger, 2.5 full seconds before the fade could possibly have finished.
+
+Fixed by only doing that immediate cleanup-and-broadcast for a genuine
+*immediate* stop (no fade). For a fade, the mixer's own `onCueComplete`
+callback (already wired through `AudioPlaybackManager.handlePlaybackEnd` to
+`CueManager.handleCuePlaybackComplete`) already fires the moment the fade's
+gain ramp actually reaches silence and the cue is removed from the mixer -
+that's the point that should trigger the state update and broadcast, not
+the moment the fade starts.
+
+This surfaced a second, related design gap while fixing it:
+`onCueComplete`/`handlePlaybackEnd`/`handleCuePlaybackComplete` is *the same
+callback* for two different things - a cue reaching the natural end of its
+file, and a cue's deliberate fade-out reaching silence - and the existing
+code always broadcast `'completed'` and, for a playlist in `continue` mode,
+auto-advanced to the next item, regardless of which one had actually
+happened. Naively routing a deliberate `fade_out_and_stop` through that same
+path would have made stopping a playlist cue via fade silently skip to the
+next track instead of just stopping. Threaded a `reason` (`'completed'` or
+`'stopped'`) through the whole chain -
+`soundboardMixer.render()`'s `toRemove` list, `onCueComplete(cueId, reason)`,
+`AudioPlaybackManager.handlePlaybackEnd(cueId, reason)`,
+`CueManager.handleCuePlaybackComplete(cueId, reason)` - so the eventual
+broadcast status matches what actually happened, and the playlist
+auto-advance is now gated on `reason === 'completed'` only.
+
+Added regression tests polling status mid-fade (asserting it's still
+`'playing'`, not `'stopped'`, half-way through a 2s fade) for both the
+single-cue retrigger and the "Stop All" fade path.
 
 ---
 

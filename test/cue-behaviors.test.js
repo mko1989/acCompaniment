@@ -122,6 +122,28 @@ test('retrigger behavior "fade_out_and_stop": triggering again fades out and sto
     await waitForStatus(cueId, 'stopped', 5000);
 });
 
+test('retrigger behavior "fade_out_and_stop": stays "playing" for the full fade duration, not stopped instantly', async () => {
+    // Regression test: the cue's reported status used to jump straight to
+    // 'stopped' (and broadcast as such) the instant the fade *started*,
+    // while the mixer kept the audio itself audibly playing (getting
+    // quieter) for the whole configured fadeOutTime - so a client watching
+    // status would see "stopped" while the speakers were still making
+    // sound. The status should only become 'stopped' once the fade has
+    // actually finished.
+    const fadeOutTime = 2000;
+    const cueId = await createCue({ retriggerBehavior: 'fade_out_and_stop', fadeOutTime });
+    await trigger(cueId);
+    await waitForStatus(cueId, 'playing');
+
+    const second = await trigger(cueId);
+    assert.equal(second.success, true);
+
+    await new Promise((resolve) => setTimeout(resolve, fadeOutTime * 0.5));
+    assert.equal(await getStatus(cueId), 'playing', 'cue should still report playing while mid-fade');
+
+    await waitForStatus(cueId, 'stopped', fadeOutTime);
+});
+
 test('retrigger behavior "pause_resume": triggering again pauses it', async () => {
     const cueId = await createCue({ retriggerBehavior: 'pause_resume' });
     await trigger(cueId);
@@ -162,6 +184,37 @@ test('stop-all stops every playing cue', async () => {
 
     await waitForStatus(cueA, 'stopped');
     await waitForStatus(cueB, 'stopped');
+});
+
+test('stop-all with fade_out_and_stop keeps cues "playing" for the fade duration, not stopped instantly', async () => {
+    // Same regression as the single-cue fade_out_and_stop retrigger test,
+    // but for the "Stop All" button's fade behavior: stopAllCues() used to
+    // clear state and broadcast 'stopped' for every playing cue the instant
+    // the fade *started*, while the mixer kept them all audibly playing
+    // (getting quieter) for their own configured fadeOutTime.
+    const fadeOutTime = 2000;
+    const cueA = await createCue({ fadeOutTime });
+    const cueB = await createCue({ fadeOutTime });
+    await trigger(cueA);
+    await trigger(cueB);
+    await waitForStatus(cueA, 'playing');
+    await waitForStatus(cueB, 'playing');
+
+    const res = await fetch(`${server.baseUrl()}/api/cues/stop-all`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ behavior: 'fade_out_and_stop' }),
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.success, true);
+
+    await new Promise((resolve) => setTimeout(resolve, fadeOutTime * 0.5));
+    assert.equal(await getStatus(cueA), 'playing', 'cue A should still report playing while mid-fade');
+    assert.equal(await getStatus(cueB), 'playing', 'cue B should still report playing while mid-fade');
+
+    await waitForStatus(cueA, 'stopped', fadeOutTime);
+    await waitForStatus(cueB, 'stopped', fadeOutTime);
 });
 
 // --- Master volume ---------------------------------------------------------

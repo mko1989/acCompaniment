@@ -33,8 +33,8 @@ class CueManager {
         await this.audioPlaybackManager.init(this._audioEngineConfig());
         
         // Set up playback end callback
-        this.audioPlaybackManager.setPlaybackEndCallback((cueId) => {
-            this.handlePlaybackEnd(cueId);
+        this.audioPlaybackManager.setPlaybackEndCallback((cueId, reason) => {
+            this.handlePlaybackEnd(cueId, reason);
         });
 
         // Surface native audio-engine errors (e.g. output device removed
@@ -364,25 +364,36 @@ class CueManager {
     async stopAllCues(behavior = 'stop') {
         try {
             const fadeOut = behavior === 'fade_out_and_stop';
-            
+
             // Use the audio playback manager to stop all cues
             const result = await this.audioPlaybackManager.stopAllCues(fadeOut);
-            
+
             if (result.success) {
-                // Clear local state
-                this.playingCues.clear();
-                this.cueStates.clear();
-                
-                // Broadcast status updates for all stopped cues
-                for (const { cueId } of result.results) {
-                    this.websocketManager.broadcastCueStatus(cueId, 'stopped');
+                if (fadeOut) {
+                    // Same reasoning as stopCuePlayback(): a fade-out only
+                    // *starts* here, every cue is still audibly playing
+                    // (gradually getting quieter, each on its own configured
+                    // fadeOutTime) - clearing state and broadcasting
+                    // 'stopped' for all of them immediately used to make
+                    // "Stop All" (fade out) look like it did nothing, since
+                    // every button showed stopped instantly while the audio
+                    // actually kept playing for several more seconds.
+                    // handleCuePlaybackComplete() broadcasts each cue's own
+                    // 'completed' individually once its fade actually
+                    // reaches silence.
+                } else {
+                    this.playingCues.clear();
+                    this.cueStates.clear();
+                    for (const { cueId } of result.results) {
+                        this.websocketManager.broadcastCueStatus(cueId, 'stopped');
+                    }
                 }
-                
+
                 console.log(`CueManager: Stopped ${result.results.length} cues`);
             }
-            
+
             return result;
-            
+
         } catch (error) {
             console.error(`CueManager: Error stopping all cues: ${error.message}`);
             return { success: false, error: error.message };
@@ -598,52 +609,69 @@ class CueManager {
     async stopCuePlayback(cueId, fadeOutTime = 0) {
         try {
             // Use the audio playback manager to actually stop the audio
-            const result = await this.audioPlaybackManager.stopCue(cueId, fadeOutTime > 0);
-            
-            if (result.success) {
-                // Remove from playing cues
+            const isFading = fadeOutTime > 0;
+            const result = await this.audioPlaybackManager.stopCue(cueId, isFading);
+
+            // A fade-out only *starts* here - the cue is still audibly
+            // playing (gradually getting quieter) for the next fadeOutTime
+            // seconds in the mixer's render loop. Clearing state and
+            // broadcasting 'stopped' immediately used to tell clients (and
+            // this cue's own in-memory state) it had already stopped while
+            // it was still playing in real time, which looked like clicking
+            // "fade out and stop" did nothing - the button showed stopped
+            // instantly while the audio kept going for several more
+            // seconds. handleCuePlaybackComplete() (wired to the mixer's
+            // onCueComplete callback) already broadcasts 'completed' and
+            // does this same cleanup the moment the fade actually reaches
+            // silence - for an immediate (non-fading) stop, nothing else
+            // will ever fire that, so it's still done here directly.
+            if (result.success && !isFading) {
                 this.playingCues.delete(cueId);
                 this.cueStates.delete(cueId);
-                
-                // Broadcast status update
                 this.websocketManager.broadcastCueStatus(cueId, 'stopped');
-                
                 console.log(`CueManager: Stopped cue: ${cueId}`);
             }
-            
+
             return result;
-            
+
         } catch (error) {
             console.error(`CueManager: Error stopping playback: ${error.message}`);
             return { success: false, error: error.message };
         }
     }
     
-    // Handle cue playback completion
-    async handleCuePlaybackComplete(cueId) {
+    // Handle cue playback ending in the mixer - either it reached the
+    // natural end of the file (reason 'completed') or a deliberate
+    // fade-out-and-stop just reached silence (reason 'stopped'). Both arrive
+    // here because they're the same mechanism in the mixer's render loop
+    // (a cue being removed from the active set); which one it was matters
+    // for the broadcast status a client sees and for whether a playlist
+    // should treat this as "track ended, advance to the next item" - a
+    // deliberate stop should never auto-advance a playlist.
+    async handleCuePlaybackComplete(cueId, reason = 'completed') {
         try {
             const cue = this.getCue(cueId);
             if (!cue) return;
-            
+
             // Update state
             this.playingCues.delete(cueId);
             this.cueStates.set(cueId, {
-                status: 'completed',
+                status: reason,
                 currentTime: cue.totalTime || 0,
                 totalTime: cue.totalTime || 0,
                 completedAt: Date.now()
             });
-            
-            // Broadcast completion
-            this.websocketManager.broadcastCueStatus(cueId, 'completed');
-            
-            // Handle playlist advance
-            if (cue.type === 'playlist' && cue.playlistPlayMode === 'continue') {
+
+            this.websocketManager.broadcastCueStatus(cueId, reason);
+
+            // Handle playlist advance - only on a genuine end-of-track, not
+            // a deliberate fade-out stop.
+            if (reason === 'completed' && cue.type === 'playlist' && cue.playlistPlayMode === 'continue') {
                 await this.navigatePlaylist(cueId, 'next');
             }
-            
-            console.log(`CueManager: Cue completed: ${cue.name} (${cueId})`);
-            
+
+            console.log(`CueManager: Cue ${reason}: ${cue.name} (${cueId})`);
+
         } catch (error) {
             console.error(`CueManager: Error handling completion: ${error.message}`);
         }
@@ -676,8 +704,8 @@ class CueManager {
     }
     
     // Handle playback end (called by AudioPlaybackManager)
-    handlePlaybackEnd(cueId) {
-        this.handleCuePlaybackComplete(cueId).catch((error) => {
+    handlePlaybackEnd(cueId, reason = 'completed') {
+        this.handleCuePlaybackComplete(cueId, reason).catch((error) => {
             console.error(`CueManager: Error handling playback end for cue ${cueId}:`, error);
         });
     }

@@ -106,8 +106,8 @@ class AudioPlaybackManager {
                     sampleRate: this.sampleRate,
                     channelCount: this.channelCount,
                 });
-                this.mixer.setCueCompleteCallback((cueId) => {
-                    this.handlePlaybackEnd(cueId);
+                this.mixer.setCueCompleteCallback((cueId, reason) => {
+                    this.handlePlaybackEnd(cueId, reason);
                 });
                 this.mixer.setMasterGain(this.masterVolume);
             } else {
@@ -181,8 +181,8 @@ class AudioPlaybackManager {
                 sampleRate: this.sampleRate,
                 channelCount: this.channelCount,
             });
-            this.mixer.setCueCompleteCallback((cueId) => {
-                this.handlePlaybackEnd(cueId);
+            this.mixer.setCueCompleteCallback((cueId, reason) => {
+                this.handlePlaybackEnd(cueId, reason);
             });
             this.mixer.setMasterGain(this.masterVolume);
         } else {
@@ -522,12 +522,12 @@ class AudioPlaybackManager {
         this.onEngineError = callback;
     }
 
-    handlePlaybackEnd(cueId) {
+    handlePlaybackEnd(cueId, reason = 'completed') {
         this.playingCues.delete(cueId);
-        console.log(`AudioPlaybackManager: Playback ended for cue ${cueId}`);
+        console.log(`AudioPlaybackManager: Playback ended for cue ${cueId} (${reason})`);
 
         if (this.onPlaybackEnd) {
-            this.onPlaybackEnd(cueId);
+            this.onPlaybackEnd(cueId, reason);
         }
     }
 

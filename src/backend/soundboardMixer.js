@@ -195,6 +195,12 @@ class SoundboardMixer {
     render(outputBuffer, nFrames, nChannels) {
         outputBuffer.fill(0);
 
+        // Each entry records *why* a cue is being removed this frame, not
+        // just its id - reaching the natural end of the file and fading out
+        // to silence because of a deliberate stop both end up here, and
+        // callers (cueManager, ultimately deciding whether to broadcast
+        // 'completed' vs 'stopped', and whether a playlist should
+        // auto-advance) need to tell those apart.
         const toRemove = [];
 
         for (const [cueId, cue] of this.activeCues) {
@@ -212,7 +218,7 @@ class SoundboardMixer {
                     if (cue.loop) {
                         cue.position = cue.trimStartFrame;
                     } else {
-                        toRemove.push(cueId);
+                        toRemove.push({ cueId, reason: 'completed' });
                         break;
                     }
                 }
@@ -243,17 +249,17 @@ class SoundboardMixer {
                         cue.currentGain = cue.gainTarget;
                     }
                     if (cue.stopping && cue.currentGain === 0) {
-                        toRemove.push(cueId);
+                        toRemove.push({ cueId, reason: 'stopped' });
                         break;
                     }
                 }
             }
         }
 
-        for (const cueId of toRemove) {
+        for (const { cueId, reason } of toRemove) {
             this.activeCues.delete(cueId);
             if (this.onCueComplete) {
-                this.onCueComplete(cueId);
+                this.onCueComplete(cueId, reason);
             }
         }
     }
