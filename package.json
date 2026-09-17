@@ -15,7 +15,7 @@
     "test:unit": "node scripts/test-soundboard-mixer.js",
     "test:smoke": "node --test test/smoke.test.js",
     "probe:rtaudio": "node scripts/probe-rtaudio.js",
-    "postinstall": "electron-rebuild",
+    "postinstall": "electron-builder install-app-deps",
     "pack": "electron-builder --dir",
     "dist": "NODE_ENV=production electron-builder --mac --win --linux",
     "dist:mac": "NODE_ENV=production electron-builder --mac",
@@ -37,8 +37,7 @@
   "license": "MIT",
   "devDependencies": {
     "electron": "^38.4.0",
-    "electron-builder": "^24.13.3",
-    "electron-rebuild": "^3.2.9"
+    "electron-builder": "^24.13.3"
   },
   "dependencies": {
     "@hamitzor/rtaudio.js": "^2.2.0",
