@@ -44,6 +44,11 @@
 ### Prerequisites
 
 *   Node.js 18+ and npm (for development builds)
+*   CMake (`brew install cmake` on macOS) - the audio engine's native
+    module (`@hamitzor/rtaudio.js`) ships a prebuilt binary, but it isn't
+    always usable as-is; `npm install` falls back to compiling it locally
+    with CMake, and that fallback is common enough in practice to treat
+    CMake as required, not optional
 
 ### Installation & Running
 

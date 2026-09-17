@@ -418,19 +418,47 @@ class AccompanimentLauncher {
 
         try {
             console.log('Electron Launcher: Stopping Node.js server...');
+            const pid = this.nodeProcess.pid;
 
             // Set up promise to wait for process to actually stop
             return new Promise((resolve) => {
-                const timeout = setTimeout(() => {
-                    console.log('Electron Launcher: Force stopping server after timeout');
+                // SIGTERM asks server.js to clean up (flush the workspace,
+                // release the audio device) and exit on its own. But a
+                // graceful SIGTERM handler that gets stuck deep inside a
+                // synchronous native call (observed in practice: RtAudio's
+                // stopStream() can deadlock against its own audio I/O
+                // thread) freezes the entire JS event loop - at that point
+                // nothing in that process, including its own shutdown
+                // timeout, can run. The only way out is from outside the
+                // process: escalate to SIGKILL so a stuck child never
+                // lingers holding the port and audio device forever.
+                const killTimeout = setTimeout(() => {
+                    console.warn(`Electron Launcher: Server did not exit within 5s of SIGTERM - force killing (pid ${pid})`);
+                    try {
+                        if (process.platform === 'win32') {
+                            exec(`taskkill /pid ${pid} /T /F`);
+                        } else {
+                            process.kill(pid, 'SIGKILL');
+                        }
+                    } catch (killError) {
+                        console.error(`Electron Launcher: Failed to force-kill server process: ${killError.message}`);
+                    }
+                }, 5000);
+
+                // Backstop in case even SIGKILL somehow doesn't produce an
+                // 'exit' event promptly (e.g. a zombie state) - don't let
+                // the launcher's own shutdown/restart flow hang forever.
+                const giveUpTimeout = setTimeout(() => {
+                    console.error('Electron Launcher: Server process did not exit even after SIGKILL - giving up waiting.');
                     this.isNodeRunning = false;
                     this.nodeProcess = null;
                     this.updateTrayMenu();
                     resolve();
-                }, 5000);
+                }, 10000);
 
                 this.nodeProcess.on('exit', () => {
-                    clearTimeout(timeout);
+                    clearTimeout(killTimeout);
+                    clearTimeout(giveUpTimeout);
                     console.log('Electron Launcher: Node.js server stopped');
                     this.isNodeRunning = false;
                     this.nodeProcess = null;
@@ -440,7 +468,7 @@ class AccompanimentLauncher {
 
                 if (process.platform === 'win32') {
                     // Windows: Use taskkill
-                    exec(`taskkill /pid ${this.nodeProcess.pid} /T /F`, (error) => {
+                    exec(`taskkill /pid ${pid} /T /F`, (error) => {
                         if (error) {
                             console.error(`Error killing process: ${error.message}`);
                         }

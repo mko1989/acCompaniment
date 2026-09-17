@@ -143,12 +143,35 @@ before(async () => {
 after(async () => {
     if (serverProcess && serverProcess.exitCode === null) {
         serverProcess.kill('SIGTERM');
-        const { code } = await Promise.race([
+        let result = await Promise.race([
             serverExitPromise,
             new Promise((resolve) => setTimeout(() => resolve({ code: 'timeout' }), 12000)),
         ]);
-        assert.notEqual(code, 'timeout', 'Server did not exit within 12s of SIGTERM (graceful shutdown may be hanging)');
-        assert.equal(code, 0, `Server should exit 0 on graceful SIGTERM shutdown, got ${code}`);
+
+        if (result.code === 'timeout') {
+            // A graceful SIGTERM handler stuck deep in a synchronous
+            // native call (observed in practice: RtAudio's stopStream()
+            // can deadlock against its own audio I/O thread) freezes the
+            // whole JS event loop, so nothing in that process - including
+            // its own shutdown timeout - can run. SIGKILL is unconditional
+            // at the OS level and doesn't need the frozen process's
+            // cooperation. Always escalate so a rare deadlock can't leave
+            // an orphaned server (holding the port and audio device)
+            // behind after the test run, even though it still fails the
+            // assertion below to surface the underlying problem.
+            console.error('Smoke test: server did not exit within 12s of SIGTERM - force killing and failing loudly.');
+            serverProcess.kill('SIGKILL');
+            result = await Promise.race([
+                serverExitPromise,
+                new Promise((resolve) => setTimeout(() => resolve({ code: 'timeout-after-sigkill' }), 5000)),
+            ]);
+        }
+
+        await fs.rm(tempDataDir, { recursive: true, force: true }).catch(() => {});
+        assert.notEqual(result.code, 'timeout', 'Server did not exit within 12s of SIGTERM (graceful shutdown may be hanging - see stopStream() deadlock note in AudioPlaybackManager)');
+        assert.notEqual(result.code, 'timeout-after-sigkill', 'Server did not exit even after SIGKILL (unexpected)');
+        assert.equal(result.code, 0, `Server should exit 0 on graceful SIGTERM shutdown, got ${result.code}`);
+        return;
     }
     await fs.rm(tempDataDir, { recursive: true, force: true }).catch(() => {});
 });

@@ -4,6 +4,9 @@
 
 ### Prerequisites
 - Node.js 18+ installed
+- CMake installed (`brew install cmake` on macOS) - `npm install` often
+  needs it to build the native audio module locally; see `npm run
+  probe:rtaudio` if audio device enumeration fails after install
 - Dependencies installed (`npm install`)
 
 ### Step 1: Install Dependencies (if not already done)

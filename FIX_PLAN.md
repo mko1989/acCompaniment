@@ -510,6 +510,54 @@ sidebar UI), not a bug. Companion and the HTTP remote page cover remote-triggeri
 needs in the meantime. Revisit if OSC hardware integration becomes a real
 requirement.
 
+## G8 — Smoke test suite, REST status staleness, req.body crashes `[x]`
+**Severity:** High (the req.body one) · **Files:** `test/smoke.test.js` (new),
+`src/backend/cueManager.js` (`getCue`/`getCues`, `_mergeLiveState`), `server.js`
+(req.body-normalizing middleware, PORT-vs-config-port precedence)
+
+Added `test/smoke.test.js` (`npm run test:smoke`, included in `npm test`): spawns
+the real `start-nodejs.js` entry point against an isolated temp data dir
+(`ACCOMPANIMENT_DATA_DIR`, new env override) and exercises HTTP, WebSocket,
+upload, and the full cue lifecycle like a real client. It found three real bugs,
+all fixed:
+- `cueManager.getCue()`/`getCues()` returned the raw persisted cue record, never
+  merging in live playback status from the in-memory `cueStates` map - every REST
+  read (`GET /api/cues`, `/api/cues/:id`, `/api/remote/cues`) was permanently
+  stale; only WebSocket broadcasts ever reflected real status.
+- Systemic: ~17 route handlers destructure fields straight off `req.body`
+  (`const { fadeOut } = req.body`) with no fallback. A POST with no body at all
+  (normal for an action endpoint like "stop") leaves `req.body` `undefined` and
+  500s. Fixed once, centrally, with middleware guaranteeing `req.body` is always
+  at least `{}`.
+- A fresh data dir + explicit `PORT` env var got silently overridden back to the
+  config's default port, since the newly-auto-created config's `httpRemotePort`
+  always won over an explicit `PORT=`. Only surfaces when both conditions hold at
+  once - exactly what running isolated tests does every time.
+
+**Known limitation found via testing, not fully fixed (root cause is third-party):**
+during shutdown, `AudioPlaybackManager._closeStream()`'s call to `rt.stopStream()`
+(native, synchronous) can deadlock against RtAudio's own CoreAudio I/O thread if a
+render callback is in flight at just the wrong moment - observed directly via a
+`sample` stack trace during test development. Because this blocks the whole JS
+event loop synchronously, no JS-level timeout (including `server.js`'s own
+10s shutdown force-exit) can fire to recover. Mitigated at the process level
+instead: `electron-launcher/main.js`'s `stopNodeServer()` now actually escalates
+to `SIGKILL` after a 5s grace period (previously it just gave up *waiting* and
+called it "force stopped" without sending any kill signal - the child leaked as
+an orphan holding the port and audio device). The smoke test's own teardown does
+the same. A standalone headless deployment (`node start-nodejs.js` with no
+supervisor) has no such external escalation available - run it under a process
+supervisor (systemd, pm2, launchd with `KeepAlive`) in that configuration.
+
+**Also confirmed via a from-scratch reinstall on this machine:** the published
+`@hamitzor/rtaudio.js` prebuilt binary's `librtaudio.dylib` failed to load
+(`Library not loaded: @rpath/librtaudio.dylib`, referencing the package author's
+own build machine path). CMake was required locally for the `cmake-js rebuild`
+fallback (`prebuild-install || cmake-js rebuild` in that package's own install
+script) to succeed. CMake is not currently documented as a prerequisite anywhere
+- worth adding to README/QUICKSTART, since relying on the prebuilt binary alone
+is not reliable in practice.
+
 ---
 
 # Suggested execution order
