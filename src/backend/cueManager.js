@@ -693,10 +693,31 @@ class CueManager {
         const status = {
             playingCues: Array.from(this.playingCues.keys()),
             totalPlaying: this.playingCues.size,
-            cueStates: Object.fromEntries(this.cueStates)
+            cueStates: Object.fromEntries(this.cueStates),
+            masterVolume: this.audioPlaybackManager?.getMasterVolume() ?? 1.0
         };
-        
+
         return status;
+    }
+
+    // Master volume (0-2, applied as a gain multiplier over every cue's own
+    // volume in the mixer). Not persisted - like a physical fader, it's
+    // live session state, not a saved preference.
+    setMasterVolume(volume) {
+        if (typeof volume !== 'number' || Number.isNaN(volume)) {
+            return { success: false, error: 'volume must be a number' };
+        }
+        this.audioPlaybackManager.setMasterVolume(volume);
+        const applied = this.audioPlaybackManager.getMasterVolume();
+        this.websocketManager?.broadcast({
+            type: 'master-volume-updated',
+            payload: { volume: applied }
+        });
+        return { success: true, volume: applied };
+    }
+
+    getMasterVolume() {
+        return this.audioPlaybackManager?.getMasterVolume() ?? 1.0;
     }
     
     // Cleanup

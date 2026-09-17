@@ -491,6 +491,10 @@ class AudioPlaybackManager {
         console.log(`AudioPlaybackManager: Master volume set to ${this.masterVolume}`);
     }
 
+    getMasterVolume() {
+        return this.masterVolume;
+    }
+
     getPlaybackStatus() {
         const mixerStatus = this.mixer ? this.mixer.getStatus() : null;
         return {

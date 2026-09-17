@@ -94,11 +94,11 @@ class AccompanimentServer {
     
     setupRoutes() {
         // API Routes
-        // Health check endpoint
-        this.app.get('/api/remote/health', (req, res) => {
-            res.json({ status: 'ok', timestamp: new Date().toISOString() });
-        });
-        
+        // Health check lives in routes/remote.js ('/api/remote/health') -
+        // it used to also be defined here, which silently shadowed the
+        // router's own handler (Express matches routes in registration
+        // order, and this one was registered first), making the router's
+        // more detailed version 100% unreachable dead code.
         this.app.use('/api/config', require('./src/backend/routes/config'));
         this.app.use('/api/cues', require('./src/backend/routes/cues'));
         this.app.use('/api/audio', require('./src/backend/routes/audio'));

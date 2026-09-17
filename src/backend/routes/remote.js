@@ -167,6 +167,35 @@ router.post('/cues/:id/playlist/navigate', async (req, res) => {
     }
 });
 
+// Get/set master volume (a live gain multiplier over every cue's own
+// volume, like a physical master fader - not a persisted setting)
+router.get('/master-volume', async (req, res) => {
+    try {
+        const { cueManager } = req.app.locals.managers;
+        res.json({ success: true, volume: cueManager.getMasterVolume() });
+    } catch (error) {
+        console.error('❌ Remote get master volume error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+router.post('/master-volume', async (req, res) => {
+    try {
+        const { cueManager } = req.app.locals.managers;
+        const { volume } = req.body;
+        const result = cueManager.setMasterVolume(volume);
+
+        if (result.success) {
+            res.json({ success: true, volume: result.volume });
+        } else {
+            res.status(400).json({ success: false, error: result.error });
+        }
+    } catch (error) {
+        console.error('❌ Remote set master volume error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Get playback status for remote control
 router.get('/status', async (req, res) => {
     try {
@@ -222,12 +251,22 @@ router.get('/health', async (req, res) => {
     try {
         const { cueManager, websocketManager } = req.app.locals.managers;
         const playbackStatus = cueManager.getPlaybackStatus();
-        
+        const timestamp = new Date().toISOString();
+
         res.json({
+            // Top-level status/timestamp: the original, simpler health
+            // check shape (used by electron-launcher's liveness poll and
+            // any external monitoring expecting a plain "status": "ok").
+            status: 'ok',
+            timestamp,
+            // success/health: the richer shape this endpoint always
+            // returned on paper, but was actually unreachable until this
+            // fix - server.js used to register its own simpler handler
+            // for this same path first, shadowing this one entirely.
             success: true,
             health: {
                 status: 'healthy',
-                timestamp: new Date().toISOString(),
+                timestamp,
                 playback: {
                     totalPlaying: playbackStatus.totalPlaying,
                     playingCues: playbackStatus.playingCues
