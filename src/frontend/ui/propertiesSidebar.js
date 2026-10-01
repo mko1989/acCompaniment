@@ -100,6 +100,7 @@ function initPropertiesSidebar(csModule, acModule, websocketAPI, uiCoreInterface
     };
     
     initEventHandlers(debouncedSaveCueProperties, (cueId) => { activePropertiesCueId = cueId; }, cueStore, domElements, websocketBindingsModule);
+    bindReplaceFile();
     bindPropertiesSidebarEventListeners(hidePropertiesSidebar, handleDeleteCueProperties, renderPlaylistInPropertiesWrapper, setStagedPlaylistItems);
     
     console.log('Properties Sidebar Module Initialized');
@@ -152,6 +153,7 @@ function openPropertiesSidebar(cue) {
     };
 
     // Populate form with cue data using the form manager
+    updateReplaceFileButton(cue);
     populateFormWithCueData(
         cue, 
         domElements, 
@@ -164,6 +166,65 @@ function openPropertiesSidebar(cue) {
 
     // Show the sidebar
     showPropertiesSidebar();
+}
+
+// --- Replace File ------------------------------------------------------------
+// Swaps the cue's library file for a new version, in place on the server:
+// every cue in every project using that file then plays the new version.
+
+function updateReplaceFileButton(cue) {
+    const button = document.getElementById('replaceCueFileButton');
+    const status = document.getElementById('replaceCueFileStatus');
+    if (status) status.textContent = '';
+    if (button) {
+        const hasFile = cue && cue.type !== 'playlist' && Boolean(cue.audioFileId);
+        button.style.display = hasFile ? '' : 'none';
+    }
+}
+
+function bindReplaceFile() {
+    const button = document.getElementById('replaceCueFileButton');
+    const input = document.getElementById('replaceCueFileInput');
+    if (!button || !input) return;
+
+    button.addEventListener('click', () => {
+        const cue = activePropertiesCueId ? cueStore.getCueById(activePropertiesCueId) : null;
+        if (!cue?.audioFileId) return;
+        const fileName = cue.relativePath || 'this file';
+        if (!confirm(`Replace "${fileName}" with a new version?\n\nEvery cue using this file, in every project, will play the new version.`)) {
+            return;
+        }
+        input.value = '';
+        input.click();
+    });
+
+    input.addEventListener('change', async () => {
+        const file = input.files && input.files[0];
+        const cue = activePropertiesCueId ? cueStore.getCueById(activePropertiesCueId) : null;
+        const status = document.getElementById('replaceCueFileStatus');
+        if (!file || !cue?.audioFileId) return;
+        if (status) status.textContent = `Replacing with ${file.name}...`;
+        try {
+            const form = new FormData();
+            form.append('audioFile', file);
+            const response = await fetch(`/api/audio/${cue.audioFileId}/replace`, { method: 'POST', body: form });
+            const result = await response.json();
+            if (!result.success) {
+                throw new Error(result.error || 'Replace failed');
+            }
+            const where = result.projectsUpdated > 1 ? ` (in ${result.projectsUpdated} projects)` : '';
+            if (status) status.textContent = `Replaced with ${file.name}${where}.`;
+            // The waveform URL doesn't change - reload it explicitly so it
+            // shows the new audio even if nothing else about the cue did.
+            const latest = cueStore.getCueById(cue.id) || cue;
+            waveformControls.showWaveformForCue({ ...latest, relativePath: result.audioFile.relativePath });
+        } catch (error) {
+            console.error('PropertiesSidebar: Replace file failed:', error);
+            if (status) status.textContent = `Replace failed: ${error.message}`;
+        } finally {
+            input.value = '';
+        }
+    });
 }
 
 function hidePropertiesSidebar() {
@@ -241,20 +302,36 @@ function getActivePropertiesCueId() {
     return activePropertiesCueId;
 }
 
-async function setFilePathInProperties(filePath) {
+// Replaces the audio of the open single-file cue with a newly uploaded file
+// (dropped onto the sidebar). Playback uses the file's id and relative
+// path, so those are what gets saved - this used to only change the text in
+// the (read-only) file field, and the cue kept playing its old audio.
+async function setFilePathInProperties(audioFile) {
     if (!activePropertiesCueId) return false;
     const activeCue = cueStore.getCueById(activePropertiesCueId);
     if (!activeCue || (activeCue.type !== 'single_file' && activeCue.type !== 'single')) return false;
-    
+    if (!audioFile || typeof audioFile !== 'object' || !audioFile.id) return false;
+
     const propFilePathInput = getDOMElement('propFilePathInput');
     if (propFilePathInput) {
-        propFilePathInput.value = filePath;
-        if (activeCue.type === 'single_file' || activeCue.type === 'single') {
-            waveformControls.showWaveformForCue({ ...activeCue, filePath: filePath });
-        }
-        return true;
+        propFilePathInput.value = audioFile.relativePath || '';
     }
-    return false;
+
+    const result = await cueStore.addOrUpdateCue({
+        id: activeCue.id,
+        audioFileId: audioFile.id,
+        relativePath: audioFile.relativePath,
+        filePath: `/api/audio/serve/${audioFile.id}`,
+        knownDuration: audioFile.duration || 0,
+        // Trim points belonged to the old file.
+        trimStartTime: 0,
+        trimEndTime: null,
+    });
+    if (result?.success) {
+        setCurrentWaveformTrim(0, undefined);
+        waveformControls.showWaveformForCue({ ...activeCue, filePath: `/api/audio/serve/${audioFile.id}`, trimStartTime: 0, trimEndTime: undefined });
+    }
+    return Boolean(result?.success);
 }
 
 function handleCuePropertyChangeFromWaveform(trimStart, trimEnd) {

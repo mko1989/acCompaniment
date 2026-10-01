@@ -17,7 +17,7 @@ router.get('/cues', async (req, res) => {
             status: cue.status || 'stopped',
             currentTime: cue.currentTime || 0,
             totalTime: cue.totalTime || 0,
-            volume: cue.volume || 1.0,
+            volume: typeof cue.volume === 'number' ? cue.volume : 1.0,
             fadeInTime: cue.fadeInTime || 0,
             fadeOutTime: cue.fadeOutTime || 0,
             loop: cue.loop || false,
@@ -57,7 +57,10 @@ router.post('/cues/:id/trigger', async (req, res) => {
         if (result.success) {
             res.json({
                 success: true,
-                message: 'Cue triggered successfully'
+                message: 'Cue triggered successfully',
+                // What the press did: 'playing', 'paused', ... (see
+                // retriggerLogic), when it changed the cue's state.
+                status: result.status ?? cueManager.getCue(req.params.id)?.status,
             });
         } else {
             res.status(400).json({
@@ -196,6 +199,32 @@ router.post('/master-volume', async (req, res) => {
     }
 });
 
+// Get/set crossfade mode (starting a cue fades the others out and the new
+// one in). Live session state, like master volume.
+router.get('/crossfade', async (req, res) => {
+    try {
+        const { cueManager } = req.app.locals.managers;
+        res.json({ success: true, enabled: cueManager.getCrossfadeMode() });
+    } catch (error) {
+        console.error('❌ Remote get crossfade mode error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+router.post('/crossfade', async (req, res) => {
+    try {
+        const { cueManager } = req.app.locals.managers;
+        const enabled = req.body?.enabled;
+        if (typeof enabled !== 'boolean') {
+            return res.status(400).json({ success: false, error: 'enabled must be true or false' });
+        }
+        res.json(cueManager.setCrossfadeMode(enabled));
+    } catch (error) {
+        console.error('❌ Remote set crossfade mode error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Get playback status for remote control
 router.get('/status', async (req, res) => {
     try {
@@ -227,11 +256,11 @@ router.get('/info', async (req, res) => {
             info: {
                 name: 'acCompaniment',
                 version: '0.3.0',
-                httpPort: config.httpRemotePort,
-                websocketPort: config.websocketPort,
+                httpPort: appConfigManager.getListeningPort(),
+                websocketPort: appConfigManager.getListeningPort(), // same server
                 networkInterfaces: networkInterfaces,
                 features: {
-                    httpRemote: config.httpRemoteEnabled,
+                    httpRemote: true, // always served, at /remote
                     websocket: config.websocketEnabled,
                     audioFormats: config.supportedAudioFormats
                 }

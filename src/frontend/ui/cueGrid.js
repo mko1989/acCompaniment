@@ -10,13 +10,18 @@ let cueButtonMap = {}; // To store references to cue button DOM elements
 let dragOverCueId = null;
 let cueGridContainer;
 
+// One badge per retrigger option in the properties sidebar (plus older
+// spellings saved workspaces may contain).
 const RETRIGGER_BADGE_INFO = {
     restart: { key: 'restart', glyph: '↻', label: 'Restart' },
-    pause_resume: { key: 'pause-resume', glyph: '⏯', label: 'Pause / Resume' },
+    toggle_pause_play: { key: 'pause-resume', glyph: '⏯', label: 'Toggle Pause/Play' },
+    pause_resume: { key: 'pause-resume', glyph: '⏯', label: 'Toggle Pause/Play' },
     stop: { key: 'stop', glyph: '■', label: 'Stop' },
     fade_out_and_stop: { key: 'fade-stop', glyph: '⤵', label: 'Fade Out and Stop' },
     do_nothing: { key: 'do-nothing', glyph: '–', label: 'Do Nothing' },
     play_new_instance: { key: 'new-instance', glyph: '+', label: 'Play New Instance' },
+    replay_current_item: { key: 'replay', glyph: '⟲', label: 'Replay Current Item' },
+    play_next_item: { key: 'next-item', glyph: '⏭', label: 'Play Next Item' },
 };
 
 function getRetriggerBadgeInfo(retriggerBehavior) {
@@ -157,6 +162,21 @@ function renderCues() {
         const nameContainer = document.createElement('div');
         nameContainer.className = 'cue-button-name-container';
         button.appendChild(nameContainer);
+
+        // "DUCK" while a ducking trigger is lowering this cue, and "×N"
+        // while N layered instances of it are playing.
+        const duckBadge = document.createElement('div');
+        duckBadge.className = 'cue-duck-badge';
+        duckBadge.id = `cue-duck-badge-${cue.id}`;
+        duckBadge.textContent = 'DUCK';
+        duckBadge.title = 'Lowered by a ducking trigger';
+        button.appendChild(duckBadge);
+
+        const instanceBadge = document.createElement('div');
+        instanceBadge.className = 'cue-instance-badge';
+        instanceBadge.id = `cue-instance-badge-${cue.id}`;
+        instanceBadge.title = 'Instances playing';
+        button.appendChild(instanceBadge);
 
         const vuMeter = document.createElement('div');
         vuMeter.className = 'cue-vu-meter';
@@ -532,7 +552,7 @@ function updateButtonPlayingState(cueId, isPlaying, statusTextArg = null, isCued
         button.insertBefore(cuedTextIndicator, button.firstChild); // Add to top-left
     }
 
-    button.classList.remove('playing', 'paused', 'cued');
+    button.classList.remove('playing', 'paused', 'cued', 'ducked');
     statusIndicator.style.display = 'block'; // Default to visible
     cuedTextIndicator.style.display = 'none'; // Default to hidden
 
@@ -598,6 +618,15 @@ function updateButtonPlayingState(cueId, isPlaying, statusTextArg = null, isCued
         const nextItemName = playbackState.nextPlaylistItemName;
         
         let playlistInfoHTML = ''; // Initialize playlistInfoHTML here
+
+        const isActive = actualIsPlaying || actualIsPaused;
+        button.classList.toggle('ducked', Boolean(isActive && playbackState.isDucked));
+        const instanceBadge = button.querySelector('.cue-instance-badge');
+        if (instanceBadge) {
+            const voices = isActive ? (playbackState.voiceCount || 1) : 0;
+            instanceBadge.textContent = voices > 1 ? `×${voices}` : '';
+            instanceBadge.classList.toggle('visible', voices > 1);
+        }
 
         if (actualIsPlaying) {
             button.classList.add('playing');

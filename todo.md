@@ -1,6 +1,15 @@
 # acCompaniment Node.js Conversion - TODO List
 
-## 🎉 **CONVERSION STATUS: 90% COMPLETE!**
+## Status (2026-09-29): migration complete
+
+The Electron-only app is fully replaced (server-side RtAudio engine,
+browser UI, tray launcher; legacy code only in `archive/`). All legacy
+playback features are ported (ducking, crossfade mode, shuffle, play new
+instance, every retrigger behavior) and waveform editing is covered by
+browser tests - see FIX_PLAN.md G16/G17. Still manual-only: Companion
+integration (needs the external Companion module).
+
+## (historical) CONVERSION STATUS: 90% COMPLETE
 
 **✅ Completed Phases: 8 out of 9**
 - ✅ Phase 1: Planning & Analysis

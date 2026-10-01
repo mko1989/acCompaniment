@@ -1,5 +1,13 @@
-const { v4: uuidv4 } = require('uuid');
+const path = require('path');
 const AudioPlaybackManager = require('./audioPlaybackManager');
+const { rewriteCueReferences } = require('./mediaLibrary');
+const { resolveRetrigger } = require('./retriggerLogic');
+const {
+    shuffledOrder, isValidOrder, decideItemEnd, stepIndex, peekNextIndex,
+} = require('./playlistLogic');
+
+// How long ducking takes to lower / restore affected cues (legacy app: 1s).
+const DEFAULT_DUCK_FADE_MS = 1000;
 
 class CueManager {
     constructor(audioFileManager, cueDataManager, websocketManager) {
@@ -12,6 +20,11 @@ class CueManager {
         this.audioPlaybackManager = new AudioPlaybackManager();
         
         this.config = null;
+        this.crossfadeMode = false;
+        this.shuffleOrders = new Map(); // playlist cueId -> shuffled play order
+        this._duckState = new Map(); // playing cueId -> duck multiplier applied
+        this._rng = Math.random; // replaceable for deterministic tests
+        this._cueQueues = new Map(); // cueId -> tail of that cue's operation queue
         this._saveDebounceTimer = null;
         this._saveDebounceMs = 300;
     }
@@ -21,10 +34,14 @@ class CueManager {
         
         await this.cueDataManager.cleanupOrphanWorkspaceFiles();
         
+        // Reopen the project that was open last; failing that (first run
+        // after upgrading, or it was deleted) the most recently changed one.
         const workspaces = await this.cueDataManager.getAllWorkspaces();
-        if (workspaces.length > 0) {
-            await this.cueDataManager.loadWorkspace(workspaces[0].id);
-            console.log(`CueManager: Loaded workspace: ${workspaces[0].name}`);
+        const lastOpenedId = this.config?.lastOpenedProjectId;
+        const toOpen = workspaces.find((w) => w.id === lastOpenedId) || workspaces[0];
+        if (toOpen) {
+            await this.cueDataManager.loadWorkspace(toOpen.id);
+            console.log(`CueManager: Loaded workspace: ${toOpen.name}`);
         } else {
             await this.cueDataManager.createWorkspace('Default Workspace');
             console.log('CueManager: Created default workspace');
@@ -84,7 +101,16 @@ class CueManager {
             const playing = status.mixer?.playing || [];
             const peakLevels = this.audioPlaybackManager.drainPeakLevels();
 
+            // One update per cue. With layered "new instance" voices, the
+            // newest one (last in start order) drives the display.
+            const newestVoice = new Map();
+            const voiceCounts = new Map();
             for (const entry of playing) {
+                newestVoice.set(entry.cueId, entry);
+                voiceCounts.set(entry.cueId, (voiceCounts.get(entry.cueId) || 0) + 1);
+            }
+
+            for (const entry of newestVoice.values()) {
                 const cue = this.getCue(entry.cueId);
                 const totalTime = entry.trimEndSec - entry.trimStartSec;
                 const currentTime = Math.max(0, entry.positionSec - entry.trimStartSec);
@@ -104,6 +130,13 @@ class CueManager {
                         remainingTimeFormatted: this._formatTimeMMSS(remaining),
                         status: playbackStatus,
                         peakLevel: entry.isPaused ? 0 : (peakLevels[entry.cueId] || 0),
+                        isFadingIn: Boolean(entry.isFadingIn),
+                        isFadingOut: Boolean(entry.isFadingOut),
+                        fadeTimeRemainingMs: Math.round((entry.fadeRemainingSec || 0) * 1000),
+                        isDucked: Boolean(entry.isDucked),
+                        duckGain: entry.duckGain ?? 1,
+                        voiceCount: voiceCounts.get(entry.cueId),
+                        ...(cue ? this._playlistPosition(cue) : {}),
                     },
                 });
             }
@@ -125,6 +158,12 @@ class CueManager {
             return { success: false, error: 'Audio engine not available' };
         }
 
+        // Reopening the output stops everything; do it here so cue states
+        // and the UI are told, rather than cues silently going quiet while
+        // their buttons still show "playing".
+        if (this.audioPlaybackManager.playingCues.size > 0) {
+            await this.stopAllCues('stop');
+        }
         const result = await this.audioPlaybackManager.applyAudioConfig(this._audioEngineConfig());
         if (this.config?.audioSampleRate) {
             this.audioFileManager?.setPcmSampleRate(this.config.audioSampleRate);
@@ -243,151 +282,390 @@ class CueManager {
     async updateCue(cueId, updates) {
         try {
             const result = this.cueDataManager.updateCue(cueId, updates);
-            
+
             if (result.success) {
+                this._applyLiveUpdates(cueId, updates || {});
+
                 // Broadcast update
                 this.websocketManager.broadcastCueUpdate(cueId, updates);
                 await this.websocketManager.broadcastCuesUpdate(this.getCues());
-                
+
                 console.log(`📝 CueManager: Updated cue: ${cueId}`);
                 this._schedulePersistWorkspace();
             }
-            
+
             return result;
-            
+
         } catch (error) {
             console.error(`CueManager: Error updating cue: ${error.message}`);
             return { success: false, error: error.message };
         }
     }
-    
+
+    // Edits to a cue that is playing right now take effect immediately
+    // where that makes sense: its volume, and anything that changes who is
+    // ducking whom.
+    _applyLiveUpdates(cueId, updates) {
+        if (this.audioPlaybackManager.playingCues.has(cueId) && typeof updates.volume === 'number') {
+            this.audioPlaybackManager.setCueVolume(cueId, updates.volume);
+        }
+        if ('playlistItems' in updates) {
+            this.shuffleOrders.delete(cueId);
+        }
+        if (['isDuckingTrigger', 'enableDucking', 'duckingLevel'].some((k) => k in updates)) {
+            this._updateDucking();
+        }
+    }
+
+    // A library file was replaced with a new version (same id). Every cue
+    // using it - in this project and all others - gets the new duration
+    // (and new name, if the file type changed); cached decoded audio of the
+    // old version is dropped so the next play uses the new one.
+    async handleAudioFileReplaced(audioFile, previous = {}) {
+        const mapRef = (ref) => {
+            const matches = ref.audioFileId === audioFile.id
+                || (previous.relativePath && ref.relativePath === previous.relativePath);
+            return matches
+                ? { audioFileId: audioFile.id, relativePath: audioFile.relativePath, knownDuration: audioFile.duration || 0 }
+                : null;
+        };
+        const result = await this.cueDataManager.rewriteAudioReferences(mapRef);
+        this.audioPlaybackManager.audioBuffers.delete(previous.path);
+        this.audioPlaybackManager.audioBuffers.delete(audioFile.path);
+        if (result.cuesUpdated > 0) {
+            this._schedulePersistWorkspace();
+        }
+        await this.websocketManager.broadcastCuesUpdate(this.getCues());
+        return result;
+    }
+
+    // Reorder cues (drag-and-drop in the grid). Accepts ids or cue objects.
+    async reorderCues(order) {
+        try {
+            if (!Array.isArray(order)) {
+                return { success: false, error: 'cueIds must be an array' };
+            }
+            const ids = order.map((entry) => (typeof entry === 'string' ? entry : entry?.id));
+            const result = this.cueDataManager.reorderCues(ids);
+            if (result.success) {
+                await this.websocketManager.broadcastCuesUpdate(this.getCues());
+                this._schedulePersistWorkspace();
+            }
+            return result;
+        } catch (error) {
+            console.error(`CueManager: Error reordering cues: ${error.message}`);
+            return { success: false, error: error.message };
+        }
+    }
+
     // Delete cue
     async deleteCue(cueId) {
         try {
             // Stop cue if playing
             await this.stopCue(cueId);
-            
+
             const result = this.cueDataManager.deleteCue(cueId);
-            
+
             if (result.success) {
                 // Clean up state
                 this.playingCues.delete(cueId);
                 this.cueStates.delete(cueId);
-                
+                this.shuffleOrders.delete(cueId);
+                this._duckState.delete(cueId);
+                this._updateDucking();
+
                 // Broadcast update
                 await this.websocketManager.broadcastCuesUpdate(this.getCues());
-                
+
                 console.log(`CueManager: Deleted cue: ${cueId}`);
                 this._schedulePersistWorkspace();
             }
-            
+
             return result;
-            
+
         } catch (error) {
             console.error(`CueManager: Error deleting cue: ${error.message}`);
             return { success: false, error: error.message };
         }
     }
-    
-    // Trigger cue (play/restart)
+
+    // --- Triggering ---------------------------------------------------------
+
+    // Runs operations on one cue one at a time, in arrival order. Starting a
+    // cue takes a moment (loading/decoding its audio), and a second press
+    // arriving meanwhile used to see the cue as not yet playing and start it
+    // fresh again - so a quick double press on a "play new instance" cue gave
+    // one instance instead of two, and "toggle pause" never paused.
+    _serialized(cueId, operation) {
+        const previous = this._cueQueues.get(cueId) || Promise.resolve();
+        const run = previous.catch(() => {}).then(operation);
+        const tail = run.catch(() => {});
+        this._cueQueues.set(cueId, tail);
+        tail.then(() => {
+            if (this._cueQueues.get(cueId) === tail) this._cueQueues.delete(cueId);
+        });
+        return run;
+    }
+
+    // The one entry point for "the operator pressed this cue" - the REST
+    // trigger route, the UI's toggle, the remote page and Companion all land
+    // here. A cue that is playing or paused goes through its retrigger
+    // behavior (options.retriggerBehavior overrides the cue's own); anything
+    // else starts fresh.
     async triggerCue(cueId, options = {}) {
+        return this._serialized(cueId, () => this._triggerCueNow(cueId, options));
+    }
+
+    async _triggerCueNow(cueId, options = {}) {
         try {
             const cue = this.getCue(cueId);
             if (!cue) {
                 return { success: false, error: 'Cue not found' };
             }
-            
-            // Handle retrigger behavior
-            const currentState = this.cueStates.get(cueId);
-            if (currentState && currentState.status === 'playing') {
-                return await this.handleRetriggerBehavior(cue, options);
+
+            const status = this.cueStates.get(cueId)?.status;
+            if (status === 'playing' || status === 'paused') {
+                const behavior = options.retriggerBehavior || cue.retriggerBehavior || 'restart';
+                const action = resolveRetrigger(behavior, status, cue.type === 'playlist');
+                return await this._applyRetriggerAction(cue, action, options);
             }
-            
-            // Start playing the cue
-            const playbackInfo = await this.startCuePlayback(cue, options);
-            
-            if (playbackInfo.success) {
-                this.playingCues.set(cueId, playbackInfo);
-                this.cueStates.set(cueId, {
-                    status: 'playing',
-                    startTime: Date.now(),
-                    currentTime: 0,
-                    totalTime: cue.totalTime || 0
-                });
-                
-                // Broadcast status update
-                this.websocketManager.broadcastCueStatus(cueId, 'playing', {
-                    currentTime: 0,
-                    totalTime: cue.totalTime || 0
-                });
-                
-                console.log(`CueManager: Started cue: ${cue.name} (${cueId})`);
-            }
-            
-            return playbackInfo;
-            
+
+            return await this._startCue(cue, options);
+
         } catch (error) {
             console.error(`CueManager: Error triggering cue: ${error.message}`);
             return { success: false, error: error.message };
         }
     }
-    
-    // Stop cue
+
+    // Toggle cue (the UI's click) - same semantics as triggerCue.
+    async toggleCue(cueId, options = {}) {
+        return this.triggerCue(cueId, options);
+    }
+
+    async _applyRetriggerAction(cue, action, options = {}) {
+        switch (action) {
+            case 'restart':
+                await this.stopCuePlayback(cue.id, 0);
+                return this._startCue(this.getCue(cue.id), { ...options, noCrossfade: true });
+            case 'pause':
+                return this._pauseCue(cue.id);
+            case 'resume':
+                return this._resumeCue(cue.id);
+            case 'stop':
+                return this.stopCuePlayback(cue.id, 0);
+            case 'fade_stop':
+                return this.stopCuePlayback(cue.id, this._fadeOutMsFor(cue));
+            case 'nothing':
+                return { success: true, message: 'Cue already playing' };
+            case 'new_instance':
+                return this._startNewInstance(cue, options);
+            case 'next_item':
+                return this._skipToNextItem(cue);
+            default:
+                return { success: false, error: `Unknown retrigger action: ${action}` };
+        }
+    }
+
+    // A cue fades out over its own fade-out time; 0 means stop instantly.
+    _fadeOutMsFor(cue) {
+        return Math.max(0, Number(cue.fadeOutTime) || 0);
+    }
+
+    // Starts a cue that isn't playing: sets up its shuffle order, applies
+    // crossfade mode, and starts it at the right duck level.
+    async _startCue(cue, options = {}) {
+        if (cue.type === 'playlist' && cue.playlistItems?.length) {
+            cue = await this._preparePlaylistForStart(cue);
+        }
+
+        let fadeInOverrideMs = null;
+        if (this.crossfadeMode && !options.noCrossfade) {
+            const crossfadeMs = this.config?.crossfadeTime ?? 2000;
+            const others = Array.from(this.audioPlaybackManager.playingCues.keys()).filter((id) => id !== cue.id);
+            for (const otherId of others) {
+                await this.stopCuePlayback(otherId, crossfadeMs);
+            }
+            fadeInOverrideMs = crossfadeMs;
+        }
+
+        const playbackInfo = await this.startCuePlayback(cue, { ...options, fadeInOverrideMs });
+
+        if (playbackInfo.success) {
+            this.playingCues.set(cue.id, playbackInfo);
+            this.cueStates.set(cue.id, {
+                status: 'playing',
+                startTime: Date.now(),
+                currentTime: 0,
+                totalTime: cue.totalTime || 0
+            });
+            this.websocketManager.broadcastCueStatus(cue.id, 'playing', {
+                currentTime: 0,
+                totalTime: cue.totalTime || 0,
+                ...this._playlistPosition(cue),
+            });
+            this._updateDucking();
+            console.log(`CueManager: Started cue: ${cue.name} (${cue.id})`);
+        }
+
+        return playbackInfo;
+    }
+
+    // Shuffle: a fresh start (not resuming a cued item, not mid-order after
+    // a manual stop) draws a new random order and starts at its first item.
+    async _preparePlaylistForStart(cue) {
+        const itemCount = cue.playlistItems.length;
+        if (!cue.shufflePlaylist) {
+            this.shuffleOrders.delete(cue.id);
+            return cue;
+        }
+        if (isValidOrder(this.shuffleOrders.get(cue.id), itemCount)) {
+            return cue;
+        }
+        const order = shuffledOrder(itemCount, this._rng);
+        this.shuffleOrders.set(cue.id, order);
+        const isCued = this.cueStates.get(cue.id)?.status === 'cued_next';
+        if (!isCued && order[0] !== (cue.currentPlaylistIndex || 0)) {
+            await this.updateCue(cue.id, { currentPlaylistIndex: order[0] });
+            return this.getCue(cue.id);
+        }
+        return cue;
+    }
+
+    _playlistPosition(cue) {
+        if (cue.type !== 'playlist' || !cue.playlistItems?.length) {
+            return {};
+        }
+        const currentIndex = cue.currentPlaylistIndex || 0;
+        return {
+            playlistIndex: currentIndex,
+            nextPlaylistIndex: peekNextIndex({
+                itemCount: cue.playlistItems.length,
+                currentIndex,
+                shuffle: Boolean(cue.shufflePlaylist),
+                order: this.shuffleOrders.get(cue.id),
+                loop: Boolean(cue.loop),
+            }),
+        };
+    }
+
+    // "Play New Instance": another voice of the same cue on top of the ones
+    // already playing. The cue counts as playing until its last voice ends.
+    async _startNewInstance(cue, options = {}) {
+        const result = await this.startCuePlayback(cue, { ...options, newInstance: true });
+        if (result.success) {
+            const voiceCount = this.audioPlaybackManager.voiceCount(cue.id);
+            this.websocketManager.broadcastCueStatus(cue.id, 'playing', {
+                voiceCount,
+                ...this._playlistPosition(cue),
+            });
+            console.log(`CueManager: New instance of ${cue.name} (${voiceCount} playing)`);
+        }
+        return result;
+    }
+
+    // "Play Next Item": behave as if the current item had just ended in
+    // 'continue' mode - next item (shuffle-aware), wrapping with loop, and
+    // finishing the playlist after the last one.
+    async _skipToNextItem(cue) {
+        const decision = decideItemEnd({
+            itemCount: cue.playlistItems.length,
+            currentIndex: cue.currentPlaylistIndex || 0,
+            mode: 'continue',
+            loop: Boolean(cue.loop),
+            shuffle: Boolean(cue.shufflePlaylist),
+            order: this.shuffleOrders.get(cue.id),
+            rng: this._rng,
+        });
+        await this.stopCuePlayback(cue.id, 0);
+        this._rememberOrder(cue.id, decision.order);
+        await this._setPlaylistIndex(cue, decision.nextIndex);
+        if (decision.action === 'finish') {
+            return { success: true, finished: true };
+        }
+        return this._startCue(this.getCue(cue.id), { noCrossfade: true });
+    }
+
+    _rememberOrder(cueId, order) {
+        if (order) {
+            this.shuffleOrders.set(cueId, order);
+        } else {
+            this.shuffleOrders.delete(cueId);
+        }
+    }
+
+    async _setPlaylistIndex(cue, index) {
+        if ((cue.currentPlaylistIndex || 0) !== index) {
+            await this.updateCue(cue.id, { currentPlaylistIndex: index });
+        }
+    }
+
+    // --- Stopping -----------------------------------------------------------
+
+    // Stop cue (REST /stop). With fadeOut, fades over the cue's fade-out time.
     async stopCue(cueId, fadeOut = false) {
+        return this._serialized(cueId, () => this._stopCueNow(cueId, fadeOut));
+    }
+
+    async _stopCueNow(cueId, fadeOut = false) {
         try {
             const cue = this.getCue(cueId);
             if (!cue) {
                 return { success: false, error: 'Cue not found' };
             }
-
-            const playbackInfo = this.playingCues.get(cueId);
-            if (!playbackInfo) {
-                return { success: true }; // Already stopped
-            }
-
-            // stopCuePlayback() already updates playingCues/cueStates and
-            // broadcasts the 'stopped' cue_status itself - this used to
-            // redundantly repeat both after it (and, since it re-added a
-            // 'stopped' entry to cueStates right after stopCuePlayback had
-            // just deleted it, briefly disagreed with it about whether the
-            // cue's live state should exist at all), sending every stop
-            // twice down the WebSocket for no reason.
-            return await this.stopCuePlayback(cueId, fadeOut ? cue.fadeOutTime : 0);
-
+            return await this.stopCuePlayback(cueId, fadeOut ? this._fadeOutMsFor(cue) : 0);
         } catch (error) {
             console.error(`CueManager: Error stopping cue: ${error.message}`);
             return { success: false, error: error.message };
         }
     }
-    
-    // Stop all cues
-    async stopAllCues(behavior = 'stop') {
-        try {
-            const fadeOut = behavior === 'fade_out_and_stop';
 
-            // Use the audio playback manager to stop all cues
-            const result = await this.audioPlaybackManager.stopAllCues(fadeOut);
+    // Stop all cues
+    // behavior: 'stop' | 'fade_out_and_stop'. Omitted, it is the configured
+    // Stop All behavior - so the remote page and Companion's Stop All do the
+    // same as the main UI's button. Internal callers (workspace load,
+    // shutdown, device change) always pass 'stop'.
+    async stopAllCues(behavior) {
+        try {
+            const effectiveBehavior = behavior || this.config?.defaultStopAllBehavior || 'stop';
+            const fadeOut = effectiveBehavior === 'fade_out_and_stop';
+            // Stop All fades every cue over its own configured time
+            // (defaultStopAllFadeOutTime, ms), not each cue's fadeOutTime -
+            // most cues have a fadeOutTime of 0, which would make a "fade"
+            // Stop All an instant cut.
+            const stopAllFadeMs = this.config?.defaultStopAllFadeOutTime ?? 1500;
+            const fadeOverrideSeconds = fadeOut ? Math.max(0, stopAllFadeMs) / 1000 : null;
+
+            const result = await this.audioPlaybackManager.stopAllCues(fadeOut, fadeOverrideSeconds);
 
             if (result.success) {
-                if (fadeOut) {
-                    // Same reasoning as stopCuePlayback(): a fade-out only
-                    // *starts* here, every cue is still audibly playing
-                    // (gradually getting quieter, each on its own configured
-                    // fadeOutTime) - clearing state and broadcasting
-                    // 'stopped' for all of them immediately used to make
-                    // "Stop All" (fade out) look like it did nothing, since
-                    // every button showed stopped instantly while the audio
-                    // actually kept playing for several more seconds.
-                    // handleCuePlaybackComplete() broadcasts each cue's own
-                    // 'completed' individually once its fade actually
-                    // reaches silence.
-                } else {
-                    this.playingCues.clear();
-                    this.cueStates.clear();
-                    for (const { cueId } of result.results) {
+                // Same reasoning as stopCuePlayback(): a cue whose fade has
+                // only just *started* is still audibly playing, so its state
+                // is left alone here - handleCuePlaybackComplete() cleans up
+                // and broadcasts 'stopped' once the fade reaches silence.
+                // Every cue that was stopped immediately (including a "fade"
+                // with a fade time of 0) gets no such callback, so it has to
+                // be cleaned up and broadcast here - skipping that left its
+                // button stuck showing "playing" after the audio had stopped.
+                for (const { cueId, fading } of result.results) {
+                    if (fading) continue;
+                    this.playingCues.delete(cueId);
+                    this.cueStates.delete(cueId);
+                    this.websocketManager.broadcastCueStatus(cueId, 'stopped');
+                }
+                // A playlist cued on its next item isn't playing, but Stop
+                // All should still clear it back to idle.
+                for (const [cueId, state] of Array.from(this.cueStates)) {
+                    if (state.status === 'cued_next') {
+                        this.cueStates.delete(cueId);
                         this.websocketManager.broadcastCueStatus(cueId, 'stopped');
                     }
                 }
+                if (!fadeOut) {
+                    this.playingCues.clear();
+                    this.cueStates.clear();
+                }
+                this._updateDucking();
 
                 console.log(`CueManager: Stopped ${result.results.length} cues`);
             }
@@ -399,150 +677,245 @@ class CueManager {
             return { success: false, error: error.message };
         }
     }
-    
-    // Navigate playlist
+
+    // Stop cue playback. fadeOutMs > 0 fades over that long (whatever the
+    // cue's fade time was when it started); 0 stops immediately.
+    async stopCuePlayback(cueId, fadeOutMs = 0) {
+        try {
+            const fadeMs = Math.max(0, Number(fadeOutMs) || 0);
+            // The audio playback manager reports whether a fade really
+            // started (it never fades a paused cue) - that decides whether a
+            // completion callback is coming.
+            const result = await this.audioPlaybackManager.stopCue(cueId, fadeMs > 0, fadeMs / 1000);
+            const isFading = Boolean(result.fading);
+
+            // A fade-out only *starts* here - the cue is still audibly
+            // playing (gradually getting quieter) for the whole fade in the
+            // mixer's render loop, so its state is left as-is and
+            // handleCuePlaybackComplete() broadcasts 'stopped' once the fade
+            // actually reaches silence. For an immediate stop nothing else
+            // will ever fire that, so it's done here directly.
+            if (result.success && !isFading) {
+                const hadState = this.playingCues.has(cueId) || this.cueStates.has(cueId);
+                this.playingCues.delete(cueId);
+                this.cueStates.delete(cueId);
+                if (hadState) {
+                    this.websocketManager.broadcastCueStatus(cueId, 'stopped');
+                    console.log(`CueManager: Stopped cue: ${cueId}`);
+                }
+                this._updateDucking();
+            }
+
+            return result;
+
+        } catch (error) {
+            console.error(`CueManager: Error stopping playback: ${error.message}`);
+            return { success: false, error: error.message };
+        }
+    }
+
+    // --- Playlist navigation ------------------------------------------------
+
+    // The grid's ◀ ▶ buttons. Follows the shuffle order, clamps at both
+    // ends. A playing (or paused) playlist plays the newly selected item; a
+    // cued one stays cued, on the new item.
     async navigatePlaylist(cueId, direction) {
+        return this._serialized(cueId, () => this._navigatePlaylistNow(cueId, direction));
+    }
+
+    async _navigatePlaylistNow(cueId, direction) {
         try {
             const cue = this.getCue(cueId);
             if (!cue || cue.type !== 'playlist') {
                 return { success: false, error: 'Cue not found or not a playlist' };
             }
-            
+
             const currentIndex = cue.currentPlaylistIndex || 0;
-            let newIndex = currentIndex;
-            
-            if (direction === 'next') {
-                newIndex = Math.min(currentIndex + 1, cue.playlistItems.length - 1);
-            } else if (direction === 'previous') {
-                newIndex = Math.max(currentIndex - 1, 0);
-            }
-            
+            const newIndex = stepIndex({
+                itemCount: cue.playlistItems.length,
+                currentIndex,
+                direction,
+                shuffle: Boolean(cue.shufflePlaylist),
+                order: this.shuffleOrders.get(cueId),
+            });
+
             if (newIndex !== currentIndex) {
                 await this.updateCue(cueId, { currentPlaylistIndex: newIndex });
-                
-                // If cue is playing, restart with new item
-                if (this.cueStates.get(cueId)?.status === 'playing') {
-                    await this.stopCue(cueId);
-                    await this.triggerCue(cueId);
+
+                const status = this.cueStates.get(cueId)?.status;
+                if (status === 'playing' || status === 'paused') {
+                    await this.stopCuePlayback(cueId, 0);
+                    await this._startCue(this.getCue(cueId), { noCrossfade: true });
+                } else if (status === 'cued_next') {
+                    this.websocketManager.broadcastCueStatus(cueId, 'cued_next', {
+                        nextItem: cue.playlistItems[newIndex]?.name || null,
+                        playlistIndex: newIndex,
+                    });
                 }
-                
+
                 console.log(`CueManager: Navigated playlist ${direction}: ${cue.name} (${cueId})`);
             }
-            
+
             return { success: true, newIndex: newIndex };
-            
+
         } catch (error) {
             console.error(`CueManager: Error navigating playlist: ${error.message}`);
             return { success: false, error: error.message };
         }
     }
-    
-    // Toggle cue (main toggle method)
-    async toggleCue(cueId, options = {}) {
-        try {
-            const cue = this.getCue(cueId);
-            if (!cue) {
-                return { success: false, error: 'Cue not found' };
-            }
-            
-            // Check if cue is currently playing
-            const currentState = this.cueStates.get(cueId);
-            const isCurrentlyPlaying = currentState && currentState.status === 'playing';
-            
-            if (isCurrentlyPlaying) {
-                // Cue is playing, handle retrigger behavior
-                const retriggerBehavior = options.retriggerBehavior || cue.retriggerBehavior || 'restart';
-                return await this.handleRetriggerBehavior(cue, { retriggerBehavior, ...options });
-            } else {
-                // Cue is not playing, start it
-                return await this.triggerCue(cueId, options);
-            }
-            
-        } catch (error) {
-            console.error(`CueManager: Error toggling cue: ${error.message}`);
-            return { success: false, error: error.message };
-        }
-    }
-    
-    // Handle retrigger behavior
-    async handleRetriggerBehavior(cue, options) {
-        const retriggerBehavior = options.retriggerBehavior || cue.retriggerBehavior || 'restart';
-        
-        switch (retriggerBehavior) {
-            case 'restart':
-                await this.stopCue(cue.id);
-                return await this.triggerCue(cue.id, options);
-                
-            case 'pause_resume':
-                return await this.togglePauseCue(cue.id);
-                
-            case 'stop':
-                return await this.stopCue(cue.id);
-                
-            case 'fade_out_and_stop':
-                return await this.stopCue(cue.id, true);
-                
-            case 'do_nothing':
-                return { success: true, message: 'Cue already playing' };
-                
-            case 'play_new_instance':
-                // Full polyphonic multi-instance playback isn't implemented
-                // (the mixer keys active playback by cue ID, one slot per
-                // cue). Rather than surface an error to the operator
-                // mid-show for choosing this retrigger option, degrade
-                // gracefully to a normal restart.
-                console.warn('CueManager: play_new_instance not implemented - falling back to restart');
-                await this.stopCue(cue.id);
-                return await this.triggerCue(cue.id, options);
-                
-            default:
-                return await this.triggerCue(cue.id, options);
-        }
-    }
-    
-    // Toggle pause/resume cue
-    async togglePauseCue(cueId) {
-        try {
-            const cue = this.getCue(cueId);
-            if (!cue) {
-                return { success: false, error: 'Cue not found' };
-            }
-            
-            const state = this.cueStates.get(cueId);
-            if (!state) {
-                return { success: false, error: 'Cue not playing' };
-            }
 
-            const audioResult = await this.audioPlaybackManager.togglePauseCue(cueId);
-            if (!audioResult.success) {
-                return audioResult;
+    // Jump a playlist to a specific item (0-based). A playing or paused
+    // playlist plays it; a cued one stays cued, on that item; an idle one
+    // will start there.
+    async jumpToPlaylistItem(cueId, index) {
+        return this._serialized(cueId, async () => {
+            const cue = this.getCue(cueId);
+            if (!cue || cue.type !== 'playlist') {
+                return { success: false, error: 'Cue not found or not a playlist' };
             }
-            
-            state.status = audioResult.status;
-            if (audioResult.status === 'paused') {
-                state.pausedAt = Date.now();
-                this.websocketManager.broadcastCueStatus(cueId, 'paused');
-                console.log(`CueManager: Paused cue: ${cue.name} (${cueId})`);
-            } else if (audioResult.status === 'playing') {
-                state.resumedAt = Date.now();
-                this.websocketManager.broadcastCueStatus(cueId, 'playing');
-                console.log(`CueManager: Resumed cue: ${cue.name} (${cueId})`);
+            const target = Number(index);
+            const itemCount = cue.playlistItems?.length || 0;
+            if (!Number.isInteger(target) || target < 0 || target >= itemCount) {
+                return { success: false, error: `Item index must be 0-${Math.max(0, itemCount - 1)}` };
             }
-            
-            return { success: true, status: state.status };
-            
+            await this.updateCue(cueId, { currentPlaylistIndex: target });
+            const status = this.cueStates.get(cueId)?.status;
+            if (status === 'playing' || status === 'paused') {
+                await this.stopCuePlayback(cueId, 0);
+                await this._startCue(this.getCue(cueId), { noCrossfade: true });
+            } else if (status === 'cued_next') {
+                this.websocketManager.broadcastCueStatus(cueId, 'cued_next', {
+                    nextItem: cue.playlistItems[target]?.name || null,
+                    playlistIndex: target,
+                });
+            }
+            return { success: true, newIndex: target };
+        });
+    }
+
+    // --- Pause / resume -----------------------------------------------------
+
+    async _pauseCue(cueId) {
+        const state = this.cueStates.get(cueId);
+        const result = await this.audioPlaybackManager.pauseCue(cueId);
+        if (!result.success || !state) {
+            return result.success ? { success: false, error: 'Cue not playing' } : result;
+        }
+        state.status = 'paused';
+        state.pausedAt = Date.now();
+        this.websocketManager.broadcastCueStatus(cueId, 'paused');
+        this._updateDucking();
+        console.log(`CueManager: Paused cue: ${cueId}`);
+        return { success: true, status: 'paused' };
+    }
+
+    async _resumeCue(cueId) {
+        const state = this.cueStates.get(cueId);
+        const result = await this.audioPlaybackManager.resumeCue(cueId);
+        if (!result.success || !state) {
+            return result.success ? { success: false, error: 'Cue not paused' } : result;
+        }
+        state.status = 'playing';
+        state.resumedAt = Date.now();
+        this.websocketManager.broadcastCueStatus(cueId, 'playing');
+        this._updateDucking();
+        console.log(`CueManager: Resumed cue: ${cueId}`);
+        return { success: true, status: 'playing' };
+    }
+
+    // Toggle pause/resume cue (REST /toggle-pause)
+    async togglePauseCue(cueId) {
+        return this._serialized(cueId, () => this._togglePauseCueNow(cueId));
+    }
+
+    async _togglePauseCueNow(cueId) {
+        try {
+            const cue = this.getCue(cueId);
+            if (!cue) {
+                return { success: false, error: 'Cue not found' };
+            }
+            const status = this.cueStates.get(cueId)?.status;
+            if (status === 'playing') return this._pauseCue(cueId);
+            if (status === 'paused') return this._resumeCue(cueId);
+            return { success: false, error: 'Cue not playing' };
         } catch (error) {
             console.error(`CueManager: Error toggling pause: ${error.message}`);
             return { success: false, error: error.message };
         }
     }
-    
+
+    // --- Ducking ------------------------------------------------------------
+
+    // The duck multiplier a cue should have right now: lowered by the
+    // strongest ducking trigger that is audibly playing (other than itself),
+    // if the cue has ducking enabled; 1 otherwise. A paused trigger isn't
+    // making sound, so it doesn't duck anything.
+    _duckMultiplierFor(cueId) {
+        const cue = this.cueDataManager.getCue(cueId);
+        if (!cue?.enableDucking) {
+            return 1;
+        }
+        let strongest = null;
+        for (const [otherId, state] of this.cueStates) {
+            if (otherId === cueId || state.status !== 'playing') continue;
+            if (!this.audioPlaybackManager.playingCues.has(otherId)) continue;
+            const other = this.cueDataManager.getCue(otherId);
+            if (!other?.isDuckingTrigger) continue;
+            const level = Math.min(100, Math.max(0, Number(other.duckingLevel ?? 80)));
+            strongest = strongest === null ? level : Math.max(strongest, level);
+        }
+        return strongest === null ? 1 : 1 - strongest / 100;
+    }
+
+    // Recomputes every playing cue's duck level and ramps the ones that
+    // changed. Called whenever anything starts, stops, pauses, resumes or
+    // has its ducking settings edited - simpler and harder to get wrong
+    // than tracking which trigger ducked which cue.
+    _updateDucking() {
+        const playing = new Set(this.audioPlaybackManager.playingCues.keys());
+        for (const cueId of Array.from(this._duckState.keys())) {
+            if (!playing.has(cueId)) this._duckState.delete(cueId);
+        }
+        for (const cueId of playing) {
+            const target = this._duckMultiplierFor(cueId);
+            const current = this._duckState.get(cueId) ?? 1;
+            if (Math.abs(target - current) > 1e-9) {
+                this.audioPlaybackManager.setCueDuck(cueId, target, this._duckFadeSeconds());
+                this._duckState.set(cueId, target);
+            }
+        }
+    }
+
+    _duckFadeSeconds() {
+        const ms = this.config?.duckingFadeTime ?? DEFAULT_DUCK_FADE_MS;
+        return Math.max(0, ms) / 1000;
+    }
+
+    // --- Crossfade mode -----------------------------------------------------
+
+    // While on, starting a cue fades every other playing cue out and the new
+    // one in, both over the configured crossfadeTime. Live session state
+    // (like the legacy app's XFADE button), not a saved preference.
+    setCrossfadeMode(enabled) {
+        this.crossfadeMode = Boolean(enabled);
+        this.websocketManager?.broadcast({
+            type: 'crossfade-mode-updated',
+            payload: { enabled: this.crossfadeMode },
+        });
+        console.log(`CueManager: Crossfade mode ${this.crossfadeMode ? 'on' : 'off'}`);
+        return { success: true, enabled: this.crossfadeMode };
+    }
+
+    getCrossfadeMode() {
+        return this.crossfadeMode;
+    }
+
     // Start cue playback
-    async startCuePlayback(cue, options) {
+    async startCuePlayback(cue, options = {}) {
         try {
             let filePath = null;
             let audioFile = null;
-            
+
             // For single file cues, we need to get the audio file info
             if (cue.type === 'single_file' && cue.relativePath) {
                 // Find the audio file in the audio manager
@@ -551,7 +924,7 @@ class CueManager {
                     filePath = audioFile.path;
                 }
             }
-            
+
             // For playlist cues, handle the current item
             if (cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0) {
                 const currentItem = cue.playlistItems[cue.currentPlaylistIndex || 0];
@@ -562,84 +935,60 @@ class CueManager {
                     }
                 }
             }
-            
+
             if (!filePath) {
                 return { success: false, error: 'Audio file not found' };
             }
-            
+
+            const volume = typeof cue.volume === 'number' ? cue.volume : 1.0;
+            const fadeInMs = options.fadeInOverrideMs ?? cue.fadeInTime ?? 0;
+            const duckGain = this._duckMultiplierFor(cue.id);
+
             // Prepare playback options
             const playbackOptions = {
-                volume: cue.volume || 1.0,
-                fadeInTime: (cue.fadeInTime || 0) / 1000, // Convert to seconds
+                volume,
+                fadeInTime: Math.max(0, fadeInMs) / 1000, // Convert to seconds
                 fadeOutTime: (cue.fadeOutTime || 0) / 1000, // Convert to seconds
                 trimStartTime: cue.trimStartTime || 0,
                 trimEndTime: cue.trimEndTime || null,
-                loop: cue.loop || false,
+                // A playlist's loop repeats the whole list (see
+                // _handlePlaylistItemEnd), not the item that's playing.
+                loop: cue.type === 'playlist' ? false : Boolean(cue.loop),
                 outputPatch: cue.outputPatch,
+                // Start already ducked if a trigger is playing, rather than
+                // blasting in at full level and then ducking.
+                duckGain,
+                newInstance: Boolean(options.newInstance),
             };
-            
+
             // Use the audio playback manager to actually play the audio
             const result = await this.audioPlaybackManager.playCue(cue.id, filePath, playbackOptions);
-            
+
             if (result.success) {
+                this._duckState.set(cue.id, duckGain);
                 const playbackInfo = {
                     cueId: cue.id,
                     startTime: Date.now(),
                     duration: audioFile?.duration || 0,
-                    volume: cue.volume || 1.0,
-                    fadeInTime: cue.fadeInTime || 0,
+                    volume,
+                    fadeInTime: fadeInMs,
                     fadeOutTime: cue.fadeOutTime || 0,
                     source: options.source || 'unknown',
                     audioFileId: audioFile?.id,
                     filePath: filePath
                 };
-                
+
                 return { success: true, playbackInfo: playbackInfo };
             } else {
                 return result;
             }
-            
+
         } catch (error) {
             console.error(`CueManager: Error starting playback: ${error.message}`);
             return { success: false, error: error.message };
         }
     }
-    
-    // Stop cue playback
-    async stopCuePlayback(cueId, fadeOutTime = 0) {
-        try {
-            // Use the audio playback manager to actually stop the audio
-            const isFading = fadeOutTime > 0;
-            const result = await this.audioPlaybackManager.stopCue(cueId, isFading);
 
-            // A fade-out only *starts* here - the cue is still audibly
-            // playing (gradually getting quieter) for the next fadeOutTime
-            // seconds in the mixer's render loop. Clearing state and
-            // broadcasting 'stopped' immediately used to tell clients (and
-            // this cue's own in-memory state) it had already stopped while
-            // it was still playing in real time, which looked like clicking
-            // "fade out and stop" did nothing - the button showed stopped
-            // instantly while the audio kept going for several more
-            // seconds. handleCuePlaybackComplete() (wired to the mixer's
-            // onCueComplete callback) already broadcasts 'completed' and
-            // does this same cleanup the moment the fade actually reaches
-            // silence - for an immediate (non-fading) stop, nothing else
-            // will ever fire that, so it's still done here directly.
-            if (result.success && !isFading) {
-                this.playingCues.delete(cueId);
-                this.cueStates.delete(cueId);
-                this.websocketManager.broadcastCueStatus(cueId, 'stopped');
-                console.log(`CueManager: Stopped cue: ${cueId}`);
-            }
-
-            return result;
-
-        } catch (error) {
-            console.error(`CueManager: Error stopping playback: ${error.message}`);
-            return { success: false, error: error.message };
-        }
-    }
-    
     // Handle cue playback ending in the mixer - either it reached the
     // natural end of the file (reason 'completed') or a deliberate
     // fade-out-and-stop just reached silence (reason 'stopped'). Both arrive
@@ -653,8 +1002,15 @@ class CueManager {
             const cue = this.getCue(cueId);
             if (!cue) return;
 
-            // Update state
             this.playingCues.delete(cueId);
+
+            // A playlist item reaching its natural end decides what the
+            // playlist does next - a deliberate fade-out stop never does.
+            if (reason === 'completed' && cue.type === 'playlist' && cue.playlistItems?.length) {
+                await this._handlePlaylistItemEnd(cue);
+                return;
+            }
+
             this.cueStates.set(cueId, {
                 status: reason,
                 currentTime: cue.totalTime || 0,
@@ -663,12 +1019,7 @@ class CueManager {
             });
 
             this.websocketManager.broadcastCueStatus(cueId, reason);
-
-            // Handle playlist advance - only on a genuine end-of-track, not
-            // a deliberate fade-out stop.
-            if (reason === 'completed' && cue.type === 'playlist' && cue.playlistPlayMode === 'continue') {
-                await this.navigatePlaylist(cueId, 'next');
-            }
+            this._updateDucking();
 
             console.log(`CueManager: Cue ${reason}: ${cue.name} (${cueId})`);
 
@@ -676,7 +1027,55 @@ class CueManager {
             console.error(`CueManager: Error handling completion: ${error.message}`);
         }
     }
-    
+
+    // What a playlist does when its current item plays to the end - see
+    // playlistLogic.decideItemEnd for the rules (continue / cue next /
+    // repeat one, loop, shuffle).
+    async _handlePlaylistItemEnd(cue) {
+        const cueId = cue.id;
+        const decision = decideItemEnd({
+            itemCount: cue.playlistItems.length,
+            currentIndex: cue.currentPlaylistIndex || 0,
+            mode: cue.playlistPlayMode || 'continue',
+            repeatOne: Boolean(cue.repeatOnePlaylistItem),
+            loop: Boolean(cue.loop),
+            shuffle: Boolean(cue.shufflePlaylist),
+            order: this.shuffleOrders.get(cueId),
+            rng: this._rng,
+        });
+
+        this._rememberOrder(cueId, decision.order);
+        await this._setPlaylistIndex(cue, decision.nextIndex);
+
+        if (decision.action === 'finish') {
+            this.cueStates.delete(cueId);
+            this.websocketManager.broadcastCueStatus(cueId, 'completed');
+            this._updateDucking();
+            console.log(`CueManager: Playlist finished: ${cue.name} (${cueId})`);
+            return;
+        }
+
+        if (decision.action === 'cue') {
+            const nextItem = cue.playlistItems[decision.nextIndex];
+            this.cueStates.set(cueId, { status: 'cued_next', currentTime: 0, totalTime: 0 });
+            this.websocketManager.broadcastCueStatus(cueId, 'cued_next', {
+                nextItem: nextItem?.name || null,
+                playlistIndex: decision.nextIndex,
+            });
+            this._updateDucking();
+            console.log(`CueManager: Playlist ${cue.name} cued item ${decision.nextIndex + 1}/${cue.playlistItems.length}`);
+            return;
+        }
+
+        this.cueStates.delete(cueId);
+        const result = await this._startCue(this.getCue(cueId), { source: 'playlist_advance', noCrossfade: true });
+        if (!result.success) {
+            this.websocketManager.broadcastCueStatus(cueId, 'stopped');
+            this._updateDucking();
+            console.error(`CueManager: Playlist ${cue.name} could not play item ${decision.nextIndex + 1}: ${result.error}`);
+        }
+    }
+
     // Get current workspace
     getCurrentWorkspace() {
         return this.cueDataManager.getCurrentWorkspace();
@@ -687,25 +1086,140 @@ class CueManager {
         return await this.cueDataManager.saveWorkspace(name, description);
     }
     
-    // Load workspace
-    async loadWorkspace(workspaceId) {
-        const result = await this.cueDataManager.loadWorkspace(workspaceId);
-        
-        if (result.success) {
-            // Stop all currently playing cues
-            await this.stopAllCues();
-            
-            // Broadcast workspace update
-            this.websocketManager.broadcastWorkspaceUpdate(result.workspace);
+    // --- Projects -------------------------------------------------------------
+    // A project is a saved workspace: its cues and layout. Everything is
+    // saved automatically; switching projects never loses an edit.
+
+    setProjectOpenedListener(listener) {
+        this._onProjectOpened = listener;
+    }
+
+    // Every way of changing the open project goes through here: save what's
+    // pending for the current one (an edit made just before switching was
+    // lost otherwise - the debounced save then wrote into the *new* project),
+    // stop playback, switch, then tell every open page.
+    async _switchProject(activate) {
+        await this._flushPersistWorkspace();
+        await this.stopAllCues('stop');
+        this.cueStates.clear();
+        this.shuffleOrders.clear();
+        this.playingCues.clear();
+
+        const result = await activate();
+        if (result?.success) {
+            const workspace = this.getCurrentWorkspace();
+            this.websocketManager.broadcastWorkspaceUpdate(workspace);
             await this.websocketManager.broadcastCuesUpdate(this.getCues());
+            if (this._onProjectOpened) {
+                await Promise.resolve(this._onProjectOpened(workspace.id)).catch(() => {});
+            }
         }
-        
         return result;
+    }
+
+    async newProject(name) {
+        const projectName = String(name || '').trim() || 'Untitled Project';
+        return this._switchProject(async () => ({
+            success: true,
+            workspace: await this.cueDataManager.createWorkspace(projectName),
+        }));
+    }
+
+    async openProject(projectId) {
+        return this._switchProject(() => this.cueDataManager.loadWorkspace(projectId));
+    }
+
+    // Kept for the older workspace API.
+    async loadWorkspace(workspaceId) {
+        return this.openProject(workspaceId);
+    }
+
+    async renameProject(name) {
+        const projectName = String(name ?? '').trim();
+        if (!projectName) {
+            return { success: false, error: 'Project name cannot be empty' };
+        }
+        const workspace = this.getCurrentWorkspace();
+        if (!workspace) {
+            return { success: false, error: 'No project is open' };
+        }
+        workspace.name = projectName.slice(0, 200);
+        const saved = await this._flushPersistWorkspace();
+        this.websocketManager.broadcastWorkspaceUpdate(this.getCurrentWorkspace());
+        return saved.success ? { success: true, project: this._projectSummary(this.getCurrentWorkspace()) } : saved;
+    }
+
+    async deleteProject(projectId) {
+        if (projectId === this.getCurrentWorkspace()?.id) {
+            return { success: false, error: 'The open project cannot be deleted - open another one first' };
+        }
+        return this.cueDataManager.deleteWorkspace(projectId);
+    }
+
+    _projectSummary(workspace) {
+        return {
+            id: workspace.id,
+            name: workspace.name,
+            cueCount: Array.isArray(workspace.cues) ? workspace.cues.length : (workspace.cueCount ?? 0),
+            createdAt: workspace.createdAt,
+            updatedAt: workspace.updatedAt || workspace.lastModified,
+        };
+    }
+
+    async listProjects() {
+        await this._flushPersistWorkspace();
+        const currentId = this.getCurrentWorkspace()?.id;
+        const workspaces = await this.cueDataManager.getAllWorkspaces();
+        return workspaces.map((w) => ({ ...this._projectSummary(w), isCurrent: w.id === currentId }));
+    }
+
+    getCurrentProject() {
+        const workspace = this.getCurrentWorkspace();
+        return workspace ? this._projectSummary({ ...workspace, cues: this.cueDataManager.getCues() }) : null;
+    }
+
+    /**
+     * Creates and opens a project from an unpacked bundle: its audio joins
+     * the library (reusing files already there, see AudioFileManager.addFile)
+     * and its cues are pointed at the resulting library files.
+     */
+    async importProject({ project, audio }) {
+        const byBundleName = new Map();
+        const audioResults = { added: 0, reused: 0, renamed: 0, failed: [] };
+        for (const file of audio) {
+            const result = await this.audioFileManager.addFile(file.path, file.name);
+            if (!result.success) {
+                audioResults.failed.push({ name: file.name, error: result.error });
+                continue;
+            }
+            byBundleName.set(file.name.toLowerCase(), result.audioFile);
+            if (result.reused) audioResults.reused += 1;
+            else audioResults.added += 1;
+            if (result.renamed) audioResults.renamed += 1;
+        }
+
+        const cues = JSON.parse(JSON.stringify(project.cues || []));
+        rewriteCueReferences(cues, (ref) => {
+            const record = ref.relativePath && byBundleName.get(path.basename(ref.relativePath).toLowerCase());
+            return record ? { audioFileId: record.id, relativePath: record.relativePath } : null;
+        });
+
+        const name = String(project.name || '').trim() || 'Imported Project';
+        const result = await this._switchProject(async () => ({
+            success: true,
+            workspace: await this.cueDataManager.createWorkspace(name, project.description || '', {
+                cues,
+                layout: project.layout,
+            }),
+        }));
+        return { ...result, project: this.getCurrentProject(), audio: audioResults };
     }
     
     // Handle playback end (called by AudioPlaybackManager)
     handlePlaybackEnd(cueId, reason = 'completed') {
-        this.handleCuePlaybackComplete(cueId, reason).catch((error) => {
+        // Queued with the cue's other operations, so e.g. a playlist moving
+        // to its next item can't interleave with a press on that playlist.
+        this._serialized(cueId, () => this.handleCuePlaybackComplete(cueId, reason)).catch((error) => {
             console.error(`CueManager: Error handling playback end for cue ${cueId}:`, error);
         });
     }
@@ -716,7 +1230,24 @@ class CueManager {
             playingCues: Array.from(this.playingCues.keys()),
             totalPlaying: this.playingCues.size,
             cueStates: Object.fromEntries(this.cueStates),
-            masterVolume: this.audioPlaybackManager?.getMasterVolume() ?? 1.0
+            masterVolume: this.audioPlaybackManager?.getMasterVolume() ?? 1.0,
+            crossfadeMode: this.crossfadeMode,
+            // What the audio engine is actually doing, voice by voice.
+            voices: (this.audioPlaybackManager?.mixer?.getStatus().playing || []).map((v) => ({
+                cueId: v.cueId,
+                voiceId: v.voiceId,
+                isPaused: v.isPaused,
+                isFadingIn: v.isFadingIn,
+                isFadingOut: v.isFadingOut,
+                isDucked: v.isDucked,
+                duckGain: v.duckGain,
+                gain: v.currentGain,
+                volume: v.volume,
+                positionSec: v.positionSec,
+                trimStartSec: v.trimStartSec,
+                trimEndSec: v.trimEndSec,
+                outputPatch: v.outputPatch,
+            })),
         };
 
         return status;
@@ -746,7 +1277,7 @@ class CueManager {
     async cleanup() {
         try {
             // Stop all playing cues
-            await this.stopAllCues();
+            await this.stopAllCues('stop');
 
             if (this.audioPlaybackManager) {
                 await this.audioPlaybackManager.cleanup();

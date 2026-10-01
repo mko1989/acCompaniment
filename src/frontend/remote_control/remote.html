@@ -123,6 +123,47 @@
         #stopAllButtonRemote:hover {
             background-color: #8c3c3c;
         }
+        .cue-button-remote { position: relative; }
+        .cue-button-remote.cued {
+            background-color: #3b5b8c;
+            color: white;
+        }
+        .cue-button-remote.fading {
+            background-color: #b22222;
+            color: white;
+        }
+        .cue-button-remote .badges {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            display: flex;
+            gap: 3px;
+            font-size: 0.65em;
+            font-weight: bold;
+        }
+        .cue-button-remote .badge {
+            display: none;
+            padding: 1px 4px;
+            border-radius: 3px;
+            background-color: rgba(0, 0, 0, 0.45);
+            color: #fff;
+        }
+        .cue-button-remote.ducked .badge.duck,
+        .cue-button-remote .badge.instances.visible { display: inline-block; }
+        #crossfadeButtonRemote {
+            background-color: #555;
+            color: white;
+            border: 1px solid #666;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.95em;
+            margin-right: 8px;
+        }
+        #crossfadeButtonRemote.enabled {
+            background-color: #f39c12;
+            border-color: #e67e22;
+        }
     </style>
 </head>
 <body>
@@ -131,7 +172,10 @@
             <img src="/assets/icons/icon.png" alt="acCompaniment" class="remote-header-icon">
             <h1>acCompaniment</h1>
         </div>
-        <button id="stopAllButtonRemote">Stop All</button>
+        <div>
+            <button id="crossfadeButtonRemote" aria-pressed="false" title="Crossfade mode">XFADE</button>
+            <button id="stopAllButtonRemote">Stop All</button>
+        </div>
     </div>
 
     <div id="connectionBanner"></div>
@@ -151,7 +195,12 @@
         const cueGridRemote = document.getElementById('cueGridRemote');
         const stopAllButtonRemote = document.getElementById('stopAllButtonRemote');
         const connectionBanner = document.getElementById('connectionBanner');
+        const crossfadeButtonRemote = document.getElementById('crossfadeButtonRemote');
         let currentCues = new Map();
+        // Live state per cue, kept across cue-list re-renders (every cue edit
+        // re-sends the whole list, which used to wipe playing/paused marks).
+        const liveState = new Map();
+        let crossfadeEnabled = false;
         let triggerLocked = new Set(); // per-cue debounce, mirrors the old global lock but scoped per cue
 
         function setBanner(text, className) {
@@ -186,15 +235,25 @@
                     case 'cue_status': {
                         const { cueId, status } = message.payload || {};
                         const cue = currentCues.get(cueId);
-                        if (cue) {
-                            cue.status = status;
-                            updateButtonStatus(cueId, status);
-                        }
+                        if (cue) cue.status = status;
+                        setLiveState(cueId, { status, isFadingOut: false, isDucked: false, voiceCount: message.payload?.voiceCount || 1 });
                         break;
                     }
                     case 'playback-time-update': {
                         const payload = message.payload || {};
-                        updateButtonTime(payload.cueId, payload.currentTimeFormatted, payload.remainingTimeFormatted, payload.status);
+                        setLiveState(payload.cueId, {
+                            status: payload.status,
+                            isFadingOut: Boolean(payload.isFadingOut),
+                            isDucked: Boolean(payload.isDucked),
+                            voiceCount: payload.voiceCount || 1,
+                        });
+                        updateButtonTime(payload.cueId, payload.currentTimeFormatted, payload.remainingTimeFormatted);
+                        break;
+                    }
+                    case 'crossfade-mode-updated': {
+                        crossfadeEnabled = Boolean(message.payload?.enabled);
+                        crossfadeButtonRemote.classList.toggle('enabled', crossfadeEnabled);
+                        crossfadeButtonRemote.setAttribute('aria-pressed', String(crossfadeEnabled));
                         break;
                     }
                     case 'audio-engine-error': {
@@ -234,15 +293,21 @@
                 button.className = 'cue-button-remote';
                 button.id = `cue-btn-${cue.id}`;
                 button.innerHTML = `
+                    <div class="badges"><span class="badge instances"></span><span class="badge duck">DUCK</span></div>
                     <span class="name">${escapeHtml(cue.name || 'Unnamed Cue')}</span>
                     <div class="times">
                         <span class="current-time">0:00</span>
                         <span class="remaining"></span>
                     </div>
                 `;
-                updateButtonStatus(cue.id, cue.status);
                 button.addEventListener('click', () => triggerCue(cue.id));
                 cueGridRemote.appendChild(button);
+                // After it's in the page - looking it up before used to fail,
+                // so a freshly rendered list never showed any cue's state.
+                if (!liveState.has(cue.id) && cue.status) {
+                    liveState.set(cue.id, { status: cue.status });
+                }
+                renderButtonState(cue.id);
             });
         }
 
@@ -252,22 +317,39 @@
             return div.innerHTML;
         }
 
-        function updateButtonStatus(cueId, status) {
-            const button = document.getElementById(`cue-btn-${cueId}`);
-            if (!button) return;
-            button.classList.remove('playing', 'paused');
-            if (status === 'playing') button.classList.add('playing');
-            else if (status === 'paused') button.classList.add('paused');
+        function setLiveState(cueId, state) {
+            if (!cueId) return;
+            const active = ['playing', 'paused', 'cued_next'].includes(state.status);
+            if (active) liveState.set(cueId, state);
+            else liveState.delete(cueId);
+            renderButtonState(cueId);
+            if (!active) updateButtonTime(cueId, '0:00', '');
         }
 
-        function updateButtonTime(cueId, currentTimeFormatted, remainingTimeFormatted, status) {
+        function renderButtonState(cueId) {
+            const button = document.getElementById(`cue-btn-${cueId}`);
+            if (!button) return;
+            const state = liveState.get(cueId) || {};
+            button.classList.toggle('playing', state.status === 'playing' && !state.isFadingOut);
+            button.classList.toggle('paused', state.status === 'paused');
+            button.classList.toggle('cued', state.status === 'cued_next');
+            button.classList.toggle('fading', state.status === 'playing' && Boolean(state.isFadingOut));
+            button.classList.toggle('ducked', Boolean(state.isDucked));
+            const instances = button.querySelector('.badge.instances');
+            if (instances) {
+                const n = state.status === 'playing' || state.status === 'paused' ? (state.voiceCount || 1) : 0;
+                instances.textContent = n > 1 ? `×${n}` : '';
+                instances.classList.toggle('visible', n > 1);
+            }
+        }
+
+        function updateButtonTime(cueId, currentTimeFormatted, remainingTimeFormatted) {
             const button = document.getElementById(`cue-btn-${cueId}`);
             if (!button) return;
             const currentElem = button.querySelector('.current-time');
             const remainingElem = button.querySelector('.remaining');
             if (currentElem) currentElem.textContent = currentTimeFormatted || '0:00';
             if (remainingElem) remainingElem.textContent = remainingTimeFormatted ? `-${remainingTimeFormatted}` : '';
-            if (status) updateButtonStatus(cueId, status);
         }
 
         async function triggerCue(cueId) {
@@ -300,6 +382,18 @@
                 });
             } catch (error) {
                 console.error('Remote: failed to stop all cues', error);
+            }
+        });
+
+        crossfadeButtonRemote.addEventListener('click', async () => {
+            try {
+                await fetch('/api/remote/crossfade', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: !crossfadeEnabled })
+                });
+            } catch (error) {
+                console.error('Remote: failed to toggle crossfade', error);
             }
         });
 

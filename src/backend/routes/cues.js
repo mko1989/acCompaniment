@@ -54,6 +54,22 @@ router.post('/stop-all', async (req, res) => {
     }
 });
 
+// Reorder cues (before /:id routes). Body: { cueIds: [...] }
+router.post('/reorder', async (req, res) => {
+    try {
+        const { cueManager } = req.app.locals.managers;
+        const result = await cueManager.reorderCues(req.body?.cueIds);
+        if (result.success) {
+            res.json(result);
+        } else {
+            res.status(400).json(result);
+        }
+    } catch (error) {
+        console.error('Reorder cues error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Get playback status (before /:id routes)
 router.get('/status/playback', async (req, res) => {
     try {
@@ -189,7 +205,10 @@ router.post('/:id/trigger', requireUuid('id'), async (req, res) => {
         if (result.success) {
             res.json({
                 success: true,
-                message: 'Cue triggered successfully'
+                message: 'Cue triggered successfully',
+                // What the press did: 'playing', 'paused', ... (see
+                // retriggerLogic), when it changed the cue's state.
+                status: result.status ?? cueManager.getCue(req.params.id)?.status,
             });
         } else {
             res.status(notFoundStatus(result.error)).json({
@@ -262,6 +281,18 @@ router.post('/:id/toggle-pause', requireUuid('id'), async (req, res) => {
 });
 
 // Navigate playlist
+// Jump a playlist to an item. Body: { index } (0-based)
+router.post('/:id/playlist/jump', requireUuid('id'), async (req, res) => {
+    try {
+        const { cueManager } = req.app.locals.managers;
+        const result = await cueManager.jumpToPlaylistItem(req.params.id, req.body?.index);
+        if (result.success) return res.json(result);
+        res.status(notFoundStatus(result.error)).json(result);
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 router.post('/:id/playlist/navigate', requireUuid('id'), async (req, res) => {
     try {
         const { cueManager } = req.app.locals.managers;

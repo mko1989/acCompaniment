@@ -191,7 +191,10 @@ test('stop-all with fade_out_and_stop keeps cues "playing" for the fade duration
     // but for the "Stop All" button's fade behavior: stopAllCues() used to
     // clear state and broadcast 'stopped' for every playing cue the instant
     // the fade *started*, while the mixer kept them all audibly playing
-    // (getting quieter) for their own configured fadeOutTime.
+    // (getting quieter) for the whole fade. Stop All fades over its own
+    // configured defaultStopAllFadeOutTime (1500ms by default), not each
+    // cue's fadeOutTime - see test/stop-and-fade.test.js for that and the
+    // zero-fade cases.
     const fadeOutTime = 2000;
     const cueA = await createCue({ fadeOutTime });
     const cueB = await createCue({ fadeOutTime });

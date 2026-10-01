@@ -10,8 +10,34 @@ let cueGridAPI; // Specifically for refreshing the cue grid
 
 let isInitialized = false; // Flag to indicate if init has completed
 
+// Fields that change while a cue plays (or on every save) without anything
+// in the properties form changing.
+const RUNTIME_FIELDS = ['status', 'currentTime', 'totalTime', 'currentPlaylistIndex', 'updatedAt', 'filePath'];
+
+function editableSnapshot(cue) {
+    if (!cue) return null;
+    const copy = { ...cue };
+    RUNTIME_FIELDS.forEach((field) => delete copy[field]);
+    return JSON.stringify(copy, Object.keys(copy).sort());
+}
+
+// The properties sidebar is re-populated from server data when the open
+// cue's editable data really changed (e.g. edited from another page) - not
+// on every cue-list broadcast (a playlist advancing, any other cue being
+// edited), which used to reset the form and reload the waveform constantly,
+// and not while the user is typing in it, which ate their keystrokes.
+function shouldRefreshPropertiesFor(previousCue, nextCue) {
+    const sidebar = document.getElementById('propertiesSidebar');
+    const active = document.activeElement;
+    if (sidebar && active && sidebar.contains(active) && ['INPUT', 'SELECT', 'TEXTAREA'].includes(active.tagName)) {
+        return false;
+    }
+    return editableSnapshot(previousCue) !== editableSnapshot(nextCue);
+}
+
 // This is the actual handler function
 function _handleCuesUpdated(updatedCues) {
+    const previousCues = new Map((cues || []).map((cue) => [cue.id, cue]));
     console.log('**************** CueStore (_handleCuesUpdated) ENTERED ****************');
     console.log('CueStore (_handleCuesUpdated): Received cues from server. Count:', updatedCues ? updatedCues.length : 'N/A');
     if (Array.isArray(updatedCues)) {
@@ -56,7 +82,7 @@ function _handleCuesUpdated(updatedCues) {
                 const activeCueId = sidebarsAPI.getActivePropertiesCueId();
                 if (activeCueId) {
                     const activeCue = cues.find(c => c.id === activeCueId);
-                    if (activeCue) { // No longer just for playlists, refresh for any active cue
+                    if (activeCue && shouldRefreshPropertiesFor(previousCues.get(activeCueId), activeCue)) {
                         console.log(`CueStore (_handleCuesUpdated): Active cue ${activeCueId} found, re-opening/refreshing properties view.`);
                         // Re-open properties sidebar to refresh its content with potentially updated cue data
                         sidebarsAPI.openPropertiesSidebar(activeCue);

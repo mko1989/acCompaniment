@@ -115,6 +115,7 @@ h1 {
 
 .remote-link-info {
     flex-grow: 1;
+    min-width: 0; /* lets a long URL wrap instead of pushing Copy off the edge */
 }
 
 .remote-link-interface {
@@ -127,6 +128,7 @@ h1 {
     color: var(--text-secondary-color);
     font-size: 0.85em;
     font-family: monospace;
+    overflow-wrap: anywhere;
 }
 
 .remote-link-copy {
@@ -138,6 +140,14 @@ h1 {
     cursor: pointer;
     font-size: 0.8em;
     margin-left: 8px;
+    flex: none;
+}
+
+/* Beats the generic full-width `.sidebar-content button` rule, which
+   pushed Copy off the sidebar's edge. */
+#httpRemoteLinksDiv .remote-link-copy {
+    width: auto;
+    margin-top: 0;
 }
 
 .remote-link-copy:hover {

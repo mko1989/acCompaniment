@@ -1,0 +1,7 @@
+{
+  "name": "prebuild",
+  "version": "0.0.0-stub",
+  "description": "Empty stand-in for `prebuild`, which @hamitzor/rtaudio.js lists as a runtime dependency but only its author uses (to publish binaries). The real package pulls in abandoned, vulnerable tooling (request, nw-gyp, node-ninja, tar@2). See the `overrides` in the root package.json.",
+  "license": "MIT",
+  "private": true
+}

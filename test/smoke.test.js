@@ -83,26 +83,23 @@ test('uploads an audio file', async () => {
     uploadedAudioFile = body.audioFile;
 });
 
-test('rejects an upload with a path-traversal subdirectory', async () => {
+test('a path-traversal "subdirectory" in an upload cannot write outside the library', async () => {
+    // The library is flat now - the old `subdirectory` field is ignored - so
+    // an upload carrying a hostile one simply lands in the library. The
+    // field still comes first in the stream, so it would reach any code
+    // that tried to use it (multer only sees fields that precede the file).
     const wav = makeTestWav();
     const formData = new FormData();
-    // multer's destination/filename callbacks fire while the multipart
-    // stream is still being parsed, so req.body is only populated with
-    // fields that appeared BEFORE the file field in the stream. The
-    // 'subdirectory' field must come first, or this test would pass
-    // trivially by never reaching the vulnerable code path at all
-    // (req.body.subdirectory would still be undefined when the
-    // destination callback runs, silently falling back to the safe
-    // 'imported' default rather than actually exercising the guard).
     formData.append('subdirectory', '../../escaped');
     formData.append('audioFile', new Blob([wav], { type: 'audio/wav' }), 'evil.wav');
 
     const res = await fetch(`${server.baseUrl()}/api/audio/upload`, { method: 'POST', body: formData });
-    assert.notEqual(res.status, 200, 'a path-traversal subdirectory must not be accepted');
+    const body = await res.json();
+    assert.equal(body.audioFile?.relativePath, 'evil.wav', 'stored flat in the library');
 
     const escapedDir = path.join(server.tempDataDir(), '..', 'escaped');
-    const exists = fssync.existsSync(escapedDir);
-    assert.equal(exists, false, 'upload must not have written outside the audio directory');
+    assert.equal(fssync.existsSync(escapedDir), false, 'upload must not have written outside the audio directory');
+    assert.equal(fssync.existsSync(path.join(server.tempDataDir(), 'escaped')), false);
 });
 
 // --- Cue lifecycle -------------------------------------------------------

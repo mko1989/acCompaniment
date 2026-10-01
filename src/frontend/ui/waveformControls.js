@@ -39,19 +39,23 @@ class WaveformControls {
             const isInputFocused = activeElement && (
                 activeElement.tagName === 'INPUT' || 
                 activeElement.tagName === 'TEXTAREA' || 
+                activeElement.tagName === 'SELECT' || 
                 activeElement.contentEditable === 'true'
             );
             
             if (isInputFocused) return;
             
+            // Step sizes as the editor's hint bar lists them: arrows move
+            // 1s, Shift+arrows 10ms, Ctrl/Cmd+arrows 100ms.
+            const step = e.shiftKey ? 0.01 : (e.ctrlKey || e.metaKey) ? 0.1 : 1;
             switch (e.key) {
                 case 'ArrowLeft':
                     e.preventDefault();
-                    this.seekBackward();
+                    this.seekBackward(step);
                     break;
                 case 'ArrowRight':
                     e.preventDefault();
-                    this.seekForward();
+                    this.seekForward(step);
                     break;
                 case ' ':
                     e.preventDefault();
@@ -69,12 +73,12 @@ class WaveformControls {
         });
     }
     
-    seekBackward() {
+    seekBackward(step = 1) {
         if (this.waveform) {
             try {
                 const currentTime = this.waveform.getCurrentTime();
                 const duration = this.waveform.getDuration();
-                const newTime = Math.max(0, currentTime - 1); // 1 second back
+                const newTime = Math.max(0, currentTime - step);
                 this.waveform.seekTo(newTime / duration);
                 console.log(`Seeked backward to ${newTime}s`);
             } catch (error) {
@@ -85,12 +89,12 @@ class WaveformControls {
         }
     }
     
-    seekForward() {
+    seekForward(step = 1) {
         if (this.waveform) {
             try {
                 const currentTime = this.waveform.getCurrentTime();
                 const duration = this.waveform.getDuration();
-                const newTime = Math.min(duration, currentTime + 1); // 1 second forward
+                const newTime = Math.min(duration, currentTime + step);
                 this.waveform.seekTo(newTime / duration);
                 console.log(`Seeked forward to ${newTime}s`);
             } catch (error) {
@@ -268,73 +272,66 @@ class WaveformControls {
         }
     }
     
+    // Draws the current trim points (this.trimStartTime / trimEndTime - the
+    // editor's live values) on both the sidebar waveform and the expanded
+    // one. Every change of trim points ends here, so the two always agree:
+    // the expanded editor used to draw from the cue as it was when the
+    // sidebar opened, so points set since then never showed there.
     updateTrimRegion() {
-        if (!this.waveform) return;
-        
-        const duration = this.waveform.getDuration();
+        this._drawTrimRegions(this.waveform);
+        this._drawTrimRegions(this.expandedWaveform);
+    }
+
+    _drawTrimRegions(waveform) {
+        if (!waveform) return;
+        const duration = waveform.getDuration();
         if (!duration) return;
-        
-        // Get the regions plugin instance
-        const regionsPlugin = this.waveform.plugins[0];
-        if (!regionsPlugin) {
-            console.warn('WaveformControls: No regions plugin found');
-            return;
-        }
-        
-        // Clear existing regions
+        const regionsPlugin = waveform.plugins[0];
+        if (!regionsPlugin) return;
+
         this.clearAllRegions(regionsPlugin);
-        
-        // Create trim region
-        if (this.trimStartTime > 0 || this.trimEndTime < duration) {
+
+        // An end of 0 (or past the end) means "no end point".
+        const start = Math.max(0, Math.min(this.trimStartTime || 0, duration));
+        const end = this.trimEndTime > 0 ? Math.min(this.trimEndTime, duration) : duration;
+        if (end <= start || (start <= 0 && end >= duration)) {
+            return; // nothing trimmed
+        }
+
+        regionsPlugin.addRegion({
+            id: 'trimRegion',
+            start,
+            end,
+            color: 'rgba(0, 255, 0, 0.3)',
+            drag: true,
+            resize: true
+        });
+        if (start > 0.01) {
             regionsPlugin.addRegion({
-                id: 'trimRegion',
-                start: this.trimStartTime,
-                end: this.trimEndTime,
-                color: 'rgba(0, 255, 0, 0.3)',
-                drag: true,
-                resize: true
+                id: 'cutOverlay-before',
+                start: 0,
+                end: Math.max(0, start - 0.01),
+                color: 'rgba(255, 0, 0, 0.4)',
+                drag: false,
+                resize: false
             });
-            
-            // Create cut overlays
-            if (this.trimStartTime > 0.01) {
-                regionsPlugin.addRegion({
-                    id: 'cutOverlay-before',
-                    start: 0,
-                    end: Math.max(0, this.trimStartTime - 0.01),
-                    color: 'rgba(255, 0, 0, 0.4)',
-                    drag: false,
-                    resize: false
-                });
-            }
-            
-            if (this.trimEndTime < duration - 0.01) {
-                regionsPlugin.addRegion({
-                    id: 'cutOverlay-after',
-                    start: Math.min(duration, this.trimEndTime + 0.01),
-                    end: duration,
-                    color: 'rgba(255, 0, 0, 0.4)',
-                    drag: false,
-                    resize: false
-                });
-            }
+        }
+        if (end < duration - 0.01) {
+            regionsPlugin.addRegion({
+                id: 'cutOverlay-after',
+                start: Math.min(duration, end + 0.01),
+                end: duration,
+                color: 'rgba(255, 0, 0, 0.4)',
+                drag: false,
+                resize: false
+            });
         }
     }
     
     clearTrimPoints() {
-        console.log('Clear trim points');
-        
         this.trimStartTime = 0;
         this.trimEndTime = 0;
-        
-        // Clear regions
-        if (this.waveform) {
-            const regionsPlugin = this.waveform.plugins[0];
-            if (regionsPlugin) {
-                this.clearAllRegions(regionsPlugin);
-            }
-        }
-        
-        // Update cue property
+        this.updateTrimRegion(); // clears both waveforms
         this.updateCueTrimTimes();
     }
     
@@ -382,7 +379,28 @@ class WaveformControls {
         if (this.waveform) {
             this.waveform.stop();
             this.updatePlayPauseButton(false);
+            this.updateTimeDisplay();
         }
+    }
+
+    // Wires a waveform's Regions plugin: saving trim points when a region is
+    // dragged, and seeking to where a region was clicked. A trim region
+    // covers most of the waveform and swallows clicks, so without this,
+    // clicking inside it (e.g. to pick an end point after setting the start)
+    // left the playhead where it was.
+    _bindRegionEvents(waveform, onRegionUpdated, onSeek = null) {
+        const regionsPlugin = waveform?.plugins?.[0];
+        if (!regionsPlugin || typeof regionsPlugin.on !== 'function') return;
+        regionsPlugin.on('region-updated', () => onRegionUpdated());
+        regionsPlugin.on('region-clicked', (region, event) => {
+            if (event) event.stopPropagation();
+            const wrapper = typeof waveform.getWrapper === 'function' ? waveform.getWrapper() : null;
+            const rect = wrapper ? wrapper.getBoundingClientRect() : null;
+            if (!event || !rect || rect.width <= 0) return;
+            const relativeX = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+            waveform.seekTo(relativeX);
+            if (onSeek) onSeek(relativeX);
+        });
     }
     
     expandWaveform() {
@@ -443,8 +461,14 @@ class WaveformControls {
         // Create expanded waveform instance with regions (matching original app configuration)
         if (window.WaveSurfer) {
             try {
+                // The expanded editor shares the sidebar waveform's player,
+                // so both show one playhead: the keyboard shortcuts, play/
+                // pause and clicks (which all drive this.waveform) used to
+                // leave the expanded editor's cursor where it was.
+                const sharedMedia = this.waveform ? this.waveform.getMediaElement() : undefined;
                 this.expandedWaveform = WaveSurfer.create({
                     container: expandedDisplay,
+                    media: sharedMedia,
                     waveColor: '#4F46E5',
                     progressColor: '#7C3AED',
                     cursorColor: '#EF4444',
@@ -474,23 +498,29 @@ class WaveformControls {
                     
                     const audioUrl = `/api/audio/serve/${audioFileId}`;
                     console.log(`Expanded waveform loading from URL: ${audioUrl}`);
-                    
-                    this.expandedWaveform.load(audioUrl);
-                    
+
+                    if (sharedMedia) {
+                        // Draw from the sidebar's decoded audio instead of
+                        // fetching and decoding the file again. Passing the
+                        // player's own src makes WaveSurfer leave it alone
+                        // (a different src would reload it and reset playback).
+                        const expanded = this.expandedWaveform;
+                        const main = this.waveform;
+                        const loadShared = () => {
+                            if (this.expandedWaveform !== expanded) return; // closed meanwhile
+                            const decoded = main.getDecodedData();
+                            const channels = Array.from({ length: decoded.numberOfChannels }, (_, i) => decoded.getChannelData(i));
+                            expanded.load(sharedMedia.currentSrc || sharedMedia.src, channels, decoded.duration);
+                        };
+                        if (main.getDecodedData()) loadShared();
+                        else main.once('ready', loadShared);
+                    } else {
+                        this.expandedWaveform.load(audioUrl);
+                    }
+
                     // Set up event listeners
                     this.expandedWaveform.on('ready', () => {
                         console.log('Expanded waveform ready');
-                        
-                        // Copy current playback position from main waveform if available
-                        if (this.waveform) {
-                            const currentTime = this.waveform.getCurrentTime();
-                            const duration = this.expandedWaveform.getDuration();
-                            if (duration > 0 && currentTime > 0) {
-                                this.expandedWaveform.seekTo(currentTime / duration);
-                            }
-                        }
-                        
-                        // Load trim regions
                         this.loadExpandedTrimRegions();
                     });
                     
@@ -500,20 +530,14 @@ class WaveformControls {
                         expandedDisplay.innerHTML = '<div style="text-align: center; padding: 20px; color: #ff6b6b;">Error loading expanded waveform</div>';
                     });
                     
-                    // Set up click to seek functionality for expanded waveform
+                    // Click and region-click seeks move the shared player,
+                    // so the sidebar waveform follows on its own.
                     this.expandedWaveform.on('click', (relativeX) => {
                         console.log('Expanded waveform clicked at relative position:', relativeX);
                         this.expandedWaveform.seekTo(relativeX);
-                        // Also update the main waveform if it exists
-                        if (this.waveform) {
-                            this.waveform.seekTo(relativeX);
-                        }
                     });
-                    
-                    this.expandedWaveform.on('region-updated', (region) => {
-                        console.log('Expanded region updated:', region);
-                        this.updateExpandedTrimTimes();
-                    });
+
+                    this._bindRegionEvents(this.expandedWaveform, () => this.updateExpandedTrimTimes());
                 } else {
                     console.warn('No current cue available for expanded waveform');
                     expandedDisplay.innerHTML = '<div style="text-align: center; padding: 20px; color: #888;">No cue selected</div>';
@@ -583,58 +607,7 @@ class WaveformControls {
     }
     
     loadExpandedTrimRegions() {
-        if (!this.expandedWaveform || !this.currentCue) return;
-        
-        const duration = this.expandedWaveform.getDuration();
-        if (!duration) return;
-        
-        const trimStart = this.currentCue.trimStartTime || 0;
-        const trimEnd = this.currentCue.trimEndTime || duration;
-        
-        // Get the regions plugin instance
-        const regionsPlugin = this.expandedWaveform.plugins[0];
-        if (!regionsPlugin) {
-            console.warn('WaveformControls: No regions plugin found for expanded waveform');
-            return;
-        }
-        
-        // Clear existing regions
-        this.clearAllRegions(regionsPlugin);
-        
-        // Create trim region
-        if (trimStart > 0 || trimEnd < duration) {
-            regionsPlugin.addRegion({
-                id: 'trimRegion',
-                start: trimStart,
-                end: trimEnd,
-                color: 'rgba(0, 255, 0, 0.3)',
-                drag: true,
-                resize: true
-            });
-            
-            // Create cut overlays
-            if (trimStart > 0.01) {
-                regionsPlugin.addRegion({
-                    id: 'cutOverlay-before',
-                    start: 0,
-                    end: Math.max(0, trimStart - 0.01),
-                    color: 'rgba(255, 0, 0, 0.4)',
-                    drag: false,
-                    resize: false
-                });
-            }
-            
-            if (trimEnd < duration - 0.01) {
-                regionsPlugin.addRegion({
-                    id: 'cutOverlay-after',
-                    start: Math.min(duration, trimEnd + 0.01),
-                    end: duration,
-                    color: 'rgba(255, 0, 0, 0.4)',
-                    drag: false,
-                    resize: false
-                });
-            }
-        }
+        this._drawTrimRegions(this.expandedWaveform);
     }
     
     updateExpandedTrimTimes() {
@@ -656,7 +629,7 @@ class WaveformControls {
             this.updateCueTrimTimes();
             
             // Sync back to main waveform
-            this.updateTrimRegion();
+            this._drawTrimRegions(this.waveform);
         }
     }
     
@@ -757,7 +730,12 @@ class WaveformControls {
                 this.updateTimeDisplay();
             });
             
-            this.waveform.on('seek', () => {
+            // WaveSurfer v7 names: 'seek' no longer exists, so a click-seek
+            // or Stop never updated the time readout.
+            this.waveform.on('seeking', () => {
+                this.updateTimeDisplay();
+            });
+            this.waveform.on('timeupdate', () => {
                 this.updateTimeDisplay();
             });
             
@@ -771,20 +749,10 @@ class WaveformControls {
                 this.waveform.seekTo(relativeX);
             });
             
-            // Set up region events
-            this.waveform.on('region-created', (region) => {
-                console.log('Region created:', region);
-            });
-            
-            this.waveform.on('region-updated', (region) => {
-                console.log('Region updated:', region);
-                this.updateTrimTimes();
-            });
-            
-            this.waveform.on('region-clicked', (region, e) => {
-                e.stopPropagation();
-                this.waveform.seekTo(region.start / this.waveform.getDuration());
-            });
+            // Region events come from the Regions plugin in WaveSurfer v7,
+            // not the WaveSurfer instance - listening on the instance meant
+            // dragging a trim handle never saved.
+            this._bindRegionEvents(this.waveform, () => this.updateTrimTimes());
             
             // Handle loading errors
             this.waveform.on('error', (error) => {
@@ -879,58 +847,7 @@ class WaveformControls {
     }
     
     loadTrimRegions() {
-        if (!this.waveform || !this.currentCue) return;
-        
-        const duration = this.waveform.getDuration();
-        if (!duration) return;
-        
-        const trimStart = this.currentCue.trimStartTime || 0;
-        const trimEnd = this.currentCue.trimEndTime || duration;
-        
-        // Get the regions plugin instance
-        const regionsPlugin = this.waveform.plugins[0];
-        if (!regionsPlugin) {
-            console.warn('WaveformControls: No regions plugin found for loading trim regions');
-            return;
-        }
-        
-        // Clear existing regions
-        this.clearAllRegions(regionsPlugin);
-        
-        // Create trim region
-        if (trimStart > 0 || trimEnd < duration) {
-            regionsPlugin.addRegion({
-                id: 'trimRegion',
-                start: trimStart,
-                end: trimEnd,
-                color: 'rgba(0, 255, 0, 0.3)',
-                drag: true,
-                resize: true
-            });
-            
-            // Create cut overlays
-            if (trimStart > 0.01) {
-                regionsPlugin.addRegion({
-                    id: 'cutOverlay-before',
-                    start: 0,
-                    end: Math.max(0, trimStart - 0.01),
-                    color: 'rgba(255, 0, 0, 0.4)',
-                    drag: false,
-                    resize: false
-                });
-            }
-            
-            if (trimEnd < duration - 0.01) {
-                regionsPlugin.addRegion({
-                    id: 'cutOverlay-after',
-                    start: Math.min(duration, trimEnd + 0.01),
-                    end: duration,
-                    color: 'rgba(255, 0, 0, 0.4)',
-                    drag: false,
-                    resize: false
-                });
-            }
-        }
+        this._drawTrimRegions(this.waveform);
     }
     
     updateTrimTimes() {
@@ -950,6 +867,9 @@ class WaveformControls {
             
             // Update cue properties
             this.updateCueTrimTimes();
+
+            // Sync to the expanded waveform
+            this._drawTrimRegions(this.expandedWaveform);
         }
     }
     

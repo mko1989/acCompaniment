@@ -32,6 +32,7 @@ let configDefaultStopAllBehaviorSelect;
 let configDefaultStopAllFadeOutInput;
 let configDefaultStopAllFadeOutGroup;
 let configCrossfadeTimeInput;
+let configDuckingFadeTimeInput;
 
 // OSC Settings removed
 
@@ -44,7 +45,6 @@ let serverOutputDevices = [];
 // let configShowQuickControlsCheckbox; // REMOVED
 
 // HTTP Remote Control Elements
-let configHttpRemoteEnabledCheckbox;
 let configHttpRemotePortGroup;
 let configHttpRemotePortInput;
 let configHttpRemoteLinksGroup;
@@ -122,6 +122,7 @@ function cacheDOMElements() {
     configDefaultStopAllFadeOutInput = document.getElementById('defaultStopAllFadeOut');
     configDefaultStopAllFadeOutGroup = document.getElementById('defaultStopAllFadeOutGroup');
     configCrossfadeTimeInput = document.getElementById('crossfadeTime');
+    configDuckingFadeTimeInput = document.getElementById('duckingFadeTime');
     
     // OSC UI removed
 
@@ -130,7 +131,6 @@ function cacheDOMElements() {
     configAudioOutputChannelCountSelect = document.getElementById('configAudioOutputChannelCount');
 
     // HTTP Remote Control Elements
-    configHttpRemoteEnabledCheckbox = document.getElementById('configHttpRemoteEnabled');
     configHttpRemotePortGroup = document.getElementById('httpRemotePortGroup');
     configHttpRemotePortInput = document.getElementById('configHttpRemotePort');
     configHttpRemoteLinksGroup = document.getElementById('httpRemoteLinksGroup');
@@ -171,6 +171,9 @@ function bindEventListeners() {
     if (configDefaultStopAllFadeOutInput) {
         configDefaultStopAllFadeOutInput.addEventListener('change', handleAppConfigChange);
     }
+    // Crossfade time used to have no listener at all - edits were never saved.
+    if (configCrossfadeTimeInput) configCrossfadeTimeInput.addEventListener('change', handleAppConfigChange);
+    if (configDuckingFadeTimeInput) configDuckingFadeTimeInput.addEventListener('change', handleAppConfigChange);
     
     // Generic OSC UI removed
 
@@ -184,13 +187,7 @@ function bindEventListeners() {
         configAudioOutputChannelCountSelect.addEventListener('change', handleAppConfigChange);
     }
     
-    // HTTP Remote Control event listeners
-    if (configHttpRemoteEnabledCheckbox) {
-        configHttpRemoteEnabledCheckbox.addEventListener('change', () => {
-            handleHttpRemoteEnabledChange();
-            handleAppConfigChange(); 
-        });
-    }
+    // HTTP Remote Control (always available - only its port is a setting)
     if (configHttpRemotePortInput) configHttpRemotePortInput.addEventListener('change', handleAppConfigChange);
     if (configHttpRemotePortInput) configHttpRemotePortInput.addEventListener('blur', handleAppConfigChange);
     
@@ -235,14 +232,14 @@ function populateConfigSidebar(config) {
         if (configDefaultLoopSingleCueCheckbox) configDefaultLoopSingleCueCheckbox.checked = currentAppConfig.defaultLoopSingleCue || false;
         if (configDefaultRetriggerBehaviorSelect) configDefaultRetriggerBehaviorSelect.value = currentAppConfig.defaultRetriggerBehavior || 'restart';
         if (configDefaultStopAllBehaviorSelect) configDefaultStopAllBehaviorSelect.value = currentAppConfig.defaultStopAllBehavior || 'stop';
-        if (configDefaultStopAllFadeOutInput) configDefaultStopAllFadeOutInput.value = currentAppConfig.defaultStopAllFadeOutTime || 1500;
+        if (configDefaultStopAllFadeOutInput) configDefaultStopAllFadeOutInput.value = currentAppConfig.defaultStopAllFadeOutTime ?? 1500;
         if (configCrossfadeTimeInput) configCrossfadeTimeInput.value = currentAppConfig.crossfadeTime || 2000;
+        if (configDuckingFadeTimeInput) configDuckingFadeTimeInput.value = currentAppConfig.duckingFadeTime ?? 1000;
         
         // OSC Settings not shown in UI
         
         // HTTP Remote Control Settings
-        if (configHttpRemoteEnabledCheckbox) configHttpRemoteEnabledCheckbox.checked = currentAppConfig.httpRemoteEnabled !== false; // Default to true
-        if (configHttpRemotePortInput) configHttpRemotePortInput.value = currentAppConfig.httpRemotePort || 3000;
+        if (configHttpRemotePortInput) configHttpRemotePortInput.value = currentAppConfig.httpRemotePort || 3333;
         
         if (configAudioOutputDeviceSelect && currentAppConfig.audioOutputDeviceId) {
             configAudioOutputDeviceSelect.value = String(currentAppConfig.audioOutputDeviceId);
@@ -256,7 +253,7 @@ function populateConfigSidebar(config) {
 
         // Mixer config population removed
         
-        handleHttpRemoteEnabledChange();
+        loadHttpRemoteInfo();
         handleStopAllBehaviorChange();
 
         console.log('AppConfigUI: Sidebar populated (end of try block).');
@@ -268,21 +265,6 @@ function populateConfigSidebar(config) {
 
 // Generic OSC handling removed
 
-function handleHttpRemoteEnabledChange() {
-    const isEnabled = configHttpRemoteEnabledCheckbox && configHttpRemoteEnabledCheckbox.checked;
-    if (configHttpRemotePortGroup) {
-        configHttpRemotePortGroup.style.display = isEnabled ? 'block' : 'none';
-    }
-    if (configHttpRemoteLinksGroup) {
-        configHttpRemoteLinksGroup.style.display = isEnabled ? 'block' : 'none';
-    }
-    
-    // Load remote info when enabled
-    if (isEnabled) {
-        loadHttpRemoteInfo();
-    }
-}
-
 async function loadHttpRemoteInfo() {
     if (!websocketBindingsModule || !configHttpRemoteLinksDiv) return;
     
@@ -290,10 +272,6 @@ async function loadHttpRemoteInfo() {
         const remoteInfo = await websocketBindingsModule.invoke('get-http-remote-info');
         console.log('AppConfigUI: Received HTTP remote info:', remoteInfo);
         
-        if (!remoteInfo.enabled) {
-            configHttpRemoteLinksDiv.innerHTML = '<p class="small-text">HTTP remote is disabled.</p>';
-            return;
-        }
         
         if (!remoteInfo.interfaces || remoteInfo.interfaces.length === 0) {
             configHttpRemoteLinksDiv.innerHTML = '<p class="small-text">No network interfaces found.</p>';
@@ -492,6 +470,14 @@ function setUiApi(api) {
     uiAPI = api;
 }
  
+// Reads a number input; an empty or non-numeric field keeps the current
+// value instead of saving NaN.
+function numberFrom(input, fallback) {
+    if (!input) return fallback;
+    const n = parseInt(input.value, 10);
+    return Number.isFinite(n) ? n : fallback;
+}
+
 function gatherConfigFromUI() {
     const config = {
         cuesFilePath: configCuesFilePathInput ? configCuesFilePathInput.value : '',
@@ -500,18 +486,18 @@ function gatherConfigFromUI() {
         recentWorkspaces: currentAppConfig.recentWorkspaces || [], // Preserve this from loaded config
 
         defaultCueType: configDefaultCueTypeSelect ? configDefaultCueTypeSelect.value : 'single_file',
-        defaultFadeInTime: configDefaultFadeInInput ? parseInt(configDefaultFadeInInput.value) : 0,
-        defaultFadeOutTime: configDefaultFadeOutInput ? parseInt(configDefaultFadeOutInput.value) : 0,
+        defaultFadeInTime: numberFrom(configDefaultFadeInInput, currentAppConfig.defaultFadeInTime ?? 0),
+        defaultFadeOutTime: numberFrom(configDefaultFadeOutInput, currentAppConfig.defaultFadeOutTime ?? 0),
         defaultLoopSingleCue: configDefaultLoopSingleCueCheckbox ? configDefaultLoopSingleCueCheckbox.checked : false,
         defaultRetriggerBehavior: configDefaultRetriggerBehaviorSelect ? configDefaultRetriggerBehaviorSelect.value : 'restart',
         defaultStopAllBehavior: configDefaultStopAllBehaviorSelect ? configDefaultStopAllBehaviorSelect.value : 'stop',
-        defaultStopAllFadeOutTime: configDefaultStopAllFadeOutInput ? parseInt(configDefaultStopAllFadeOutInput.value) : 1500,
-        crossfadeTime: configCrossfadeTimeInput ? parseInt(configCrossfadeTimeInput.value) : 2000,
+        defaultStopAllFadeOutTime: numberFrom(configDefaultStopAllFadeOutInput, currentAppConfig.defaultStopAllFadeOutTime ?? 1500),
+        crossfadeTime: numberFrom(configCrossfadeTimeInput, currentAppConfig.crossfadeTime ?? 2000),
+        duckingFadeTime: numberFrom(configDuckingFadeTimeInput, currentAppConfig.duckingFadeTime ?? 1000),
 
         // Generic OSC removed from saved config
         
-        httpRemoteEnabled: configHttpRemoteEnabledCheckbox ? configHttpRemoteEnabledCheckbox.checked : true,
-        httpRemotePort: configHttpRemotePortInput ? parseInt(configHttpRemotePortInput.value) : 3000,
+        httpRemotePort: numberFrom(configHttpRemotePortInput, currentAppConfig.httpRemotePort ?? 3333),
         
         audioOutputDeviceId: configAudioOutputDeviceSelect ? configAudioOutputDeviceSelect.value : 'default',
         audioOutputChannelCount: configAudioOutputChannelCountSelect

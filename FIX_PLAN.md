@@ -888,6 +888,289 @@ automated regression test.
 
 ---
 
+## G16 — Stop All stuck "playing", no fading state, broken playlist modes, and test expansion `[x]`
+
+From `todos.md` (2026-09-29), plus bugs found while writing tests for it.
+
+- **Stop All (fade) left buttons stuck "playing".** Fade-mode Stop All used
+  each cue's own `fadeOutTime` (default 0) and ignored the configured
+  `defaultStopAllFadeOutTime`. A 0-second "fade" is an immediate mixer
+  removal, which never fires `onCueComplete`, but `cueManager.stopAllCues()`
+  had skipped cleanup and the 'stopped' broadcast, waiting for that
+  callback. The audio stopped and the button (and server `cueStates`)
+  stayed "playing". `AudioPlaybackManager.stopCue()` now returns
+  `{ fading }` and callers trust it rather than guessing from cue settings.
+  That also fixes single-cue fade-stops after the fade time was edited
+  mid-playback, and fading a paused cue, whose ramp never advanced. Stop All
+  now fades over `defaultStopAllFadeOutTime`, as the legacy app did.
+- **No visual fading state.** The grid already had `.fading-in/.fading-out`
+  and a "Fading: x.xs" countdown, keyed off fields the legacy renderer
+  computed. The server never sent them after the migration. The mixer now
+  reports fade direction and remaining time, and `playback-time-update`
+  carries `isFadingIn/isFadingOut/fadeTimeRemainingMs`.
+- **Slow UI load.** Not reproducible in the page itself (cue grid renders in
+  ~0.3s against a copy of real data). The launcher added fixed delays before
+  "Open Browser UI" enabled: 3 retries 750ms apart on a *refused* connection
+  before spawning (refused is definitive, so no retry now), and a 3s
+  startup poll interval (now 500ms).
+- **Playlist "Continue to next item" never played the next item.** It only
+  moved the index. "Stop after item, cue next" and repeat-one did nothing,
+  and a playlist's `loop` looped its current item forever. Implemented the
+  legacy semantics in `cueManager._handlePlaylistItemEnd()`.
+- **Output patch collapsed swapped stereo.** `Number(right) || left` treated
+  channel 0 as missing, so `[1, 0]` became `[1, 1]` (backend util and the
+  frontend form copy).
+- **`writeJsonAtomic` temp-file collision.** Two writes of one file in the
+  same millisecond shared a temp file (ENOENT on rename, possible
+  interleaved content). Added a per-call counter.
+- **REST `PUT /api/config` and `/reset` never reached cueManager** (stale
+  config) or open UIs. They now propagate like the WebSocket save path.
+
+Tests: new `test/unit/` (`node:test`, part of `npm run test:unit`) for the
+mixer, AudioPlaybackManager stop contract and `utils/`;
+`test/stop-and-fade.test.js`; playlist-mode tests in `playlist.test.js`;
+`test/e2e/stop-all-fade.spec.js`. Each new regression test was confirmed to
+fail on the pre-fix source.
+
+Still not ported from the legacy app (data model and UI exist, the server
+engine ignores them): **ducking**, **crossfade mode**, **playlist shuffle**,
+and true **play_new_instance** polyphony (falls back to restart).
+
+---
+
+## G17 — Missing legacy features ported, UI wiring fixed, end-to-end coverage for every control `[x]`
+
+**Features** (legacy Electron behaviour, now in the server engine):
+- **Ducking.** Mixer voices have a duck-gain stage separate from the
+  fade/volume gain. `cueManager._updateDucking()` recomputes every playing
+  cue's level (strongest audible trigger wins; paused triggers don't duck)
+  on every start/stop/pause/resume/edit, ramping over `duckingFadeTime`
+  (new config, default 1000ms, editable in the sidebar). A duckable cue
+  started under a trigger starts already ducked.
+- **Crossfade mode.** Server-side session state (`crossfadeMode`), switched
+  by the restored XFADE button, the remote page, `POST /api/remote/crossfade`
+  or WS `set_crossfade_mode`; broadcast as `crossfade-mode-updated`. Fresh
+  user starts fade other cues out and the new one in over `crossfadeTime`.
+  Restarts, playlist advance and navigation don't crossfade.
+- **Shuffle.** `playlistLogic.js` (pure) decides item end / navigation with
+  a per-playlist shuffle order; loop reshuffles.
+- **Play new instance.** The mixer holds several voices per cue; the cue
+  completes when its last voice ends.
+- **Retrigger behaviors.** `retriggerLogic.js` (pure) maps every UI option ×
+  playing/paused to an action. `toggle_pause_play`, `replay_current_item`
+  and `play_next_item` used to fall into a branch that re-triggered forever,
+  and pressing a paused cue restarted it instead of resuming.
+  Decisions: replay_current_item restarts the current item;
+  play_new_instance on a paused cue plays it from the top (replacing the
+  paused one); "fade out and stop" with a fade-out time of 0 stops
+  instantly.
+
+**Bugs fixed along the way**: shuffle/repeat saved as `shuffle`/`repeatOne`
+(ignored; now normalized, including legacy workspaces); crossfade time never
+saved; config inputs showing 0 as 1500 (then overwriting it); NaN saves;
+volume 0 played at full volume; drag-to-reorder never saved (no server
+handler); both multiple-files dialog buttons silently did nothing (live
+FileList emptied) and then failed ("Cue not found" for a client-chosen id);
+dropping a file on a single-file cue didn't change what it plays; the drop
+overlay never appeared; the properties sidebar re-populated on every cue
+broadcast (eating keystrokes, reloading the waveform); the playlist remove
+button didn't re-render; waveform readout ignored seeks/Stop and region
+drags/clicks never registered (WaveSurfer v7 event names); advertised
+Shift/Ctrl arrow steps missing; remote page never showed initial state;
+paused/cued state and crossfade mode lost for pages opened mid-show;
+Stop All from the remote/Companion ignored the configured behavior; a
+device change left buttons "playing"; rapid presses on one cue raced (now
+serialized per cue).
+
+**Tests**: e2e now runs one server per Playwright worker with a clean slate
+per test (`test/e2e/fixtures.js`) and covers every control in the main UI,
+sidebars, waveform editor, file handling and remote page (125 tests).
+New server suites: retrigger, ducking, crossfade, shuffle, cue-properties,
+api-extras. New unit suites: playlist-logic, retrigger-logic, cue-data,
+mixer voices/ducking.
+
+**G8 shutdown deadlock fixed.** Root cause, from the binding's source
+(`node_rtaudio.cpp`): the audio thread makes a *blocking* call into JS for
+every render callback, so `stopStream()` on the JS thread while one was
+pending left both threads waiting on each other. `_closeStream()` now has
+the next render callback return 1 (RtAudio's "drain and stop"), which stops
+the stream on RtAudio's own thread while the JS thread keeps servicing
+callbacks, then closes it (~70ms; direct `stopStream()` only as a timed-out
+fallback). Before: 5 hangs in 5 full server-suite runs; after: 1 hang in
+11 runs (~180 audio-server shutdowns), and the suite runs ~30% faster. Much
+rarer, not gone: the remaining case isn't diagnosed yet - the test harness
+now prints the server's last output when it has to force-kill, to catch it.
+
+---
+
+## G18 — Dependency vulnerabilities cleared, packages updated `[x]`
+
+`npm audit` reported 15 (3 critical, 9 high, 3 moderate), every one reached
+through `@hamitzor/rtaudio.js` (already at its latest, 2.2.0, unmaintained
+since 2025-03): it lists its *build/publish* tools as runtime dependencies -
+`cmake-js@7` (old `tar`) and `prebuild` (abandoned `request`, `nw-gyp`,
+`node-ninja`, `tar@2`). Fixed with `overrides` in package.json:
+`cmake-js` -> ^8 (patched `tar`), and `prebuild` -> an empty local stub
+(`scripts/npm-stubs/prebuild`) - only the package's author ever runs it;
+installing needs just `prebuild-install` and `cmake-js`. Result: 0
+vulnerabilities, 243 fewer packages installed and shipped.
+
+Also: every dependency updated to latest (express 5.2, ws 8.22,
+music-metadata 11.16, fs-extra 11.4, cors 2.8.6, electron 44.4.5, ...);
+`uuid` removed (its current major is ESM-only) for Node's built-in
+`crypto.randomUUID()`; deprecated `fluent-ffmpeg` removed - it only ever
+ran one ffmpeg command, now spawned directly in `audioDecoder.js` (same
+flags, verified identical output on real files, clearer errors).
+Node >= 20.17 now required (cmake-js 8).
+
+Found on the way:
+- **Compiling the audio engine from source was broken on CMake 4**
+  (pre-existing - cmake-js 7 fails identically): rtaudio.js's CMakeLists asks
+  for CMake 3.1 compatibility, which CMake 4 removed. The existing binary
+  predated the CMake upgrade, so any fresh install or rebuild would have left
+  the app without audio. Fixed via `.npmrc` (`cmake_CMAKE_POLICY_VERSION_MINIMUM=3.5`,
+  which cmake-js passes to CMake). npm warns about the unknown key; harmless.
+- **Mixer: fade-stopping a silent voice never finished** - a volume-0 cue,
+  or a cue stopped before its fade-in rendered a frame, stayed "playing"
+  forever (the ramp 0 -> 0 has no steps, and the "reached silence" check only
+  ran while ramping). Surfaced as an intermittent crossfade test failure.
+Verified by deleting node_modules and running a fresh `npm install`, then
+the full suite twice (100 unit, 214 server, 127 e2e).
+
+---
+
+## G19 — Projects, unified media library, launcher branding, health check `[x]`
+
+From `todos.md` (2026-09-29, second batch). Order: P1 -> P2 -> P3 -> P4
+(P3's bundles depend on P2's library). Tests at every level for each.
+
+### P1 — Launcher health check `[x]`
+Every successful probe logged "Server is running and healthy", every 20s,
+forever (the heartbeat). The heartbeat only relabelled the tray after ~1 min
+of a *frozen* server and never restarted it; crashes are already caught
+instantly by the child process exiting. **Remove the heartbeat.** Keep the
+startup readiness poll (it's how "Open Browser UI" knows the server is up),
+but log only the outcome, not every probe.
+
+### P2 — Unified media library `[x]`
+Today every upload is stored as `name_<timestamp>.ext` with a new id - the
+real library has 67 files / 17 unique contents (440MB), many present twice
+(`audio/` and `audio/imported/`).
+- **Identity = filename.** Library is flat: `audio/<original filename>`.
+  Content hash (sha256) stored in metadata.
+- **Upload:** same name + same content -> reuse the existing file and id (no
+  new copy). Same name + *different* content -> stored as `Name (2).ext`
+  (an upload never silently changes other projects' audio). New name -> new.
+- **Replace file** (button next to "Delete Cue", single-file cues): uploads
+  a new version and overwrites the library file *in place* - same name, same
+  id - so every cue in every project using it gets the new version. Clears
+  decoded/PCM caches, refreshes durations, reloads the waveform.
+- **Migration** (automatic, once, on first start): hash every file, keep one
+  copy per unique content under its clean name (timestamp suffix removed),
+  delete only byte-identical duplicates, rewrite every project's cue
+  references (id + path) and the metadata. Backs up all project files and
+  metadata first; writes a mapping log; idempotent (library version marker).
+
+### P3 — Projects workflow `[x]`
+"Project" = the existing workspace concept, surfaced in the UI.
+- Settings sidebar **top: project name** input - edits save automatically.
+- Settings sidebar **bottom: New Project, Load Project, Download Bundle,
+  Import Bundle.** (Import is needed to use a bundle on another machine.)
+- **Autosave** everything (cue edits already autosave; no Save button).
+- **New:** creates an empty project and switches to it (current one is
+  already saved). **Load:** dialog listing projects (name, cues, last
+  changed) to open or delete. All open pages follow a switch.
+- **Download Bundle:** a `.zip` with `project.json` + `audio/<files>`
+  (streamed; zip64 for big projects). **Import Bundle:** upload the zip ->
+  audio merged into the library by P2's rules -> new project -> opened.
+- Server reopens the **last opened** project on restart (today: the most
+  recently *modified* file, which forgets a project that was only opened).
+
+### P4 — Launcher branding `[x]`
+Config window in the main UI's style: app icon left of the name, Rewir font
+throughout (same as the main UI, which uses the locally installed font), and
+the app icon in the macOS dock (was Electron's default: nothing called
+`app.dock.setIcon`; only packaged builds got `build.mac.icon`).
+
+### Done - notes
+- **Migration verified on a copy of the real library:** 66 files -> 16
+  (440MB -> 110MB), 34 metadata records -> 16, all cues play. Matching uses
+  relative paths (absolute ones in old records break when a data folder has
+  been moved). Backup + mapping log in `cues/backups/library-migration-*`.
+- **Found and fixed on the way:** an edit made < 300ms before switching
+  project was lost (debounced save wrote into the new project); every
+  autosave kept a backup forever (now newest 20 per project); non-audio files
+  named `.wav` were accepted as uploads (now need a real duration); the
+  launcher ignored `ACCOMPANIMENT_DATA_DIR` (config/log/"Open Data Directory"
+  could point elsewhere than the server); `loadWorkspace` stopped playback
+  only after swapping cues.
+- **Tests:** new Electron suite (`test/electron/`, Playwright's Electron
+  support, isolated data dir + port) for the launcher - it had none;
+  server suites media-library, projects, projects-restart (incl. a bundle
+  imported into a second, empty installation and played there); unit
+  media-library; e2e media-library and projects.
+- **Fonts:** Rewir/Apropal aren't bundled - main UI and launcher both use
+  the copies installed on this Mac (licences unknown, so not redistributed).
+- **Launcher without heartbeat:** a server the launcher *adopted* (already
+  running on its port, not started by it) is no longer monitored.
+
+---
+
+## G20 — Settings polish, expanded waveform regions `[x]`
+
+From `todos.md` (third batch).
+- **Project name** field is now the size of the other fields (still bold).
+- **"Enable HTTP Remote" removed** - nothing ever checked it; the remote
+  page is always served. The port field below it is now labelled for what
+  it is ("Server Port" - the one port the UI, remote and Companion share,
+  applied at the next start). The remote links (and `/api/remote/info`,
+  whose WebSocket URL used an unused `websocketPort` of 8877) now use the
+  port the server is actually listening on, not the configured one.
+  The links' Copy buttons were pushed off the sidebar's edge by a generic
+  full-width button rule - fixed.
+- **Expanded waveform editor didn't show in/out points** set during the
+  session (in either editor) - it drew from the cue as it was when the
+  sidebar opened, and setting a point only redrew the sidebar waveform. Both
+  editors now draw from the same live trim values after every change
+  (`_drawTrimRegions`); an unset end point (stored as 0) no longer risks a
+  zero-width region.
+- Also: the bundle import route now removes its temp files *before*
+  replying (found as an intermittent test failure under load).
+
+## G21 — Companion module rewritten for the Node server (2.0.0) `[x]`
+
+The module (`companion-module-highpass-accompaniment/`) still spoke the
+Electron app's protocol - a separate WebSocket on port 8877 with
+`{action}` commands and `{event}` messages - so against the Node server it
+couldn't connect, and wouldn't have understood anything if it had.
+
+- **Transport stays WebSocket**, on the server's one port (3333): the
+  server pushes cue state, times and fades, which feedbacks and timers
+  need; HTTP would mean polling. The module now uses the same
+  `{type, payload}` protocol as the web UI.
+- **Server additions** for it: `playlist_jump` (+ `POST
+  /api/cues/:id/playlist/jump`) - "jump to item" was in the module but no
+  server ever implemented it; `toggle_pause_cue`; `set_master_volume`; the
+  master volume is now sent on connect. The whole contract is pinned by
+  `test/companion-protocol.test.js`.
+- **Module**: protocol/state in a Companion-free `client.js`; new actions
+  (pause/resume, crossfade on/off/toggle, master volume set/adjust, Stop
+  Cue with or without fade, Stop All as-set-in-app / instant / fade), new
+  feedbacks (active, playlist cued, ducked, crossfade on, connected), new
+  variables (project name, crossfade mode, master volume, playing count,
+  next playlist item, ducked). 1.x action/feedback/variable ids kept. An
+  upgrade script moves saved connections from 8877 to 3333 and keeps old
+  Stop All buttons fading. Manifest fixed (it was a copy of a Roland
+  module's), HELP/README rewritten.
+- **@companion-module/base 2 / tools 3** (ESM, default-export entry,
+  object variable definitions, sectioned presets). Needs Companion 4.3+,
+  and Node >= 22.20 to develop (tools 3 needs 22.x, so not 26; `.nvmrc`).
+- Tests: 74 in the module (`yarn test`) - client against a fake server,
+  every action/feedback/variable/preset, upgrades, the built entry's
+  exports, and end to end against a real server via this repo's harness.
+
+---
+
 # Suggested execution order
 
 1. **A1 → A2 → A3 → A4** (stop data loss & orphan files)

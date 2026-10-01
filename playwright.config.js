@@ -1,55 +1,34 @@
 // Playwright config for real-browser end-to-end tests of the browser UI
-// (src/frontend/), as opposed to the Node-level API/WebSocket smoke tests
-// in test/*.test.js. See test/e2e/README.md for how this differs from and
-// complements that suite.
+// (src/frontend/), as opposed to the Node-level API/WebSocket tests in
+// test/*.test.js.
 //
-// Unlike the Node-level smoke tests (each of which boots its own isolated
-// server on a random free port), Playwright's `webServer` option starts one
-// server for the whole run, shared by every spec file. That's why e2e specs
-// scope every assertion to a cue *they* created (by its own unique id/name)
-// rather than ever asserting on total cue-grid state - multiple spec files
-// can run against that one shared server concurrently.
+// Two projects:
+// - chromium (test/e2e/): the browser UI. Each worker boots its own server
+//   with its own temp data directory, and every test starts from a clean
+//   slate on it (test/e2e/fixtures.js).
+// - electron (test/electron/): the tray launcher, launched as a real
+//   Electron app against an isolated data directory and port
+//   (test/electron/fixtures.js).
+// Specs import { test, expect } from their folder's fixtures.js.
 
-const path = require('node:path');
-const os = require('node:os');
-const fs = require('node:fs');
 const { defineConfig, devices } = require('@playwright/test');
 
-const E2E_PORT = 34199;
-const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'accompaniment-e2e-'));
-
 module.exports = defineConfig({
-    testDir: './test/e2e',
     timeout: 30000,
     expect: { timeout: 10000 },
     fullyParallel: true,
-    // All specs share one live server (with a real, CPU-hungry RtAudio
-    // engine) rather than each getting an isolated instance like the
-    // Node-level smoke tests do. Running many Chromium instances at once
-    // against that one server, on top of real audio processing, caused a
-    // real, reproducible timeout in one test (window.open() under heavy
-    // contention) that never happened in isolation - not a flake to paper
-    // over, a genuine resource-contention ceiling on typical dev hardware.
+    // Each worker runs its own server with a real, CPU-hungry RtAudio
+    // engine; more than a couple at once on typical dev hardware causes
+    // genuine resource-contention timeouts, not flakes to paper over.
     workers: 2,
     forbidOnly: !!process.env.CI,
     retries: 0,
     reporter: [['list']],
     use: {
-        baseURL: `http://127.0.0.1:${E2E_PORT}`,
         trace: 'retain-on-failure',
     },
     projects: [
-        { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+        { name: 'chromium', testDir: './test/e2e', use: { ...devices['Desktop Chrome'] } },
+        { name: 'electron', testDir: './test/electron', timeout: 90000 },
     ],
-    webServer: {
-        command: `node ${path.join(__dirname, 'start-nodejs.js')}`,
-        url: `http://127.0.0.1:${E2E_PORT}/api/remote/health`,
-        timeout: 30000,
-        reuseExistingServer: false,
-        env: {
-            PORT: String(E2E_PORT),
-            HOST: '127.0.0.1',
-            ACCOMPANIMENT_DATA_DIR: dataDir,
-        },
-    },
 });

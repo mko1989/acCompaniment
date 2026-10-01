@@ -22,6 +22,7 @@ class AppConfigManager {
             defaultStopAllBehavior: 'stop',
             defaultStopAllFadeOutTime: 1500,
             crossfadeTime: 2000,
+            duckingFadeTime: 1000, // ms to lower/restore cues when a ducking trigger starts/stops
             
             // UI settings
             theme: 'system',
@@ -33,7 +34,6 @@ class AppConfigManager {
             // Server settings
             websocketEnabled: true,
             websocketPort: 8877,
-            httpRemoteEnabled: true,
             httpRemotePort: 3333, // matches server.js's own default (process.env.PORT || 3333)
             
             // File management
@@ -236,8 +236,20 @@ class AppConfigManager {
     }
     
     // Get network interfaces for remote access
+    // The port the server is actually listening on (the web UI, remote page
+    // and WebSocket all share it). The configured httpRemotePort only takes
+    // effect at the next start - and a PORT environment variable overrides it.
+    setListeningPort(port) {
+        this.listeningPort = port;
+    }
+
+    getListeningPort() {
+        return this.listeningPort || this.config?.httpRemotePort || 3333;
+    }
+
     getNetworkInterfaces() {
         const os = require('os');
+        const port = this.getListeningPort();
         const interfaces = os.networkInterfaces();
         const addresses = [];
         
@@ -247,8 +259,8 @@ class AppConfigManager {
                     addresses.push({
                         name: name,
                         address: iface.address,
-                        httpUrl: `http://${iface.address}:${this.config.httpRemotePort}`,
-                        wsUrl: `ws://${iface.address}:${this.config.websocketPort}`
+                        httpUrl: `http://${iface.address}:${port}`,
+                        wsUrl: `ws://${iface.address}:${port}`
                     });
                 }
             }
@@ -279,6 +291,11 @@ class AppConfigManager {
             errors.push('Default fade out time cannot be negative');
         }
         
+        if (config.duckingFadeTime !== undefined
+            && (typeof config.duckingFadeTime !== 'number' || config.duckingFadeTime < 0 || config.duckingFadeTime > 10000)) {
+            errors.push('Ducking fade time must be between 0ms and 10000ms');
+        }
+
         // Validate crossfade time
         if (config.crossfadeTime < 100 || config.crossfadeTime > 10000) {
             errors.push('Crossfade time must be between 100ms and 10000ms');

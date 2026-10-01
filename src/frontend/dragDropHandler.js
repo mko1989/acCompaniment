@@ -29,7 +29,12 @@ function handleDragOver(event) {
     // e.g., event.target.classList.add('drag-over-active');
     // However, ui.js might handle more specific drop-target highlighting.
     // General indication that a drag is in progress on the window can be useful.
-    document.body.classList.add('app-drag-over'); 
+    // Only a drag carrying files gets the "drop audio files here" overlay -
+    // dragging a cue button to reorder the grid fires dragover here too.
+    const types = event.dataTransfer ? Array.from(event.dataTransfer.types || []) : [];
+    if (types.includes('Files')) {
+        document.body.classList.add('app-drag-over');
+    }
 }
 
 function handleDragLeave(event) {
@@ -202,8 +207,8 @@ async function handleMultipleFileDropDirect(files) {
                         loop: appConfig.defaultLoopSingleCue || false,
                         volume: appConfig.defaultVolume || 1.0,
                         retriggerBehavior: appConfig.defaultRetriggerBehavior || 'restart',
-                        shuffle: false,
-                        repeatOne: false,
+                        shufflePlaylist: false,
+                        repeatOnePlaylistItem: false,
                         playlistPlayMode: 'continue'
                     };
                     

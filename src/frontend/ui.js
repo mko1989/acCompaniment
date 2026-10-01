@@ -10,6 +10,7 @@ import * as propertiesSidebar from './ui/propertiesSidebar.js';
 import * as modals from './ui/modals.js';
 import * as appConfigUI from './ui/appConfigUI.js';
 import * as waveformControls from './ui/waveformControls.js';
+import * as projects from './ui/projects.js';
 
 // Module references that will be initialized
 let cueStoreModule; // Renamed for clarity, will hold the passed cueStore module
@@ -93,6 +94,7 @@ async function init(rcvdCueStore, rcvdAudioController, rcvdWebSocketBindings, rc
     // Pass the *assigned* modules to sub-module initializers
     cueGrid.initCueGrid(cueStoreModule, audioControllerModule, dragDropHandlerModule, uiCoreInterface);
     configSidebar.initConfigSidebar();
+    projects.init();
     propertiesSidebar.initPropertiesSidebar(cueStoreModule, audioControllerModule, actualWebSocketBindingsModule, uiCoreInterface);
     modalsModule.initModals(cueStoreModule, actualWebSocketBindingsModule, uiCoreInterface, waveformControlsModule);
     
@@ -170,6 +172,25 @@ function bindCoreEventListeners() {
             } finally {
                 fileInput.value = '';
             }
+        });
+    }
+
+    // XFADE: crossfade mode lives on the server (so every open UI, the
+    // remote page and Companion agree on it); the button just asks for a
+    // change and repaints from the server's broadcast.
+    const crossfadeToggleBtn = document.getElementById('crossfadeToggleBtn');
+    const acForCrossfade = audioControllerModule?.default || audioControllerModule;
+    if (crossfadeToggleBtn && acForCrossfade?.onCrossfadeModeChange) {
+        acForCrossfade.onCrossfadeModeChange((enabled) => {
+            crossfadeToggleBtn.classList.toggle('crossfade-enabled', enabled);
+            crossfadeToggleBtn.classList.toggle('crossfade-disabled', !enabled);
+            crossfadeToggleBtn.setAttribute('aria-pressed', String(enabled));
+            crossfadeToggleBtn.title = enabled
+                ? 'Crossfade mode is on - click to turn off'
+                : 'Crossfade mode is off - click to turn on';
+        });
+        crossfadeToggleBtn.addEventListener('click', () => {
+            acForCrossfade.setCrossfadeMode(!acForCrossfade.isCrossfadeEnabled());
         });
     }
 
@@ -313,6 +334,15 @@ function applyAppConfiguration(newConfig) {
 // App configuration functions are now handled by appConfigUI.js module
 
 // --- Workspace Change Handling ---
+
+// Every `workspace-updated` broadcast: a rename of the open project only
+// updates its name; switching to another project reloads everything.
+function handleWorkspaceUpdated(workspace) {
+    if (projects.handleWorkspaceUpdated(workspace)) {
+        handleWorkspaceChange();
+    }
+}
+
 async function handleWorkspaceChange() {
     console.log('UI Core: Workspace did change. Reloading cues and app config.');
     
@@ -379,7 +409,7 @@ async function handleSingleFileDrop(file, dropTargetElement) {
         
         const uploadResult = await uploadResponse.json();
         
-        if (uploadResult.success && await propertiesSidebar.setFilePathInProperties(uploadResult.audioFile.relativePath)) {
+        if (uploadResult.success && await propertiesSidebar.setFilePathInProperties(uploadResult.audioFile)) {
             console.log("UI Core (SingleDrop): Handled by open Properties Sidebar.");
             return;
         }
@@ -433,8 +463,8 @@ async function handleSingleFileDrop(file, dropTargetElement) {
                 fadeOutTime: activeAppConfig.defaultFadeOutTime || 0,
                 loop: activeAppConfig.defaultLoopSingleCue || false,
                 retriggerBehavior: activeAppConfig.defaultRetriggerBehavior || 'restart',
-                shuffle: false, 
-                repeatOne: false, 
+                shufflePlaylist: false, 
+                repeatOnePlaylistItem: false, 
                 trimStartTime: null, 
                 trimEndTime: null,
             };
@@ -507,6 +537,19 @@ function refreshCueGrid() {
 }
 
 
+// Highlights the playing item in the properties sidebar's playlist (when
+// that playlist is the one open), from the server's playlist position.
+function syncPlaylistHighlight(cueId, status, playlistIndex) {
+    const cue = cueStoreModule?.getCueById?.(cueId);
+    if (!cue || cue.type !== 'playlist' || typeof propertiesSidebar.highlightPlayingPlaylistItemInSidebar !== 'function') {
+        return;
+    }
+    const isActive = status === 'playing' || status === 'paused';
+    const index = typeof playlistIndex === 'number' ? playlistIndex : cue.currentPlaylistIndex;
+    const itemId = isActive ? (cue.playlistItems?.[index]?.id ?? null) : null;
+    propertiesSidebar.highlightPlayingPlaylistItemInSidebar(cueId, itemId);
+}
+
 // Function called by WebSocket bindings when playback time updates are received from server
 function handleCueStatusUpdate(payload) {
     if (!payload?.cueId || !cueGrid) {
@@ -521,6 +564,7 @@ function handleCueStatusUpdate(payload) {
     if (cueGrid.updateButtonPlayingState) {
         cueGrid.updateButtonPlayingState(cueId, isPlaying || isPaused, null, isCued, null);
     }
+    syncPlaylistHighlight(cueId, status, payload.playlistIndex);
 }
 
 function updateCueButtonTimeDisplay(data) {
@@ -557,6 +601,9 @@ function updateCueButtonTimeDisplay(data) {
         if (cueGrid.updateButtonPlayingState) {
             cueGrid.updateButtonPlayingState(cueId, isPlaying || isPaused, null, isCued, null);
         }
+        if (typeof data.playlistIndex === 'number') {
+            syncPlaylistHighlight(cueId, status, data.playlistIndex);
+        }
     } else {
         // console.warn('[UI_CORE_DEBUG] updateCueButtonTimeDisplay: cueId missing in data', data);
     }
@@ -570,6 +617,7 @@ export {
     init,
     loadAndRenderCues, // Called by renderer.js on init and workspace changes
     handleWorkspaceChange, // Called by WebSocket via renderer.js
+    handleWorkspaceUpdated,
 
     // Core UI utility functions passed to sub-modules as part of uiCoreInterface
     isEditMode,

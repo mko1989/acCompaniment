@@ -5,14 +5,12 @@ const http = require('http');
 const { spawn, exec } = require('child_process');
 const fs = require('fs-extra');
 
+// Used only to learn when a freshly started server is ready (and whether one
+// is already running on the port). There is deliberately no periodic
+// heartbeat: a crash is caught the instant the server process exits, and the
+// old every-20s check only logged "healthy" forever and relabelled the tray
+// after a minute of a frozen server - it never restarted anything.
 const HEALTH_CHECK_PATH = '/api/remote/health';
-const HEARTBEAT_INTERVAL_MS = 20000;
-// Consecutive failed heartbeat checks required before actually treating the
-// server as down. A single miss (e.g. the Electron main process itself
-// briefly busy, or one dropped TCP handshake) isn't reliable evidence of a
-// dead server - a real crash is already caught immediately and separately
-// by the child process's own 'close' handler, independent of this timer.
-const HEARTBEAT_FAILURE_THRESHOLD = 3;
 const MAX_RESTART_ATTEMPTS = 3;
 const RESTART_BACKOFF_BASE_MS = 2000;
 const LOG_MAX_BYTES = 5 * 1024 * 1024; // rotate past 5MB
@@ -26,8 +24,10 @@ const LOG_MAX_BYTES = 5 * 1024 * 1024; // rotate past 5MB
 // for tens of seconds by Gatekeeper's one-time verification scan (cached
 // after that, which is exactly why a second launch right afterward is
 // instant). A short, fixed 7s check window mistook that one-time slowness
-// for a crash. Poll generously instead of declaring failure early.
-const STARTUP_POLL_INTERVAL_MS = 3000;
+// for a crash. Poll generously instead of declaring failure early - but
+// often: a normal start is healthy in ~1.5s, and a 3s interval kept "Open
+// Browser UI" disabled for up to 3s longer than the server needed.
+const STARTUP_POLL_INTERVAL_MS = 500;
 const STARTUP_POLL_TIMEOUT_MS = 60000;
 
 class AccompanimentLauncher {
@@ -39,9 +39,11 @@ class AccompanimentLauncher {
         this.isStarting = false;
         this.nodePort = 3333; // Default, matches server.js's own default; updated from config
         this.nodeHost = 'localhost'; // host the launcher itself uses to reach the server locally
-        this.logFilePath = path.join(os.homedir(), '.accompaniment', 'logs', 'accompaniment-server.log');
-        this.heartbeatTimer = null;
-        this._heartbeatConsecutiveFailures = 0;
+        // Same data directory the server uses (server.js honours the same
+        // variable) - config, log and "Open Data Directory" all live here.
+        this.dataDir = process.env.ACCOMPANIMENT_DATA_DIR || path.join(os.homedir(), '.accompaniment');
+        this.configPath = path.join(this.dataDir, 'config', 'appConfig.json');
+        this.logFilePath = path.join(this.dataDir, 'logs', 'accompaniment-server.log');
         this.restartAttempts = 0;
         this._deliberateStop = false;
         this._portConflictDetected = false;
@@ -55,6 +57,12 @@ class AccompanimentLauncher {
 
         // Handle app ready
         app.whenReady().then(async () => {
+            // Without this the dock shows Electron's default icon (packaged
+            // builds get build.mac.icon; running from source got nothing).
+            if (process.platform === 'darwin' && app.dock) {
+                this.dockIconPath = path.join(__dirname, 'assets', 'icon.png');
+                app.dock.setIcon(this.dockIconPath);
+            }
             this.createTray();
             this.setupIpcHandlers();
             // Auto-start server
@@ -79,7 +87,6 @@ class AccompanimentLauncher {
 
         // Handle app quit
         app.on('before-quit', () => {
-            this.stopHeartbeat();
             this.stopNodeServer();
         });
 
@@ -95,7 +102,6 @@ class AccompanimentLauncher {
             if (signalShutdownInProgress) return;
             signalShutdownInProgress = true;
             console.log(`Electron Launcher: Received ${signal}, shutting down gracefully...`);
-            this.stopHeartbeat();
             await this.stopNodeServer();
             app.quit();
             // Backstop in case something in app.quit()'s own shutdown path hangs
@@ -235,7 +241,7 @@ class AccompanimentLauncher {
                 contextIsolation: false
             },
             icon: path.join(__dirname, 'assets', 'icon.png'),
-            title: 'acCompaniment Configuration'
+            title: 'acCompaniment'
         });
 
         this.configWindow.loadFile(path.join(__dirname, 'config.html'));
@@ -297,7 +303,7 @@ class AccompanimentLauncher {
         // over from a previous launcher instance that exited without
         // killing its child - see stopNodeServer()'s fix above) can still
         // fail one HTTP health check under transient load, and trusting
-        // that single miss here is worse than in the heartbeat - it sends
+        // that single miss would send
         // this launcher off to spawn a *competing* second server, which can
         // only fail with EADDRINUSE against the real one, burn all of
         // MAX_RESTART_ATTEMPTS retrying that same doomed spawn, and give up
@@ -308,7 +314,6 @@ class AccompanimentLauncher {
             console.log('Electron Launcher: Server already running on port, connecting to existing instance');
             this.isNodeRunning = true;
             this.updateTrayMenu();
-            this.startHeartbeat();
             return;
         }
 
@@ -374,7 +379,6 @@ class AccompanimentLauncher {
                 this.isStarting = false;
                 this.nodeProcess = null;
                 this.updateTrayMenu();
-                this.stopHeartbeat();
 
                 if (!this._deliberateStop) {
                     if (this._portConflictDetected) {
@@ -426,7 +430,6 @@ class AccompanimentLauncher {
                 this.isStarting = false;
                 this.restartAttempts = 0;
                 this.updateTrayMenu();
-                this.startHeartbeat();
                 return;
             }
 
@@ -439,11 +442,12 @@ class AccompanimentLauncher {
                     'acCompaniment server is taking too long to start',
                     'The audio server hasn\'t responded after a minute. Check the logs (tray menu -> Show Logs) - it may still finish starting, or it may need a manual restart.'
                 );
-                this.startHeartbeat();
                 return;
             }
 
-            console.log('Electron Launcher: Server may still be starting...');
+            if (nextElapsed % 3000 === 0) {
+                console.log('Electron Launcher: Server may still be starting...');
+            }
             this._pollForStartup(nextElapsed);
         }, STARTUP_POLL_INTERVAL_MS);
     }
@@ -469,7 +473,6 @@ class AccompanimentLauncher {
             this.isStarting = false;
             this.restartAttempts = 0;
             this.updateTrayMenu();
-            this.startHeartbeat();
             return;
         }
         this._handleUnexpectedExit();
@@ -508,60 +511,6 @@ class AccompanimentLauncher {
         }
     }
 
-    /**
-     * Polls the health endpoint periodically once the server is up, so a
-     * hang (process alive but not responding) is caught even after the
-     * initial startup checks stop running - not just a subprocess exit.
-     *
-     * Requires HEARTBEAT_FAILURE_THRESHOLD consecutive misses before
-     * touching isNodeRunning/the tray - a single failed check here doesn't
-     * mean the server died (an actual crash is already caught immediately
-     * and reliably by the child process's own 'close' handler, regardless
-     * of this timer's schedule); it's far more often a transient blip.
-     */
-    startHeartbeat() {
-        this.stopHeartbeat();
-        this._heartbeatConsecutiveFailures = 0;
-        this.heartbeatTimer = setInterval(async () => {
-            const healthy = await this.checkServerStatus();
-
-            if (healthy) {
-                this._heartbeatConsecutiveFailures = 0;
-                // Recover a tray that a previous run of failures had
-                // downgraded, now that the server has proven itself again.
-                if (!this.isNodeRunning) {
-                    this.isNodeRunning = true;
-                    this.updateTrayMenu();
-                }
-                return;
-            }
-
-            if (!this.nodeProcess) {
-                // Already handled by the 'close' listener.
-                return;
-            }
-
-            this._heartbeatConsecutiveFailures += 1;
-            console.warn(
-                `Electron Launcher: Heartbeat check failed while process is still alive `
-                + `(${this._heartbeatConsecutiveFailures}/${HEARTBEAT_FAILURE_THRESHOLD}) - may be a transient blip.`
-            );
-
-            if (this._heartbeatConsecutiveFailures >= HEARTBEAT_FAILURE_THRESHOLD) {
-                console.error('Electron Launcher: Server unresponsive across multiple consecutive health checks.');
-                this.isNodeRunning = false;
-                this.updateTrayMenu();
-            }
-        }, HEARTBEAT_INTERVAL_MS);
-    }
-
-    stopHeartbeat() {
-        if (this.heartbeatTimer) {
-            clearInterval(this.heartbeatTimer);
-            this.heartbeatTimer = null;
-        }
-    }
-
     async stopNodeServer() {
         // Deliberately keyed on nodeProcess alone, not isNodeRunning: a
         // server that's still starting up (nodeProcess spawned, but the
@@ -577,7 +526,6 @@ class AccompanimentLauncher {
 
         this._deliberateStop = true;
         this.isStarting = false;
-        this.stopHeartbeat();
 
         try {
             console.log('Electron Launcher: Stopping Node.js server...');
@@ -658,8 +606,16 @@ class AccompanimentLauncher {
      */
     async _probeServerRunning(attempts = 3, intervalMs = 750) {
         for (let i = 0; i < attempts; i++) {
-            if (await this.checkServerStatus()) {
+            const result = await this._healthProbe();
+            if (result === 'healthy') {
                 return true;
+            }
+            // A refused connection means nothing is listening at all - the
+            // retries exist for a busy server that's slow to answer, and
+            // there is no such server here. Retrying anyway added ~1.5s to
+            // every normal launch before the server was even spawned.
+            if (result === 'refused') {
+                return false;
             }
             if (i < attempts - 1) {
                 await new Promise((resolve) => setTimeout(resolve, intervalMs));
@@ -669,21 +625,16 @@ class AccompanimentLauncher {
     }
 
     // A pure health probe - resolves true/false and never touches
-    // isNodeRunning or the tray itself. That state belongs to whichever
-    // caller is asking, since "is the port answering right now" means
-    // something different depending on context: during startup polling, no
-    // response legitimately means "not up yet"; during the ongoing
-    // heartbeat, the process was already confirmed alive and working, so a
-    // single missed/timed-out check is far more likely to be a transient
-    // blip (e.g. the Electron main process itself briefly busy opening a
-    // window, delaying its own handling of the response) than an actual
-    // crash - and a real crash is already caught immediately and reliably
-    // by the child process's own 'close' handler regardless of this check.
-    // This function used to flip isNodeRunning to false on any single
-    // failure, including a bare timeout, which could gray out "Open Browser
-    // UI" and show "Server Stopped" while the server was demonstrably still
-    // healthy and serving WebSocket traffic.
-    checkServerStatus() {
+    // isNodeRunning or the tray itself; callers own that state. Silent:
+    // callers log outcomes ("started", "gave up") - logging every probe
+    // filled the log with one line per check.
+    async checkServerStatus() {
+        return (await this._healthProbe()) === 'healthy';
+    }
+
+    // Resolves 'healthy', 'refused' (nothing listening on the port) or
+    // 'failed' (anything else: bad status, timeout, other network error).
+    _healthProbe() {
         return new Promise((resolve) => {
             const options = {
                 hostname: this.nodeHost,
@@ -695,23 +646,20 @@ class AccompanimentLauncher {
 
             const req = http.request(options, (res) => {
                 if (res.statusCode === 200) {
-                    console.log(`Electron Launcher: Server is running and healthy on port ${this.nodePort}`);
-                    resolve(true);
+                    resolve('healthy');
                 } else {
-                    console.log(`Electron Launcher: Server health check failed with status: ${res.statusCode}`);
-                    resolve(false);
+                    resolve('failed');
                 }
+                res.resume();
             });
 
             req.on('error', (error) => {
-                console.log(`Electron Launcher: Server health check failed: ${error.message}`);
-                resolve(false);
+                resolve(error.code === 'ECONNREFUSED' ? 'refused' : 'failed');
             });
 
             req.on('timeout', () => {
                 req.destroy();
-                console.log(`Electron Launcher: Server health check timed out on port ${this.nodePort}`);
-                resolve(false);
+                resolve('failed');
             });
 
             req.end();
@@ -745,7 +693,7 @@ class AccompanimentLauncher {
     }
 
     openDataDirectory() {
-        const dataDir = path.join(os.homedir(), '.accompaniment');
+        const dataDir = this.dataDir;
 
         if (fs.existsSync(dataDir)) {
             shell.openPath(dataDir);
@@ -797,7 +745,7 @@ class AccompanimentLauncher {
 
         ipcMain.handle('update-config', async (event, configData) => {
             try {
-                const configPath = path.join(os.homedir(), '.accompaniment', 'config', 'appConfig.json');
+                const configPath = this.configPath;
 
                 // Ensure config directory exists
                 await fs.ensureDir(path.dirname(configPath));
@@ -856,13 +804,13 @@ class AccompanimentLauncher {
         });
 
         ipcMain.handle('get-data-directory', async () => {
-            return path.join(os.homedir(), '.accompaniment');
+            return this.dataDir;
         });
 
 
         ipcMain.handle('get-config', async () => {
             try {
-                const configPath = path.join(os.homedir(), '.accompaniment', 'config', 'appConfig.json');
+                const configPath = this.configPath;
 
                 if (await fs.pathExists(configPath)) {
                     const configContent = await fs.readFile(configPath, 'utf-8');
@@ -881,7 +829,7 @@ class AccompanimentLauncher {
 
     async updatePortFromConfig() {
         try {
-            const configPath = path.join(os.homedir(), '.accompaniment', 'config', 'appConfig.json');
+            const configPath = this.configPath;
 
             if (await fs.pathExists(configPath)) {
                 const configData = await fs.readFile(configPath, 'utf-8');
@@ -899,5 +847,8 @@ class AccompanimentLauncher {
     }
 }
 
-// Create launcher instance
+// Create launcher instance. Exposed on `global` so the Electron tests
+// (test/electron/, Playwright's Electron support evaluates code in this
+// main process) can inspect and drive it without clicking the tray.
 const launcher = new AccompanimentLauncher();
+global.accompanimentLauncher = launcher;

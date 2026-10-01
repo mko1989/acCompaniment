@@ -24,10 +24,18 @@ let currentWaveformTrimEnd = 0;
  * @param {Object} acModule - Audio controller module
  * @param {Object} uiCoreInterfaceRef - UI core interface
  */
+// Mirrors src/backend/utils/outputPatch.js. Channel 0 is a real channel, so
+// `|| fallback` can't be used to detect a missing entry - it turned a swapped
+// patch like [1, 0] into [1, 1].
+function channelOr(value, fallback) {
+    const n = Number(value);
+    return value !== null && value !== undefined && value !== '' && Number.isFinite(n) ? Math.floor(n) : fallback;
+}
+
 function normalizeOutputPatch(patch, channelCount = 2) {
     const maxIndex = Math.max(0, (channelCount || 2) - 1);
-    const left = Math.max(0, Math.min(maxIndex, Number(Array.isArray(patch) ? patch[0] : 0) || 0));
-    const right = Math.max(0, Math.min(maxIndex, Number(Array.isArray(patch) ? (patch[1] ?? patch[0]) : 1) || left));
+    const left = Math.max(0, Math.min(maxIndex, channelOr(Array.isArray(patch) ? patch[0] : 0, 0)));
+    const right = Math.max(0, Math.min(maxIndex, channelOr(Array.isArray(patch) ? (patch[1] ?? patch[0]) : 1, left)));
     return [left, right];
 }
 
@@ -130,9 +138,9 @@ function collectFormData(activePropertiesCueId, domElements, stagedPlaylistItems
         id: activePropertiesCueId,
         name: cueName,
         type: domElements.propCueTypeSelect ? domElements.propCueTypeSelect.value : existingCue.type,
-        filePath: (domElements.propCueTypeSelect && domElements.propCueTypeSelect.value !== 'playlist' && domElements.propFilePathInput) 
-            ? domElements.propFilePathInput.value 
-            : existingCue.filePath,
+        // The file field only displays the file's name; which file a cue
+        // plays is set by dropping a new one (setFilePathInProperties).
+        filePath: existingCue.filePath,
         playlistItems: (domElements.propCueTypeSelect && domElements.propCueTypeSelect.value === 'playlist') 
             ? stagedPlaylistItems 
             : existingCue.playlistItems,
@@ -149,12 +157,14 @@ function collectFormData(activePropertiesCueId, domElements, stagedPlaylistItems
         retriggerBehavior: domElements.propRetriggerBehaviorSelect 
             ? domElements.propRetriggerBehaviorSelect.value 
             : existingCue.retriggerBehavior,
-        shuffle: (domElements.propCueTypeSelect && domElements.propCueTypeSelect.value === 'playlist' && domElements.propShufflePlaylistCheckbox) 
+        // The server's names for these - `shuffle` / `repeatOne` were saved
+        // but never read by the playback engine.
+        shufflePlaylist: (domElements.propCueTypeSelect && domElements.propCueTypeSelect.value === 'playlist' && domElements.propShufflePlaylistCheckbox) 
             ? domElements.propShufflePlaylistCheckbox.checked 
-            : existingCue.shuffle,
-        repeatOne: (domElements.propCueTypeSelect && domElements.propCueTypeSelect.value === 'playlist' && domElements.propRepeatOnePlaylistItemCheckbox) 
+            : existingCue.shufflePlaylist,
+        repeatOnePlaylistItem: (domElements.propCueTypeSelect && domElements.propCueTypeSelect.value === 'playlist' && domElements.propRepeatOnePlaylistItemCheckbox) 
             ? domElements.propRepeatOnePlaylistItemCheckbox.checked 
-            : existingCue.repeatOne,
+            : existingCue.repeatOnePlaylistItem,
         playlistPlayMode: (domElements.propCueTypeSelect && domElements.propCueTypeSelect.value === 'playlist' && domElements.propPlaylistPlayModeSelect) 
             ? domElements.propPlaylistPlayModeSelect.value 
             : existingCue.playlistPlayMode,
@@ -262,11 +272,11 @@ function populateFormWithCueData(cue, domElements, setStagedPlaylistItems, rende
         setStagedPlaylistItems(cue.playlistItems);
         renderPlaylistInProperties(domElements.propPlaylistItemsUl, domElements.propPlaylistFilePathDisplay);
         if(domElements.propPlaylistFilePathDisplay) domElements.propPlaylistFilePathDisplay.textContent = '';
-        if(domElements.propShufflePlaylistCheckbox) domElements.propShufflePlaylistCheckbox.checked = cue.shuffle || false;
-        if(domElements.propRepeatOnePlaylistItemCheckbox) domElements.propRepeatOnePlaylistItemCheckbox.checked = cue.repeatOne || false;
+        if(domElements.propShufflePlaylistCheckbox) domElements.propShufflePlaylistCheckbox.checked = Boolean(cue.shufflePlaylist ?? cue.shuffle);
+        if(domElements.propRepeatOnePlaylistItemCheckbox) domElements.propRepeatOnePlaylistItemCheckbox.checked = Boolean(cue.repeatOnePlaylistItem ?? cue.repeatOne);
         if(domElements.propPlaylistPlayModeSelect) domElements.propPlaylistPlayModeSelect.value = cue.playlistPlayMode || 'continue';
     } else {
-        if(domElements.propFilePathInput) domElements.propFilePathInput.value = cue.filePath || '';
+        if(domElements.propFilePathInput) domElements.propFilePathInput.value = cue.relativePath || cue.filePath || '';
         if(domElements.propPlaylistItemsUl) domElements.propPlaylistItemsUl.innerHTML = '';
         setStagedPlaylistItems([]);
         currentWaveformTrimStart = cue.trimStartTime || 0;

@@ -150,12 +150,19 @@ test('GET /api/remote/info reports server identity and network info', async () =
     const body = await res.json();
     assert.equal(body.success, true);
     assert.equal(body.info.name, 'acCompaniment');
-    // Note: info.httpPort comes from the saved config (default 3333 here,
-    // since this test never changes it), which is not necessarily the
-    // actual port this test server is listening on - the harness starts
-    // it on a random free port via an explicit PORT env var, and the
-    // config file is never rewritten to match a PORT override.
-    assert.equal(body.info.httpPort, 3333);
+    // (The port reported is the one actually in use - see the next test.)
     assert.ok(Array.isArray(body.info.networkInterfaces));
     assert.ok(Array.isArray(body.info.features.audioFormats));
+});
+
+test('remote info reports the port the server is actually listening on', async () => {
+    const res = await fetch(`${server.baseUrl()}/api/remote/info`);
+    const { info } = await res.json();
+    assert.equal(info.httpPort, server.port());
+    assert.equal(info.websocketPort, server.port());
+    assert.equal(info.features.httpRemote, true);
+    for (const iface of info.networkInterfaces) {
+        assert.equal(new URL(iface.httpUrl).port, String(server.port()));
+        assert.equal(new URL(iface.wsUrl).port, String(server.port()));
+    }
 });

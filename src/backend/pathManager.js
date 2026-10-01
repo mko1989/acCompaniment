@@ -160,21 +160,6 @@ class PathManager {
         }
     }
     
-    // Create a unique filename to avoid conflicts
-    async getUniqueFilename(directory, filename) {
-        const ext = path.extname(filename);
-        const base = path.basename(filename, ext);
-        let counter = 1;
-        let newFilename = filename;
-        
-        while (await fs.pathExists(path.join(directory, newFilename))) {
-            newFilename = `${base}_${counter}${ext}`;
-            counter++;
-        }
-        
-        return newFilename;
-    }
-    
     // Get file info for a path
     async getFileInfo(filePath) {
         try {
@@ -194,45 +179,6 @@ class PathManager {
         } catch (error) {
             console.error(`PathManager: Error getting file info: ${error.message}`);
             return null;
-        }
-    }
-    
-    // Copy file to audio directory
-    async copyToAudioDirectory(sourcePath, subdirectory = 'imported') {
-        try {
-            const resolvedSource = this.resolveWithinDataDir(sourcePath);
-            if (!resolvedSource) {
-                return {
-                    success: false,
-                    error: 'Source path must be within the application data directory',
-                    originalPath: sourcePath
-                };
-            }
-
-            const safeSubdir = path.basename(subdirectory);
-            const targetDir = path.join(this.audioDir, safeSubdir);
-            await fs.ensureDir(targetDir);
-            
-            const filename = path.basename(resolvedSource);
-            const uniqueFilename = await this.getUniqueFilename(targetDir, filename);
-            const targetPath = path.join(targetDir, uniqueFilename);
-            
-            await fs.copy(resolvedSource, targetPath);
-            
-            return {
-                success: true,
-                originalPath: sourcePath,
-                newPath: targetPath,
-                relativePath: this.toRelativePath(targetPath),
-                filename: uniqueFilename
-            };
-        } catch (error) {
-            console.error(`PathManager: Error copying file: ${error.message}`);
-            return {
-                success: false,
-                error: error.message,
-                originalPath: sourcePath
-            };
         }
     }
     

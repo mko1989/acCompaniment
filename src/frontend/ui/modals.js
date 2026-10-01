@@ -211,8 +211,8 @@ async function handleSaveNewCueFromModal() {
         loop: modalLoopCheckbox ? modalLoopCheckbox.checked : currentAppConfig.defaultLoopSingleCue,
         trimStartTime: (modalTrimStartTimeInput && modalTrimStartTimeInput.value !== '') ? parseFloat(modalTrimStartTimeInput.value) : null,
         trimEndTime: (modalTrimEndTimeInput && modalTrimEndTimeInput.value !== '') ? parseFloat(modalTrimEndTimeInput.value) : null,
-        shuffle: false, 
-        repeatOne: false, 
+        shufflePlaylist: false, 
+        repeatOnePlaylistItem: false, 
         retriggerBehavior: currentAppConfig.defaultRetriggerBehavior 
     };
 
@@ -257,7 +257,11 @@ function showMultipleFilesDropModal(files) {
         console.error("Modals: multipleFilesDropModal element not found.");
         return;
     }
-    droppedFilesList = files; // Store the FileList or File array
+    // Copy the files now. A FileList is live: the file picker clears its
+    // input right after this (emptying the list), and a drop's DataTransfer
+    // is emptied once the drop event ends - either way both buttons used to
+    // find no files by the time they were clicked, and silently did nothing.
+    droppedFilesList = Array.from(files || []);
     multipleFilesDropModal.style.display = 'flex';
 }
 
@@ -365,8 +369,8 @@ async function handleAddFilesAsPlaylistCue() {
             fadeInTime: currentAppConfig.defaultFadeInTime,
             fadeOutTime: currentAppConfig.defaultFadeOutTime,
             loop: false,
-            shuffle: false,
-            repeatOne: false,
+            shufflePlaylist: false,
+            repeatOnePlaylistItem: false,
             retriggerBehavior: currentAppConfig.defaultRetriggerBehavior
         };
 

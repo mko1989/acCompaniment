@@ -26,6 +26,11 @@
                     <img src="/assets/icons/settings.png" alt="Settings" class="btn-icon">
                 </button>
                 <div class="sidebar-content">
+                    <div class="form-group project-name-group">
+                        <label for="projectNameInput">Project</label>
+                        <input type="text" id="projectNameInput" maxlength="200" placeholder="Project name" autocomplete="off" title="The open project's name - changes are saved automatically">
+                    </div>
+
                     <h2>App Configuration</h2>
                     <div class="form-group">
                         <label for="configAudioOutputDevice">Audio Output Device:</label>
@@ -82,26 +87,37 @@
                         <label for="crossfadeTime">Crossfade Time (ms):</label>
                         <input type="number" id="crossfadeTime" name="crossfadeTime" value="2000" min="100" max="10000" step="100" title="Duration for crossfading between cues when crossfade mode is enabled">
                     </div>
+                    <div class="form-group">
+                        <label for="duckingFadeTime">Ducking Fade Time (ms):</label>
+                        <input type="number" id="duckingFadeTime" name="duckingFadeTime" value="1000" min="0" max="10000" step="100" title="How long cues take to lower and recover when a ducking trigger starts and stops">
+                    </div>
 
                     <h3>HTTP Remote Control</h3>
-                    <div class="form-group">
-                        <label for="configHttpRemoteEnabled">Enable HTTP Remote:</label>
-                        <input type="checkbox" id="configHttpRemoteEnabled" name="configHttpRemoteEnabled" checked>
-                    </div>
-                    <div class="form-group" id="httpRemotePortGroup">
-                        <label for="configHttpRemotePort">Remote Control Port:</label>
-                        <input type="number" id="configHttpRemotePort" name="configHttpRemotePort" value="3000" min="1" max="65535">
-                    </div>
                     <div class="form-group" id="httpRemoteLinksGroup">
                         <label>Remote Access Links:</label>
+                        <p class="small-text">Open on a phone or tablet on the same network.</p>
                         <div id="httpRemoteLinksDiv" class="remote-links-container">
                             <!-- Links will be populated by JavaScript -->
                         </div>
                     </div>
+                    <div class="form-group" id="httpRemotePortGroup">
+                        <label for="configHttpRemotePort">Server Port:</label>
+                        <input type="number" id="configHttpRemotePort" name="configHttpRemotePort" value="3333" min="1" max="65535">
+                        <p class="small-text">Used by this page, the remote and Companion. A change takes effect when the server restarts.</p>
+                    </div>
 
                     <!-- Generic OSC settings removed -->
 
-                    
+                    <div class="project-actions">
+                        <h3>Project</h3>
+                        <p class="small-text">Everything is saved automatically.</p>
+                        <button type="button" id="newProjectButton" class="project-action-btn" title="Start a new, empty project (the open one is already saved)">New Project</button>
+                        <button type="button" id="loadProjectButton" class="project-action-btn" title="Open or delete a saved project">Load Project</button>
+                        <button type="button" id="downloadBundleButton" class="project-action-btn" title="Download this project with all its audio as one .zip - to move it to another machine">Download Bundle</button>
+                        <button type="button" id="importBundleButton" class="project-action-btn" title="Open a project from a downloaded bundle (.zip)">Import Bundle</button>
+                        <input type="file" id="importBundleInput" accept=".zip,application/zip" style="display: none;">
+                        <p id="projectStatus" class="small-text" aria-live="polite"></p>
+                    </div>
                 </div>
             </div>
             
@@ -118,6 +134,10 @@
                             </button>
                             <button id="stopAllButton" class="btn" title="Emergency Stop All">
                                 <img src="/assets/icons/dont panic.png" alt="Stop All" class="btn-icon">
+                            </button>
+                            <button id="crossfadeToggleBtn" class="btn crossfade-disabled" title="Crossfade mode is off - click to turn on" aria-pressed="false">
+                                <img src="/assets/icons/crossfade.png" alt="Crossfade" class="btn-icon">
+                                <span class="btn-label">XFADE</span>
                             </button>
                             <button id="modeToggleBtn" class="btn" title="Toggle Edit/Show Mode">
                                 <img id="modeToggleIcon" src="/assets/icons/show_light.png" alt="Toggle Mode" class="btn-icon">
@@ -255,8 +275,11 @@
                     <div class="form-group">
                         <button type="button" id="previewCueButton">Preview (local)</button>
                         <button id="saveCuePropertiesButton" style="display: none;">Save Cue</button>
+                        <button type="button" id="replaceCueFileButton" title="Replace this cue's audio file with a new version - in every cue and project that uses it">Replace File</button>
                         <button id="deleteCuePropertiesButton">Delete Cue</button>
+                        <input type="file" id="replaceCueFileInput" accept=".mp3,.wav,.m4a,.aac,.ogg,.flac" style="display: none;">
                     </div>
+                    <p id="replaceCueFileStatus" class="small-text" aria-live="polite"></p>
                 </div>
             </div>
         </div>
@@ -370,6 +393,14 @@
                     <span id="volumeValue">1.00</span>
                 </div>
                 <button id="saveCueButton">Save Cue</button>
+            </div>
+        </div>
+
+        <div id="loadProjectModal" class="modal" style="display:none;" role="dialog" aria-labelledby="loadProjectTitle">
+            <div class="modal-content">
+                <span class="close-button" id="closeLoadProjectModal">&times;</span>
+                <h2 id="loadProjectTitle">Load Project</h2>
+                <ul id="projectList" class="project-list"></ul>
             </div>
         </div>
 

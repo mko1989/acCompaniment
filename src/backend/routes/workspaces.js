@@ -54,17 +54,16 @@ router.get('/current', async (req, res) => {
 // Create new workspace (activated as current)
 router.post('/', async (req, res) => {
     try {
-        const { cueDataManager, cueManager } = req.app.locals.managers;
-        const { name, description } = req.body;
+        const { cueManager } = req.app.locals.managers;
+        const { name } = req.body;
 
-        await cueManager.flushPersistWorkspace();
-
-        const workspace = await cueDataManager.createWorkspace(name, description);
-
-        if (cueManager.websocketManager) {
-            cueManager.websocketManager.broadcastWorkspaceUpdate(workspace);
-            await cueManager.websocketManager.broadcastCuesUpdate(cueDataManager.getCues());
+        // Same path as starting a new project from the UI: saves the open
+        // one, stops playback, switches, tells every open page.
+        const result = await cueManager.newProject(name);
+        if (!result.success) {
+            return res.status(400).json({ success: false, error: result.error });
         }
+        const workspace = cueManager.getCurrentWorkspace();
 
         res.status(201).json({
             success: true,

@@ -164,7 +164,8 @@
     opacity: 0;
     transition: opacity 0.2s ease-in-out;
 }
-#dragOverlay.visible {
+#dragOverlay.visible,
+body.app-drag-over #dragOverlay {
     opacity: 1;
 }
 

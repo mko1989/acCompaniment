@@ -157,6 +157,9 @@ function useServer(extraEnv = {}) {
                 // is unconditional at the OS level and doesn't need the
                 // frozen process's cooperation.
                 console.error('Test harness: server did not exit within 12s of SIGTERM - force killing.');
+                const { stdout, stderr } = state.serverProcess.getOutput();
+                const tail = `${stdout}\n${stderr}`.trim().split('\n').slice(-15).join('\n');
+                console.error(`Test harness: last server output before the hang:\n${tail}`);
                 state.serverProcess.kill('SIGKILL');
                 result = await Promise.race([
                     state.serverExitPromise,
@@ -197,9 +200,33 @@ function useServer(extraEnv = {}) {
 function connectWs(baseUrl) {
     return new Promise((resolve, reject) => {
         const ws = new WebSocket(baseUrl.replace('http', 'ws'));
+        // Record everything from the first byte. The server sends its
+        // initial state the moment the connection opens, and under load
+        // those messages can be emitted before a test gets to attach a
+        // listener after 'open' - waitForReceived() searches this record.
+        ws.received = [];
+        ws.on('message', (data) => {
+            try {
+                ws.received.push(JSON.parse(data.toString()));
+            } catch {
+                // not JSON - ignore
+            }
+        });
         ws.once('open', () => resolve(ws));
         ws.once('error', reject);
     });
+}
+
+/**
+ * Like waitForMessage, but also matches messages that already arrived on
+ * this connection - for asserting on the state the server sends on connect.
+ */
+function waitForReceived(ws, predicate, timeoutMs = 5000) {
+    const already = (ws.received || []).find(predicate);
+    if (already) {
+        return Promise.resolve(already);
+    }
+    return waitForMessage(ws, predicate, timeoutMs);
 }
 
 /** Resolves with the first message for which predicate(parsed) is truthy. */
@@ -259,6 +286,7 @@ module.exports = {
     useServer,
     connectWs,
     waitForMessage,
+    waitForReceived,
     waitForType,
     wsInvoke,
     wsSend,

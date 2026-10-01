@@ -175,3 +175,89 @@
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
 } 
+/* --- Projects (settings sidebar) --- */
+#configSidebar .sidebar-content {
+    display: flex;
+    flex-direction: column;
+}
+/* Same size as the other fields; bold so it still reads as the title. */
+.project-name-group input[type="text"] {
+    font-weight: 600;
+}
+/* Pinned to the bottom of the sidebar. */
+.project-actions {
+    margin-top: auto;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.project-actions h3 {
+    margin: 0;
+}
+.project-actions .small-text {
+    margin: 0 0 4px;
+}
+.project-action-btn {
+    width: calc(100% - 20px);
+    padding: 8px;
+    background-color: var(--button-secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--button-secondary-border);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    text-align: left;
+}
+.project-action-btn:hover {
+    background-color: #555;
+}
+.project-action-btn:disabled {
+    opacity: 0.5;
+    cursor: wait;
+}
+
+/* Load Project dialog */
+.project-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 60vh;
+    overflow-y: auto;
+    min-width: 360px;
+}
+.project-list li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+.project-list li.current {
+    background-color: rgba(0, 123, 255, 0.12);
+}
+.project-list .project-info {
+    flex: 1;
+    min-width: 0;
+}
+.project-list .project-name {
+    font-weight: bold;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.project-list .project-meta {
+    font-size: 0.8em;
+    color: var(--text-secondary-color);
+}
+/* Id-scoped: beats the generic full-width `.modal-content button` rule. */
+#projectList button {
+    width: auto;
+    flex: none;
+    margin-top: 0;
+    padding: 4px 10px;
+    cursor: pointer;
+}
+.project-list .project-empty {
+    color: var(--text-secondary-color);
+}

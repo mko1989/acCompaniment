@@ -1,9 +1,36 @@
 const fs = require('fs-extra');
 const path = require('path');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('crypto');
 const { writeJsonAtomic } = require('./utils/atomicWrite');
+const { rewriteCueReferences } = require('./mediaLibrary');
+
+const BACKUPS_PER_PROJECT = 20;
 const { validateUuidOrError } = require('./utils/idValidation');
 const { normalizeOutputPatch } = require('./utils/outputPatch');
+
+// Older spellings of cue fields -> the names the playback engine reads. The
+// legacy Electron app (and its saved workspaces) and older browser UI code
+// used `shuffle` / `repeatOne`; left as-is they were stored but ignored.
+const CUE_FIELD_ALIASES = {
+    shuffle: 'shufflePlaylist',
+    repeatOne: 'repeatOnePlaylistItem',
+};
+
+function normalizeCueFieldAliases(data) {
+    if (!data || typeof data !== 'object') {
+        return data;
+    }
+    const out = { ...data };
+    for (const [alias, canonical] of Object.entries(CUE_FIELD_ALIASES)) {
+        if (alias in out) {
+            if (!(canonical in out)) {
+                out[canonical] = Boolean(out[alias]);
+            }
+            delete out[alias];
+        }
+    }
+    return out;
+}
 
 class CueDataManager {
     constructor(pathManager) {
@@ -33,6 +60,7 @@ class CueDataManager {
     
     // Create a new cue
     createCue(cueData) {
+        cueData = normalizeCueFieldAliases(cueData);
         const cue = {
             id: cueData.id || uuidv4(),
             name: cueData.name || 'New Cue',
@@ -88,7 +116,7 @@ class CueDataManager {
         
         this.cues[cueIndex] = {
             ...this.cues[cueIndex],
-            ...updates,
+            ...normalizeCueFieldAliases(updates),
             updatedAt: new Date().toISOString()
         };
         
@@ -96,6 +124,54 @@ class CueDataManager {
         return { success: true, cue: this.cues[cueIndex] };
     }
     
+    // Reorder cues. `orderedIds` lists cue ids in their new order; cues it
+    // doesn't mention keep their relative order, after the listed ones.
+    reorderCues(orderedIds) {
+        if (!Array.isArray(orderedIds)) {
+            return { success: false, error: 'cueIds must be an array' };
+        }
+        const byId = new Map(this.cues.map((cue) => [cue.id, cue]));
+        const seen = new Set();
+        const reordered = [];
+        for (const id of orderedIds) {
+            if (byId.has(id) && !seen.has(id)) {
+                reordered.push(byId.get(id));
+                seen.add(id);
+            }
+        }
+        for (const cue of this.cues) {
+            if (!seen.has(cue.id)) reordered.push(cue);
+        }
+        this.cues.splice(0, this.cues.length, ...reordered);
+        return { success: true, order: reordered.map((cue) => cue.id) };
+    }
+
+    /**
+     * Applies `mapRef` (see mediaLibrary.rewriteCueReferences) to the audio
+     * references of the open project (in memory - the caller saves it) and
+     * of every other saved project (written straight to its file).
+     * Returns { cuesUpdated, projectsUpdated }.
+     */
+    async rewriteAudioReferences(mapRef) {
+        const currentId = this.currentWorkspace?.id;
+        const cuesUpdated = rewriteCueReferences(this.cues, mapRef);
+        let projectsUpdated = cuesUpdated > 0 ? 1 : 0;
+        for (const file of await fs.readdir(this.workspacesDir).catch(() => [])) {
+            if (!file.endsWith('.json') || file === `${currentId}.json`) continue;
+            const filePath = path.join(this.workspacesDir, file);
+            try {
+                const workspace = JSON.parse(await fs.readFile(filePath, 'utf-8'));
+                if (rewriteCueReferences(workspace.cues, mapRef) > 0) {
+                    await writeJsonAtomic(filePath, workspace);
+                    projectsUpdated += 1;
+                }
+            } catch (error) {
+                console.warn(`CueDataManager: Could not update audio references in ${file}: ${error.message}`);
+            }
+        }
+        return { cuesUpdated, projectsUpdated };
+    }
+
     // Delete cue
     deleteCue(cueId) {
         const cueIndex = this.cues.findIndex(cue => cue.id === cueId);
@@ -177,8 +253,8 @@ class CueDataManager {
             id: uuidv4(),
             name: name || 'New Workspace',
             description: description,
-            cues: [],
-            layout: {
+            cues: (options.cues || []).map((cue) => this.validateCue(cue)),
+            layout: options.layout || {
                 gridColumns: 4,
                 gridRows: 4,
                 cuePositions: {}
@@ -192,7 +268,7 @@ class CueDataManager {
         
         if (setAsCurrent) {
             this.currentWorkspace = workspace;
-            this.cues = [];
+            this.cues = workspace.cues;
         }
         
         console.log(`📁 CueDataManager: Created workspace: ${workspace.name} (${workspace.id})`);
@@ -423,15 +499,28 @@ class CueDataManager {
             const backupPath = path.join(this.backupsDir, `${timestamp}_${fileName}`);
             
             await fs.copy(filePath, backupPath);
-            console.log(`CueDataManager: Created backup: ${backupPath}`);
+            await this._pruneBackups(fileName);
             
         } catch (error) {
             console.error(`CueDataManager: Error creating backup: ${error.message}`);
         }
     }
     
+    // Every save backs the previous version up, and saves happen on every
+    // edit - keep the newest BACKUPS_PER_PROJECT per project, not all of them.
+    async _pruneBackups(fileName) {
+        const suffix = `_${fileName}`;
+        const backups = (await fs.readdir(this.backupsDir).catch(() => []))
+            .filter((f) => f.endsWith(suffix))
+            .sort(); // ISO timestamp prefix: oldest first
+        for (const old of backups.slice(0, Math.max(0, backups.length - BACKUPS_PER_PROJECT))) {
+            await fs.remove(path.join(this.backupsDir, old)).catch(() => {});
+        }
+    }
+
     // Validate cue data
     validateCue(cue) {
+        cue = normalizeCueFieldAliases(cue);
         const validatedCue = {
             id: cue.id || uuidv4(),
             name: cue.name || 'Unnamed Cue',
@@ -592,3 +681,4 @@ class CueDataManager {
 }
 
 module.exports = CueDataManager;
+module.exports.normalizeCueFieldAliases = normalizeCueFieldAliases;

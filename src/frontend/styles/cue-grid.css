@@ -91,6 +91,43 @@
 .cue-retrigger-badge-fade-stop { background-color: rgba(255, 138, 101, 0.35); }
 .cue-retrigger-badge-do-nothing { background-color: rgba(158, 158, 158, 0.35); }
 .cue-retrigger-badge-new-instance { background-color: rgba(102, 187, 106, 0.35); }
+.cue-retrigger-badge-replay { background-color: rgba(171, 71, 188, 0.35); }
+.cue-retrigger-badge-next-item { background-color: rgba(38, 198, 218, 0.35); }
+
+/* Ducked by a playing ducking trigger */
+.cue-duck-badge {
+    display: none;
+    position: absolute;
+    bottom: 6px;
+    right: 6px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    color: #fff;
+    background-color: rgba(121, 134, 203, 0.85);
+    pointer-events: none;
+}
+.cue-button.ducked .cue-duck-badge { display: block; }
+.cue-button.ducked { box-shadow: inset 0 0 0 3px rgba(121, 134, 203, 0.8); }
+
+/* Number of layered instances playing ("Play New Instance") */
+.cue-instance-badge {
+    display: none;
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0 6px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #fff;
+    background-color: rgba(102, 187, 106, 0.9);
+    pointer-events: none;
+}
+.cue-instance-badge.visible { display: block; }
 
 .cue-vu-meter {
     position: absolute;

@@ -80,4 +80,63 @@ async function deleteCue(request, cueId) {
     await request.delete(`/api/cues/${cueId}`).catch(() => {});
 }
 
-module.exports = { makeTestWav, uniqueName, uploadTestAudio, createTestCue, deleteCue };
+/** Uploads `itemCount` short files and creates a playlist cue from them. */
+async function createTestPlaylist(request, { itemCount = 3, itemDurationSec = 4, name = uniqueName('E2E Playlist'), ...overrides } = {}) {
+    const items = [];
+    for (let i = 0; i < itemCount; i++) {
+        const f = await uploadTestAudio(request, { name: `${name} Item ${i + 1}`, durationSec: itemDurationSec });
+        items.push({ id: `item-${i}-${Date.now()}`, name: `Item ${i + 1}`, audioFileId: f.id, relativePath: f.relativePath });
+    }
+    const res = await request.post('/api/cues', {
+        data: { name, type: 'playlist', volume: 0.05, playlistItems: items, ...overrides },
+    });
+    const body = await res.json();
+    if (!body.success) {
+        throw new Error(`createTestPlaylist failed: ${body.error}`);
+    }
+    return body.cue;
+}
+
+async function getCue(request, cueId) {
+    return (await (await request.get(`/api/cues/${cueId}`)).json()).cue;
+}
+
+async function getConfig(request) {
+    return (await (await request.get('/api/config')).json()).config;
+}
+
+async function setConfig(request, updates) {
+    const body = await (await request.put('/api/config', { data: updates })).json();
+    if (!body.success) {
+        throw new Error(`setConfig failed: ${body.error}`);
+    }
+    return body.config;
+}
+
+async function engineVoices(request, cueId) {
+    const { status } = await (await request.get('/api/cues/status/playback')).json();
+    return status.voices.filter((v) => v.cueId === cueId);
+}
+
+/** Opens the main UI and waits until the app has finished initializing. */
+async function openApp(page, path = '/') {
+    await page.goto(path);
+    await page.waitForFunction(() => window.ui && typeof window.ui.isUIFullyInitialized === 'function' && window.ui.isUIFullyInitialized());
+}
+
+async function enterShowMode(page) {
+    const app = page.locator('#appContainer');
+    if (!(await app.getAttribute('class')).includes('show-mode')) {
+        await page.locator('#modeToggleBtn').click();
+    }
+    await page.waitForFunction(() => document.getElementById('appContainer').classList.contains('show-mode'));
+}
+
+function cueButton(page, cueId) {
+    return page.locator(`.cue-button[data-cue-id="${cueId}"]`);
+}
+
+module.exports = {
+    makeTestWav, uniqueName, uploadTestAudio, createTestCue, createTestPlaylist, deleteCue,
+    getCue, getConfig, setConfig, engineVoices, openApp, enterShowMode, cueButton,
+};

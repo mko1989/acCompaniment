@@ -12,6 +12,13 @@ import * as appConfigUI from './ui/appConfigUI.js';
 import * as waveformControls from './ui/waveformControls.js';
 // import * as sidebars from './ui/propertiesSidebar.js'; // TODO: Port this
 
+// The server sends every cue's live state (and crossfade mode) the moment
+// the WebSocket connects - well before initialization below finishes.
+// audioController's state cache needs no initialization, so expose it now
+// or those first messages are dropped (a page opened mid-show would show
+// cued or paused cues as idle, and crossfade mode as off).
+window.audioController = audioController.default;
+
 // WebSocket connection instance
 let websocket = null;
 
@@ -124,10 +131,10 @@ function handleWebSocketMessage(data) {
             break;
             
         case 'workspace-updated':
-            // Handle workspace update
-            console.log('Renderer: Workspace updated:', data.payload);
-            if (window.ui && typeof window.ui.handleWorkspaceChange === 'function') {
-                window.ui.handleWorkspaceChange();
+            // The open project was renamed or switched (see
+            // ui.handleWorkspaceUpdated: only a switch reloads everything).
+            if (window.ui && typeof window.ui.handleWorkspaceUpdated === 'function') {
+                window.ui.handleWorkspaceUpdated(data.payload?.workspace);
             }
             break;
             
@@ -142,6 +149,13 @@ function handleWebSocketMessage(data) {
                     status: data.payload.status,
                     currentTimeSec: data.payload.currentTimeSec,
                     totalTimeSec: data.payload.totalDurationSec,
+                    isFadingIn: data.payload.isFadingIn,
+                    isFadingOut: data.payload.isFadingOut,
+                    fadeTimeRemainingMs: data.payload.fadeTimeRemainingMs,
+                    isDucked: data.payload.isDucked,
+                    voiceCount: data.payload.voiceCount,
+                    playlistIndex: data.payload.playlistIndex,
+                    nextPlaylistIndex: data.payload.nextPlaylistIndex,
                 });
             }
             if (data.payload && window.ui && typeof window.ui.updateCueButtonTimeDisplay === 'function') {
@@ -163,6 +177,10 @@ function handleWebSocketMessage(data) {
             if (data.payload && window.ui && typeof window.ui.handleCueStatusUpdate === 'function') {
                 window.ui.handleCueStatusUpdate(data.payload);
             }
+            break;
+
+        case 'crossfade-mode-updated':
+            window.audioController?.setCrossfadeModeFromServer?.(data.payload?.enabled);
             break;
 
         case 'audio-engine-error':

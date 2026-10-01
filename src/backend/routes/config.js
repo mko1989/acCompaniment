@@ -1,6 +1,15 @@
 const express = require('express');
 const router = express.Router();
 
+// appConfigManager replaces its config object on every update, so anything
+// holding the old one (cueManager reads e.g. defaultStopAllFadeOutTime from
+// it) must be handed the new one, and open UIs told about it - the same
+// thing the WebSocket 'save-app-config' path does.
+function propagateConfig(managers, config) {
+    managers.cueManager?.setConfig(config);
+    managers.websocketManager?.broadcastConfigUpdate(config);
+}
+
 // Get current configuration
 router.get('/', async (req, res) => {
     try {
@@ -40,6 +49,7 @@ router.put('/', async (req, res) => {
         const result = await appConfigManager.updateConfig(updates);
         
         if (result.success) {
+            propagateConfig(req.app.locals.managers, result.config);
             res.json({
                 success: true,
                 config: result.config
@@ -64,6 +74,7 @@ router.post('/reset', async (req, res) => {
     try {
         const { appConfigManager } = req.app.locals.managers;
         const config = await appConfigManager.resetToDefaults();
+        propagateConfig(req.app.locals.managers, config);
         
         res.json({
             success: true,

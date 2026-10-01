@@ -5,7 +5,7 @@
  * playback reflected in the DOM, and the config sidebar toggle.
  */
 
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./fixtures');
 const { createTestCue, deleteCue } = require('./helpers');
 
 test('loads the main UI with the expected title and layout', async ({ page }) => {

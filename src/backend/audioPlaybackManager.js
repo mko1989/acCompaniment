@@ -1,13 +1,17 @@
 /**
  * Server-side Audio Playback Manager
  *
- * RtAudio output + SoundboardMixer PCM engine (server-primary playout).
+ * RtAudio output + SoundboardMixer PCM engine (server-primary playout). The
+ * stream and the mixer run on a worker thread (WorkerMixer) so the rest of
+ * the server can't make an audio buffer late; the RtAudio instance here is
+ * only used to list and pick devices.
  */
 
 const fs = require('fs-extra');
 const path = require('path');
-const { RtAudio, RtAudioFormat } = require('@hamitzor/rtaudio.js');
-const SoundboardMixer = require('./soundboardMixer');
+const { RtAudio } = require('@hamitzor/rtaudio.js');
+const WorkerMixer = require('./workerMixer');
+const { toShared } = require('./workerMixer');
 const { decodeToFloat32 } = require('./audioDecoder');
 const { getCachedDecoded, warmPcmCache } = require('./pcmCache');
 const { normalizeOutputPatch } = require('./utils/outputPatch');
@@ -101,19 +105,7 @@ class AudioPlaybackManager {
             console.log('AudioPlaybackManager: Initializing audio engine...');
             this._applyConfigValues(config);
 
-            if (!this.mixer) {
-                this.mixer = new SoundboardMixer({
-                    sampleRate: this.sampleRate,
-                    channelCount: this.channelCount,
-                });
-                this.mixer.setCueCompleteCallback((cueId, reason) => {
-                    this.handlePlaybackEnd(cueId, reason);
-                });
-                this.mixer.setMasterGain(this.masterVolume);
-            } else {
-                this.mixer.setSampleRate(this.sampleRate);
-                this.mixer.setChannelCount(this.channelCount);
-            }
+            this._ensureMixer();
 
             this.isInitialized = true;
             this.streamOpen = false;
@@ -129,15 +121,48 @@ class AudioPlaybackManager {
         }
     }
 
+    _ensureMixer() {
+        if (this.mixer) {
+            this.mixer.setSampleRate(this.sampleRate);
+            this.mixer.setChannelCount(this.channelCount);
+            return;
+        }
+        this.mixer = new WorkerMixer({
+            sampleRate: this.sampleRate,
+            channelCount: this.channelCount,
+        });
+        this.mixer.setCueCompleteCallback((cueId, reason) => {
+            this.handlePlaybackEnd(cueId, reason);
+        });
+        // Native-layer conditions (device removed, driver errors), render
+        // exceptions and the engine thread dying reach clients this way
+        // instead of playback silently stopping with nothing in the UI.
+        this.mixer.setEngineErrorCallback((error) => {
+            this.streamOpen = false;
+            if (this.onEngineError) {
+                this.onEngineError(error);
+            }
+        });
+        this.mixer.setMasterGain(this.masterVolume);
+    }
+
     async ensureStreamOpen() {
         if (!this.isInitialized) {
             throw new Error(this.initError || 'Audio engine not initialized');
         }
-        if (this.streamOpen && this.rt?.isStreamOpen() && this.rt?.isStreamRunning()) {
-            return;
+        // Opening is async now (it happens on the audio thread): cues
+        // started together share one open instead of reopening in turn.
+        if (!this._opening) {
+            this._opening = (async () => {
+                if (this.streamOpen && await this.mixer.isStreamRunning()) {
+                    return;
+                }
+                await this._openStream();
+            })().finally(() => {
+                this._opening = null;
+            });
         }
-        await this._openStream();
-        this.streamOpen = true;
+        await this._opening;
     }
 
     _applyConfigValues(config = {}) {
@@ -157,18 +182,11 @@ class AudioPlaybackManager {
         );
     }
 
-    _closeStream() {
-        if (!this.rt) {
-            return;
-        }
-
+    // Stops and closes the output stream. The worker does it without
+    // deadlocking against a pending render callback (FIX_PLAN.md G8).
+    async _closeStream(timeoutMs = 2000) {
         try {
-            if (this.rt.isStreamRunning()) {
-                this.rt.stopStream();
-            }
-            if (this.rt.isStreamOpen()) {
-                this.rt.closeStream();
-            }
+            await this.mixer?.closeStream?.(timeoutMs);
         } catch (error) {
             console.warn('AudioPlaybackManager: Error closing stream:', error.message);
         }
@@ -176,74 +194,19 @@ class AudioPlaybackManager {
     }
 
     async _openStream() {
-        if (!this.mixer) {
-            this.mixer = new SoundboardMixer({
-                sampleRate: this.sampleRate,
-                channelCount: this.channelCount,
-            });
-            this.mixer.setCueCompleteCallback((cueId, reason) => {
-                this.handlePlaybackEnd(cueId, reason);
-            });
-            this.mixer.setMasterGain(this.masterVolume);
-        } else {
-            this.mixer.setSampleRate(this.sampleRate);
-            this.mixer.setChannelCount(this.channelCount);
-        }
+        this._ensureMixer();
 
-        this._closeStream();
-
-        const device = this.rt.getDevices().find((d) => d.id === this.deviceId);
-        const deviceName = device?.name || `device ${this.deviceId}`;
-
-        // setErrorCallback surfaces native-layer conditions (device removed,
-        // driver-level errors) that would otherwise only be printed to
-        // stderr by the native addon with no way for the app to react. Wire
-        // it to the same onEngineError hook the render-callback catch below
-        // uses, so both paths reach the frontend the same way.
-        if (typeof this.rt.setErrorCallback === 'function') {
-            this.rt.setErrorCallback((errType, message) => {
-                console.error(`AudioPlaybackManager: RtAudio error (${errType}): ${message}`);
-                this.streamOpen = false;
-                if (this.onEngineError) {
-                    this.onEngineError({ type: String(errType), message: String(message) });
-                }
-            });
-        }
-
-        this.rt.openStream(
-            { deviceId: this.deviceId, nChannels: this.channelCount },
-            null,
-            RtAudioFormat.RTAUDIO_FLOAT32,
-            this.sampleRate,
-            this.bufferSize,
-            null,
-            (output, _input, nFrames) => {
-                try {
-                    const sampleCount = nFrames * this.channelCount;
-                    const out = new Float32Array(output.buffer, output.byteOffset, sampleCount);
-                    this.mixer.render(out, nFrames, this.channelCount);
-                } catch (error) {
-                    // A throw from inside this native-driven callback would
-                    // otherwise be an uncaught exception with no JS stack
-                    // context tying it back here. Log it, mute this cycle's
-                    // output (buffer is already silence-filled on failure
-                    // paths inside render()), and keep the stream alive
-                    // rather than taking down the whole process.
-                    console.error('AudioPlaybackManager: Error in mixer render callback:', error);
-                    if (this.onEngineError) {
-                        this.onEngineError({ type: 'render-exception', message: error.message });
-                    }
-                }
-                return 0;
-            }
-        );
-
-        this.rt.startStream();
+        const { deviceName } = await this.mixer.openStream({
+            deviceId: this.deviceId,
+            channelCount: this.channelCount,
+            sampleRate: this.sampleRate,
+            bufferSize: this.bufferSize,
+        });
         this.streamOpen = true;
         this.initError = null;
 
         console.log(
-            `AudioPlaybackManager: RtAudio stream open — ${deviceName}, `
+            `AudioPlaybackManager: RtAudio stream open (audio thread) — ${deviceName}, `
             + `${this.channelCount}ch @ ${this.sampleRate}Hz, buffer ${this.bufferSize}`
         );
     }
@@ -265,7 +228,7 @@ class AudioPlaybackManager {
             return { success: true, unchanged: true };
         }
 
-        await this.stopAllCues(true);
+        await this.stopAllCues(false);
         this._applyConfigValues({
             ...config,
             audioOutputDeviceId: config.audioOutputDeviceId,
@@ -304,6 +267,7 @@ class AudioPlaybackManager {
         if (this.pcmCacheDir) {
             const cachedDisk = await getCachedDecoded(filePath, this.pcmCacheDir, this.sampleRate);
             if (cachedDisk) {
+                cachedDisk.floatBuffer = toShared(cachedDisk.floatBuffer);
                 this.audioBuffers.set(filePath, cachedDisk, estimateFloat32Bytes(cachedDisk.floatBuffer));
                 console.log(`AudioPlaybackManager: Loaded PCM cache for ${path.basename(filePath)}`);
                 return cachedDisk;
@@ -311,6 +275,8 @@ class AudioPlaybackManager {
         }
 
         const decoded = await decodeToFloat32(filePath, this.sampleRate);
+        // Shared with the audio thread rather than copied to it on every play.
+        decoded.floatBuffer = toShared(decoded.floatBuffer);
         this.audioBuffers.set(filePath, decoded, estimateFloat32Bytes(decoded.floatBuffer));
 
         console.log(`AudioPlaybackManager: Decoded ${path.basename(filePath)} (${decoded.durationSec.toFixed(2)}s)`);
@@ -330,7 +296,9 @@ class AudioPlaybackManager {
 
             console.log(`AudioPlaybackManager: Playing cue ${cueId}: ${path.basename(filePath)}`);
 
-            if (this.playingCues.has(cueId)) {
+            // A new instance plays on top of the cue's current voices;
+            // anything else replaces them.
+            if (this.playingCues.has(cueId) && !options.newInstance) {
                 await this.stopCue(cueId);
             }
 
@@ -363,6 +331,8 @@ class AudioPlaybackManager {
                 fadeInTime: playbackInfo.fadeInTime,
                 loop: playbackInfo.loop,
                 outputPatch: playbackInfo.outputPatch,
+                duckGain: options.duckGain ?? 1,
+                newInstance: Boolean(options.newInstance),
             });
 
             this.playingCues.set(cueId, playbackInfo);
@@ -382,22 +352,41 @@ class AudioPlaybackManager {
         }
     }
 
-    async stopCue(cueId, fadeOut = false) {
+    // `fading` in the result tells the caller which of two very different
+    // things happened: an immediate stop (cue is gone now, and the mixer
+    // will never fire onCueComplete for it) or a fade that has only just
+    // started (onCueComplete fires with reason 'stopped' once it reaches
+    // silence). Callers must not guess this from their own fade settings -
+    // a fade of 0 seconds is an immediate stop, and a caller that assumed
+    // otherwise waited forever for a completion that never came.
+    //
+    // fadeOverrideSeconds replaces the cue's own fadeOutTime (Stop All uses
+    // its own configured fade time rather than each cue's).
+    async stopCue(cueId, fadeOut = false, fadeOverrideSeconds = null) {
         try {
             const playbackInfo = this.playingCues.get(cueId);
             if (!playbackInfo || !this.mixer) {
-                return { success: true };
+                return { success: true, fading: false };
             }
 
-            const fadeSeconds = fadeOut ? playbackInfo.fadeOutTime : 0;
+            let fadeSeconds = 0;
+            if (fadeOut) {
+                fadeSeconds = fadeOverrideSeconds ?? playbackInfo.fadeOutTime;
+            }
+            // A paused cue renders no frames, so its gain ramp would never
+            // advance and the fade would never finish - stop it outright.
+            if (playbackInfo.isPaused) {
+                fadeSeconds = 0;
+            }
             this.mixer.stopCue(cueId, fadeSeconds);
 
-            if (!fadeOut || fadeSeconds <= 0) {
+            const fading = fadeSeconds > 0;
+            if (!fading) {
                 this.playingCues.delete(cueId);
             }
 
-            console.log(`AudioPlaybackManager: Stopped cue ${cueId}`);
-            return { success: true };
+            console.log(`AudioPlaybackManager: Stopped cue ${cueId}${fading ? ` (fading over ${fadeSeconds}s)` : ''}`);
+            return { success: true, fading };
         } catch (error) {
             console.error(`AudioPlaybackManager: Error stopping cue ${cueId}:`, error);
             return {
@@ -407,13 +396,13 @@ class AudioPlaybackManager {
         }
     }
 
-    async stopAllCues(fadeOut = false) {
+    async stopAllCues(fadeOut = false, fadeOverrideSeconds = null) {
         try {
             const cueIds = Array.from(this.playingCues.keys());
             const results = [];
 
             for (const cueId of cueIds) {
-                const result = await this.stopCue(cueId, fadeOut);
+                const result = await this.stopCue(cueId, fadeOut, fadeOverrideSeconds);
                 results.push({ cueId, ...result });
             }
 
@@ -483,6 +472,24 @@ class AudioPlaybackManager {
         return this.pauseCue(cueId);
     }
 
+    /** Ramps a playing cue's duck multiplier (1 = not ducked). */
+    setCueDuck(cueId, multiplier, fadeSeconds = 0) {
+        return this.mixer ? this.mixer.setDuck(cueId, multiplier, fadeSeconds) : false;
+    }
+
+    /** Applies a volume change to a cue that is already playing. */
+    setCueVolume(cueId, volume) {
+        const playbackInfo = this.playingCues.get(cueId);
+        if (playbackInfo) {
+            playbackInfo.volume = volume;
+        }
+        return this.mixer ? this.mixer.setGain(cueId, volume) : false;
+    }
+
+    voiceCount(cueId) {
+        return this.mixer ? this.mixer.voiceCount(cueId) : 0;
+    }
+
     setMasterVolume(volume) {
         this.masterVolume = Math.max(0, Math.min(2, Number(volume)));
         if (this.mixer) {
@@ -536,9 +543,8 @@ class AudioPlaybackManager {
             await this.stopAllCues();
             this.audioBuffers.clear();
 
-            if (this.rt) {
-                this._closeStream();
-            }
+            await this._closeStream();
+            await this.mixer?.terminate?.();
 
             this.rt = null;
             this.mixer = null;

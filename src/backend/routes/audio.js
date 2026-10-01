@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs-extra');
+const { randomUUID } = require('crypto');
 const router = express.Router();
 const { requireUuid } = require('../middleware/validateUuid');
 
@@ -26,30 +27,23 @@ function getMaxUploadBytes(req) {
     return appConfigManager?.getConfig()?.maxAudioFileSize || 100 * 1024 * 1024;
 }
 
+// Uploads land in a temp folder under a random name; the library then
+// decides where (and whether) the file is stored - see
+// AudioFileManager.addFile / replaceFile.
 function createUpload(req) {
     const { pathManager } = req.app.locals.managers;
     const maxFileSize = getMaxUploadBytes(req);
+    const uploadDir = path.join(pathManager.tempDir, 'uploads');
 
     return multer({
         storage: multer.diskStorage({
             destination: (req, file, cb) => {
-                const subdirectory = req.body.subdirectory || 'imported';
-                // Confine to audioDir via the same resolvePath() helper used
-                // elsewhere (FIX_PLAN F2) - subdirectory comes straight from
-                // the request body and must not be able to escape via `..`.
-                const dest = pathManager.resolvePath(subdirectory, pathManager.audioDir);
-                if (!dest) {
-                    return cb(new Error(`Invalid subdirectory: ${subdirectory}`));
-                }
-                fs.ensureDir(dest)
-                    .then(() => cb(null, dest))
+                fs.ensureDir(uploadDir)
+                    .then(() => cb(null, uploadDir))
                     .catch((err) => cb(err));
             },
             filename: (req, file, cb) => {
-                const timestamp = Date.now();
-                const ext = path.extname(file.originalname);
-                const name = path.basename(file.originalname, ext);
-                cb(null, `${name}_${timestamp}${ext}`);
+                cb(null, `${randomUUID()}${path.extname(file.originalname).toLowerCase()}`);
             }
         }),
         limits: { fileSize: maxFileSize },
@@ -62,6 +56,13 @@ function createUpload(req) {
             }
         }
     });
+}
+
+// Browsers send filenames as latin1 in multipart headers; multer hands
+// them over as-is, which mangles anything non-ASCII ("Żywiec.mp3").
+function originalNameOf(file) {
+    const decoded = Buffer.from(file.originalname, 'latin1').toString('utf8');
+    return decoded.includes('\ufffd') ? file.originalname : decoded;
 }
 
 function handleMulterError(err, req, res, next) {
@@ -185,7 +186,16 @@ router.get('/serve/:id', requireUuid('id'), async (req, res) => {
         }
 
         const stat = await fs.stat(audioFile.path);
-        const fileSize = audioFile.size || stat.size;
+        const fileSize = stat.size;
+
+        // A library file can be replaced in place under the same URL, so the
+        // browser must check back rather than reuse a cached copy.
+        const etag = `"${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}"`;
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('ETag', etag);
+        if (req.headers['if-none-match'] === etag) {
+            return res.status(304).end();
+        }
 
         res.setHeader('Content-Type', getMimeType(audioFile.path));
         res.setHeader('Accept-Ranges', 'bytes');
@@ -277,15 +287,13 @@ router.post('/upload', (req, res, next) => {
             return res.status(400).json({ success: false, error: tagError.message });
         }
 
-        const result = await audioFileManager.importAudioFile(req.file.path, {
-            name: req.body.name || path.basename(req.file.originalname, path.extname(req.file.originalname)),
-            subdirectory: req.body.subdirectory || 'imported',
+        const result = await audioFileManager.addFile(req.file.path, originalNameOf(req.file), {
+            name: req.body.name || undefined,
             tags,
-            skipCopy: true
         });
 
         if (result.success) {
-            res.json({ success: true, audioFile: result.audioFile });
+            res.json({ success: true, audioFile: result.audioFile, reused: result.reused, renamed: result.renamed });
         } else {
             await fs.remove(uploadedPath).catch(() => {});
             res.status(400).json({ success: false, error: result.error });
@@ -295,6 +303,33 @@ router.post('/upload', (req, res, next) => {
             await fs.remove(uploadedPath).catch(() => {});
         }
         console.error('Upload audio file error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Replace a library file with a new version, in place: every cue in every
+// project using it plays the new version. Multipart field: audioFile.
+router.post('/:id/replace', requireUuid('id'), (req, res, next) => {
+    createUpload(req).single('audioFile')(req, res, (err) => {
+        if (err) return handleMulterError(err, req, res, next);
+        next();
+    });
+}, async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, error: 'No file uploaded' });
+        }
+        const { audioFileManager, cueManager } = req.app.locals.managers;
+        const result = await audioFileManager.replaceFile(req.params.id, req.file.path, originalNameOf(req.file));
+        if (!result.success) {
+            const status = result.error === 'Audio file not found' ? 404 : 400;
+            return res.status(status).json({ success: false, error: result.error });
+        }
+        const refs = await cueManager.handleAudioFileReplaced(result.audioFile, result.previous);
+        res.json({ success: true, audioFile: result.audioFile, cuesUpdated: refs.cuesUpdated, projectsUpdated: refs.projectsUpdated });
+    } catch (error) {
+        if (req.file) await fs.remove(req.file.path).catch(() => {});
+        console.error('Replace audio file error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

@@ -7,8 +7,15 @@
 *   **Cue Management:**
     *   Create, organize, and trigger audio cues.
     *   Support for single audio files and complex playlists within a single cue.
-    *   Individual cue properties: volume, fade in/out times, looping, retrigger behavior.
-    *   Playlist-specific properties: shuffle, repeat one item, play modes (play through, stop after item).
+    *   Individual cue properties: volume, fade in/out times, looping, trim points, retrigger behavior.
+    *   Retrigger behaviors (what pressing a playing or paused cue does): restart, toggle pause/play,
+        stop, fade out and stop, do nothing, play new instance (layered copies), replay current item,
+        play next item.
+    *   Playlist-specific properties: shuffle, repeat one item, loop the list, play modes
+        (continue to next item, stop after item and cue the next).
+    *   Ducking: a cue marked as a ducking trigger lowers every other playing cue that has ducking
+        enabled, by the trigger's ducking level, and restores them when it stops.
+    *   Crossfade mode (XFADE): starting a cue fades the playing ones out and the new one in.
     *   Drag-and-drop interface for adding audio files.
     *   Automatic discovery of audio file durations.
 *   **Audio Playback Engine:**
@@ -16,16 +23,28 @@
         per-cue multichannel output routing.
     *   Visual waveform display for trimming audio start/end points.
     *   Precise control over playback: play, pause, stop, stop all, fade out and stop.
+*   **Projects:**
+    *   Everything saves automatically. The project name is at the top of the settings
+        sidebar; New Project, Load Project, Download Bundle and Import Bundle are at the bottom.
+    *   A bundle is one `.zip` with the project and all its audio - to move a show to another
+        machine. Importing reuses audio that's already there.
+    *   The last opened project reopens on restart.
+*   **Media library:**
+    *   Each audio file is stored once, under its own name, and shared by every cue and project
+        that uses it; adding the same file again reuses it (a different file with a taken name
+        is kept as "Name (2)").
+    *   "Replace File" in a cue's properties swaps in a new version for every cue using it.
+    *   Libraries from older versions (timestamped duplicate copies) are converted
+        automatically on first start, with a backup in `cues/backups/library-migration-*`.
 *   **Configuration:**
     *   Global application settings for default cue behaviors, audio output device selection.
-    *   Workspace management: Save and load entire cue layouts.
-    *   Option to automatically load the last opened workspace.
 *   **Integration & Control:**
     *   **Bitfocus Companion:** Seamless integration via a dedicated Companion module (https://github.com/mko1989/companion-module-highpass-accompaniment) for remote triggering of cues and receiving feedback (cue status, playback times).
     *   **HTTP Remote Control:** Built-in web interface for remote control via any web browser.
 *   **User Interface:**
     *   Clear and intuitive grid-based layout for cue buttons.
-    *   Real-time display of cue status (idle, playing, paused, cued next).
+    *   Real-time display of cue status (idle, playing, paused, fading, cued next, ducked, number of
+        instances playing) and the playlist item playing now and next.
     *   Display of current playback time, total duration, and remaining time on cue buttons.
     *   Dedicated sidebars for cue properties and application configuration.
     *   Dark theme optimized for live performance environments.
@@ -41,12 +60,16 @@
 
 ### Prerequisites
 
-*   Node.js 18+ and npm (for development builds)
+*   Node.js 20.17+ (or 22.9+) and npm (for development builds)
+*   ffmpeg (`brew install ffmpeg` on macOS) - used to decode audio files;
+    found on the `PATH`, or set `FFMPEG_PATH` to point at it
 *   CMake (`brew install cmake` on macOS) - the audio engine's native
     module (`@hamitzor/rtaudio.js`) ships a prebuilt binary, but it isn't
     always usable as-is; `npm install` falls back to compiling it locally
     with CMake, and that fallback is common enough in practice to treat
-    CMake as required, not optional
+    CMake as required, not optional. CMake 4 works thanks to the project's
+    `.npmrc` (npm prints an "Unknown project config" warning about that
+    line - it's expected; the setting is read by cmake-js, not npm)
 
 ### Installation & Running
 
@@ -74,8 +97,10 @@ Download the latest release from the [Releases](../../releases) page for your op
 2. **Show/Edit Mode:** Use the show mode button in top right corrner to change show state (lights or pencile icon)
 3. **Playing Cues:** Click on any cue button to start playback
 4. **Edit Mode:** Hold Shift while clicking to edit cue properties
-5. **Stop All:** Use the red "Don't Panic" button to stop all playing cues
-6. **Remote Control:** Enable HTTP remote control in settings to access the web interface
+5. **Stop All:** Use the red "Don't Panic" button to stop all playing cues (immediately, or with a
+   fade - see "Stop All Behavior" in the app config)
+6. **Crossfade:** Turn on XFADE in the top bar (or on the remote page) to crossfade between cues
+7. **Remote Control:** Enable HTTP remote control in settings to access the web interface
 
 #### Main workspace (red in show mode, gray in edit mode)
 <img width="1195" height="782" alt="Screenshot 2025-07-11 at 22 15 53" src="https://github.com/user-attachments/assets/a20d35d7-4578-4073-9304-8b46c461ecdb" />
@@ -147,12 +172,16 @@ minimal Electron tray launcher for system integration. Key technologies:
     server, headless (no Electron)
 *   `npm test` - Run the full test suite (unit + API/WebSocket smoke tests +
     browser end-to-end tests)
-*   `npm run test:unit` - Just the audio mixer unit test
+*   `npm run test:unit` - Just the unit tests (`test/unit/` - mixer, playlist and retrigger
+    logic, helpers; no server or audio device needed)
 *   `npm run test:smoke` - Just the API/WebSocket smoke tests (`test/*.test.js`) -
     spawns real server instances against isolated temp data directories, no
     browser needed
-*   `npm run test:e2e` - Just the Playwright browser tests (`test/e2e/`) -
-    requires a one-time `npx playwright install chromium` first
+*   `npm run test:e2e` - Just the Playwright tests: the browser UI
+    (`test/e2e/`, requires a one-time `npx playwright install chromium`; each
+    worker runs its own server and every test starts from a clean slate) and
+    the Electron tray launcher (`test/electron/`, run as a real app against an
+    isolated data directory and port)
 *   `npm run probe:rtaudio` - Diagnose audio device / native module issues
 *   `npm run pack` - Package the application (without creating installers)
 *   `npm run dist` - Build distributables for all platforms
@@ -181,11 +210,11 @@ Built packages will be available in the `dist/` directory.
 
 To control acCompaniment from Bitfocus Companion:
 
-1.  Ensure acCompaniment is running. The internal WebSocket server will start automatically.
-2.  Install the `companion-module-highpass-accompaniment` module into your Bitfocus Companion setup.
+1.  Ensure acCompaniment is running. The module connects over WebSocket to the same port as the web interface (3333 by default) - there is no separate Companion port.
+2.  Install the `companion-module-highpass-accompaniment` module (2.0 or later; needs Companion 4.3+) into your Bitfocus Companion setup. Module 1.x only works with the old Electron app.
 3.  Add an instance of the "acCompaniment" module in Companion.
-4.  Configure the IP address and port if necessary (defaults usually work if Companion and acCompaniment are on the same machine).
-5.  Actions, variables, and feedbacks will become available in Companion to control and monitor cues.
+4.  Set the IP address of the acCompaniment machine and the server port (defaults work if both run on the same machine with the default port). Connections made with module 1.x are moved from the old port 8877 automatically.
+5.  Actions, variables, feedbacks and presets become available to trigger cues, step through playlists, switch crossfade, set the master volume and show cue state and times. See the module's HELP for the full list.
 
 ## Troubleshooting
 

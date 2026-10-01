@@ -17,6 +17,7 @@ const {
     uploadTestAudio,
     useServer,
     connectWs,
+    waitForMessage,
     waitForType,
     wsInvoke,
     wsSend,
@@ -119,11 +120,20 @@ test('broadcast: playback-time-update includes a numeric peakLevel while playing
     wsSend(ws, 'trigger_cue', { cueId: wsCreatedCueId });
     await triggeredPromise;
 
-    const update = await waitForType(ws, 'playback-time-update', 3000);
-    assert.equal(update.payload.cueId, wsCreatedCueId);
-    assert.equal(typeof update.payload.peakLevel, 'number');
-    assert.ok(update.payload.peakLevel >= 0 && update.payload.peakLevel <= 1);
-    assert.ok(update.payload.peakLevel > 0, 'expected a non-zero peak for an actively playing tone');
+    const first = await waitForType(ws, 'playback-time-update', 3000);
+    assert.equal(first.payload.cueId, wsCreatedCueId);
+    assert.equal(typeof first.payload.peakLevel, 'number');
+    assert.ok(first.payload.peakLevel >= 0 && first.payload.peakLevel <= 1);
+
+    // Peaks accumulate between broadcasts, so the very first one after a
+    // (re)start can come before the audio thread has rendered anything -
+    // under load it often does. A playing tone must show a peak soon after.
+    const audible = await waitForMessage(
+        ws,
+        (m) => m.type === 'playback-time-update' && m.payload?.cueId === wsCreatedCueId && m.payload.peakLevel > 0,
+        3000
+    );
+    assert.ok(audible.payload.peakLevel <= 1, 'expected a non-zero peak for an actively playing tone');
 });
 
 test('event: toggle_cue on a playing cue applies its retrigger behavior', async () => {

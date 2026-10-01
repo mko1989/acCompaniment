@@ -298,6 +298,10 @@ function handleDragEndPlaylistItem(propPlaylistItemsUl) {
  * @param {HTMLElement} propPlaylistFilePathDisplay - Display element for playlist info
  */
 function handleRemovePlaylistItem(event, propPlaylistItemsUl, propPlaylistFilePathDisplay) {
+    // Bound directly as a click listener, so the list elements usually
+    // aren't passed in - without them the list wasn't re-rendered.
+    propPlaylistItemsUl = propPlaylistItemsUl || document.getElementById('propPlaylistItems');
+    propPlaylistFilePathDisplay = propPlaylistFilePathDisplay || document.getElementById('propPlaylistFilePathDisplay');
     const indexToRemove = parseInt(event.target.dataset.index, 10);
     if (!isNaN(indexToRemove) && indexToRemove >= 0 && indexToRemove < stagedPlaylistItems.length) {
         stagedPlaylistItems.splice(indexToRemove, 1);

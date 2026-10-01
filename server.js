@@ -10,7 +10,7 @@ const os = require('os');
 // is missing or was built for the wrong ABI, this throws synchronously here,
 // before any of the class-level error handling below even runs. Catch it
 // and fail with a clear message instead of a raw native-addon stack trace.
-let AudioFileManager, CueDataManager, PathManager, AppConfigManager, WebSocketManager, CueManager;
+let AudioFileManager, CueDataManager, PathManager, AppConfigManager, WebSocketManager, CueManager, migrateLibrary;
 try {
     AudioFileManager = require('./src/backend/audioFileManager');
     CueDataManager = require('./src/backend/cueDataManager');
@@ -18,6 +18,7 @@ try {
     AppConfigManager = require('./src/backend/appConfigManager');
     WebSocketManager = require('./src/backend/websocketManager');
     CueManager = require('./src/backend/cueManager');
+    ({ migrateLibrary } = require('./src/backend/mediaLibrary'));
 } catch (error) {
     console.error('Failed to load server modules:', error.message);
     if (error.cause) {
@@ -103,6 +104,7 @@ class AccompanimentServer {
         this.app.use('/api/cues', require('./src/backend/routes/cues'));
         this.app.use('/api/audio', require('./src/backend/routes/audio'));
         this.app.use('/api/workspaces', require('./src/backend/routes/workspaces'));
+        this.app.use('/api/projects', require('./src/backend/routes/projects'));
         this.app.use('/api/remote', require('./src/backend/routes/remote'));
     }
     
@@ -154,6 +156,25 @@ class AccompanimentServer {
                 console.log(`Port updated from config: ${this.port}`);
             }
             
+            // One-time conversion of an older audio folder into the shared,
+            // de-duplicated media library (no-op once done). Must run before
+            // any project is loaded - it rewrites projects' audio references.
+            await this.cueDataManager.ensureDirectories();
+            await migrateLibrary({
+                audioDir: this.pathManager.audioDir,
+                metadataDir: this.audioFileManager.metadataDir,
+                workspacesDir: this.cueDataManager.workspacesDir,
+                backupsDir: this.cueDataManager.backupsDir,
+                pcmCacheDir: this.pathManager.pcmCacheDir,
+            });
+            this.audioFileManager.invalidateMetadataIndex();
+
+            // Remember which project is open, so a restart reopens it.
+            this.cueManager.setProjectOpenedListener(async (projectId) => {
+                const result = await this.appConfigManager.updateConfig({ lastOpenedProjectId: projectId });
+                if (result.success) this.cueManager.setConfig(this.appConfigManager.getConfig());
+            });
+
             // Initialize cue manager
             await this.cueManager.initialize();
             console.log('Cue manager initialized');
@@ -203,6 +224,7 @@ class AccompanimentServer {
 
             // Start the server on the configured port
             this.server.listen(this.port, this.host, () => {
+                this.appConfigManager?.setListeningPort(this.server.address().port);
         console.log(`HTTP Server running at http://${this.host}:${this.port}`);
         console.log(`WebSocket Server running at ws://${this.host}:${this.port}`);
         console.log(`Browser UI: http://localhost:${this.port}`);

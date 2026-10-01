@@ -49,11 +49,28 @@ function updateServerPlaybackState(payload) {
         return;
     }
 
+    // cue_status messages carry only some fields (e.g. no times, no duck
+    // state); keep what the last message said for anything not included.
+    const previous = serverPlaybackState.get(cueId) || {};
+    const pick = (key, fallback) => (payload[key] !== undefined ? payload[key] : (previous[key] ?? fallback));
     serverPlaybackState.set(cueId, {
         status,
         currentTimeSec: payload.currentTime ?? payload.currentTimeSec ?? 0,
         totalTimeSec: payload.totalTime ?? payload.totalTimeSec ?? 0,
+        isFadingIn: Boolean(payload.isFadingIn),
+        isFadingOut: Boolean(payload.isFadingOut),
+        fadeTimeRemainingMs: payload.fadeTimeRemainingMs || 0,
+        isDucked: status === 'playing' || status === 'paused' ? Boolean(pick('isDucked', false)) : false,
+        voiceCount: pick('voiceCount', 1),
+        playlistIndex: pick('playlistIndex', null),
+        nextPlaylistIndex: pick('nextPlaylistIndex', null),
     });
+}
+
+function playlistItemName(cue, index) {
+    if (cue?.type !== 'playlist' || index === null || index === undefined) return null;
+    const item = cue.playlistItems?.[index];
+    return item ? (item.name || `Item ${index + 1}`) : null;
 }
 
 function buildServerPlaybackTimes(serverState, cue) {
@@ -70,7 +87,21 @@ function buildServerPlaybackTimes(serverState, cue) {
         remainingTimeFormatted: formatTimeMMSS(remaining),
         isPlaying: serverState.status === 'playing',
         isPaused: serverState.status === 'paused',
+        isCued: serverState.status === 'cued_next',
         isPlaylist: cue?.type === 'playlist',
+        // cueGrid.updateButtonPlayingState reads these to keep the fading
+        // class/countdown on the button; without them every redraw cleared it.
+        isFadingIn: serverState.isFadingIn,
+        isFadingOut: serverState.isFadingOut,
+        fadeTimeRemainingMs: serverState.fadeTimeRemainingMs,
+        isDucked: serverState.isDucked,
+        voiceCount: serverState.voiceCount || 1,
+        currentPlaylistItemName: serverState.status === 'cued_next'
+            ? null
+            : playlistItemName(cue, serverState.playlistIndex ?? cue?.currentPlaylistIndex),
+        nextPlaylistItemName: serverState.status === 'cued_next'
+            ? playlistItemName(cue, serverState.playlistIndex ?? cue?.currentPlaylistIndex)
+            : playlistItemName(cue, serverState.nextPlaylistIndex),
     };
 }
 
@@ -109,6 +140,8 @@ function buildStaticPlaybackTimes(cue) {
     return {
         currentTime: 0,
         duration,
+        // An idle playlist shows which item a press would play.
+        nextPlaylistItemName: playlistItemName(cue, cue.currentPlaylistIndex || 0),
         currentTimeFormatted: '0:00',
         durationFormatted: formatTimeMMSS(duration),
         remainingTime: duration,
@@ -143,6 +176,29 @@ function toggle(cueId, fromCompanion = false, retriggerBehaviorOverride = null) 
         return;
     }
     sendServerMessage('toggle_cue', { cueId, fromCompanion, retriggerBehavior: retriggerBehaviorOverride });
+}
+
+// --- Crossfade mode (server state, shared by every connected UI) ---------
+
+let crossfadeEnabled = false;
+const crossfadeListeners = new Set();
+
+function setCrossfadeModeFromServer(enabled) {
+    crossfadeEnabled = Boolean(enabled);
+    crossfadeListeners.forEach((listener) => listener(crossfadeEnabled));
+}
+
+function isCrossfadeEnabled() {
+    return crossfadeEnabled;
+}
+
+function onCrossfadeModeChange(listener) {
+    crossfadeListeners.add(listener);
+    listener(crossfadeEnabled);
+}
+
+function setCrossfadeMode(enabled) {
+    return sendServerMessage('set_crossfade_mode', { enabled: Boolean(enabled) });
 }
 
 function stopAll(options = { useFade: true }) {
@@ -234,4 +290,8 @@ export default {
     getPlaybackTimes,
     isPlaying,
     isPaused,
+    setCrossfadeModeFromServer,
+    isCrossfadeEnabled,
+    onCrossfadeModeChange,
+    setCrossfadeMode,
 };

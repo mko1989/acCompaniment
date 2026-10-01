@@ -2,20 +2,23 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>acCompaniment Configuration</title>
+    <title>acCompaniment</title>
     <style>
+        /* Same look as the main UI (src/frontend/styles): its palette, and
+           Rewir for all text - the main UI relies on the font being
+           installed too; system fonts are the fallback. */
         :root {
-            --bg-primary: #1a1a1a;
-            --bg-secondary: #2d2d2d;
-            --bg-tertiary: #3a3a3a;
-            --text-primary: #ffffff;
-            --text-secondary: #cccccc;
-            --text-muted: #888888;
-            --accent-blue: #4a9eff;
-            --accent-green: #4caf50;
-            --accent-red: #f44336;
-            --border-color: #444444;
-            --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --bg-primary: #171717;
+            --bg-secondary: #1e1e1e;
+            --bg-tertiary: #252526;
+            --text-primary: #e0e0e0;
+            --text-secondary: #b0b0b0;
+            --text-muted: #808080;
+            --accent-blue: #007bff;
+            --accent-green: #228b22;
+            --accent-red: #b22222;
+            --border-color: #333333;
+            --font: 'Rewir', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
         }
         
         * {
@@ -23,7 +26,7 @@
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: var(--font);
             background: var(--bg-primary);
             margin: 0;
             padding: 0;
@@ -53,11 +56,25 @@
             justify-content: space-between;
         }
         
+        .title-container {
+            display: flex;
+            align-items: center;
+        }
+        .app-icon-title {
+            width: 32px;
+            height: 32px;
+            margin-right: 10px;
+            object-fit: contain;
+        }
         .top-bar h1 {
             margin: 0;
-            font-size: 18px;
-            font-weight: 600;
+            font-family: var(--font);
+            font-size: 1.5em;
+            font-weight: normal;
             color: var(--text-primary);
+        }
+        button, input, select {
+            font-family: var(--font);
         }
         
         .status-display {
@@ -187,7 +204,7 @@
             color: var(--text-secondary);
             padding: 12px;
             border-radius: 4px;
-            font-family: 'Courier New', monospace;
+            font-family: var(--font);
             font-size: 13px;
             word-break: break-all;
             margin: 10px 0;
@@ -217,7 +234,10 @@
     <div class="app-container">
         <div class="main-content">
             <div class="top-bar">
-                <h1>acCompaniment Configuration</h1>
+                <div class="title-container">
+                    <img src="assets/icon.png" alt="" class="app-icon-title" id="appIcon">
+                    <h1>acCompaniment</h1>
+                </div>
                 <div class="status-display">
                     <span id="statusIndicator" class="status-indicator"></span>
                     <span id="statusText" class="status-text">Server Stopped</span>

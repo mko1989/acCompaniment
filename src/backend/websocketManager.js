@@ -74,22 +74,34 @@ class WebSocketManager {
                 payload: { cues: cues }
             });
             
-            // Send current playing states
+            // Send every cue's live state - playing, but also paused and
+            // cued-next, which a freshly loaded page would otherwise show as
+            // idle (it used to be told only about playing cues, and even a
+            // paused one was reported as playing).
             const playbackStatus = this.cueManager.getPlaybackStatus();
-            if (playbackStatus.playingCues && playbackStatus.playingCues.length > 0) {
-                playbackStatus.playingCues.forEach(cueId => {
-                    this.sendToClient(ws, {
-                        type: 'cue_status',
-                        payload: { 
-                            cueId: cueId, 
-                            status: 'playing',
-                            currentTime: 0,
-                            totalTime: 0
-                        }
-                    });
+            for (const [cueId, state] of Object.entries(playbackStatus.cueStates || {})) {
+                if (!['playing', 'paused', 'cued_next'].includes(state.status)) continue;
+                this.sendToClient(ws, {
+                    type: 'cue_status',
+                    payload: {
+                        cueId,
+                        status: state.status,
+                        currentTime: state.currentTime || 0,
+                        totalTime: state.totalTime || 0
+                    }
                 });
             }
-            
+
+            this.sendToClient(ws, {
+                type: 'crossfade-mode-updated',
+                payload: { enabled: Boolean(playbackStatus.crossfadeMode) }
+            });
+
+            this.sendToClient(ws, {
+                type: 'master-volume-updated',
+                payload: { volume: playbackStatus.masterVolume }
+            });
+
             // Send current configuration
             const config = this.appConfigManager ? this.appConfigManager.getConfig() : (this.cueManager ? this.cueManager.getConfig() : {});
             this.sendToClient(ws, {
@@ -147,10 +159,37 @@ class WebSocketManager {
                 case 'stop_all_cues':
                     await this.handleStopAllCues(ws, data.payload);
                     break;
+
+                case 'set_crossfade_mode':
+                    this.cueManager?.setCrossfadeMode(Boolean(data.payload?.enabled));
+                    break;
                     
                 case 'playlist_navigate':
                     await this.handlePlaylistNavigate(ws, data.payload);
                     break;
+
+                // Used by the Companion module (and anything else that
+                // speaks the WebSocket protocol) - see websocket-protocol.test.js.
+                case 'playlist_jump': {
+                    if (!this.cueManager || !data.payload?.cueId) break;
+                    const result = await this.cueManager.jumpToPlaylistItem(data.payload.cueId, data.payload.index);
+                    this.sendToClient(ws, { type: 'playlist_jumped', payload: { cueId: data.payload.cueId, ...result } });
+                    break;
+                }
+
+                case 'toggle_pause_cue': {
+                    if (!this.cueManager || !data.payload?.cueId) break;
+                    const result = await this.cueManager.togglePauseCue(data.payload.cueId);
+                    this.sendToClient(ws, { type: 'cue_pause_toggled', payload: { cueId: data.payload.cueId, ...result } });
+                    break;
+                }
+
+                case 'set_master_volume': {
+                    if (!this.cueManager) break;
+                    const result = this.cueManager.setMasterVolume(Number(data.payload?.volume));
+                    this.sendToClient(ws, { type: 'master_volume_set', payload: result });
+                    break;
+                }
                     
                 case 'update_cue':
                     await this.handleUpdateCue(ws, data.payload);
@@ -250,6 +289,26 @@ class WebSocketManager {
                     }
                     break;
                     
+                case 'save-reordered-cues':
+                    if (this.cueManager) {
+                        result = await this.cueManager.reorderCues(payload);
+                    } else {
+                        error = 'CueManager not available';
+                    }
+                    break;
+
+                case 'get-crossfade-mode':
+                    result = { enabled: this.cueManager ? this.cueManager.getCrossfadeMode() : false };
+                    break;
+
+                case 'set-crossfade-mode':
+                    if (this.cueManager) {
+                        result = this.cueManager.setCrossfadeMode(Boolean(payload?.enabled));
+                    } else {
+                        error = 'CueManager not available';
+                    }
+                    break;
+
                 case 'get-cues':
                     if (this.cueManager) {
                         // Resolve file paths before returning
@@ -261,8 +320,11 @@ class WebSocketManager {
                     
                 case 'add-or-update-cue':
                     if (this.cueManager && payload) {
-                        // Check if cue has an ID - if not, it's a new cue
-                        if (payload.id && payload.id !== 'new') {
+                        // An id the server doesn't know yet is a new cue created
+                        // with a client-chosen id (the multiple-files dialog
+                        // does this) - treating it as an update failed with
+                        // "Cue not found" and nothing was created.
+                        if (payload.id && payload.id !== 'new' && this.cueManager.getCue(payload.id)) {
                             const updateResult = await this.cueManager.updateCue(payload.id, payload);
                             result = { success: updateResult.success, cue: updateResult.cue };
                         } else {
@@ -275,8 +337,7 @@ class WebSocketManager {
                     break;
                     
                 case 'generate-uuid':
-                    const { v4: uuidv4 } = require('uuid');
-                    result = uuidv4();
+                    result = require('crypto').randomUUID();
                     break;
                     
                 case 'get-media-duration':
@@ -325,8 +386,8 @@ class WebSocketManager {
                         const config = this.appConfigManager.getConfig();
                         const interfaces = this.appConfigManager.getNetworkInterfaces();
                         result = {
-                            enabled: config.httpRemoteEnabled !== false,
-                            port: config.httpRemotePort || 3333,
+                            enabled: true, // the remote page is always served
+                            port: this.appConfigManager.getListeningPort(),
                             // These links are surfaced in the config sidebar
                             // as "HTTP Remote Control" links, so they should
                             // point at the dedicated /remote page, not the
@@ -628,8 +689,23 @@ class WebSocketManager {
             console.log(`WebSocketManager: Broadcasting to ${this.clients.size} clients:`, message.type);
         }
 
+        // Serialise once, not once per client: this runs 10x a second per
+        // playing cue, on the same thread that feeds the audio callback.
+        let data;
+        try {
+            data = JSON.stringify(message);
+        } catch (error) {
+            console.error('WebSocketManager: Error serialising broadcast:', error);
+            return;
+        }
         this.clients.forEach(ws => {
-            this.sendToClient(ws, message);
+            try {
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.send(data);
+                }
+            } catch (error) {
+                console.error('WebSocketManager: Error sending to client:', error);
+            }
         });
     }
     
