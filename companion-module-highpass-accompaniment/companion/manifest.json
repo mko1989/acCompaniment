@@ -1,0 +1,28 @@
+{
+	"$schema": "../node_modules/@companion-module/base/assets/manifest.schema.json",
+	"type": "connection",
+	"id": "highpass-accompaniment",
+	"name": "accompaniment",
+	"shortname": "accompaniment",
+	"description": "Control the acCompaniment soundboard: trigger cues, playlists, crossfade and master volume, with live cue state and times",
+	"version": "0.0.0",
+	"license": "MIT",
+	"repository": "git+https://github.com/bitfocus/companion-module-highpass-accompaniment.git",
+	"bugs": "https://github.com/bitfocus/companion-module-highpass-accompaniment/issues",
+	"maintainers": [
+		{
+			"name": "Marcin Wardecki",
+			"email": "m.wardecki89@gmail.com"
+		}
+	],
+	"runtime": {
+		"type": "node22",
+		"api": "nodejs-ipc",
+		"apiVersion": "0.0.0",
+		"entrypoint": "../main.js"
+	},
+	"legacyIds": [],
+	"manufacturer": "HighPass",
+	"products": ["AcCompaniment"],
+	"keywords": ["AcCompaniment", "Cue", "Soundboard", "Playback", "Audio"]
+}

@@ -1,0 +1,32 @@
+{
+	"name": "highpass-accompaniment",
+	"version": "2.0.0",
+	"description": "Companion module for the acCompaniment soundboard app",
+	"main": "main.js",
+	"scripts": {
+		"build": "companion-module-build",
+		"lint": "eslint .",
+		"format": "prettier --write .",
+		"test": "node --test \"test/*.test.js\""
+	},
+	"author": "Marcin Wardecki",
+	"license": "MIT",
+	"engines": {
+		"node": "^22.20"
+	},
+	"dependencies": {
+		"@companion-module/base": "~2.1.3",
+		"ws": "^8.18.3"
+	},
+	"devDependencies": {
+		"@companion-module/tools": "^3.1.0",
+		"eslint": "^10.2.0",
+		"prettier": "^3.8.1"
+	},
+	"companion": {
+		"buildDir": "dist"
+	},
+	"prettier": "@companion-module/tools/.prettierrc.json",
+	"packageManager": "yarn@1.22.22+sha1.ac34549e6aa8e7ead463a7407e1c7390f61a6610",
+	"type": "module"
+}
