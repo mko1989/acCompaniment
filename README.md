@@ -17,6 +17,8 @@
         enabled, by the trigger's ducking level, and restores them when it stops.
     *   Crossfade mode (XFADE): starting a cue fades the playing ones out and the new one in.
     *   Drag-and-drop interface for adding audio files.
+    *   Spotify cues: play a Spotify track, playlist or album through Spotify Connect (see
+        [Spotify cues](#spotify-cues)).
     *   Automatic discovery of audio file durations.
 *   **Audio Playback Engine:**
     *   Server-side playback via RtAudio and a custom PCM mixer, with
@@ -129,6 +131,26 @@ Download the latest release from the [Releases](../../releases) page for your op
 <img width="350" height="318" alt="Screenshot 2025-07-11 at 18 08 03" src="https://github.com/user-attachments/assets/cd796ad5-f84f-4efc-92b9-4eb94bc968b2" />
 
 
+#### Spotify cues
+A cue can play a Spotify track, playlist, album, artist or podcast instead of an audio file.
+Spotify doesn't let other apps take its audio, so Spotify cues play in a **Spotify player**
+(the Spotify app on this computer, or a Connect speaker) - not through acCompaniment's audio
+output - and they need **Spotify Premium**. Fades and ducking change that player's volume;
+one Spotify cue plays at a time.
+
+Setting it up (once):
+1. Create an app at <https://developer.spotify.com/dashboard> (choose *Web API*). As its
+   redirect URI, add the one shown under **Settings > Spotify** - e.g.
+   `http://127.0.0.1:3333/api/spotify/callback` (it includes the server port).
+2. Paste the app's **Client ID** into Settings > Spotify and press **Connect Spotify**, on the
+   computer running acCompaniment. Approve access in the tab that opens.
+3. Optionally pick which Spotify player cues play on (otherwise: whichever one is active).
+
+Making cues: drag a track or playlist from the Spotify app onto the grid, or copy its link
+(Share > Copy link) and paste it into the app. An existing cue can be switched to the *Spotify*
+type in its properties and given a link there. Loop repeats the track (or the whole playlist);
+the grid's arrows and "Play Next Item" step through a playlist.
+
 #### HTTP Web Remote
 <img width="582" height="480" alt="Screenshot 2025-08-19 at 12 49 01" src="https://github.com/user-attachments/assets/ce9e33ed-3bd9-4f59-be9b-f22c2d754d68" />
 
@@ -182,6 +204,26 @@ minimal Electron tray launcher for system integration. Key technologies:
     worker runs its own server and every test starts from a clean slate) and
     the Electron tray launcher (`test/electron/`, run as a real app against an
     isolated data directory and port)
+*   `npm run test:audio` - The loopback audio suite (`test/audio/`): the server
+    plays to a loopback audio device and the tests record what comes back,
+    checking every playback option by ear - volume, fades, trims, loops,
+    output routing, every retrigger behavior, pause, Stop All, crossfade,
+    ducking, playlist modes, file formats and sample rates, engine settings
+    and every control surface (REST, remote page, WebSocket, Companion).
+    The test files are generated tones whose frequency encodes the playback
+    position, so a recording shows exactly where each cue was and how loud.
+*   `npm run test:audio:ui` - The same idea through the browser UI
+    (`test/audio-ui/`, Playwright): real clicks on cues, sidebars, Stop All,
+    XFADE and the remote page, checked against the recording.
+
+    Both need a loopback device: macOS `brew install blackhole-2ch`, Windows
+    VB-Cable, Linux `snd-aloop` - or any virtual device whose input echoes its
+    output (found by name; set `ACCOMPANIMENT_LOOPBACK_DEVICE`, and
+    `ACCOMPANIMENT_LOOPBACK_INPUT` if input and output are separate devices).
+    Without one the tests are skipped. Every recording is saved to
+    `test-recordings/audio/` / `test-recordings/audio-ui/` as a WAV with an
+    Audacity label track (`.labels.txt`) marking each action. Tests marked
+    TODO document known issues they currently catch.
 *   `npm run probe:rtaudio` - Diagnose audio device / native module issues
 *   `npm run pack` - Package the application (without creating installers)
 *   `npm run dist` - Build distributables for all platforms
@@ -227,6 +269,12 @@ To control acCompaniment from Bitfocus Companion:
 **Cues not appearing:**
 - Ensure audio files are being dropped in the main grid area
 - Check that files are not corrupted
+
+**Spotify cue doesn't play:**
+- The banner at the top says why. Usually: Spotify isn't open on this computer (or the chosen
+  player is offline), the account isn't Premium, or the login expired (reconnect in Settings).
+- "INVALID_CLIENT: Invalid redirect URI" on connecting: the redirect URI registered for your
+  Spotify app must match the one in Settings > Spotify exactly, port included.
 
 **Remote control not working:**
 - Verify HTTP remote control is enabled in Settings

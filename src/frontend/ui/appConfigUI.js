@@ -40,6 +40,7 @@ let configDuckingFadeTimeInput;
 let configAudioOutputDeviceSelect;
 let configAudioOutputChannelCountSelect;
 let serverOutputDevices = [];
+let devicesLoaded = false;
 
 // UI Settings
 // let configShowQuickControlsCheckbox; // REMOVED
@@ -57,6 +58,12 @@ let configHttpRemoteLinksDiv;
 let currentAppConfig = {};
 let isPopulatingSidebar = false;
 let isLoadingDevices = false;
+// What the sidebar showed after it was last populated or saved. A save sends
+// only the fields that differ from it - the ones the user changed - so a
+// value the form can't represent (a device that isn't connected, a channel
+// count below the list's minimum) is never overwritten by an unrelated
+// save (WO-001).
+let savedUiConfig = null;
 let configUIInitialized = false;
 let websocketBindingsModule = null; // Changed from ipcRendererBindingsModule
 
@@ -241,11 +248,7 @@ function populateConfigSidebar(config) {
         // HTTP Remote Control Settings
         if (configHttpRemotePortInput) configHttpRemotePortInput.value = currentAppConfig.httpRemotePort || 3333;
         
-        if (configAudioOutputDeviceSelect && currentAppConfig.audioOutputDeviceId) {
-            configAudioOutputDeviceSelect.value = String(currentAppConfig.audioOutputDeviceId);
-        } else if (configAudioOutputDeviceSelect) {
-            configAudioOutputDeviceSelect.value = 'default';
-        }
+        selectConfiguredDevice();
         updateOutputChannelCountOptions();
         if (configAudioOutputChannelCountSelect && currentAppConfig.audioOutputChannelCount) {
             configAudioOutputChannelCountSelect.value = String(currentAppConfig.audioOutputChannelCount);
@@ -255,6 +258,7 @@ function populateConfigSidebar(config) {
         
         loadHttpRemoteInfo();
         handleStopAllBehaviorChange();
+        savedUiConfig = gatherConfigFromUI();
 
         console.log('AppConfigUI: Sidebar populated (end of try block).');
     } finally {
@@ -396,7 +400,9 @@ async function loadAudioOutputDevices() {
 
         serverOutputDevices.forEach((device) => {
             const option = document.createElement('option');
-            option.value = String(device.id);
+            // By name: the server resolves names, and they stay the same
+            // across reboots and re-plugging, which device ids don't.
+            option.value = device.name;
             option.textContent = `${device.name} (${device.outputChannels} ch)`;
             option.dataset.outputChannels = String(device.outputChannels);
             if (device.isDefaultOutput) {
@@ -405,13 +411,13 @@ async function loadAudioOutputDevices() {
             configAudioOutputDeviceSelect.appendChild(option);
         });
 
-        if (currentAppConfig?.audioOutputDeviceId) {
-            configAudioOutputDeviceSelect.value = String(currentAppConfig.audioOutputDeviceId);
-        } else {
-            configAudioOutputDeviceSelect.value = 'default';
-        }
-
+        devicesLoaded = true;
+        selectConfiguredDevice();
         updateOutputChannelCountOptions();
+        if (configAudioOutputChannelCountSelect && currentAppConfig?.audioOutputChannelCount) {
+            configAudioOutputChannelCountSelect.value = String(currentAppConfig.audioOutputChannelCount);
+        }
+        savedUiConfig = gatherConfigFromUI();
         console.log('AppConfigUI: Server audio devices loaded:', serverOutputDevices.length);
     } catch (error) {
         console.error('AppConfigUI: Error loading server audio output devices:', error);
@@ -426,6 +432,37 @@ async function loadAudioOutputDevices() {
     }
 }
 
+// Selects the configured output device in the dropdown. It may be stored
+// by name (current), by numeric id (older configs) or not be connected right
+// now; whichever, the dropdown must show it - not silently show nothing and
+// then save '' (the system default) along with the next unrelated change.
+function selectConfiguredDevice() {
+    if (!configAudioOutputDeviceSelect) return;
+    configAudioOutputDeviceSelect.querySelectorAll('option[data-configured-missing]').forEach((o) => o.remove());
+
+    const configured = currentAppConfig?.audioOutputDeviceId;
+    if (configured === undefined || configured === null || configured === '' || configured === 'default') {
+        configAudioOutputDeviceSelect.value = 'default';
+        return;
+    }
+    const value = String(configured);
+    const device = serverOutputDevices.find((d) => d.name === value)
+        || serverOutputDevices.find((d) => String(d.id) === value);
+    if (device) {
+        // An old id-style config shows as the device's name; it's only
+        // rewritten if the user picks a device (savedUiConfig is taken from
+        // what is shown).
+        configAudioOutputDeviceSelect.value = device.name;
+        return;
+    }
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = devicesLoaded ? `${value} (not connected)` : value;
+    option.dataset.configuredMissing = 'true';
+    configAudioOutputDeviceSelect.appendChild(option);
+    configAudioOutputDeviceSelect.value = value;
+}
+
 function getSelectedServerDevice() {
     if (!configAudioOutputDeviceSelect) {
         return null;
@@ -438,7 +475,9 @@ function getSelectedServerDevice() {
             || null;
     }
 
-    return serverOutputDevices.find((device) => String(device.id) === selectedValue) || null;
+    return serverOutputDevices.find((device) => device.name === selectedValue)
+        || serverOutputDevices.find((device) => String(device.id) === selectedValue)
+        || null;
 }
 
 function updateOutputChannelCountOptions() {
@@ -515,13 +554,23 @@ function gatherConfigFromUI() {
 async function saveAppConfiguration() {
     console.log('AppConfigUI (DEBUG): saveAppConfiguration CALLED.');
     try {
-        const configToSave = gatherConfigFromUI();
-        console.log('AppConfigUI (DEBUG): gatherConfigFromUI completed, configToSave:', JSON.stringify(configToSave));
-
-        if (!configToSave) {
+        const gathered = gatherConfigFromUI();
+        if (!gathered) {
             console.error('AppConfigUI: No config data gathered from UI. Aborting save.');
             return;
         }
+        // Only what the user changed (see savedUiConfig).
+        const configToSave = {};
+        for (const [key, value] of Object.entries(gathered)) {
+            if (!savedUiConfig || JSON.stringify(value) !== JSON.stringify(savedUiConfig[key])) {
+                configToSave[key] = value;
+            }
+        }
+        if (Object.keys(configToSave).length === 0) {
+            console.log('AppConfigUI: Nothing changed - not saving.');
+            return;
+        }
+        console.log('AppConfigUI (DEBUG): saving changed fields:', JSON.stringify(configToSave));
 
         console.log('AppConfigUI (DEBUG): Attempting to call websocketBindingsModule.invoke("save-app-config")...');
         const result = await websocketBindingsModule.invoke('save-app-config', configToSave);
@@ -530,6 +579,7 @@ async function saveAppConfiguration() {
         if (result && result.success) {
             console.log('AppConfigUI: App configuration successfully saved via server.');
             currentAppConfig = { ...currentAppConfig, ...configToSave };
+            savedUiConfig = gathered;
         } else {
             console.error('AppConfigUI: Failed to save app configuration via server:', result ? result.error : 'Unknown error');
         }

@@ -56,13 +56,19 @@ async function json(baseURL, method, urlPath, body) {
 }
 
 const test = base.test.extend({
-    appServer: [async ({}, use) => {
+    // Extra environment for the worker's server; a spec can override this
+    // (spotify.spec.js points it at a fake Spotify).
+    serverEnv: [async ({}, use) => {
+        await use({});
+    }, { scope: 'worker' }],
+
+    appServer: [async ({ serverEnv }, use) => {
         const port = await getFreePort();
         const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'accompaniment-e2e-'));
         const baseURL = `http://127.0.0.1:${port}`;
         const child = spawn(process.execPath, [path.join(REPO_ROOT, 'start-nodejs.js')], {
             cwd: REPO_ROOT,
-            env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', ACCOMPANIMENT_DATA_DIR: dataDir },
+            env: { ...process.env, ...serverEnv, PORT: String(port), HOST: '127.0.0.1', ACCOMPANIMENT_DATA_DIR: dataDir },
             stdio: ['ignore', 'ignore', 'pipe'],
         });
         let stderr = '';

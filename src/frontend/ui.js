@@ -11,6 +11,7 @@ import * as modals from './ui/modals.js';
 import * as appConfigUI from './ui/appConfigUI.js';
 import * as waveformControls from './ui/waveformControls.js';
 import * as projects from './ui/projects.js';
+import { createSpotifyCues } from './spotifyCues.js';
 
 // Module references that will be initialized
 let cueStoreModule; // Renamed for clarity, will hold the passed cueStore module
@@ -225,6 +226,13 @@ function bindCoreEventListeners() {
         if (e.key === 'Shift') {
             shiftKeyPressed = true;
             updateModeUI();
+        }
+        // Esc is the panic key: same as clicking Stop All (so it follows the
+        // configured Stop All behavior). It works wherever focus is - nothing
+        // else in the UI uses Esc - but holding it down fires only once.
+        if (e.key === 'Escape' && !e.repeat && stopAllButton) {
+            e.preventDefault();
+            stopAllButton.click();
         }
     });
     window.addEventListener('keyup', (e) => {
@@ -526,6 +534,25 @@ async function handleMultipleFileDrop(files, dropTargetElement) {
     }
 }
 
+// Spotify links dropped or pasted (dragDropHandler.js): onto an open Spotify
+// cue's properties, the first one becomes that cue's track; anywhere else
+// each becomes a new cue.
+async function handleSpotifyLinkDrop(links, dropTargetElement) {
+    const propertiesSidebarDOM = document.getElementById('propertiesSidebar');
+    if (propertiesSidebarDOM && !propertiesSidebarDOM.classList.contains('hidden')
+        && propertiesSidebarDOM.contains(dropTargetElement)
+        && await propertiesSidebar.setSpotifyLinkInProperties(links[0])) {
+        return;
+    }
+    const appConfig = appConfigUIModuleInternal?.getCurrentAppConfig?.() || {};
+    try {
+        await createSpotifyCues(links, cueStoreModule, appConfig);
+    } catch (error) {
+        console.error('UI Core: Error creating Spotify cues:', error);
+        alert(`Error creating Spotify cue: ${error.message}`);
+    }
+}
+
 // New function to specifically refresh the cue grid display
 function refreshCueGrid() {
     if (cueGrid && typeof cueGrid.renderCues === 'function') {
@@ -627,6 +654,7 @@ export {
     // New global drop handlers (called by dragDropHandler.js)
     handleSingleFileDrop,
     handleMultipleFileDrop,
+    handleSpotifyLinkDrop,
     refreshCueGrid, // Export the new function
     applyAppConfiguration, // Export the new function
     updateCueButtonTimeDisplay, // Export the new function

@@ -84,6 +84,29 @@ test('Stop: clicking a playing cue stops it', async ({ page, request }) => {
     await expect(button).not.toHaveClass(/playing/);
 });
 
+// A human click holds the mouse down for a while; the name text under it is
+// rebuilt on every playback-time update, and a click whose press target was
+// replaced before release used to be dropped - so a second click on a playing
+// cue did nothing. (Playwright's own click is too fast to hit this.)
+test('a human-length press on a playing cue\'s name still retriggers it', async ({ page, request }) => {
+    const cue = await createTestCue(request, { retriggerBehavior: 'stop', durationSec: 10 });
+    await openApp(page);
+    await enterShowMode(page);
+    const button = cueButton(page, cue.id);
+    const pressName = async () => {
+        const box = await button.locator('.cue-button-main-name').boundingBox();
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.down();
+        await page.waitForTimeout(150);
+        await page.mouse.up();
+    };
+    await pressName();
+    await expect(button).toHaveClass(/playing/);
+    await page.waitForTimeout(1000); // let several time updates redraw the name
+    await pressName();
+    await expect(button).not.toHaveClass(/playing/);
+});
+
 test('Restart: clicking a playing cue starts it over', async ({ page, request }) => {
     const cue = await createTestCue(request, { retriggerBehavior: 'restart', durationSec: 10 });
     await openApp(page);

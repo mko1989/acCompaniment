@@ -27,6 +27,8 @@ function audioReferences(cues) {
     for (const cue of cues || []) {
         if (cue.type === 'playlist') {
             for (const item of cue.playlistItems || []) refs.push(item);
+        } else if (cue.type === 'spotify') {
+            // Plays from Spotify - any file it had as another type isn't used.
         } else if (cue.audioFileId || cue.relativePath) {
             refs.push(cue);
         }

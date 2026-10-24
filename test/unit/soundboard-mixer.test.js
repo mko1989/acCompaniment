@@ -157,6 +157,19 @@ test('output patch routes a cue to the chosen output channels', () => {
     assert.deepEqual(Array.from(out), [0, 0, 0.5, 0.5]);
 });
 
+test('both sides patched to one output fold down: L and R mixed at half each (WO-005)', () => {
+    const mixer = new SoundboardMixer({ sampleRate: SR, channelCount: 2 });
+    const stereo = new Float32Array(200);
+    for (let i = 0; i < 100; i++) { stereo[i * 2] = 0.4; stereo[i * 2 + 1] = 0.2; }
+    mixer.playCue('a', stereo, { sampleRate: SR, channels: 2, outputPatch: [1, 1] });
+    assert.deepEqual(Array.from(render(mixer, 1)).map((v) => +v.toFixed(6)), [0, 0.3]);
+
+    // A mono file (L = R) keeps its level when folded.
+    mixer.playCue('a', constBuffer(100, 0.5), { sampleRate: SR, channels: 2, outputPatch: [0, 0] });
+    assert.deepEqual(Array.from(render(mixer, 1)), [0.5, 0]);
+    assert.equal(mixer.drainPeakLevels().a, 0.5);
+});
+
 test('output patch channels beyond the device are clamped, not written out of bounds', () => {
     const mixer = new SoundboardMixer({ sampleRate: SR, channelCount: 2 });
     mixer.playCue('a', constBuffer(100, 0.5), { sampleRate: SR, channels: 2, outputPatch: [7, 9] });
@@ -311,4 +324,38 @@ test('a fade-out stop on a volume-0 cue completes', () => {
     mixer.stopCue('a', 1);
     render(mixer, 10);
     assert.deepEqual(completions, [{ cueId: 'a', reason: 'stopped' }]);
+});
+
+test('a queued next buffer follows on in the same render, with no gap (WO-006)', () => {
+    const { mixer, completions } = makeMixer();
+    const advances = [];
+    mixer.setCueAdvanceCallback((cueId, token) => advances.push({ cueId, token }));
+    mixer.playCue('p', constBuffer(10, 0.1), { sampleRate: SR, channels: 2 });
+    mixer.queueNext('p', constBuffer(100, 0.2), { sampleRate: SR, channels: 2, trimStartTime: 0.005, token: 7 });
+    const out = render(mixer, 16);
+    const left = Array.from(out).filter((_, i) => i % 2 === 0).map((v) => +v.toFixed(6));
+    assert.deepEqual(left, [...Array(10).fill(0.1), ...Array(6).fill(0.2)]);
+    assert.deepEqual(advances, [{ cueId: 'p', token: 7 }]);
+    assert.deepEqual(completions, []);
+    // Now on the next buffer, from its trim start (frame 5) on.
+    const status = statusOf(mixer, 'p');
+    assert.equal(status.positionSec, 0.011);
+    assert.equal(status.trimStartSec, 0.005);
+});
+
+test('without a queued next, or after a stop, the voice ends as before', () => {
+    const { mixer, completions } = makeMixer();
+    mixer.playCue('p', constBuffer(10, 0.1), { sampleRate: SR, channels: 2, fadeInTime: 0 });
+    mixer.queueNext('p', constBuffer(100, 0.2), { sampleRate: SR, channels: 2, token: 1 });
+    mixer.clearNext('p');
+    render(mixer, 16);
+    assert.deepEqual(completions, [{ cueId: 'p', reason: 'completed' }]);
+
+    // A voice fading out when it reaches its end doesn't move on either.
+    mixer.playCue('q', constBuffer(10, 0.1), { sampleRate: SR, channels: 2 });
+    mixer.queueNext('q', constBuffer(100, 0.2), { sampleRate: SR, channels: 2, token: 2 });
+    mixer.stopCue('q', 1);
+    render(mixer, 16);
+    assert.equal(mixer.hasCue('q'), false);
+    assert.deepEqual(completions[1], { cueId: 'q', reason: 'completed' });
 });

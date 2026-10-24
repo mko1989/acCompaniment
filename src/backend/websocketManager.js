@@ -269,20 +269,9 @@ class WebSocketManager {
                         const updateResult = await this.appConfigManager.updateConfig(payload);
                         result = { success: updateResult.success };
                         if (updateResult.success) {
-                            this.broadcastConfigUpdate(this.appConfigManager.getConfig());
-                            if (this.cueManager) {
-                                this.cueManager.setConfig(this.appConfigManager.getConfig());
-                                const nextConfig = this.appConfigManager.getConfig();
-                                const audioChanged = [
-                                    'audioOutputDeviceId',
-                                    'audioOutputChannelCount',
-                                    'audioSampleRate',
-                                    'audioBufferSize',
-                                ].some((key) => prevConfig?.[key] !== nextConfig?.[key]);
-                                if (audioChanged) {
-                                    await this.cueManager.applyAudioEngineConfig();
-                                }
-                            }
+                            const nextConfig = this.appConfigManager.getConfig();
+                            await this.cueManager?.applyConfig(prevConfig, nextConfig);
+                            this.broadcastConfigUpdate(nextConfig);
                         }
                     } else {
                         error = 'AppConfigManager not available or invalid payload';
@@ -507,7 +496,7 @@ class WebSocketManager {
         try {
             if (!this.cueManager || !payload.cueId) return;
             
-            const result = await this.cueManager.triggerCue(payload.cueId, {
+            const result = await this.cueManager.playCue(payload.cueId, {
                 source: 'websocket',
                 clientId: ws._clientId
             });

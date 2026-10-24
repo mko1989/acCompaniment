@@ -125,3 +125,48 @@ test('adopts a server that is already running on its port instead of starting a 
         await waitFor(async () => !(await isServerUp(env.port)), 15000);
     }
 });
+
+// A stand-in hung server, killed in afterEach: a timed-out test skips its
+// own finally blocks and would leak it.
+let hung = null;
+test.afterEach(() => {
+    if (hung && hung.exitCode === null && hung.signalCode === null) hung.kill('SIGKILL');
+    hung = null;
+});
+
+test('kills its own unresponsive orphaned server holding the port, then starts a fresh one', async ({ env }) => {
+    test.skip(process.platform === 'win32', 'the launcher only does this on macOS/Linux');
+    test.setTimeout(150000);
+    const { _electron } = require('@playwright/test');
+    // Stands in for a server.js hung on its way out: it holds the port and
+    // accepts connections but never answers. server.js on its command line
+    // is how the launcher recognises it as its own.
+    hung = spawn(process.execPath, [
+        '-e', `require('net').createServer(() => {}).listen(${env.port}, '0.0.0.0')`,
+        path.join(REPO_ROOT, 'server.js'),
+    ], { stdio: 'ignore' });
+    const hungExited = new Promise((resolve) => hung.on('exit', (_code, signal) => resolve(signal)));
+    try {
+        expect(await waitFor(async () => {
+            try {
+                await fetch(`http://127.0.0.1:${env.port}/`, { signal: AbortSignal.timeout(200) });
+                return true;
+            } catch (error) {
+                return error.name === 'TimeoutError'; // listening, never answering
+            }
+        }, 10000)).toBe(true);
+
+        const app = await _electron.launch({
+            args: [REPO_ROOT], cwd: REPO_ROOT, env: launcherEnv(env.dataDir),
+        });
+        try {
+            expect(await hungExited).toBe('SIGKILL');
+            expect(await waitFor(() => isServerUp(env.port), 60000)).toBe(true);
+            expect(await waitFor(async () => inMain(app, (l) => l.isNodeRunning === true), 30000)).toBe(true);
+        } finally {
+            await app.close();
+        }
+    } finally {
+        await waitFor(async () => !(await isServerUp(env.port)), 15000);
+    }
+});

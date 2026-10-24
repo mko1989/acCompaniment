@@ -49,9 +49,15 @@ export function getActionDefinitions(self) {
 	}
 
 	return {
-		toggle_cue: cueAction('Trigger Cue', [], (cue) => client.toggleCue(cue.id)),
+		toggle_cue: {
+			...cueAction('Trigger Cue', [], (cue) => client.toggleCue(cue.id)),
+			description: "Presses the cue: if it's already playing, does what its retrigger behavior says",
+		},
 
-		play_cue: cueAction('Play Cue', [], (cue) => client.playCue(cue.id)),
+		play_cue: {
+			...cueAction('Play Cue', [], (cue) => client.playCue(cue.id)),
+			description: "Starts the cue if it isn't playing, resumes it if paused - never pauses, stops or restarts it",
+		},
 
 		stop_cue: cueAction(
 			'Stop Cue',

@@ -126,6 +126,15 @@ class AppConfigManager {
                 await this.loadConfig();
             }
 
+            // '' or null isn't a device choice ("System Default" is
+            // 'default'); saving one moved the show output to the system
+            // default device (WO-001), so it leaves the device as it is.
+            const deviceId = updates?.audioOutputDeviceId;
+            if (updates && 'audioOutputDeviceId' in updates && (deviceId === '' || deviceId == null)) {
+                updates = { ...updates };
+                delete updates.audioOutputDeviceId;
+            }
+
             const merged = { ...this.config, ...updates };
             const validation = this.validateConfig(merged);
             if (!validation.valid) {

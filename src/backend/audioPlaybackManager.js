@@ -70,6 +70,9 @@ class AudioPlaybackManager {
         this.streamOpen = false;
         this.initError = null;
         this.onPlaybackEnd = null;
+        this.onPlaybackAdvance = null;
+        // cueId -> the next item queued to follow on gaplessly (queueNext).
+        this.queuedNext = new Map();
 
         this.sampleRate = 48000;
         this.channelCount = 2;
@@ -133,6 +136,9 @@ class AudioPlaybackManager {
         });
         this.mixer.setCueCompleteCallback((cueId, reason) => {
             this.handlePlaybackEnd(cueId, reason);
+        });
+        this.mixer.setCueAdvanceCallback((cueId, token) => {
+            this.handlePlaybackAdvance(cueId, token);
         });
         // Native-layer conditions (device removed, driver errors), render
         // exceptions and the engine thread dying reach clients this way
@@ -300,6 +306,9 @@ class AudioPlaybackManager {
             // anything else replaces them.
             if (this.playingCues.has(cueId) && !options.newInstance) {
                 await this.stopCue(cueId);
+            } else if (options.newInstance) {
+                // What follows on is decided again for the new voice.
+                this.clearNext(cueId);
             }
 
             const decoded = await this.loadAudioBuffer(filePath);
@@ -352,6 +361,49 @@ class AudioPlaybackManager {
         }
     }
 
+    /**
+     * Queues a file to follow the cue's current one with no gap (WO-006:
+     * a playlist's next item): the engine plays straight on into it when the
+     * current one ends, and onPlaybackAdvance(cueId, token) fires instead of
+     * onPlaybackEnd. `stillWanted()` is asked once the file is loaded - if
+     * the cue has moved on meanwhile, nothing is queued. Returns whether it
+     * was queued.
+     */
+    async queueNext(cueId, filePath, { trimStartTime = 0, trimEndTime = null, token } = {}, stillWanted = () => true) {
+        if (!this.mixer || !this.playingCues.has(cueId)) return false;
+        const decoded = await this.loadAudioBuffer(filePath);
+        if (!this.playingCues.has(cueId) || !stillWanted()) return false;
+        const next = { filePath, trimStartTime, trimEndTime: trimEndTime ?? decoded.durationSec, token };
+        this.queuedNext.set(cueId, next);
+        return this.mixer.queueNext(cueId, decoded.floatBuffer, {
+            sampleRate: decoded.sampleRate,
+            channels: decoded.channels,
+            trimStartTime: next.trimStartTime,
+            trimEndTime: next.trimEndTime,
+            token,
+        });
+    }
+
+    clearNext(cueId) {
+        if (this.queuedNext.delete(cueId)) this.mixer?.clearNext(cueId);
+    }
+
+    handlePlaybackAdvance(cueId, token) {
+        const next = this.queuedNext.get(cueId);
+        const playbackInfo = this.playingCues.get(cueId);
+        if (next && next.token === token && playbackInfo) {
+            this.queuedNext.delete(cueId);
+            playbackInfo.filePath = next.filePath;
+            playbackInfo.trimStartTime = next.trimStartTime;
+            playbackInfo.trimEndTime = next.trimEndTime;
+        }
+        this.onPlaybackAdvance?.(cueId, token);
+    }
+
+    setPlaybackAdvanceCallback(callback) {
+        this.onPlaybackAdvance = callback;
+    }
+
     // `fading` in the result tells the caller which of two very different
     // things happened: an immediate stop (cue is gone now, and the mixer
     // will never fire onCueComplete for it) or a fade that has only just
@@ -378,6 +430,7 @@ class AudioPlaybackManager {
             if (playbackInfo.isPaused) {
                 fadeSeconds = 0;
             }
+            this.queuedNext.delete(cueId); // the mixer drops it with the stop
             this.mixer.stopCue(cueId, fadeSeconds);
 
             const fading = fadeSeconds > 0;
@@ -531,6 +584,7 @@ class AudioPlaybackManager {
 
     handlePlaybackEnd(cueId, reason = 'completed') {
         this.playingCues.delete(cueId);
+        this.queuedNext.delete(cueId);
         console.log(`AudioPlaybackManager: Playback ended for cue ${cueId} (${reason})`);
 
         if (this.onPlaybackEnd) {

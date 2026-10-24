@@ -95,3 +95,15 @@ test('returns the config file path, inside the isolated data dir', async () => {
     assert.equal(body.success, true);
     assert.ok(body.path.startsWith(server.tempDataDir()), 'config path should live under this test\'s isolated data dir');
 });
+
+test('an audio engine setting changed over REST is applied to the engine, not just saved (WO-002)', async () => {
+    const engine = async () => (await (await fetch(`${server.baseUrl()}/api/cues/status/playback`)).json()).status.engine;
+    const put = (data) => fetch(`${server.baseUrl()}/api/config`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+    }).then((r) => r.json());
+    assert.equal((await engine()).sampleRate, 48000);
+    assert.equal((await put({ audioSampleRate: 44100 })).success, true);
+    assert.equal((await engine()).sampleRate, 44100, 'the engine still runs at the old rate');
+    assert.equal((await put({ audioSampleRate: 48000 })).success, true);
+    assert.equal((await engine()).sampleRate, 48000);
+});

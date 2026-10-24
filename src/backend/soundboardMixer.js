@@ -13,6 +13,11 @@
  *   - duck gain: lowered while a ducking trigger cue is playing
  * Keeping them separate means a duck never disturbs a fade in progress (or
  * the other way round), and un-ducking always returns to the right level.
+ *
+ * A voice can also have a *next* buffer queued (queueNext - a playlist's next
+ * item). Reaching its end, it carries straight on into that buffer within the
+ * same render, so items join without a gap, and onCueAdvance fires instead of
+ * onCueComplete.
  */
 
 function clamp(value, min, max) {
@@ -58,6 +63,7 @@ class SoundboardMixer {
         // voice of a cue seen while iterating is its newest.
         this.activeCues = new Map();
         this.onCueComplete = null;
+        this.onCueAdvance = null;
         this.masterGain = 1.0;
         this._voiceCounter = 0;
     }
@@ -76,6 +82,10 @@ class SoundboardMixer {
 
     setCueCompleteCallback(callback) {
         this.onCueComplete = callback;
+    }
+
+    setCueAdvanceCallback(callback) {
+        this.onCueAdvance = callback;
     }
 
     /** All voices currently playing for a cue, oldest first. */
@@ -157,12 +167,48 @@ class SoundboardMixer {
             duckStep: 0,
             stopping: false,
             isPaused: false,
+            next: null,
             startedAt: Date.now(),
             peakAccum: 0,
         };
 
         this.activeCues.set(voiceId, voice);
         return voice;
+    }
+
+    /**
+     * Queues the buffer a cue's newest voice plays when it reaches its end
+     * (WO-006: gapless playlist items). options: channels, sampleRate,
+     * trimStartTime, trimEndTime, token (handed back to onCueAdvance).
+     * Replaces any next already queued.
+     */
+    queueNext(cueId, floatBuffer, options = {}) {
+        const voices = this._voicesOf(cueId);
+        const voice = voices[voices.length - 1];
+        if (!voice || voice.stopping) {
+            return false;
+        }
+        const channels = options.channels || 2;
+        const sampleRate = options.sampleRate || this.sampleRate;
+        const totalFrames = Math.floor(floatBuffer.length / channels);
+        const trimStartFrame = clamp(
+            secondsToFrame(options.trimStartTime || 0, sampleRate),
+            0,
+            Math.max(0, totalFrames - 1)
+        );
+        const trimEndFrame = clamp(
+            secondsToFrame(options.trimEndTime != null ? options.trimEndTime : totalFrames / sampleRate, sampleRate),
+            trimStartFrame + 1,
+            totalFrames
+        );
+        voice.next = {
+            buffer: floatBuffer, channels, sampleRate, trimStartFrame, trimEndFrame, token: options.token,
+        };
+        return true;
+    }
+
+    clearNext(cueId) {
+        for (const voice of this._voicesOf(cueId)) voice.next = null;
     }
 
     stopCue(cueId, fadeOutSeconds = 0) {
@@ -172,6 +218,9 @@ class SoundboardMixer {
         }
 
         for (const voice of voices) {
+            // A stopped voice ends where it is - it never moves on to a
+            // queued next item, even while fading out.
+            voice.next = null;
             if (fadeOutSeconds <= 0) {
                 this.activeCues.delete(voice.voiceId);
                 continue;
@@ -303,6 +352,7 @@ class SoundboardMixer {
         // 'completed' vs 'stopped', and whether a playlist should
         // auto-advance) need to tell those apart.
         const toRemove = [];
+        const advanced = [];
 
         for (const voice of this.activeCues.values()) {
             if (voice.isPaused) {
@@ -311,13 +361,26 @@ class SoundboardMixer {
 
             const patchL = voice.outputPatch[0];
             const patchR = voice.outputPatch[1];
-            const buf = voice.buffer;
-            const ch = voice.channels;
+            let buf = voice.buffer;
+            let ch = voice.channels;
 
             for (let f = 0; f < nFrames; f++) {
                 if (voice.position >= voice.trimEndFrame) {
                     if (voice.loop) {
                         voice.position = voice.trimStartFrame;
+                    } else if (voice.next) {
+                        // Straight on into the queued next buffer, this frame.
+                        const { next } = voice;
+                        voice.next = null;
+                        voice.buffer = next.buffer;
+                        voice.channels = next.channels;
+                        voice.sampleRate = next.sampleRate;
+                        voice.trimStartFrame = next.trimStartFrame;
+                        voice.trimEndFrame = next.trimEndFrame;
+                        voice.position = next.trimStartFrame;
+                        buf = voice.buffer;
+                        ch = voice.channels;
+                        advanced.push({ cueId: voice.cueId, token: next.token });
                     } else {
                         toRemove.push({ voice, reason: 'completed' });
                         break;
@@ -329,12 +392,19 @@ class SoundboardMixer {
                 const right = buf[idx + 1] ?? left;
 
                 const vol = voice.currentGain * voice.duckGain * this.masterGain;
-                const outL = left * vol;
-                const outR = right * vol;
+                let outL = left * vol;
+                let outR = right * vol;
                 const outBase = f * nChannels;
-                outputBuffer[outBase + patchL] += outL;
                 if (patchR !== patchL) {
+                    outputBuffer[outBase + patchL] += outL;
                     outputBuffer[outBase + patchR] += outR;
+                } else {
+                    // Both sides to one output (or a 1-channel device): fold
+                    // down rather than drop the right channel (WO-005). Half
+                    // of each keeps a mono file at exactly its own level.
+                    outL = (outL + outR) * 0.5;
+                    outR = outL;
+                    outputBuffer[outBase + patchL] += outL;
                 }
 
                 const absL = outL < 0 ? -outL : outL;
@@ -361,6 +431,10 @@ class SoundboardMixer {
                     break;
                 }
             }
+        }
+
+        for (const { cueId, token } of advanced) {
+            this.onCueAdvance?.(cueId, token);
         }
 
         for (const { voice, reason } of toRemove) {

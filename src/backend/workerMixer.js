@@ -3,8 +3,8 @@
  * the RtAudio output stream - on a worker thread (audioEngineWorker.js), so
  * nothing else the server does can make an audio buffer late.
  *
- * It has the mixer interface AudioPlaybackManager uses (playCue, stopCue,
- * setGain, setDuck, pauseCue, resumeCue, voiceCount, getStatus,
+ * It has the mixer interface AudioPlaybackManager uses (playCue, queueNext,
+ * clearNext, stopCue, setGain, setDuck, pauseCue, resumeCue, voiceCount, getStatus,
  * drainPeakLevels, setMasterGain, ...), plus openStream/closeStream.
  * Commands are posted to the worker in order. Queries are answered here,
  * synchronously, from:
@@ -42,6 +42,7 @@ class WorkerMixer {
         this.channelCount = channelCount;
         this.masterGain = 1.0;
         this.onCueComplete = null;
+        this.onCueAdvance = null;
         this.onEngineError = null;
         this.workerPath = workerPath;
 
@@ -122,6 +123,12 @@ class WorkerMixer {
                 if (!cue || cue.seq !== message.seq) return; // about an older play
                 this._cues.delete(message.cueId);
                 this.onCueComplete?.(message.cueId, message.reason);
+                break;
+            }
+            case 'advanced': {
+                const cue = this._cues.get(message.cueId);
+                if (!cue || cue.seq !== message.seq) return; // about an older play
+                this.onCueAdvance?.(message.cueId, message.token);
                 break;
             }
             case 'engine-error':
@@ -220,6 +227,10 @@ class WorkerMixer {
         this.onEngineError = callback;
     }
 
+    setCueAdvanceCallback(callback) {
+        this.onCueAdvance = callback;
+    }
+
     hasCue(cueId) {
         return this.voiceCount(cueId) > 0;
     }
@@ -239,6 +250,18 @@ class WorkerMixer {
             seq,
         });
         this._post('play', { cueId, seq, buffer: floatBuffer, options });
+    }
+
+    /** floatBuffer should be shared (see toShared). See SoundboardMixer.queueNext. */
+    queueNext(cueId, floatBuffer, options = {}) {
+        if (!this._cues.has(cueId)) return false;
+        this._post('queueNext', { cueId, buffer: floatBuffer, options });
+        return true;
+    }
+
+    clearNext(cueId) {
+        if (!this._cues.has(cueId)) return;
+        this._post('clearNext', { cueId });
     }
 
     stopCue(cueId, fadeOutSeconds = 0) {

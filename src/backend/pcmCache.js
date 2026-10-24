@@ -5,7 +5,7 @@
 const fs = require('fs-extra');
 const path = require('path');
 const crypto = require('crypto');
-const { decodeToFloat32 } = require('./audioDecoder');
+const { decodeToFloat32, DECODER_VERSION } = require('./audioDecoder');
 const { writeJsonAtomic } = require('./utils/atomicWrite');
 
 async function cacheKeyForFile(filePath) {
@@ -15,6 +15,7 @@ async function cacheKeyForFile(filePath) {
         .update(filePath)
         .update(String(stat.mtimeMs))
         .update(String(stat.size))
+        .update(`decoder-${DECODER_VERSION}`)
         .digest('hex');
 }
 

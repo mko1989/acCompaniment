@@ -46,10 +46,10 @@ test('decodes to interleaved stereo float32 at the requested sample rate', async
     assert.ok(Math.abs(result.durationSec - 1.5) < 0.01, `duration ${result.durationSec}`);
     assert.ok(result.floatBuffer instanceof Float32Array);
     assert.equal(result.floatBuffer.length % 2, 0);
-    // A mono source goes to both channels, at ffmpeg's -3dB mono-to-stereo
-    // level: 16384/32768 = 0.5, times 0.7071.
+    // A mono source goes to both channels at its own level (WO-004 - not
+    // ffmpeg's -3 dB mono-to-stereo): 16384/32768 = 0.5.
     const mid = Math.floor(result.floatBuffer.length / 2) & ~1;
-    assert.ok(Math.abs(result.floatBuffer[mid] - 0.5 * Math.SQRT1_2) < 0.01);
+    assert.ok(Math.abs(result.floatBuffer[mid] - 0.5) < 0.01, `mono decoded at ${result.floatBuffer[mid]}`);
     assert.equal(result.floatBuffer[mid], result.floatBuffer[mid + 1]);
 });
 
@@ -79,4 +79,15 @@ test('a missing ffmpeg is reported with a hint', async () => {
         if (previous === undefined) delete process.env.FFMPEG_PATH;
         else process.env.FFMPEG_PATH = previous;
     }
+});
+
+test('cached PCM from an older decoder is not reused (the decoder version is in the cache key)', async () => {
+    const { cacheKeyForFile } = require('../../src/backend/pcmCache');
+    const { DECODER_VERSION } = require('../../src/backend/audioDecoder');
+    const crypto = require('node:crypto');
+    const file = writeWav('keyed.wav');
+    const stat = fs.statSync(file);
+    const unversioned = crypto.createHash('sha256').update(file).update(String(stat.mtimeMs)).update(String(stat.size)).digest('hex');
+    assert.ok(DECODER_VERSION >= 2);
+    assert.notEqual(await cacheKeyForFile(file), unversioned);
 });

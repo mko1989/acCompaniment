@@ -11,6 +11,7 @@ const os = require('os');
 // before any of the class-level error handling below even runs. Catch it
 // and fail with a clear message instead of a raw native-addon stack trace.
 let AudioFileManager, CueDataManager, PathManager, AppConfigManager, WebSocketManager, CueManager, migrateLibrary;
+let SpotifyClient, SpotifyPlayer;
 try {
     AudioFileManager = require('./src/backend/audioFileManager');
     CueDataManager = require('./src/backend/cueDataManager');
@@ -19,6 +20,8 @@ try {
     WebSocketManager = require('./src/backend/websocketManager');
     CueManager = require('./src/backend/cueManager');
     ({ migrateLibrary } = require('./src/backend/mediaLibrary'));
+    ({ SpotifyClient } = require('./src/backend/spotify/spotifyClient'));
+    ({ SpotifyPlayer } = require('./src/backend/spotify/spotifyPlayer'));
 } catch (error) {
     console.error('Failed to load server modules:', error.message);
     if (error.cause) {
@@ -44,6 +47,7 @@ class AccompanimentServer {
         this.appConfigManager = null;
         this.websocketManager = null;
         this.cueManager = null;
+        this.spotifyClient = null;
         
         // Data directory
         this.dataDir = process.env.ACCOMPANIMENT_DATA_DIR || path.join(os.homedir(), '.accompaniment');
@@ -106,6 +110,7 @@ class AccompanimentServer {
         this.app.use('/api/workspaces', require('./src/backend/routes/workspaces'));
         this.app.use('/api/projects', require('./src/backend/routes/projects'));
         this.app.use('/api/remote', require('./src/backend/routes/remote'));
+        this.app.use('/api/spotify', require('./src/backend/routes/spotify'));
     }
     
     async initialize() {
@@ -175,6 +180,19 @@ class AccompanimentServer {
                 if (result.success) this.cueManager.setConfig(this.appConfigManager.getConfig());
             });
 
+            // Spotify cues play through Spotify Connect. Spotify only sends a
+            // login back to the address registered for the user's Spotify
+            // app, which must be a loopback one for plain http.
+            this.spotifyClient = new SpotifyClient({
+                configDir: this.pathManager.configDir,
+                getRedirectUri: () => `http://127.0.0.1:${this.appConfigManager.getListeningPort()}/api/spotify/callback`,
+            });
+            await this.spotifyClient.load();
+            this.spotifyClient.on('status', (status) => {
+                this.websocketManager.broadcast({ type: 'spotify-status', payload: status });
+            });
+            this.cueManager.setSpotifyPlayer(new SpotifyPlayer(this.spotifyClient));
+
             // Initialize cue manager
             await this.cueManager.initialize();
             console.log('Cue manager initialized');
@@ -192,7 +210,8 @@ class AccompanimentServer {
                 pathManager: this.pathManager,
                 appConfigManager: this.appConfigManager,
                 websocketManager: this.websocketManager,
-                cueManager: this.cueManager
+                cueManager: this.cueManager,
+                spotifyClient: this.spotifyClient,
             };
             
             console.log('All managers initialized successfully');
@@ -253,7 +272,7 @@ class AccompanimentServer {
         // Set a timeout to force exit if cleanup takes too long
         const forceExitTimeout = setTimeout(() => {
             console.error('Server shutdown timeout - forcing exit');
-            process.exit(1);
+            forceExit();
         }, 10000); // 10 second timeout
         
         try {
@@ -274,7 +293,7 @@ class AccompanimentServer {
         } catch (error) {
             clearTimeout(forceExitTimeout);
             console.error('Error during server shutdown:', error);
-            process.exit(1);
+            forceExit(); // cleanup failed part-way: the stream may be open
         }
     }
 }
@@ -282,10 +301,22 @@ class AccompanimentServer {
 // Handle graceful shutdown - prevent multiple calls
 let isShuttingDown = false;
 
+// Ends the process without the cleanup the graceful path does. Not
+// process.exit(): that joins worker threads, and with the audio stream still
+// open, joining the audio engine's worker deadlocks inside the rtaudio.js
+// binding (its destructor and the CoreAudio render callback wait on the same
+// lock). The process then hangs forever, still holding its port, and every
+// later launch fails with EADDRINUSE. Forced exits happen exactly when
+// cleanup didn't run or didn't finish, so the stream may well be open; a
+// SIGKILL to ourselves skips the join (the OS releases the device and port).
+function forceExit() {
+    process.kill(process.pid, 'SIGKILL');
+}
+
 async function handleFatalError(kind, error) {
     console.error(`Unhandled ${kind} - shutting down:`, error);
     if (isShuttingDown) {
-        process.exit(1);
+        forceExit();
         return;
     }
     isShuttingDown = true;
@@ -300,7 +331,7 @@ async function handleFatalError(kind, error) {
             process.exit(1);
         }
     } catch (_cleanupError) {
-        process.exit(1);
+        forceExit();
     }
 }
 
@@ -321,7 +352,7 @@ process.on('unhandledRejection', (reason) => {
 process.on('SIGINT', async () => {
     if (isShuttingDown) {
         console.log('\nShutdown already in progress, forcing exit...');
-        process.exit(1);
+        forceExit();
         return;
     }
     isShuttingDown = true;
@@ -336,7 +367,7 @@ process.on('SIGINT', async () => {
 process.on('SIGTERM', async () => {
     if (isShuttingDown) {
         console.log('\nShutdown already in progress, forcing exit...');
-        process.exit(1);
+        forceExit();
         return;
     }
     isShuttingDown = true;

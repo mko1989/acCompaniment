@@ -92,6 +92,29 @@
                         <input type="number" id="duckingFadeTime" name="duckingFadeTime" value="1000" min="0" max="10000" step="100" title="How long cues take to lower and recover when a ducking trigger starts and stops">
                     </div>
 
+                    <h3>Spotify</h3>
+                    <p class="small-text">Cues can play tracks and playlists from Spotify. Spotify plays them in a Spotify player (the Spotify app on this computer, or a speaker) - not through the audio output above - and needs Spotify Premium.</p>
+                    <div class="form-group">
+                        <label for="spotifyClientId">Spotify App Client ID:</label>
+                        <input type="text" id="spotifyClientId" autocomplete="off" spellcheck="false" placeholder="From developer.spotify.com/dashboard">
+                        <p class="small-text">Create an app at developer.spotify.com/dashboard (choose Web API) with this redirect URI:</p>
+                        <div class="remote-link-item">
+                            <div class="remote-link-info"><div class="remote-link-url" id="spotifyRedirectUri"></div></div>
+                            <button type="button" class="remote-link-copy" id="spotifyRedirectCopy">Copy</button>
+                        </div>
+                    </div>
+                    <div class="form-group project-actions">
+                        <p id="spotifyConnectionStatus" class="small-text" aria-live="polite"></p>
+                        <button type="button" id="spotifyConnectButton" class="project-action-btn">Connect Spotify</button>
+                        <button type="button" id="spotifyDisconnectButton" class="project-action-btn" style="display: none;">Disconnect</button>
+                    </div>
+                    <div class="form-group" id="spotifyDeviceGroup" style="display: none;">
+                        <label for="spotifyDevice">Play On:</label>
+                        <select id="spotifyDevice" class="styled-select"></select>
+                        <button type="button" id="spotifyRefreshDevices" class="project-action-btn">Refresh Players</button>
+                        <p class="small-text">To make a cue, drag a track or playlist from Spotify onto the grid, or copy its link (Share &gt; Copy link) and paste it here.</p>
+                    </div>
+
                     <h3>HTTP Remote Control</h3>
                     <div class="form-group" id="httpRemoteLinksGroup">
                         <label>Remote Access Links:</label>
@@ -132,7 +155,7 @@
                             <button id="addFilesButton" class="btn" title="Add Audio Files">
                                 <span class="btn-label">+</span>
                             </button>
-                            <button id="stopAllButton" class="btn" title="Emergency Stop All">
+                            <button id="stopAllButton" class="btn" title="Emergency Stop All (Esc)">
                                 <img src="/assets/icons/dont panic.png" alt="Stop All" class="btn-icon">
                             </button>
                             <button id="crossfadeToggleBtn" class="btn crossfade-disabled" title="Crossfade mode is off - click to turn on" aria-pressed="false">
@@ -164,7 +187,19 @@
                         <select id="propCueType" name="propCueType">
                             <option value="single_file">Single File</option>
                             <option value="playlist">Playlist</option>
+                            <option value="spotify">Spotify</option>
                         </select>
+                    </div>
+
+                    <div id="propSpotifyConfig" class="form-group" style="display: none;">
+                        <label for="propSpotifyLink">Spotify Track or Playlist:</label>
+                        <input type="text" id="propSpotifyLink" spellcheck="false" autocomplete="off" placeholder="Paste a link from Spotify (Share &gt; Copy link)">
+                        <p id="propSpotifyInfo" class="small-text" aria-live="polite"></p>
+                        <div class="form-group" id="propSpotifyShuffleGroup" style="display: none;">
+                            <label for="propSpotifyShuffle">Shuffle:</label>
+                            <input type="checkbox" id="propSpotifyShuffle">
+                        </div>
+                        <p class="small-text">Plays in the Spotify player chosen in Settings. Fades and ducking change that player's volume.</p>
                     </div>
                     
                     <div id="propSingleFileConfig" class="form-group">
@@ -418,7 +453,7 @@
         </div>
 
         <div id="dragOverlay">
-            <p>Drop audio files here to create cues</p>
+            <p>Drop audio files or Spotify links here to create cues</p>
         </div>
         
         <script type="module" src="app.js"></script>

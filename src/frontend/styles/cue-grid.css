@@ -40,6 +40,16 @@
     border-color: var(--button-secondary-border);
 }
 
+/* These are rebuilt (innerHTML) on every playback-time update while a cue
+   plays. A press that lands on one has its target replaced before the mouse
+   comes back up, and the browser then drops the click - so clicking a playing
+   cue's name did nothing. Letting presses fall through to the button itself,
+   which is never replaced, keeps every click. */
+.cue-button-name-container,
+.cue-status-indicator {
+    pointer-events: none;
+}
+
 .cue-status-indicator {
     position: absolute;
     top: 2px;
@@ -414,3 +424,23 @@
     line-height: 1.4;
 }
 
+
+/* Plays from Spotify (through a Spotify player, not the audio engine) */
+.cue-button[data-cue-type="spotify"] {
+    border-color: rgba(29, 185, 84, 0.6);
+}
+.cue-source-badge {
+    position: absolute;
+    top: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0 5px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    line-height: 14px;
+    color: #fff;
+    background-color: rgba(29, 185, 84, 0.85);
+    pointer-events: none;
+}

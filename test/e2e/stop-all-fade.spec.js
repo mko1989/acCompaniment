@@ -71,3 +71,23 @@ test('a cue with a fade-in shows a fading-in state while it ramps up', async ({ 
         await deleteCue(request, cue.id);
     }
 });
+
+test('Esc stops everything, like the Stop All button - even while typing in a field', async ({ page, request }) => {
+    await setStopAll(request, 'stop', 0);
+    const cue = await createTestCue(request, { name: 'Esc Stop All Cue', durationSec: 10 });
+    try {
+        const button = await playInShowMode(page, cue.id);
+        await page.keyboard.press('Escape');
+        await expect(button).not.toHaveClass(/playing/, { timeout: 2000 });
+
+        await button.click();
+        await expect(button).toHaveClass(/playing/, { timeout: 5000 });
+        await page.locator('#configToggleBtn').click();
+        await page.locator('#projectNameInput').focus();
+        await expect(page.locator('#projectNameInput')).toBeFocused();
+        await page.keyboard.press('Escape');
+        await expect(button).not.toHaveClass(/playing/, { timeout: 2000 });
+    } finally {
+        await deleteCue(request, cue.id);
+    }
+});

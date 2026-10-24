@@ -1,6 +1,6 @@
 {
   "name": "accompaniment",
-  "version": "0.3.0",
+  "version": "0.3.5",
   "description": "A soundboard app",
   "main": "electron-launcher/main.js",
   "engines": {
@@ -15,12 +15,20 @@
     "test:unit": "node scripts/test-soundboard-mixer.js && node --test test/unit/*.test.js",
     "test:smoke": "node --test test/*.test.js",
     "test:e2e": "playwright test",
+    "test:audio": "node --test --test-concurrency=1 test/audio/*.test.js",
+    "test:audio:ui": "ACCOMPANIMENT_AUDIO_UI=1 playwright test",
     "probe:rtaudio": "node scripts/probe-rtaudio.js",
     "postinstall": "electron-builder install-app-deps",
     "pack": "electron-builder --dir",
+    "build:rtaudio-universal": "node scripts/build-rtaudio-universal.js",
+    "fetch:ffmpeg": "node scripts/fetch-ffmpeg.js",
+    "predist": "npm run build:rtaudio-universal && node scripts/fetch-ffmpeg.js darwin win32 linux",
     "dist": "NODE_ENV=production electron-builder --mac --win --linux",
+    "predist:mac": "npm run build:rtaudio-universal && node scripts/fetch-ffmpeg.js darwin",
     "dist:mac": "NODE_ENV=production electron-builder --mac",
+    "predist:win": "node scripts/fetch-ffmpeg.js win32",
     "dist:win": "NODE_ENV=production electron-builder --win",
+    "predist:linux": "node scripts/fetch-ffmpeg.js linux",
     "dist:linux": "NODE_ENV=production electron-builder --linux"
   },
   "keywords": [
@@ -81,11 +89,23 @@
         "NSCameraUsageDescription": null,
         "NSBluetoothAlwaysUsageDescription": null,
         "NSBluetoothPeripheralUsageDescription": null
-      }
+      },
+      "extraResources": [
+        {
+          "from": "vendor/ffmpeg/darwin-universal/ffmpeg",
+          "to": "ffmpeg/ffmpeg"
+        }
+      ]
     },
     "win": {
       "target": "nsis",
-      "icon": "assets/icons/icon.ico"
+      "icon": "assets/icons/icon.ico",
+      "extraResources": [
+        {
+          "from": "vendor/ffmpeg/win32-x64/ffmpeg.exe",
+          "to": "ffmpeg/ffmpeg.exe"
+        }
+      ]
     },
     "linux": {
       "category": "AudioVideo",
@@ -99,7 +119,13 @@
           ]
         }
       ],
-      "icon": "assets/icons/icon.png"
+      "icon": "assets/icons/icon.png",
+      "extraResources": [
+        {
+          "from": "vendor/ffmpeg/linux-${arch}/ffmpeg",
+          "to": "ffmpeg/ffmpeg"
+        }
+      ]
     },
     "files": [
       "electron-launcher/**/*",
@@ -112,7 +138,10 @@
       "!node_modules/.bin",
       "!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
       "!**/*.{md,lock,yaml,toml,gitattributes,editorconfig}",
-      "!**/.*ignore"
+      "!**/.*ignore",
+      "!node_modules/@hamitzor/rtaudio.js/build/{CMakeFiles,rtaudio}${/*}",
+      "!node_modules/@hamitzor/rtaudio.js/build/*.{ninja,cmake,txt}",
+      "!node_modules/@hamitzor/rtaudio.js/build/.ninja_*"
     ],
     "asarUnpack": [
       "node_modules/@hamitzor/rtaudio.js/**/*"

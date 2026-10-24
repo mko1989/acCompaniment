@@ -271,3 +271,24 @@ test('the form is not reset while a playlist plays (no reload on every advance)'
     await expect(page.locator('#propPlaylistItems li.playlist-item[data-marker="untouched"]')).toHaveCount(1);
     await expect(page.locator('#propCueName')).toHaveValue('Advancing');
 });
+
+test('switching a cue to playlist makes its file the first item, and saves', async ({ page, request }) => {
+    const cue = await createTestCue(request, { name: 'Becomes A List' });
+    const { audioFileId } = await getCue(request, cue.id);
+    await openProperties(page, cue.id);
+    await page.locator('#propCueType').selectOption('playlist');
+    const items = page.locator('#propPlaylistItems li.playlist-item');
+    await expect(items).toHaveCount(1);
+    await expect(items.nth(0).locator('.playlist-item-name')).toHaveText('Becomes A List');
+    await expect.poll(saved(request, cue.id, 'type')).toBe('playlist');
+    const after = await getCue(request, cue.id);
+    expect(after.playlistItems.map((i) => i.audioFileId)).toEqual([audioFileId]);
+
+    // Back to single file and to playlist again: still just the one item.
+    await page.locator('#propCueType').selectOption('single_file');
+    await expect.poll(saved(request, cue.id, 'type')).toBe('single_file');
+    await page.locator('#propCueType').selectOption('playlist');
+    await expect.poll(saved(request, cue.id, 'type')).toBe('playlist');
+    await expect(items).toHaveCount(1);
+    expect((await getCue(request, cue.id)).playlistItems).toHaveLength(1);
+});

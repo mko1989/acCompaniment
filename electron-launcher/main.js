@@ -2,7 +2,7 @@ const { app, BrowserWindow, Tray, Menu, dialog, shell, ipcMain, Notification } =
 const path = require('path');
 const os = require('os');
 const http = require('http');
-const { spawn, exec } = require('child_process');
+const { spawn, exec, execFile } = require('child_process');
 const fs = require('fs-extra');
 
 // Used only to learn when a freshly started server is ready (and whether one
@@ -11,6 +11,7 @@ const fs = require('fs-extra');
 // old every-20s check only logged "healthy" forever and relabelled the tray
 // after a minute of a frozen server - it never restarted anything.
 const HEALTH_CHECK_PATH = '/api/remote/health';
+const SERVER_PATH = path.join(__dirname, '..', 'server.js');
 const MAX_RESTART_ATTEMPTS = 3;
 const RESTART_BACKOFF_BASE_MS = 2000;
 const LOG_MAX_BYTES = 5 * 1024 * 1024; // rotate past 5MB
@@ -318,7 +319,7 @@ class AccompanimentLauncher {
         }
 
         try {
-            const serverPath = path.join(__dirname, '..', 'server.js');
+            const serverPath = SERVER_PATH;
 
             console.log(`Electron Launcher: Starting Node.js server: ${serverPath}`);
             this._deliberateStop = false;
@@ -475,7 +476,49 @@ class AccompanimentLauncher {
             this.updateTrayMenu();
             return;
         }
+        // Counted as a restart attempt, so a holder that won't die can't
+        // turn this into an endless kill-and-respawn loop.
+        if (this.restartAttempts < MAX_RESTART_ATTEMPTS && await this._killHungOwnServer()) {
+            this.restartAttempts += 1;
+            this.startNodeServer();
+            return;
+        }
         this._handleUnexpectedExit();
+    }
+
+    /**
+     * The port is held but nothing healthy answers on it. If the holder is
+     * our own server.js (an orphan from an earlier launcher that hung on its
+     * way out - observed: deadlocked joining the audio engine's worker
+     * thread), it will never recover or let go of the port, so kill it.
+     * Anything else holding the port is left alone. Resolves true if it
+     * killed one. macOS/Linux only (needs lsof).
+     */
+    async _killHungOwnServer() {
+        if (process.platform === 'win32') return false;
+        const run = (cmd, args) => new Promise((resolve) => {
+            execFile(cmd, args, { timeout: 5000 }, (error, stdout) => resolve(error ? '' : stdout));
+        });
+        const pids = (await run('lsof', ['-nP', `-iTCP:${this.nodePort}`, '-sTCP:LISTEN', '-t']))
+            .split('\n').map((line) => Number(line.trim())).filter((pid) => pid > 0 && pid !== process.pid);
+        let killed = false;
+        for (const pid of pids) {
+            const command = (await run('ps', ['-o', 'command=', '-p', String(pid)])).trim();
+            if (!command.includes(SERVER_PATH)) continue;
+            console.warn(`Electron Launcher: Port ${this.nodePort} is held by an unresponsive acCompaniment server (pid ${pid}) - killing it.`);
+            this._appendToLogFile(`--- killed unresponsive orphaned server pid ${pid} holding port ${this.nodePort} ---\n`);
+            try {
+                process.kill(pid, 'SIGKILL');
+                killed = true;
+            } catch (error) {
+                console.error(`Electron Launcher: Could not kill pid ${pid}: ${error.message}`);
+            }
+        }
+        if (killed) {
+            // The OS frees the port once the process is reaped.
+            await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+        return killed;
     }
 
     /**

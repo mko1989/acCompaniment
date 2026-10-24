@@ -24,6 +24,20 @@ const RETRIGGER_BADGE_INFO = {
     play_next_item: { key: 'next-item', glyph: '⏭', label: 'Play Next Item' },
 };
 
+// Spotify cues that play a playlist (album, ...) rather than one track.
+const SPOTIFY_CONTEXT_TYPES = ['playlist', 'album', 'artist', 'show'];
+
+function hasPlaylistNavigation(cue) {
+    if (cue.type === 'spotify') return SPOTIFY_CONTEXT_TYPES.includes(cue.spotifyType);
+    return cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 1;
+}
+
+// Shows a playing track's name (and the "now/next" item names); names come
+// from files and from Spotify, so they're text, not markup.
+function escapeHtml(text) {
+    return String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 function getRetriggerBadgeInfo(retriggerBehavior) {
     return RETRIGGER_BADGE_INFO[retriggerBehavior] || RETRIGGER_BADGE_INFO.restart;
 }
@@ -120,7 +134,7 @@ function renderCues() {
         emptyStateMessage.innerHTML = `
             <div class="empty-state-content">
                 <h3>No cues yet</h3>
-                <p>Drag and drop audio files here to create cues</p>
+                <p>Drag and drop audio files here to create cues - or a track or playlist from Spotify</p>
             </div>
         `;
         cueGridContainer.appendChild(emptyStateMessage);
@@ -158,6 +172,14 @@ function renderCues() {
         retriggerBadge.title = retriggerInfo.label;
         retriggerBadge.classList.add(`cue-retrigger-badge-${retriggerInfo.key}`);
         button.appendChild(retriggerBadge);
+
+        if (cue.type === 'spotify') {
+            const sourceBadge = document.createElement('div');
+            sourceBadge.className = 'cue-source-badge';
+            sourceBadge.textContent = 'SPOTIFY';
+            sourceBadge.title = 'Plays from Spotify';
+            button.appendChild(sourceBadge);
+        }
 
         const nameContainer = document.createElement('div');
         nameContainer.className = 'cue-button-name-container';
@@ -215,7 +237,7 @@ function renderCues() {
         cueWrapper.appendChild(button);
         
         // Add playlist navigation controls OUTSIDE the button for playlist cues
-        if (cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 1) {
+        if (hasPlaylistNavigation(cue)) {
             const playlistNavContainer = document.createElement('div');
             playlistNavContainer.className = 'playlist-nav-container';
             
@@ -328,6 +350,12 @@ function renderCues() {
 
                 wrapper.addEventListener('drop', async (e) => {
                     if (!uiCore.isEditMode()) return;
+                    // Files (and links) dropped here become new cues: leave
+                    // them to the global drop handler (dragDropHandler.js).
+                    if (isExternalDrag(e)) {
+                        wrapper.classList.remove('drag-insert-before', 'drag-insert-after');
+                        return;
+                    }
                     e.preventDefault();
                     e.stopPropagation();
                     
@@ -430,6 +458,7 @@ function renderCues() {
 
         cueGridContainer.addEventListener('drop', async (e) => {
             if (!uiCore.isEditMode()) return;
+            if (isExternalDrag(e)) return; // see the wrapper's drop handler
             
             // Only handle if dropping on empty space
             if (e.target !== cueGridContainer && !e.target.classList.contains('empty-state-message')) {
@@ -492,6 +521,13 @@ function renderCues() {
     }
 }
 
+// A drag from outside the grid - files, or a link from the Spotify app - as
+// opposed to a cue button being dragged to reorder it.
+function isExternalDrag(event) {
+    return Array.from(event.dataTransfer?.types || []).includes('Files')
+        || !document.querySelector('.cue-wrapper.dragging-cue');
+}
+
 function getDragAfterElement(container, y) {
     const draggableElements = [...container.querySelectorAll('.cue-wrapper:not(.dragging)')];
     
@@ -538,7 +574,7 @@ function updateButtonPlayingState(cueId, isPlaying, statusTextArg = null, isCued
     const statusIndicator = button.querySelector('.cue-status-indicator');
     const nameContainer = button.querySelector('.cue-button-name-container');
     let nameHTML = ''; // Start with empty and build up
-    const mainCueNameSpan = `<span class="cue-button-main-name">${cue.name || 'Cue'}</span>`;
+    const mainCueNameSpan = `<span class="cue-button-main-name">${escapeHtml(cue.name || 'Cue')}</span>`;
     nameHTML += mainCueNameSpan;
 
     let statusIconSrc = '/assets/icons/stop.png'; // Changed from '../../assets/icons/stop.png'
@@ -583,7 +619,7 @@ function updateButtonPlayingState(cueId, isPlaying, statusTextArg = null, isCued
         
         // Update the name container to show crossfade text prominently
         if (nameContainer) {
-            const originalName = cue.name || 'Cue';
+            const originalName = escapeHtml(cue.name || 'Cue');
             nameHTML = `<span class="cue-button-main-name">${originalName}</span><br><span class="crossfade-timer" style="font-size: 16px; font-weight: bold; color: white;">${statusTextArg}</span>`;
         }
         
@@ -614,8 +650,9 @@ function updateButtonPlayingState(cueId, isPlaying, statusTextArg = null, isCued
         const fadeTimeRemainingMs = playbackState.fadeTimeRemainingMs != null ? playbackState.fadeTimeRemainingMs : 0;
         // isCued can be from playbackState.isCued (which includes isCuedNext) or the override
         const actualIsCued = isCuedOverride || playbackState.isCued;
-        const currentItemName = playbackState.currentPlaylistItemName;
-        const nextItemName = playbackState.nextPlaylistItemName;
+        const currentItemName = playbackState.currentPlaylistItemName && escapeHtml(playbackState.currentPlaylistItemName);
+        const nextItemName = playbackState.nextPlaylistItemName && escapeHtml(playbackState.nextPlaylistItemName);
+        const showsItems = cue.type === 'playlist' || cue.type === 'spotify';
         
         let playlistInfoHTML = ''; // Initialize playlistInfoHTML here
 
@@ -632,7 +669,7 @@ function updateButtonPlayingState(cueId, isPlaying, statusTextArg = null, isCued
             button.classList.add('playing');
             statusIconSrc = '/assets/icons/play.png'; // Changed from '../../assets/icons/play.png'
             statusIconAlt = 'Playing';
-            if (nameContainer && cue.type === 'playlist') {
+            if (nameContainer && showsItems) {
                 if (currentItemName) {
                     playlistInfoHTML += `<span class="playlist-now-playing">(Now: ${currentItemName})</span>`;
                 }
@@ -660,7 +697,7 @@ function updateButtonPlayingState(cueId, isPlaying, statusTextArg = null, isCued
             button.classList.add('paused');
             statusIconSrc = '/assets/icons/pause.png'; // Changed from '../../assets/icons/pause.png'
             statusIconAlt = 'Paused';
-            if (nameContainer && cue.type === 'playlist') {
+            if (nameContainer && showsItems) {
                 if (currentItemName) {
                     playlistInfoHTML += `<span class="playlist-now-playing">(Paused: ${currentItemName})</span>`;
                 }
@@ -684,7 +721,7 @@ function updateButtonPlayingState(cueId, isPlaying, statusTextArg = null, isCued
         console.warn(`[CueGrid updateButtonPlayingState for ${cue.id}] Playback state was null. Defaulting to stopped state.`);
          if (nameContainer && cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 0) {
             // Basic fallback for idle playlist if everything else failed
-            const firstItemName = cue.playlistItems[0]?.name || 'Item 1';
+            const firstItemName = escapeHtml(cue.playlistItems[0]?.name || 'Item 1');
             playlistInfoHTML += `<span class="next-playlist-item">(Next: ${firstItemName})</span>`;
             if (playlistInfoHTML) nameHTML += `<br>${playlistInfoHTML}`;
         }

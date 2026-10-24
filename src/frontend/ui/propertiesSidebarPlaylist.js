@@ -42,6 +42,36 @@ function getStagedPlaylistItems() {
 }
 
 /**
+ * Turning a single-file cue into a playlist keeps its file, as the
+ * playlist's first item (unless the playlist already has it). The server
+ * applies the same rule to type changes made through its API.
+ * @param {Object} cue - The cue as saved (still its old type)
+ * @returns {Promise<boolean>} Whether an item was added
+ */
+async function stageCueFileAsFirstItem(cue, propPlaylistItemsUl, propPlaylistFilePathDisplay) {
+    if (!cue || cue.type === 'playlist' || !cue.audioFileId) return false;
+    if (stagedPlaylistItems.some((item) => item.audioFileId === cue.audioFileId)) return false;
+    const id = websocketBindingsModule
+        ? await websocketBindingsModule.invoke('generate-uuid')
+        : `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    stagedPlaylistItems.unshift({
+        id,
+        name: cue.name,
+        path: cue.relativePath,
+        relativePath: cue.relativePath,
+        audioFileId: cue.audioFileId,
+        volume: 1,
+        fadeInTime: 0,
+        fadeOutTime: 0,
+        trimStartTime: cue.trimStartTime || 0,
+        trimEndTime: cue.trimEndTime || 0,
+        knownDuration: cue.knownDuration || 0
+    });
+    renderPlaylistInProperties(propPlaylistItemsUl, propPlaylistFilePathDisplay);
+    return true;
+}
+
+/**
  * Render playlist items in the properties sidebar
  * @param {HTMLElement} propPlaylistItemsUl - The UL element to render into
  * @param {HTMLElement} propPlaylistFilePathDisplay - Display element for playlist info
@@ -431,5 +461,6 @@ export {
     handleDropPlaylistItem,
     handleDragEndPlaylistItem,
     handleRemovePlaylistItem,
-    highlightPlayingPlaylistItemInSidebar
+    highlightPlayingPlaylistItemInSidebar,
+    stageCueFileAsFirstItem
 };

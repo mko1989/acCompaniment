@@ -28,8 +28,9 @@ function getFreePort() {
     });
 }
 
-function spawnServer(env) {
-    const child = spawn(process.execPath, [path.join(REPO_ROOT, 'start-nodejs.js')], {
+/** `execPath` picks the runtime (default: this test's Node; see shutdown.test.js). */
+function spawnServer(env, execPath = process.execPath) {
+    const child = spawn(execPath, [path.join(REPO_ROOT, 'start-nodejs.js')], {
         cwd: REPO_ROOT,
         env: { ...process.env, ...env },
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -124,12 +125,21 @@ async function uploadTestAudio(baseUrl, { name = 'Smoke Test Tone', durationSec 
  * Boots a server in before(), tears it down (with SIGKILL escalation - see
  * FIX_PLAN.md Track G8 for why) in after(). Call at the top level of a test
  * file; returns accessors that resolve once before() has run.
+ *
+ * `options.config` is written as the data directory's appConfig.json before
+ * boot, so the server starts with it (e.g. the loopback suite's output
+ * device) rather than switching to it once running.
  */
-function useServer(extraEnv = {}) {
+function useServer(extraEnv = {}, options = {}) {
     const state = {};
 
     before(async () => {
         state.tempDataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'accompaniment-smoke-'));
+        if (options.config) {
+            const configDir = path.join(state.tempDataDir, 'config');
+            await fs.mkdir(configDir, { recursive: true });
+            await fs.writeFile(path.join(configDir, 'appConfig.json'), JSON.stringify(options.config, null, 2));
+        }
         state.port = await getFreePort();
         state.baseUrl = `http://127.0.0.1:${state.port}`;
         state.serverProcess = spawnServer({
@@ -192,6 +202,7 @@ function useServer(extraEnv = {}) {
         baseUrl: () => state.baseUrl,
         tempDataDir: () => state.tempDataDir,
         port: () => state.port,
+        output: () => state.serverProcess?.getOutput() ?? { stdout: '', stderr: '' },
     };
 }
 

@@ -47,6 +47,10 @@ mixer.setCueCompleteCallback((cueId, reason) => {
     playSeqs.delete(cueId);
     parentPort.postMessage({ type: 'complete', cueId, reason, seq });
 });
+// A voice moved on into its queued next buffer (a playlist's next item).
+mixer.setCueAdvanceCallback((cueId, token) => {
+    parentPort.postMessage({ type: 'advanced', cueId, token, seq: playSeqs.get(cueId) });
+});
 
 function post(message) {
     parentPort.postMessage(message);
@@ -214,6 +218,8 @@ const commands = {
         // An immediate stop never completes (no callback) - forget it here.
         if (!mixer.hasCue(cueId)) playSeqs.delete(cueId);
     },
+    queueNext: ({ cueId, buffer, options }) => mixer.queueNext(cueId, buffer, options),
+    clearNext: ({ cueId }) => mixer.clearNext(cueId),
     setGain: ({ cueId, volume, rampSeconds }) => mixer.setGain(cueId, volume, rampSeconds),
     setDuck: ({ cueId, multiplier, fadeSeconds }) => mixer.setDuck(cueId, multiplier, fadeSeconds),
     pause: ({ cueId }) => mixer.pauseCue(cueId),

@@ -2,12 +2,15 @@ const path = require('path');
 const AudioPlaybackManager = require('./audioPlaybackManager');
 const { rewriteCueReferences } = require('./mediaLibrary');
 const { resolveRetrigger } = require('./retriggerLogic');
+const { parseSpotifyLink, isContextUri } = require('./spotify/spotifyUri');
 const {
     shuffledOrder, isValidOrder, decideItemEnd, stepIndex, peekNextIndex,
 } = require('./playlistLogic');
 
 // How long ducking takes to lower / restore affected cues (legacy app: 1s).
 const DEFAULT_DUCK_FADE_MS = 1000;
+// Config keys that need the audio engine re-opened when they change.
+const AUDIO_ENGINE_CONFIG_KEYS = ['audioOutputDeviceId', 'audioOutputChannelCount', 'audioSampleRate', 'audioBufferSize'];
 
 class CueManager {
     constructor(audioFileManager, cueDataManager, websocketManager) {
@@ -18,10 +21,15 @@ class CueManager {
         this.playingCues = new Map(); // cueId -> playback info
         this.cueStates = new Map(); // cueId -> state info
         this.audioPlaybackManager = new AudioPlaybackManager();
+        this.spotifyPlayer = null; // set by setSpotifyPlayer(): plays 'spotify' cues
         
         this.config = null;
         this.crossfadeMode = false;
         this.shuffleOrders = new Map(); // playlist cueId -> shuffled play order
+        // playlist cueId -> { token, decision } for the item queued to follow
+        // the playing one gaplessly (_queueNextItem).
+        this._queuedNext = new Map();
+        this._queueToken = 0;
         this._duckState = new Map(); // playing cueId -> duck multiplier applied
         this._rng = Math.random; // replaceable for deterministic tests
         this._cueQueues = new Map(); // cueId -> tail of that cue's operation queue
@@ -52,6 +60,12 @@ class CueManager {
         // Set up playback end callback
         this.audioPlaybackManager.setPlaybackEndCallback((cueId, reason) => {
             this.handlePlaybackEnd(cueId, reason);
+        });
+        // A playlist moved on into its queued next item with no gap.
+        this.audioPlaybackManager.setPlaybackAdvanceCallback((cueId, token) => {
+            this._serialized(cueId, () => this._handlePlaylistAdvance(cueId, token)).catch((error) => {
+                console.error(`CueManager: Error handling playlist advance for cue ${cueId}:`, error);
+            });
         });
 
         // Surface native audio-engine errors (e.g. output device removed
@@ -93,6 +107,7 @@ class CueManager {
         }
 
         this._playbackTimeInterval = setInterval(() => {
+            this._broadcastSpotifyTime();
             if (!this.audioPlaybackManager?.isInitialized) {
                 return;
             }
@@ -142,6 +157,116 @@ class CueManager {
             }
         }, 100);
     }
+
+    // --- Spotify --------------------------------------------------------------
+    // 'spotify' cues play through Spotify Connect (see spotify/spotifyPlayer.js),
+    // not the audio engine; this is where their player's events join the
+    // same cue states and broadcasts every other cue uses.
+
+    setSpotifyPlayer(player) {
+        this.spotifyPlayer = player;
+        player.on('ended', (cueId, reason) => this.handlePlaybackEnd(cueId, reason));
+        player.on('status', (cueId, status) => {
+            this._serialized(cueId, async () => this._applySpotifyStatus(cueId, status)).catch(() => {});
+        });
+        player.on('warning', (message) => this._broadcastSpotifyError(message));
+    }
+
+    // Paused or resumed from the Spotify app itself.
+    _applySpotifyStatus(cueId, status) {
+        const state = this.cueStates.get(cueId);
+        if (!state || !this.spotifyPlayer?.isActive(cueId) || state.status === status) return;
+        state.status = status;
+        this.websocketManager.broadcastCueStatus(cueId, status);
+        this._updateDucking();
+    }
+
+    _broadcastSpotifyError(message) {
+        this.websocketManager?.broadcast({ type: 'spotify-error', payload: { message } });
+    }
+
+    _isSpotifyPlaying(cueId) {
+        return Boolean(this.spotifyPlayer?.isActive(cueId));
+    }
+
+    // Every cue making (or, paused, holding) sound: the audio engine's and
+    // the Spotify one.
+    _activeCueIds() {
+        const ids = Array.from(this.audioPlaybackManager.playingCues.keys());
+        const spotifyCueId = this.spotifyPlayer?.activeCueId();
+        if (spotifyCueId && !ids.includes(spotifyCueId)) ids.push(spotifyCueId);
+        return ids;
+    }
+
+    _isPlaylistLike(cue) {
+        return cue.type === 'playlist' || (cue.type === 'spotify' && isContextUri(cue.spotifyUri));
+    }
+
+    _broadcastSpotifyTime() {
+        const snapshot = this.spotifyPlayer?.snapshot();
+        if (!snapshot) return;
+        const cue = this.getCue(snapshot.cueId);
+        const remaining = Math.max(0, snapshot.totalDurationSec - snapshot.currentTimeSec);
+        this.websocketManager.broadcast({
+            type: 'playback-time-update',
+            payload: {
+                cueId: snapshot.cueId,
+                cueName: cue?.name || '',
+                currentTimeSec: snapshot.currentTimeSec,
+                totalDurationSec: snapshot.totalDurationSec,
+                remainingTimeSec: remaining,
+                currentTimeFormatted: this._formatTimeMMSS(snapshot.currentTimeSec),
+                totalDurationFormatted: this._formatTimeMMSS(snapshot.totalDurationSec),
+                remainingTimeFormatted: this._formatTimeMMSS(remaining),
+                status: snapshot.status,
+                peakLevel: 0,
+                isFadingIn: snapshot.isFadingIn,
+                isFadingOut: snapshot.isFadingOut,
+                fadeTimeRemainingMs: Math.round(snapshot.fadeTimeRemainingMs),
+                isDucked: snapshot.isDucked,
+                duckGain: snapshot.duckGain,
+                voiceCount: 1,
+                nowPlaying: snapshot.nowPlaying,
+            },
+        });
+    }
+
+    // A pasted link is stored as the canonical spotify: URI.
+    _normalizeSpotifyFields(data) {
+        if (data && typeof data.spotifyUri === 'string' && data.spotifyUri.trim()) {
+            const parsed = parseSpotifyLink(data.spotifyUri);
+            if (parsed) {
+                return { ...data, spotifyUri: parsed.uri, spotifyType: parsed.type };
+            }
+        }
+        return data;
+    }
+
+    async _startSpotifyPlayback(cue, options = {}) {
+        if (!this.spotifyPlayer) {
+            return { success: false, error: 'Spotify is not available' };
+        }
+        const fadeInMs = options.fadeInOverrideMs ?? cue.fadeInTime ?? 0;
+        const duckGain = this._duckMultiplierFor(cue.id);
+        const result = await this.spotifyPlayer.play(cue, { fadeInMs, duckGain });
+        if (!result.success) {
+            this._broadcastSpotifyError(result.error);
+            return result;
+        }
+        this._duckState.set(cue.id, duckGain);
+        return {
+            success: true,
+            playbackInfo: {
+                cueId: cue.id,
+                startTime: Date.now(),
+                volume: cue.volume,
+                fadeInTime: fadeInMs,
+                fadeOutTime: cue.fadeOutTime || 0,
+                source: options.source || 'unknown',
+                spotifyUri: cue.spotifyUri,
+            },
+        };
+    }
     
     // Get current configuration
     getConfig() {
@@ -151,6 +276,20 @@ class CueManager {
     // Set configuration
     setConfig(config) {
         this.config = config;
+    }
+
+    // Takes a saved config: the new values, and - if an audio engine setting
+    // changed - the engine re-opened with it before this resolves. Every way
+    // of saving config (WebSocket save-app-config, PUT /api/config, reset)
+    // comes through here; only the WebSocket one used to re-open the engine,
+    // so audio settings saved over REST were ignored until restart (WO-002).
+    async applyConfig(prevConfig, nextConfig) {
+        this.setConfig(nextConfig);
+        const audioChanged = AUDIO_ENGINE_CONFIG_KEYS.some((key) => prevConfig?.[key] !== nextConfig?.[key]);
+        if (!audioChanged) {
+            return { success: true, unchanged: true };
+        }
+        return this.applyAudioEngineConfig();
     }
 
     async applyAudioEngineConfig() {
@@ -232,6 +371,7 @@ class CueManager {
     // Create new cue
     async createCue(cueData) {
         try {
+            cueData = this._normalizeSpotifyFields(cueData);
             // If it's a single file cue with audioFileId, fetch the duration
             if (cueData.type === 'single_file' && cueData.audioFileId) {
                 try {
@@ -281,6 +421,7 @@ class CueManager {
     // Update cue
     async updateCue(cueId, updates) {
         try {
+            updates = this._normalizeSpotifyFields(updates);
             const result = this.cueDataManager.updateCue(cueId, updates);
 
             if (result.success) {
@@ -306,11 +447,20 @@ class CueManager {
     // where that makes sense: its volume, and anything that changes who is
     // ducking whom.
     _applyLiveUpdates(cueId, updates) {
-        if (this.audioPlaybackManager.playingCues.has(cueId) && typeof updates.volume === 'number') {
-            this.audioPlaybackManager.setCueVolume(cueId, updates.volume);
+        if (typeof updates.volume === 'number') {
+            if (this._isSpotifyPlaying(cueId)) {
+                this.spotifyPlayer.setCueVolume(updates.volume);
+            } else if (this.audioPlaybackManager.playingCues.has(cueId)) {
+                this.audioPlaybackManager.setCueVolume(cueId, updates.volume);
+            }
         }
         if ('playlistItems' in updates) {
             this.shuffleOrders.delete(cueId);
+        }
+        // What follows the playing item may have changed.
+        if (['playlistItems', 'shufflePlaylist', 'loop', 'playlistPlayMode', 'repeatOnePlaylistItem'].some((k) => k in updates)
+            && this.audioPlaybackManager.playingCues.has(cueId)) {
+            this._queueNextItem(cueId);
         }
         if (['isDuckingTrigger', 'enableDucking', 'duckingLevel'].some((k) => k in updates)) {
             this._updateDucking();
@@ -426,7 +576,9 @@ class CueManager {
             const status = this.cueStates.get(cueId)?.status;
             if (status === 'playing' || status === 'paused') {
                 const behavior = options.retriggerBehavior || cue.retriggerBehavior || 'restart';
-                const action = resolveRetrigger(behavior, status, cue.type === 'playlist');
+                let action = resolveRetrigger(behavior, status, this._isPlaylistLike(cue));
+                // One Spotify player: a "new instance" can only start it over.
+                if (cue.type === 'spotify' && action === 'new_instance') action = 'restart';
                 return await this._applyRetriggerAction(cue, action, options);
             }
 
@@ -482,8 +634,11 @@ class CueManager {
         let fadeInOverrideMs = null;
         if (this.crossfadeMode && !options.noCrossfade) {
             const crossfadeMs = this.config?.crossfadeTime ?? 2000;
-            const others = Array.from(this.audioPlaybackManager.playingCues.keys()).filter((id) => id !== cue.id);
+            const others = this._activeCueIds().filter((id) => id !== cue.id);
             for (const otherId of others) {
+                // Starting a Spotify cue replaces the Spotify one playing:
+                // a single player can't fade into itself.
+                if (cue.type === 'spotify' && this._isSpotifyPlaying(otherId)) continue;
                 await this.stopCuePlayback(otherId, crossfadeMs);
             }
             fadeInOverrideMs = crossfadeMs;
@@ -568,6 +723,9 @@ class CueManager {
     // 'continue' mode - next item (shuffle-aware), wrapping with loop, and
     // finishing the playlist after the last one.
     async _skipToNextItem(cue) {
+        if (cue.type === 'spotify') {
+            return this.spotifyPlayer.skip('next');
+        }
         const decision = decideItemEnd({
             itemCount: cue.playlistItems.length,
             currentIndex: cue.currentPlaylistIndex || 0,
@@ -638,6 +796,12 @@ class CueManager {
 
             const result = await this.audioPlaybackManager.stopAllCues(fadeOut, fadeOverrideSeconds);
 
+            const spotifyCueId = this.spotifyPlayer?.activeCueId();
+            if (result.success && spotifyCueId) {
+                const spotifyResult = await this.spotifyPlayer.stop(fadeOut ? Math.max(0, stopAllFadeMs) : 0);
+                result.results.push({ cueId: spotifyCueId, ...spotifyResult });
+            }
+
             if (result.success) {
                 // Same reasoning as stopCuePlayback(): a cue whose fade has
                 // only just *started* is still audibly playing, so its state
@@ -682,11 +846,14 @@ class CueManager {
     // cue's fade time was when it started); 0 stops immediately.
     async stopCuePlayback(cueId, fadeOutMs = 0) {
         try {
+            this._queuedNext.delete(cueId);
             const fadeMs = Math.max(0, Number(fadeOutMs) || 0);
             // The audio playback manager reports whether a fade really
             // started (it never fades a paused cue) - that decides whether a
             // completion callback is coming.
-            const result = await this.audioPlaybackManager.stopCue(cueId, fadeMs > 0, fadeMs / 1000);
+            const result = this._isSpotifyPlaying(cueId)
+                ? await this.spotifyPlayer.stop(fadeMs)
+                : await this.audioPlaybackManager.stopCue(cueId, fadeMs > 0, fadeMs / 1000);
             const isFading = Boolean(result.fading);
 
             // A fade-out only *starts* here - the cue is still audibly
@@ -726,6 +893,13 @@ class CueManager {
     async _navigatePlaylistNow(cueId, direction) {
         try {
             const cue = this.getCue(cueId);
+            if (cue?.type === 'spotify' && this._isPlaylistLike(cue)) {
+                // Spotify keeps its own place in the playlist: step it there.
+                if (!this._isSpotifyPlaying(cueId)) {
+                    return { success: false, error: 'Cue not playing' };
+                }
+                return this.spotifyPlayer.skip(direction === 'previous' ? 'previous' : 'next');
+            }
             if (!cue || cue.type !== 'playlist') {
                 return { success: false, error: 'Cue not found or not a playlist' };
             }
@@ -797,7 +971,9 @@ class CueManager {
 
     async _pauseCue(cueId) {
         const state = this.cueStates.get(cueId);
-        const result = await this.audioPlaybackManager.pauseCue(cueId);
+        const result = this._isSpotifyPlaying(cueId)
+            ? await this.spotifyPlayer.pause()
+            : await this.audioPlaybackManager.pauseCue(cueId);
         if (!result.success || !state) {
             return result.success ? { success: false, error: 'Cue not playing' } : result;
         }
@@ -811,7 +987,9 @@ class CueManager {
 
     async _resumeCue(cueId) {
         const state = this.cueStates.get(cueId);
-        const result = await this.audioPlaybackManager.resumeCue(cueId);
+        const result = this._isSpotifyPlaying(cueId)
+            ? await this.spotifyPlayer.resume()
+            : await this.audioPlaybackManager.resumeCue(cueId);
         if (!result.success || !state) {
             return result.success ? { success: false, error: 'Cue not paused' } : result;
         }
@@ -826,6 +1004,24 @@ class CueManager {
     // Toggle pause/resume cue (REST /toggle-pause)
     async togglePauseCue(cueId) {
         return this._serialized(cueId, () => this._togglePauseCueNow(cueId));
+    }
+
+    // "Make this cue play" (Companion's Play Cue), whatever its retrigger
+    // behavior: starts it if it isn't playing, resumes it if paused, and
+    // leaves it alone if it already plays. Pressing Play used to go through
+    // the retrigger behavior like a Trigger press, so it could pause, stop
+    // or restart a playing cue (WO-008).
+    async playCue(cueId, options = {}) {
+        return this._serialized(cueId, async () => {
+            const status = this.cueStates.get(cueId)?.status;
+            if (status === 'playing') {
+                return { success: true, message: 'Cue already playing' };
+            }
+            if (status === 'paused') {
+                return this._resumeCue(cueId);
+            }
+            return this._triggerCueNow(cueId, options);
+        });
     }
 
     async _togglePauseCueNow(cueId) {
@@ -858,7 +1054,7 @@ class CueManager {
         let strongest = null;
         for (const [otherId, state] of this.cueStates) {
             if (otherId === cueId || state.status !== 'playing') continue;
-            if (!this.audioPlaybackManager.playingCues.has(otherId)) continue;
+            if (!this.audioPlaybackManager.playingCues.has(otherId) && !this._isSpotifyPlaying(otherId)) continue;
             const other = this.cueDataManager.getCue(otherId);
             if (!other?.isDuckingTrigger) continue;
             const level = Math.min(100, Math.max(0, Number(other.duckingLevel ?? 80)));
@@ -872,7 +1068,7 @@ class CueManager {
     // has its ducking settings edited - simpler and harder to get wrong
     // than tracking which trigger ducked which cue.
     _updateDucking() {
-        const playing = new Set(this.audioPlaybackManager.playingCues.keys());
+        const playing = new Set(this._activeCueIds());
         for (const cueId of Array.from(this._duckState.keys())) {
             if (!playing.has(cueId)) this._duckState.delete(cueId);
         }
@@ -880,7 +1076,11 @@ class CueManager {
             const target = this._duckMultiplierFor(cueId);
             const current = this._duckState.get(cueId) ?? 1;
             if (Math.abs(target - current) > 1e-9) {
-                this.audioPlaybackManager.setCueDuck(cueId, target, this._duckFadeSeconds());
+                if (this._isSpotifyPlaying(cueId)) {
+                    this.spotifyPlayer.setDuck(target, this._duckFadeSeconds() * 1000);
+                } else {
+                    this.audioPlaybackManager.setCueDuck(cueId, target, this._duckFadeSeconds());
+                }
                 this._duckState.set(cueId, target);
             }
         }
@@ -913,6 +1113,9 @@ class CueManager {
     // Start cue playback
     async startCuePlayback(cue, options = {}) {
         try {
+            if (cue.type === 'spotify') {
+                return await this._startSpotifyPlayback(cue, options);
+            }
             let filePath = null;
             let audioFile = null;
 
@@ -942,6 +1145,9 @@ class CueManager {
 
             const volume = typeof cue.volume === 'number' ? cue.volume : 1.0;
             const fadeInMs = options.fadeInOverrideMs ?? cue.fadeInTime ?? 0;
+            const trimSource = cue.type === 'playlist'
+                ? (cue.playlistItems?.[cue.currentPlaylistIndex || 0] || {})
+                : cue;
             const duckGain = this._duckMultiplierFor(cue.id);
 
             // Prepare playback options
@@ -949,8 +1155,10 @@ class CueManager {
                 volume,
                 fadeInTime: Math.max(0, fadeInMs) / 1000, // Convert to seconds
                 fadeOutTime: (cue.fadeOutTime || 0) / 1000, // Convert to seconds
-                trimStartTime: cue.trimStartTime || 0,
-                trimEndTime: cue.trimEndTime || null,
+                // A playlist plays each item with that item's own trim -
+                // not the cue's, which used to trim every item (WO-003).
+                trimStartTime: trimSource.trimStartTime || 0,
+                trimEndTime: trimSource.trimEndTime || null,
                 // A playlist's loop repeats the whole list (see
                 // _handlePlaylistItemEnd), not the item that's playing.
                 loop: cue.type === 'playlist' ? false : Boolean(cue.loop),
@@ -977,6 +1185,9 @@ class CueManager {
                     audioFileId: audioFile?.id,
                     filePath: filePath
                 };
+                if (cue.type === 'playlist') {
+                    this._queueNextItem(cue.id);
+                }
 
                 return { success: true, playbackInfo: playbackInfo };
             } else {
@@ -1028,21 +1239,99 @@ class CueManager {
         }
     }
 
-    // What a playlist does when its current item plays to the end - see
-    // playlistLogic.decideItemEnd for the rules (continue / cue next /
-    // repeat one, loop, shuffle).
-    async _handlePlaylistItemEnd(cue) {
-        const cueId = cue.id;
-        const decision = decideItemEnd({
+    _itemEndDecision(cue) {
+        return decideItemEnd({
             itemCount: cue.playlistItems.length,
             currentIndex: cue.currentPlaylistIndex || 0,
             mode: cue.playlistPlayMode || 'continue',
             repeatOne: Boolean(cue.repeatOnePlaylistItem),
             loop: Boolean(cue.loop),
             shuffle: Boolean(cue.shufflePlaylist),
-            order: this.shuffleOrders.get(cueId),
+            order: this.shuffleOrders.get(cue.id),
             rng: this._rng,
         });
+    }
+
+    // Gapless playlists (WO-006). While a playlist item plays, the item that
+    // will follow it - decided now, by the same rule as at the item's end -
+    // is loaded and queued in the engine, which plays straight on into it.
+    // Only when the next step is "play" (continue mode, not repeat-one, not
+    // past the end without loop); otherwise nothing is queued and the item's
+    // end is handled as before. Called after an item starts or advances, and
+    // when a playing playlist's items or play settings change.
+    async _queueNextItem(cueId) {
+        const token = ++this._queueToken;
+        this._queuedNext.delete(cueId);
+        this.audioPlaybackManager.clearNext(cueId);
+        try {
+            const cue = this.getCue(cueId);
+            if (cue?.type !== 'playlist' || !cue.playlistItems?.length
+                || !this.audioPlaybackManager.playingCues.has(cueId)) {
+                return;
+            }
+            const fromIndex = cue.currentPlaylistIndex || 0;
+            const decision = this._itemEndDecision(cue);
+            if (decision.action !== 'play') return;
+            const item = cue.playlistItems[decision.nextIndex];
+            const audioFile = item && await this.audioFileManager.getAudioFileByPath(item.relativePath);
+            if (!audioFile) return;
+            this._queuedNext.set(cueId, { token, decision });
+            const stillWanted = () => this._queuedNext.get(cueId)?.token === token
+                && (this.getCue(cueId)?.currentPlaylistIndex || 0) === fromIndex;
+            const queued = await this.audioPlaybackManager.queueNext(cueId, audioFile.path, {
+                trimStartTime: item.trimStartTime || 0,
+                trimEndTime: item.trimEndTime || null,
+                token,
+            }, stillWanted);
+            if (!queued && this._queuedNext.get(cueId)?.token === token) {
+                this._queuedNext.delete(cueId);
+            }
+        } catch (error) {
+            if (this._queuedNext.get(cueId)?.token === token) this._queuedNext.delete(cueId);
+            console.warn(`CueManager: Could not queue the next playlist item for ${cueId}: ${error.message}`);
+        }
+    }
+
+    // The engine moved a playlist on into its queued next item: the playlist
+    // is now on that item - index, order, status and UI follow - and the
+    // item after it is queued in turn.
+    async _handlePlaylistAdvance(cueId, token) {
+        const queued = this._queuedNext.get(cueId);
+        if (!queued || queued.token !== token) {
+            console.warn(`CueManager: Playlist ${cueId} advanced with no matching queued item`);
+            return;
+        }
+        this._queuedNext.delete(cueId);
+        const { decision } = queued;
+        this._rememberOrder(cueId, decision.order);
+        await this._setPlaylistIndex(this.getCue(cueId), decision.nextIndex);
+        const cue = this.getCue(cueId);
+        const startTime = Date.now();
+        this.cueStates.set(cueId, { status: 'playing', startTime, currentTime: 0, totalTime: cue.totalTime || 0 });
+        const playbackInfo = this.playingCues.get(cueId);
+        if (playbackInfo) {
+            const item = cue.playlistItems[decision.nextIndex];
+            const audioFile = item && await this.audioFileManager.getAudioFileByPath(item.relativePath);
+            Object.assign(playbackInfo, {
+                startTime, duration: audioFile?.duration || 0, audioFileId: audioFile?.id, filePath: audioFile?.path,
+            });
+        }
+        this.websocketManager.broadcastCueStatus(cueId, 'playing', {
+            currentTime: 0,
+            totalTime: cue.totalTime || 0,
+            ...this._playlistPosition(cue),
+        });
+        console.log(`CueManager: Playlist ${cue.name} moved on to item ${decision.nextIndex + 1}/${cue.playlistItems.length} (gapless)`);
+        this._queueNextItem(cueId);
+    }
+
+    // What a playlist does when its current item plays to the end - see
+    // playlistLogic.decideItemEnd for the rules (continue / cue next /
+    // repeat one, loop, shuffle).
+    async _handlePlaylistItemEnd(cue) {
+        const cueId = cue.id;
+        this._queuedNext.delete(cueId);
+        const decision = this._itemEndDecision(cue);
 
         this._rememberOrder(cueId, decision.order);
         await this._setPlaylistIndex(cue, decision.nextIndex);
@@ -1067,9 +1356,12 @@ class CueManager {
             return;
         }
 
-        this.cueStates.delete(cueId);
+        // The state stays 'playing' while the next item starts (_startCue
+        // replaces it): the playlist never stopped, and deleting it first
+        // made it read as stopped for a moment (WO-007).
         const result = await this._startCue(this.getCue(cueId), { source: 'playlist_advance', noCrossfade: true });
         if (!result.success) {
+            this.cueStates.delete(cueId);
             this.websocketManager.broadcastCueStatus(cueId, 'stopped');
             this._updateDucking();
             console.error(`CueManager: Playlist ${cue.name} could not play item ${decision.nextIndex + 1}: ${result.error}`);
@@ -1232,6 +1524,12 @@ class CueManager {
             cueStates: Object.fromEntries(this.cueStates),
             masterVolume: this.audioPlaybackManager?.getMasterVolume() ?? 1.0,
             crossfadeMode: this.crossfadeMode,
+            // The output the engine is running with (not just configured).
+            engine: {
+                deviceId: this.audioPlaybackManager?.deviceId ?? null,
+                sampleRate: this.audioPlaybackManager?.sampleRate ?? null,
+                channelCount: this.audioPlaybackManager?.channelCount ?? null,
+            },
             // What the audio engine is actually doing, voice by voice.
             voices: (this.audioPlaybackManager?.mixer?.getStatus().playing || []).map((v) => ({
                 cueId: v.cueId,
@@ -1248,6 +1546,7 @@ class CueManager {
                 trimEndSec: v.trimEndSec,
                 outputPatch: v.outputPatch,
             })),
+            spotify: this.spotifyPlayer?.snapshot() ?? null,
         };
 
         return status;
@@ -1282,6 +1581,8 @@ class CueManager {
             if (this.audioPlaybackManager) {
                 await this.audioPlaybackManager.cleanup();
             }
+
+            await this.spotifyPlayer?.cleanup();
 
             if (this._playbackTimeInterval) {
                 clearInterval(this._playbackTimeInterval);

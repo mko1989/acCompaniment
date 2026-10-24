@@ -1,0 +1,1 @@
+- [x] add spotify api, to play tracks or playlists from spotify. (Spotify cues - see README "Spotify cues")

@@ -159,3 +159,52 @@ test('dropping a file on an open single-file cue replaces its audio', async ({ p
     await request.post(`/api/cues/${cue.id}/trigger`);
     await expect.poll(async () => (await engineVoices(request, cue.id))[0]?.trimEndSec).toBeCloseTo(3, 1);
 });
+
+// --- The "drop audio files here" overlay always goes away on drop ----------
+
+async function expectOverlayHidden(page) {
+    await expect(page.locator('#dragOverlay')).toHaveCSS('opacity', '0');
+}
+
+test('dropping a file on a cue button adds it and hides the overlay', async ({ page, request }) => {
+    const cue = await createTestCue(request, { name: 'Existing' });
+    await openApp(page);
+    await dropFiles(page, `.cue-button[data-cue-id="${cue.id}"]`, ['On A Cue.wav']);
+    await expectOverlayHidden(page);
+    await expect.poll(() => cueNames(request)).toEqual(['Existing', 'On A Cue']);
+});
+
+test('dropping a file between cues in the grid adds it and hides the overlay', async ({ page, request }) => {
+    await createTestCue(request, { name: 'Existing' });
+    await openApp(page);
+    await dropFiles(page, '#cueGridContainer', ['On The Grid.wav']);
+    await expectOverlayHidden(page);
+    await expect.poll(() => cueNames(request)).toEqual(['Existing', 'On The Grid']);
+});
+
+test('dropping files on a playlist\'s item list hides the overlay', async ({ page, request }) => {
+    const list = await createTestPlaylist(request, { itemCount: 1 });
+    await openApp(page);
+    await cueButton(page, list.id).click();
+    await dropFiles(page, '#propPlaylistItems', ['Into List.wav']);
+    await expect(page.locator('#propPlaylistItems li.playlist-item')).toHaveCount(2);
+    await expectOverlayHidden(page);
+});
+
+test('a file drag that leaves the window or is cancelled hides the overlay', async ({ page }) => {
+    await openApp(page);
+    await page.evaluate(() => {
+        const dt = new DataTransfer();
+        dt.items.add(new File(['x'], 'x.wav', { type: 'audio/wav' }));
+        document.getElementById('cueGridContainer')
+            .dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }));
+    });
+    await expect(page.locator('#dragOverlay')).toHaveCSS('opacity', '1');
+    // Chrome reports a drag leaving the window (or Esc) as a dragleave with
+    // no relatedTarget at its last position.
+    await page.evaluate(() => {
+        document.getElementById('cueGridContainer')
+            .dispatchEvent(new DragEvent('dragleave', { bubbles: true, cancelable: true, relatedTarget: null }));
+    });
+    await expectOverlayHidden(page);
+});

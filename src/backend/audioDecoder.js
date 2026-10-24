@@ -6,12 +6,43 @@
 const fs = require('fs-extra');
 const path = require('path');
 const { spawn } = require('child_process');
+const musicMetadata = require('music-metadata');
 
-// Same lookup the fluent-ffmpeg package used (it's deprecated and no longer
-// maintained, and only ever ran this one command for us): FFMPEG_PATH if
-// set, otherwise `ffmpeg` on the PATH.
+// Bumped whenever decoding changes what comes out, so PCM cached by an
+// older decoder (pcmCache.js) isn't reused. 2: mono at full level (WO-004).
+const DECODER_VERSION = 2;
+
+// How many channels the file has, or null if its tags don't say.
+async function sourceChannelCount(filePath) {
+    try {
+        const { format } = await musicMetadata.parseFile(filePath, { duration: false, skipCovers: true });
+        return Number(format.numberOfChannels) || null;
+    } catch {
+        return null;
+    }
+}
+
+const FFMPEG_EXE = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
+
+// FFMPEG_PATH if set, then the binary bundled with the packaged app
+// (Resources/ffmpeg/, next to app.asar), then the one scripts/fetch-ffmpeg.js
+// put in vendor/ffmpeg/ for running from source, and only then `ffmpeg` on
+// the PATH. Relying on the PATH alone broke playback on any machine without
+// a system ffmpeg.
+let resolvedBinary = null;
 function ffmpegBinary() {
-    return process.env.FFMPEG_PATH || 'ffmpeg';
+    if (process.env.FFMPEG_PATH) return process.env.FFMPEG_PATH;
+    if (resolvedBinary) return resolvedBinary;
+
+    const root = path.join(__dirname, '..', '..');
+    const vendorDir = path.join(root, 'vendor', 'ffmpeg');
+    const candidates = [
+        path.join(root, '..', 'ffmpeg', FFMPEG_EXE),
+        path.join(vendorDir, `${process.platform}-universal`, FFMPEG_EXE),
+        path.join(vendorDir, `${process.platform}-${process.arch}`, FFMPEG_EXE),
+    ];
+    resolvedBinary = candidates.find((candidate) => fs.existsSync(candidate)) || 'ffmpeg';
+    return resolvedBinary;
 }
 
 function bufferToFloat32(chunks) {
@@ -34,12 +65,19 @@ async function decodeToFloat32(filePath, sampleRate = 48000) {
 
     const name = path.basename(filePath);
     const channels = 2;
+    // Mono goes to both sides at full level. ffmpeg's own mono-to-stereo
+    // (-ac 2) puts it at -3 dB a side, so mono files played quieter than
+    // the same audio in stereo (WO-004). Everything else is mixed to stereo
+    // by ffmpeg as before.
+    const toStereo = await sourceChannelCount(filePath) === 1
+        ? ['-af', 'pan=stereo|c0=c0|c1=c0']
+        : ['-ac', String(channels)];
     const args = [
         '-hide_banner', '-loglevel', 'error',
         '-i', filePath,
         '-vn', // ignore cover art / video streams
         '-f', 'f32le', '-acodec', 'pcm_f32le',
-        '-ac', String(channels),
+        ...toStereo,
         '-ar', String(sampleRate),
         'pipe:1',
     ];
@@ -83,4 +121,5 @@ async function decodeToFloat32(filePath, sampleRate = 48000) {
 
 module.exports = {
     decodeToFloat32,
+    DECODER_VERSION,
 };

@@ -166,6 +166,27 @@ test('audio output: lists "System Default" plus the server\'s devices, and chann
     expect(channelOptions[0]).toBe('2 channels');
 });
 
+test('a configured device that isn\'t connected stays configured through other saves (WO-001)', async ({ page, request }) => {
+    await request.put('/api/config', { data: { audioOutputDeviceId: 'Imaginary Interface' } });
+    await openConfig(page);
+    const select = page.locator('#configAudioOutputDevice');
+    await expect(select).toHaveValue('Imaginary Interface');
+    await expect(select.locator('option:checked')).toHaveText('Imaginary Interface (not connected)');
+    await setNumber(page, '#crossfadeTime', 4321);
+    await expect.poll(savedConfig(request, 'crossfadeTime')).toBe(4321);
+    expect(await savedConfig(request, 'audioOutputDeviceId')()).toBe('Imaginary Interface');
+});
+
+test('choosing an output device saves it by name', async ({ page, request }) => {
+    await openConfig(page);
+    const names = await page.locator('#configAudioOutputDevice option').evaluateAll(
+        (options) => options.map((o) => o.value).filter((v) => v !== 'default')
+    );
+    test.skip(names.length === 0, 'no audio output devices on this machine');
+    await page.locator('#configAudioOutputDevice').selectOption(names[0]);
+    await expect.poll(savedConfig(request, 'audioOutputDeviceId')).toBe(names[0]);
+});
+
 test('a change made from another page shows up here', async ({ page, request }) => {
     await openConfig(page);
     await request.put('/api/config', { data: { crossfadeTime: 6100 } });

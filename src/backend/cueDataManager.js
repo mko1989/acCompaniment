@@ -16,6 +16,48 @@ const CUE_FIELD_ALIASES = {
     repeatOne: 'repeatOnePlaylistItem',
 };
 
+// Turning a single-file cue into a playlist keeps its file, as the
+// playlist's first item (unless the playlist already has it). The
+// properties sidebar stages the same item itself, so it's already there
+// when the sidebar saves.
+function keepOwnFileWhenBecomingPlaylist(previous, cue) {
+    if (cue.type !== 'playlist' || previous.type === 'playlist' || !previous.audioFileId) return cue;
+    const items = Array.isArray(cue.playlistItems) ? cue.playlistItems : [];
+    if (items.some((item) => item && item.audioFileId === previous.audioFileId)) return cue;
+    const ownFile = {
+        id: uuidv4(),
+        name: previous.name,
+        path: previous.relativePath,
+        relativePath: previous.relativePath,
+        audioFileId: previous.audioFileId,
+        volume: 1,
+        fadeInTime: 0,
+        fadeOutTime: 0,
+        trimStartTime: previous.trimStartTime || 0,
+        trimEndTime: previous.trimEndTime || 0,
+        knownDuration: previous.knownDuration || 0,
+    };
+    return { ...cue, playlistItems: [ownFile, ...items] };
+}
+
+// Trim belongs to a file. Becoming a playlist, the cue's trim has gone onto
+// its first item (above), so the cue keeps none; becoming a single-file cue
+// again, it takes back the trim of the item whose file it now plays - unless
+// the update sets a trim itself (WO-003).
+function moveTrimOnTypeChange(previous, cue, updates) {
+    if (cue.type === 'playlist' && previous.type !== 'playlist') {
+        return { ...cue, trimStartTime: 0, trimEndTime: null };
+    }
+    if (cue.type !== 'playlist' && previous.type === 'playlist'
+        && !('trimStartTime' in updates) && !('trimEndTime' in updates)) {
+        const item = (previous.playlistItems || []).find((i) => i && i.audioFileId === cue.audioFileId);
+        if (item) {
+            return { ...cue, trimStartTime: item.trimStartTime || 0, trimEndTime: item.trimEndTime || null };
+        }
+    }
+    return cue;
+}
+
 function normalizeCueFieldAliases(data) {
     if (!data || typeof data !== 'object') {
         return data;
@@ -114,11 +156,13 @@ class CueDataManager {
             return { success: false, error: 'Cue not found' };
         }
         
-        this.cues[cueIndex] = {
-            ...this.cues[cueIndex],
-            ...normalizeCueFieldAliases(updates),
+        const previous = this.cues[cueIndex];
+        const normalized = normalizeCueFieldAliases(updates);
+        this.cues[cueIndex] = moveTrimOnTypeChange(previous, keepOwnFileWhenBecomingPlaylist(previous, {
+            ...previous,
+            ...normalized,
             updatedAt: new Date().toISOString()
-        };
+        }), normalized);
         
         console.log(`📝 CueDataManager: Updated cue: ${this.cues[cueIndex].name} (${cueId})`);
         return { success: true, cue: this.cues[cueIndex] };

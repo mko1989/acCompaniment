@@ -10,6 +10,8 @@ import * as dragDropHandler from './dragDropHandler.js';
 import * as ui from './ui.js';
 import * as appConfigUI from './ui/appConfigUI.js';
 import * as waveformControls from './ui/waveformControls.js';
+import * as spotifySettings from './ui/spotifySettings.js';
+import { showErrorBanner } from './ui/errorBanner.js';
 // import * as sidebars from './ui/propertiesSidebar.js'; // TODO: Port this
 
 // The server sends every cue's live state (and crossfade mode) the moment
@@ -74,32 +76,6 @@ async function initWebSocket() {
     });
 }
 
-// Shows a dismissible banner across the top of the app for audio-engine
-// errors broadcast by the server (e.g. output device disconnected).
-function showAudioEngineErrorBanner(message) {
-    let banner = document.getElementById('audioEngineErrorBanner');
-    if (!banner) {
-        banner = document.createElement('div');
-        banner.id = 'audioEngineErrorBanner';
-        banner.style.cssText = [
-            'position:fixed', 'top:0', 'left:0', 'right:0', 'z-index:9999',
-            'background:#8c3c00', 'color:#fff', 'padding:10px 16px',
-            'font-size:14px', 'display:flex', 'justify-content:space-between',
-            'align-items:center', 'box-shadow:0 2px 6px rgba(0,0,0,0.4)'
-        ].join(';');
-        const text = document.createElement('span');
-        text.id = 'audioEngineErrorBannerText';
-        const closeBtn = document.createElement('button');
-        closeBtn.textContent = '✕';
-        closeBtn.style.cssText = 'background:none;border:none;color:#fff;font-size:16px;cursor:pointer;margin-left:12px;';
-        closeBtn.addEventListener('click', () => banner.remove());
-        banner.appendChild(text);
-        banner.appendChild(closeBtn);
-        document.body.appendChild(banner);
-    }
-    document.getElementById('audioEngineErrorBannerText').textContent = `Audio engine error: ${message}`;
-}
-
 // Handle incoming WebSocket messages
 function handleWebSocketMessage(data) {
     console.log('Renderer: Received WebSocket message:', data.type);
@@ -156,6 +132,7 @@ function handleWebSocketMessage(data) {
                     voiceCount: data.payload.voiceCount,
                     playlistIndex: data.payload.playlistIndex,
                     nextPlaylistIndex: data.payload.nextPlaylistIndex,
+                    nowPlaying: data.payload.nowPlaying,
                 });
             }
             if (data.payload && window.ui && typeof window.ui.updateCueButtonTimeDisplay === 'function') {
@@ -187,7 +164,16 @@ function handleWebSocketMessage(data) {
             // Native audio engine problem (e.g. output device disconnected
             // mid-show). Playback may have silently stopped producing
             // sound - surface it instead of leaving the operator guessing.
-            showAudioEngineErrorBanner(data.payload?.message || 'Unknown audio engine error');
+            showErrorBanner(`Audio engine error: ${data.payload?.message || 'Unknown audio engine error'}`);
+            break;
+
+        case 'spotify-error':
+            // A Spotify cue couldn't play (no player open, no Premium, ...).
+            showErrorBanner(data.payload?.message || 'Spotify error');
+            break;
+
+        case 'spotify-status':
+            spotifySettings.applyStatus(data.payload);
             break;
 
         default:
@@ -327,6 +313,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('Renderer: Initializing AppConfigUI...');
         const initialAppConfig = await appConfigUI.init(websocketBindings);
         console.log('Renderer: AppConfigUI initialized. Received config:', initialAppConfig);
+        await spotifySettings.init();
 
         // 3. Initialize Main UI module (which also initializes its sub-modules: cueGrid, sidebars, modals)
         console.log('Renderer: Initializing Main UI Module (ui.js)...');

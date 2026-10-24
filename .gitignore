@@ -7,5 +7,7 @@ electron-launcher/node_modules/
 *.log
 .claude/
 test-results/
+test-recordings/
 playwright-report/
 blob-report/
+vendor/

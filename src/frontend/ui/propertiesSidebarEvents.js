@@ -5,11 +5,13 @@
 
 import * as waveformControls from './waveformControls.js';
 import { updateDuckingControlsVisibility } from './propertiesSidebarDOM.js';
+import { setSpotifyFieldsVisible, populateSpotifyFields } from './propertiesSidebarSpotify.js';
 import { 
     handleDragOverPlaylistItem, 
     handleDropPlaylistItem, 
     handleDragEndPlaylistItem,
-    handleRemovePlaylistItem
+    handleRemovePlaylistItem,
+    stageCueFileAsFirstItem
 } from './propertiesSidebarPlaylist.js';
 
 let debouncedSaveCueProperties;
@@ -169,12 +171,17 @@ function bindPropertiesSidebarEventListeners(hidePropertiesSidebar, handleDelete
  */
 function handleCueTypeChange(e, renderPlaylistInProperties, setStagedPlaylistItems) {
     const isPlaylist = e.target.value === 'playlist';
+    const isSpotify = e.target.value === 'spotify';
     
     if(domElements.propPlaylistConfigDiv) {
         domElements.propPlaylistConfigDiv.style.display = isPlaylist ? 'block' : 'none';
     }
     if(domElements.propSingleFileConfigDiv) {
-        domElements.propSingleFileConfigDiv.style.display = isPlaylist ? 'none' : 'block';
+        domElements.propSingleFileConfigDiv.style.display = (isPlaylist || isSpotify) ? 'none' : 'block';
+    }
+    setSpotifyFieldsVisible(isSpotify);
+    if (domElements.propOutputPatchGroup && isSpotify) {
+        domElements.propOutputPatchGroup.style.display = 'none';
     }
     
     const playlistSpecificControls = document.getElementById('playlistSpecificControls');
@@ -184,16 +191,26 @@ function handleCueTypeChange(e, renderPlaylistInProperties, setStagedPlaylistIte
     
     const propTrimConfigDiv = document.getElementById('propTrimConfig');
     if (propTrimConfigDiv) {
-        propTrimConfigDiv.style.display = isPlaylist ? 'none' : 'block';
+        propTrimConfigDiv.style.display = (isPlaylist || isSpotify) ? 'none' : 'block';
     }
     
     const waveformDisplayContainer = document.getElementById('waveformDisplay');
     if (waveformDisplayContainer) {
-        waveformDisplayContainer.style.display = isPlaylist ? 'none' : 'block';
+        waveformDisplayContainer.style.display = (isPlaylist || isSpotify) ? 'none' : 'block';
     }
     
-    if (isPlaylist) {
+    if (isSpotify) {
         waveformControls.hideAndDestroyWaveform();
+        const cue = activePropertiesCueId ? cueStore.getCueById(activePropertiesCueId) : null;
+        populateSpotifyFields(cue);
+        document.getElementById('propSpotifyLink')?.focus();
+        debouncedSaveCueProperties();
+    } else if (isPlaylist) {
+        waveformControls.hideAndDestroyWaveform();
+        const cue = activePropertiesCueId ? cueStore.getCueById(activePropertiesCueId) : null;
+        stageCueFileAsFirstItem(cue, domElements.propPlaylistItemsUl, domElements.propPlaylistFilePathDisplay)
+            .catch((error) => console.error('PropertiesSidebar: Could not add the cue\'s file to the playlist:', error))
+            .finally(() => debouncedSaveCueProperties());
     } else {
         const cue = activePropertiesCueId ? cueStore.getCueById(activePropertiesCueId) : null;
         const currentFilePath = domElements.propFilePathInput ? domElements.propFilePathInput.value : null;
@@ -204,6 +221,8 @@ function handleCueTypeChange(e, renderPlaylistInProperties, setStagedPlaylistIte
         } else {
             waveformControls.hideAndDestroyWaveform();
         }
+        // The type select isn't among the auto-saved inputs: save it here.
+        debouncedSaveCueProperties();
     }
 }
 

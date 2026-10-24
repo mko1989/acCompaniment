@@ -3,10 +3,11 @@ const router = express.Router();
 
 // appConfigManager replaces its config object on every update, so anything
 // holding the old one (cueManager reads e.g. defaultStopAllFadeOutTime from
-// it) must be handed the new one, and open UIs told about it - the same
-// thing the WebSocket 'save-app-config' path does.
-function propagateConfig(managers, config) {
-    managers.cueManager?.setConfig(config);
+// it) must be handed the new one - re-opening the audio engine if an audio
+// setting changed - and open UIs told about it. The same thing the
+// WebSocket 'save-app-config' path does.
+async function propagateConfig(managers, prevConfig, config) {
+    await managers.cueManager?.applyConfig(prevConfig, config);
     managers.websocketManager?.broadcastConfigUpdate(config);
 }
 
@@ -49,7 +50,7 @@ router.put('/', async (req, res) => {
         const result = await appConfigManager.updateConfig(updates);
         
         if (result.success) {
-            propagateConfig(req.app.locals.managers, result.config);
+            await propagateConfig(req.app.locals.managers, current, result.config);
             res.json({
                 success: true,
                 config: result.config
@@ -73,8 +74,9 @@ router.put('/', async (req, res) => {
 router.post('/reset', async (req, res) => {
     try {
         const { appConfigManager } = req.app.locals.managers;
+        const prevConfig = appConfigManager.getConfig();
         const config = await appConfigManager.resetToDefaults();
-        propagateConfig(req.app.locals.managers, config);
+        await propagateConfig(req.app.locals.managers, prevConfig, config);
         
         res.json({
             success: true,

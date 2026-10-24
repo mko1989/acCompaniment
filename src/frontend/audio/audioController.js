@@ -64,6 +64,7 @@ function updateServerPlaybackState(payload) {
         voiceCount: pick('voiceCount', 1),
         playlistIndex: pick('playlistIndex', null),
         nextPlaylistIndex: pick('nextPlaylistIndex', null),
+        nowPlaying: pick('nowPlaying', null), // a Spotify cue's current track
     });
 }
 
@@ -96,10 +97,14 @@ function buildServerPlaybackTimes(serverState, cue) {
         fadeTimeRemainingMs: serverState.fadeTimeRemainingMs,
         isDucked: serverState.isDucked,
         voiceCount: serverState.voiceCount || 1,
-        currentPlaylistItemName: serverState.status === 'cued_next'
+        currentPlaylistItemName: cue?.type === 'spotify'
+            ? serverState.nowPlaying
+            : serverState.status === 'cued_next'
             ? null
             : playlistItemName(cue, serverState.playlistIndex ?? cue?.currentPlaylistIndex),
-        nextPlaylistItemName: serverState.status === 'cued_next'
+        nextPlaylistItemName: cue?.type === 'spotify'
+            ? null
+            : serverState.status === 'cued_next'
             ? playlistItemName(cue, serverState.playlistIndex ?? cue?.currentPlaylistIndex)
             : playlistItemName(cue, serverState.nextPlaylistIndex),
     };
