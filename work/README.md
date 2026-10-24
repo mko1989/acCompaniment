@@ -15,4 +15,5 @@ work orders" in [CLAUDE.md](../CLAUDE.md) for the workflow and template.
 | [WO-008](WO-008-companion-play-cue-toggles.md) | Companion's "Play Cue" can pause, stop or restart a playing cue | Medium | Done | - |
 | [WO-009](WO-009-audio-dropouts.md) | Audible dropouts during playback (investigation) | Medium | Won't fix | - (environmental; guard test kept) |
 | [WO-010](WO-010-recordings-deleted-by-playwright.md) | Loopback suite recordings are deleted by the next Playwright run | Low | Done | - |
-| [WO-011](WO-011-cross-built-installers-ship-mac-rtaudio.md) | Windows and Linux installers built on a Mac contain the macOS audio engine binary | Critical | Awaiting decision | GitHub Actions / build by hand / mac only |
+| [WO-011](WO-011-cross-built-installers-ship-mac-rtaudio.md) | Windows and Linux installers built on a Mac contain the macOS audio engine binary | Critical | Done | - |
+| [WO-012](WO-012-windows-no-audio-devices-abort.md) | On Windows with no audio devices, probing devices aborts the process | High | Open | Pursue? (needs Windows) |
