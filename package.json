@@ -126,21 +126,21 @@
           "from": "vendor/ffmpeg/linux-${arch}/ffmpeg",
           "to": "ffmpeg/ffmpeg"
         }
-      ],
-      "deb": {
-        "depends": [
-          "libgtk-3-0",
-          "libnotify4",
-          "libnss3",
-          "libxss1",
-          "libxtst6",
-          "xdg-utils",
-          "libatspi2.0-0",
-          "libuuid1",
-          "libsecret-1-0",
-          "libpulse0"
-        ]
-      }
+      ]
+    },
+    "deb": {
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libuuid1",
+        "libsecret-1-0",
+        "libpulse0"
+      ]
     },
     "files": [
       "electron-launcher/**/*",
