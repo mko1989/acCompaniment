@@ -1,6 +1,6 @@
 {
   "name": "accompaniment",
-  "version": "0.3.5",
+  "version": "2.0.5-beta",
   "description": "A soundboard app",
   "main": "electron-launcher/main.js",
   "engines": {
