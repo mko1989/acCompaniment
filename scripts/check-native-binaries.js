@@ -135,12 +135,13 @@ function loadPackagedAddon(appOutDir, platform) {
     const moved = fs.existsSync(buildDir);
     if (moved) fs.renameSync(buildDir, hidden);
     try {
-        // Loading is the test; constructing RtAudio also lists devices,
-        // which a CI runner without sound may not have - that's fine.
+        // Loading the addon is the test: that's when the OS resolves the
+        // libraries it links to. Not constructing RtAudio - that probes the
+        // audio devices, and on a machine with none (a CI runner) RtAudio's
+        // Windows backend aborts the process.
         const script = `const { RtAudio } = require(${JSON.stringify(addon)});`
             + 'if (typeof RtAudio !== "function") throw new Error("RtAudio not exported");'
-            + 'try { const n = new RtAudio().getDevices().length; console.log(`RtAudio loaded; ${n} device(s)`); }'
-            + 'catch (e) { console.log(`RtAudio loaded; no devices (${e.message || e})`); }';
+            + 'console.log("RtAudio loaded");';
         const result = spawnSync(executable, ['-e', script], {
             env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
             encoding: 'utf8',
