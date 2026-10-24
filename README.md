@@ -226,27 +226,34 @@ minimal Electron tray launcher for system integration. Key technologies:
     TODO document known issues they currently catch.
 *   `npm run probe:rtaudio` - Diagnose audio device / native module issues
 *   `npm run pack` - Package the application (without creating installers)
-*   `npm run dist` - Build distributables for all platforms
-*   `npm run dist:mac` - Build macOS distributable
-*   `npm run dist:win` - Build Windows distributable
+*   `npm run dist` - Build the installer for this machine's platform
+*   `npm run dist:mac` / `dist:win` / `dist:linux` - The same, for that
+    platform - run each on that platform (see below)
 
 ### Building for Distribution
 
-To create distributable packages:
+**Releases:** push a version tag and the release workflow
+(`.github/workflows/release.yml`) builds the macOS, Windows and Linux
+(x64 + arm64) installers, each on its own platform, and attaches them to the
+GitHub release for that tag (a tag with a `-`, like `v2.0.5-beta`, is
+published as a pre-release). Every push to the `node` branch builds them
+too, without releasing, so a broken build shows up before tagging.
+
+**Locally**, build the installer for the platform you're on:
 
 ```bash
-# Install dependencies
 npm install
-
-# Build for all platforms
-npm run dist
-
-# Or build for specific platform
-npm run dist:mac    # macOS
-npm run dist:win    # Windows
+npm run dist        # this machine's platform
 ```
 
 Built packages will be available in the `dist/` directory.
+
+Each platform has to be built on that platform: the audio engine is a
+native addon that can't be cross-compiled. A build that would package
+another platform's audio engine fails with an explanation
+(`scripts/check-native-binaries.js`, run by electron-builder after
+packaging). `node scripts/check-native-binaries.js dist/<unpacked dir> --load`
+also checks that the packaged app can load its audio engine on its own.
 
 ## Companion Module Integration
 

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | Awaiting decision |
+| Status | In progress |
 | Severity | Critical (for Windows/Linux users) |
 | Feature | Packaging - `npm run dist` |
 | Opened | 2026-10-24, by Claude (checking the 2.0.5-beta installers before release) |
@@ -54,4 +54,5 @@ installer can't be published again.
   yet.
 
 ## Decision
-- Pending - owner to choose A, B or C.
+- 2026-10-24, owner: "A" - GitHub Actions, building each platform on its
+  own runner, plus the packaging check.

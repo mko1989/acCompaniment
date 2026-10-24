@@ -1,0 +1,134 @@
+# Builds the installers for every platform, each on its own platform, and
+# attaches them to the GitHub release for the tag.
+#
+# The audio engine is a native addon (@hamitzor/rtaudio.js, built with
+# cmake-js) that can't be cross-built: packaging Windows or Linux on a Mac
+# shipped the Mac binary and the app played nothing (work/WO-011). Each
+# package is checked twice - by electron-builder's afterPack hook (binary
+# formats) and here, by loading the audio engine with the packaged app's own
+# runtime - before anything is uploaded.
+#
+# A pushed v* tag builds and attaches the installers to that tag's release
+# (a tag with a "-", e.g. v2.0.5-beta, makes a pre-release). A push to the
+# node branch only builds them (kept as workflow artifacts), so a broken
+# build shows before anything is tagged. By hand (Actions tab, once this
+# workflow is on the default branch): with a tag, attach to that release;
+# without, only build.
+
+name: Release installers
+
+on:
+  push:
+    tags: ['v*']
+    branches: [node]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to attach the installers to (leave empty to only build)
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+env:
+  # CMake 4.x rejects the addon's old cmake_minimum_required otherwise.
+  CMAKE_POLICY_VERSION_MINIMUM: '3.5'
+  # No signing certificate: build unsigned rather than look for one.
+  CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS (universal)
+            os: macos-latest
+            platform: darwin
+            builder: --mac
+            arch: universal
+            out: dist/mac-universal
+          - name: Windows (x64)
+            os: windows-latest
+            platform: win32
+            builder: --win --x64
+            arch: x64
+            out: dist/win-unpacked
+          # The oldest supported Ubuntu, so the .deb runs on as many distros
+          # as possible (glibc is backwards- but not forwards-compatible).
+          - name: Linux (x64)
+            os: ubuntu-22.04
+            platform: linux
+            builder: --linux deb --x64
+            arch: x64
+            out: dist/linux-unpacked
+          - name: Linux (arm64)
+            os: ubuntu-22.04-arm
+            platform: linux
+            builder: --linux deb --arm64
+            arch: arm64
+            out: dist/linux-arm64-unpacked
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Linux build dependencies (PulseAudio headers for the audio engine)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libpulse-dev cmake build-essential
+
+      - name: Install
+        run: npm ci
+
+      - name: Build the audio engine for packaging
+        run: node scripts/build-rtaudio.js
+
+      - name: Fetch ffmpeg
+        run: node scripts/fetch-ffmpeg.js ${{ matrix.platform }}
+
+      - name: Package
+        run: npx electron-builder ${{ matrix.builder }} --publish never
+        env:
+          NODE_ENV: production
+
+      - name: The packaged app loads its own audio engine
+        run: node scripts/check-native-binaries.js ${{ matrix.out }} --load --arch=${{ matrix.arch }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            dist/*.dmg
+            dist/*.exe
+            dist/*.deb
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.tag != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: installers
+          merge-multiple: true
+
+      - name: Attach the installers to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          ls -l installers
+          if ! gh release view "$TAG" -R "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            prerelease=""
+            case "$TAG" in *-*) prerelease="--prerelease" ;; esac
+            gh release create "$TAG" -R "$GITHUB_REPOSITORY" --verify-tag $prerelease \
+              --title "acCompaniment ${TAG#v}" --notes "Installers built by the release workflow."
+          fi
+          gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber installers/*

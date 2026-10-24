@@ -20,16 +20,16 @@
     "probe:rtaudio": "node scripts/probe-rtaudio.js",
     "postinstall": "electron-builder install-app-deps",
     "pack": "electron-builder --dir",
-    "build:rtaudio-universal": "node scripts/build-rtaudio-universal.js",
+    "build:rtaudio": "node scripts/build-rtaudio.js",
     "fetch:ffmpeg": "node scripts/fetch-ffmpeg.js",
-    "predist": "npm run build:rtaudio-universal && node scripts/fetch-ffmpeg.js darwin win32 linux",
-    "dist": "NODE_ENV=production electron-builder --mac --win --linux",
-    "predist:mac": "npm run build:rtaudio-universal && node scripts/fetch-ffmpeg.js darwin",
-    "dist:mac": "NODE_ENV=production electron-builder --mac",
-    "predist:win": "node scripts/fetch-ffmpeg.js win32",
-    "dist:win": "NODE_ENV=production electron-builder --win",
-    "predist:linux": "node scripts/fetch-ffmpeg.js linux",
-    "dist:linux": "NODE_ENV=production electron-builder --linux"
+    "predist": "npm run build:rtaudio && node scripts/fetch-ffmpeg.js",
+    "dist": "NODE_ENV=production electron-builder --publish never",
+    "predist:mac": "npm run build:rtaudio && node scripts/fetch-ffmpeg.js darwin",
+    "dist:mac": "NODE_ENV=production electron-builder --mac --publish never",
+    "predist:win": "npm run build:rtaudio && node scripts/fetch-ffmpeg.js win32",
+    "dist:win": "NODE_ENV=production electron-builder --win --publish never",
+    "predist:linux": "npm run build:rtaudio && node scripts/fetch-ffmpeg.js linux",
+    "dist:linux": "NODE_ENV=production electron-builder --linux --publish never"
   },
   "keywords": [
     "electron",
@@ -69,6 +69,7 @@
   "build": {
     "appId": "com.highpass.acCompaniment",
     "productName": "acCompaniment",
+    "afterPack": "scripts/check-native-binaries.js",
     "mac": {
       "category": "public.app-category.music",
       "target": [
@@ -125,7 +126,21 @@
           "from": "vendor/ffmpeg/linux-${arch}/ffmpeg",
           "to": "ffmpeg/ffmpeg"
         }
-      ]
+      ],
+      "deb": {
+        "depends": [
+          "libgtk-3-0",
+          "libnotify4",
+          "libnss3",
+          "libxss1",
+          "libxtst6",
+          "xdg-utils",
+          "libatspi2.0-0",
+          "libuuid1",
+          "libsecret-1-0",
+          "libpulse0"
+        ]
+      }
     },
     "files": [
       "electron-launcher/**/*",
