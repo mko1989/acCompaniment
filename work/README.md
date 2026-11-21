@@ -19,3 +19,6 @@ work orders" in [CLAUDE.md](../CLAUDE.md) for the workflow and template.
 | [WO-012](WO-012-windows-no-audio-devices-abort.md) | On Windows with no audio devices, probing devices aborts the process | High | Open | Pursue? (needs Windows) |
 | [WO-013](WO-013-shutdown-waits-for-websocket-clients.md) | Shutdown stalls and ends in SIGKILL while a WebSocket client is connected | Low | Awaiting decision | Option 1 or 2 |
 | [WO-014](WO-014-tests-read-voices-before-mixer-reports.md) | Smoke tests read the mixer's voices before the worker has reported them (intermittent failure) | Low | Awaiting decision | Option 1 or 2 |
+| [WO-015](WO-015-moved-data-dir-cues-silent.md) | After the data dir moves, no cue plays (files looked up at their old absolute path) | High | Awaiting decision | Option 1 or 2 |
+| [WO-016](WO-016-audio-settings-not-validated.md) | Invalid audio settings are saved, and then no cue plays | Medium | Awaiting decision | Option 1 or 2 |
+| [WO-017](WO-017-engine-stays-dead-after-failed-reopen.md) | After a failed engine reopen, no cue plays until the app restarts | Medium | Awaiting decision | Also retry on trigger? (recommended: no) |

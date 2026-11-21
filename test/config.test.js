@@ -107,3 +107,35 @@ test('an audio engine setting changed over REST is applied to the engine, not ju
     assert.equal((await put({ audioSampleRate: 48000 })).success, true);
     assert.equal((await engine()).sampleRate, 48000);
 });
+
+// WO-016: audio settings are not validated, so a bad value is saved and
+// every cue then fails with "sampleRate should be a valid number".
+test('rejects invalid audio settings instead of saving them',
+    { todo: 'WO-016: audioSampleRate/audioBufferSize/audioOutputChannelCount are not validated' },
+    async () => {
+        const put = (body) => fetch(`${server.baseUrl()}/api/config`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const before = (await (await fetch(`${server.baseUrl()}/api/config`)).json()).config;
+        try {
+            for (const bad of [
+                { audioSampleRate: 'fast' }, { audioSampleRate: -1 },
+                { audioBufferSize: 'big' }, { audioOutputChannelCount: 0 },
+            ]) {
+                const res = await put(bad);
+                assert.equal(res.status, 400, `accepted ${JSON.stringify(bad)}`);
+            }
+            const after = (await (await fetch(`${server.baseUrl()}/api/config`)).json()).config;
+            assert.equal(after.audioSampleRate, before.audioSampleRate);
+            assert.equal(after.audioBufferSize, before.audioBufferSize);
+            assert.equal(after.audioOutputChannelCount, before.audioOutputChannelCount);
+        } finally {
+            await put({
+                audioSampleRate: before.audioSampleRate,
+                audioBufferSize: before.audioBufferSize,
+                audioOutputChannelCount: before.audioOutputChannelCount,
+            });
+        }
+    });
