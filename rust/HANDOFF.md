@@ -28,9 +28,10 @@ rust-anything app record . --http --no-traps --normalize key-order --normalize t
   --normalize 'filestamp=[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{3}Z' \
   --normalize 'workdir=rust-anything-app-server[-0-9]*' \
   --normalize 'ports="(httpPort|websocketPort)":[0-9]+|(127\.0\.0\.1|localhost|[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+):[0-9]+' \
-  --normalize 'timing="(startTime":[0-9.eE+-]+|(currentTime|positionSec)":(0\.[0-9eE+-]+|[1-9][0-9.eE+-]*))' \
-  --pace 100 --timeout 180 --inputs rust/app-fixtures/http-inputs.jsonl \
+  --normalize 'timing="(startTime|currentTime|positionSec)":(0\.[0-9eE+-]+|[1-9][0-9.eE+-]*)' \
+  --pace 100 --timeout 600 --inputs rust/app-fixtures/http-inputs.jsonl \
   --fresh rust/app-fixtures/data --fresh rust/app-fixtures/incoming \
+  --db-dump "node $PWD/rust/scripts/dump-data.js rust/app-fixtures/data" \
   -- env ACCOMPANIMENT_DATA_DIR=rust/app-fixtures/data HOST=127.0.0.1 node server.js
 rust-anything app replay .                                                   # 167/167
 rust-anything app replay . --build rust/app/target/release/accompaniment     # 167/167
@@ -38,6 +39,10 @@ rust-anything app replay . --build rust/app/target/release/accompaniment     # 1
 
 Note `rust/app-cases/rust-anything.json` is rewritten by `app record`: set its `"name"` back to
 `accompaniment` afterwards.
+
+`--db-dump` makes the data dir part of every case: after each request `rust/scripts/dump-data.js`
+prints every file (JSON in full, audio as size + SHA-256; not the PCM cache or `temp/`), so the
+Rust core must write the same files (ADR-006). Its order ignores random UUIDs.
 
 What the recording taught (keep when re-recording):
 - rust-anything drops a request identical to an earlier one: `make-inputs.js` tags every path
