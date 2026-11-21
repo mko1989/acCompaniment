@@ -1,0 +1,16 @@
+{
+  "id": "e572d143-e9a5-4ae4-b195-2dccaa2172e8",
+  "path": "tone.mp3",
+  "relativePath": "tone.mp3",
+  "filename": "tone.mp3",
+  "name": "Tone MP3",
+  "size": 33062,
+  "format": ".mp3",
+  "duration": 2.0375510204081633,
+  "bitrate": 128000,
+  "sampleRate": 44100,
+  "channels": 2,
+  "hash": "060174ff3e3dadbe2a126cb5381f4aaf2fc8061bf8eb151639527f33377bb9b5",
+  "importedAt": "2026-11-21T11:12:39.830Z",
+  "tags": []
+}

@@ -1,0 +1,13 @@
+{
+  "id": "83a8048a-a8ef-4cd2-a807-d36a7df15ad1",
+  "name": "Default Workspace",
+  "description": "",
+  "cues": [],
+  "layout": {
+    "gridColumns": 4,
+    "gridRows": 4,
+    "cuePositions": {}
+  },
+  "createdAt": "2026-11-21T11:12:38.960Z",
+  "updatedAt": "2026-11-21T11:12:38.960Z"
+}

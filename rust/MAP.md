@@ -73,6 +73,9 @@ Wave C: Tauri tray app replacing `electron-launcher/` (ADR-008), and CI installe
   differences? (research/http-websocket.md)
 - ADR-013 (proposed): creating a Spotify cue answers 400. Confirm.
 - WO-014 (flaky smoke tests reading voices too early): decide the fix.
+- WO-015 (High: a moved data dir plays nothing): decide the fix; the Rust port does the same.
+- WO-016 (invalid audio settings are saved, then nothing plays): decide the fix.
+- WO-017 (engine stays dead after one failed reopen): confirm the fix.
 - WO-013 (shutdown stalls with a WebSocket client connected): decide the fix; the Rust server
   must shut down cleanly either way.
 - Recording must include .flac, .ogg, .m4a and .aac files, which no test covers today
