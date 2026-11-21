@@ -87,3 +87,16 @@ Context: while implementing ADR-003, the app turned out not to validate cue type
 Decision: `POST /api/cues` and `PUT /api/cues/:id` with `type: 'spotify'` answer 400
 `Spotify cues are no longer supported`. Other unknown types are accepted as before.
 Consequences: recorded as part of the contract; the Rust server does the same.
+
+## ADR-014: CommonJS units are bridged through typed ES-module shims
+Status: accepted (2026-11-21), a technical choice made by Claude while porting; the owner may revisit
+Context: rust-anything's `bridge`/`record` only see ES-module `export` declarations; every backend
+file is CommonJS (`module.exports = {...}`), so `analyze` counts 0 exports for all of them.
+Decision: each Wave A unit gets `rust/shims/<unit>/index.ts`: `export function`s with parameter
+types that call the original CommonJS module unchanged. The shim is the unit `bridge` takes;
+`record` therefore records the original itself. Shims add no behavior and are deleted at the lift.
+Unit crates are not loaded into the Node app as shadows: they become libraries of `rust/app`, used
+by the core when Wave B ports it (MAP.md).
+Consequences: generated inputs follow the shim's types; add real inputs with `record --inputs`.
+Shim types must be as wide as the original's callers use (a value the shim's type excludes is
+never recorded).

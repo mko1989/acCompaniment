@@ -14,7 +14,8 @@ Read first: [DECISIONS.md](DECISIONS.md) (ADR index below), [GLOSSARY.md](GLOSSA
 003 remove Spotify, keep old Spotify cues hidden · 004 Companion protocol compatible ·
 005 equivalence bar (key order and error text free) · 006 same on-disk formats ·
 007 cpal + symphonia · 008 Tauri launcher · 009 targets · 010 checkpoints · 011 branch and cutover ·
-012 record quietly
+012 record quietly · 013 Spotify cue creation answers 400 (proposed) ·
+014 CommonJS units bridged through typed shims
 
 ## Proof
 
@@ -25,14 +26,14 @@ Read first: [DECISIONS.md](DECISIONS.md) (ADR index below), [GLOSSARY.md](GLOSSA
    These cover the WebSocket protocol and shutdown, which `app record` does not.
 3. `npm run test:audio` and `npm run test:audio:ui` for everything audible (ADR-007).
 
-## Plan (proposed, for checkpoint 1)
+## Plan (approved by the owner 2026-11-21: "start")
 
-Wave A: pure logic, ported and proved function by function (`bridge` / `record` / `diff` / `gate`).
-These units are bridged; the Node app may load their shadows while the core is still Node.
+Wave A: pure logic, ported and proved function by function (`bridge` / `record` / `diff` / `gate`),
+each through a typed ES-module shim in `rust/shims/` (ADR-014). Crates are libraries for the core.
 
 | Unit | Lines | State |
 | --- | ---: | --- |
-| `src/backend/utils/idValidation.js` | 29 | open |
+| `src/backend/utils/idValidation.js` | 29 | done 2026-11-21: `rust/id-validation`, gate passed, 696/696 |
 | `src/backend/utils/outputPatch.js` | 23 | open |
 | `src/backend/utils/lruCache.js` | 73 | open |
 | `src/backend/retriggerLogic.js` | 90 | open |

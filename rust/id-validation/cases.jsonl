@@ -1,0 +1,696 @@
+{"fn":"isValidUuid","args":["{name} has {count} itemsa"],"ok":false}
+{"fn":"isValidUuid","args":["key_name-1line1\nline2"],"ok":false}
+{"fn":"isValidUuid","args":["İstanbul"],"ok":false}
+{"fn":"isValidUuid","args":["{name} has {count} items"],"ok":false}
+{"fn":"isValidUuid","args":[""],"ok":false}
+{"fn":"isValidUuid","args":["trailing."],"ok":false}
+{"fn":"isValidUuid","args":["😀"],"ok":false}
+{"fn":"isValidUuid","args":["a:b:c"],"ok":false}
+{"fn":"isValidUuid","args":[".leading"],"ok":false}
+{"fn":"isValidUuid","args":["key_name-1"],"ok":false}
+{"fn":"isValidUuid","args":["HELLO"],"ok":false}
+{"fn":"isValidUuid","args":["src/a/b.ts"],"ok":false}
+{"fn":"isValidUuid","args":["日本語のテキスト"],"ok":false}
+{"fn":"isValidUuid","args":["src/a/b.tsline1\nline2"],"ok":false}
+{"fn":"isValidUuid","args":["Hello World"],"ok":false}
+{"fn":"isValidUuid","args":["./x/**/*.json"],"ok":false}
+{"fn":"isValidUuid","args":["ab"],"ok":false}
+{"fn":"isValidUuid","args":["abc"],"ok":false}
+{"fn":"isValidUuid","args":["aİstanbul"],"ok":false}
+{"fn":"isValidUuid","args":["ünïcödé"],"ok":false}
+{"fn":"isValidUuid","args":["tab\tseparated"],"ok":false}
+{"fn":"isValidUuid","args":["﻿bom"],"ok":false}
+{"fn":"isValidUuid","args":["é"],"ok":false}
+{"fn":"isValidUuid","args":["emoji 👍🏽 mix"],"ok":false}
+{"fn":"isValidUuid","args":["ns:key.path"],"ok":false}
+{"fn":"isValidUuid","args":["ΣΊΣΥΦΟΣ"],"ok":false}
+{"fn":"isValidUuid","args":["hello worldİstanbul"],"ok":false}
+{"fn":"isValidUuid","args":["  padded  "],"ok":false}
+{"fn":"isValidUuid","args":["hello world"],"ok":false}
+{"fn":"isValidUuid","args":["a..b"],"ok":false}
+{"fn":"isValidUuid","args":["straße"],"ok":false}
+{"fn":"isValidUuid","args":["a"],"ok":false}
+{"fn":"isValidUuid","args":["emoji 👍🏽 mixa.b.c"],"ok":false}
+{"fn":"isValidUuid","args":["line1\nline2"],"ok":false}
+{"fn":"isValidUuid","args":["abc./x/**/*.json"],"ok":false}
+{"fn":"isValidUuid","args":[":ünïcödé"],"ok":false}
+{"fn":"isValidUuid","args":[".leadinga"],"ok":false}
+{"fn":"isValidUuid","args":["a.b.cünïcödé"],"ok":false}
+{"fn":"isValidUuid","args":[":"],"ok":false}
+{"fn":"isValidUuid","args":["ns:key.patha😀b😀c"],"ok":false}
+{"fn":"isValidUuid","args":["ΣΊΣΥΦΟΣsrc/a/b.ts"],"ok":false}
+{"fn":"isValidUuid","args":["日本語のテキストHello World"],"ok":false}
+{"fn":"isValidUuid","args":["a.b.c"],"ok":false}
+{"fn":"isValidUuid","args":["trailing.a.b.c"],"ok":false}
+{"fn":"isValidUuid","args":["straßeab"],"ok":false}
+{"fn":"isValidUuid","args":["  padded  :"],"ok":false}
+{"fn":"isValidUuid","args":["ns:key.path:"],"ok":false}
+{"fn":"isValidUuid","args":["./x/**/*.jsontab\tseparated"],"ok":false}
+{"fn":"isValidUuid","args":["﻿bomhello"],"ok":false}
+{"fn":"isValidUuid","args":["trailing..leading"],"ok":false}
+{"fn":"isValidUuid","args":["a😀b😀c"],"ok":false}
+{"fn":"isValidUuid","args":["a..bab"],"ok":false}
+{"fn":"isValidUuid","args":["hello"],"ok":false}
+{"fn":"isValidUuid","args":["hellons:key.path"],"ok":false}
+{"fn":"isValidUuid","args":["helloHELLO"],"ok":false}
+{"fn":"isValidUuid","args":[".leading{name} has {count} items"],"ok":false}
+{"fn":"isValidUuid","args":["trailing.tab\tseparated"],"ok":false}
+{"fn":"isValidUuid","args":["./x/**/*.json  padded  "],"ok":false}
+{"fn":"isValidUuid","args":["ab日本語のテキスト"],"ok":false}
+{"fn":"isValidUuid","args":["tab\tseparatedsrc/a/b.ts"],"ok":false}
+{"fn":"isValidUuid","args":["ababc"],"ok":false}
+{"fn":"isValidUuid","args":["tab\tseparatedé"],"ok":false}
+{"fn":"isValidUuid","args":["src/a/b.ts😀"],"ok":false}
+{"fn":"isValidUuid","args":["a😀b😀cHello World"],"ok":false}
+{"fn":"isValidUuid","args":["src/a/b.ts.leading"],"ok":false}
+{"fn":"isValidUuid","args":["hello worldhello world"],"ok":false}
+{"fn":"isValidUuid","args":["a..bns:key.path"],"ok":false}
+{"fn":"isValidUuid","args":["a..ba"],"ok":false}
+{"fn":"isValidUuid","args":["ünïcödéstraße"],"ok":false}
+{"fn":"isValidUuid","args":["a.b.chello world"],"ok":false}
+{"fn":"isValidUuid","args":["Hello World:"],"ok":false}
+{"fn":"isValidUuid","args":["ΣΊΣΥΦΟΣ./x/**/*.json"],"ok":false}
+{"fn":"isValidUuid","args":["abΣΊΣΥΦΟΣ"],"ok":false}
+{"fn":"isValidUuid","args":["é﻿bom"],"ok":false}
+{"fn":"isValidUuid","args":["😀ünïcödé"],"ok":false}
+{"fn":"isValidUuid","args":["ns:key.patha:b:c"],"ok":false}
+{"fn":"isValidUuid","args":["a:b:ctab\tseparated"],"ok":false}
+{"fn":"isValidUuid","args":["İstanbulsrc/a/b.ts"],"ok":false}
+{"fn":"isValidUuid","args":["ns:key.pathhello"],"ok":false}
+{"fn":"isValidUuid","args":["😀İstanbul"],"ok":false}
+{"fn":"isValidUuid","args":["ΣΊΣΥΦΟΣİstanbul"],"ok":false}
+{"fn":"isValidUuid","args":["a:b:ckey_name-1"],"ok":false}
+{"fn":"isValidUuid","args":["emoji 👍🏽 mix:"],"ok":false}
+{"fn":"isValidUuid","args":["aa"],"ok":false}
+{"fn":"isValidUuid","args":["a.b.cns:key.path"],"ok":false}
+{"fn":"isValidUuid","args":["emoji 👍🏽 mixhello"],"ok":false}
+{"fn":"isValidUuid","args":["tab\tseparateda😀b😀c"],"ok":false}
+{"fn":"isValidUuid","args":["ns:key.patha"],"ok":false}
+{"fn":"isValidUuid","args":["İstanbulemoji 👍🏽 mix"],"ok":false}
+{"fn":"isValidUuid","args":["line1\nline2{name} has {count} items"],"ok":false}
+{"fn":"isValidUuid","args":["emoji 👍🏽 mixİstanbul"],"ok":false}
+{"fn":"isValidUuid","args":["hello worlda"],"ok":false}
+{"fn":"isValidUuid","args":["﻿bom./x/**/*.json"],"ok":false}
+{"fn":"isValidUuid","args":["a..bhello"],"ok":false}
+{"fn":"isValidUuid","args":["src/a/b.tsns:key.path"],"ok":false}
+{"fn":"isValidUuid","args":["tab\tseparated:"],"ok":false}
+{"fn":"isValidUuid","args":["İstanbulstraße"],"ok":false}
+{"fn":"isValidUuid","args":["line1\nline2  padded  "],"ok":false}
+{"fn":"isValidUuid","args":["a:b:cline1\nline2"],"ok":false}
+{"fn":"isValidUuid","args":["key_name-1{name} has {count} items"],"ok":false}
+{"fn":"isValidUuid","args":["line1\nline2ünïcödé"],"ok":false}
+{"fn":"isValidUuid","args":[":abc"],"ok":false}
+{"fn":"isValidUuid","args":["./x/**/*.jsona😀b😀c"],"ok":false}
+{"fn":"isValidUuid","args":["ΣΊΣΥΦΟΣ日本語のテキスト"],"ok":false}
+{"fn":"isValidUuid","args":[".leadingemoji 👍🏽 mix"],"ok":false}
+{"fn":"isValidUuid","args":["Hello Worldtab\tseparated"],"ok":false}
+{"fn":"isValidUuid","args":["abstraße"],"ok":false}
+{"fn":"isValidUuid","args":["aba.b.c"],"ok":false}
+{"fn":"isValidUuid","args":["aHello World"],"ok":false}
+{"fn":"isValidUuid","args":["emoji 👍🏽 mixa"],"ok":false}
+{"fn":"isValidUuid","args":["hello worldsrc/a/b.ts"],"ok":false}
+{"fn":"isValidUuid","args":["src/a/b.tsa.b.c"],"ok":false}
+{"fn":"isValidUuid","args":["a.leading"],"ok":false}
+{"fn":"isValidUuid","args":["ünïcödéHello World"],"ok":false}
+{"fn":"isValidUuid","args":["abc😀"],"ok":false}
+{"fn":"isValidUuid","args":["line1\nline2日本語のテキスト"],"ok":false}
+{"fn":"isValidUuid","args":["abchello world"],"ok":false}
+{"fn":"isValidUuid","args":["ünïcödéHELLO"],"ok":false}
+{"fn":"isValidUuid","args":["key_name-1ns:key.path"],"ok":false}
+{"fn":"isValidUuid","args":["a😀b😀cemoji 👍🏽 mix"],"ok":false}
+{"fn":"isValidUuid","args":["tab\tseparatedHello World"],"ok":false}
+{"fn":"isValidUuid","args":["ns:key.pathns:key.path"],"ok":false}
+{"fn":"isValidUuid","args":["./x/**/*.jsona..b"],"ok":false}
+{"fn":"isValidUuid","args":[".leadingΣΊΣΥΦΟΣ"],"ok":false}
+{"fn":"isValidUuid","args":["straßestraße"],"ok":false}
+{"fn":"isValidUuid","args":["İstanbula😀b😀c"],"ok":false}
+{"fn":"isValidUuid","args":["a..bemoji 👍🏽 mix"],"ok":false}
+{"fn":"isValidUuid","args":["trailing.Hello World"],"ok":false}
+{"fn":"isValidUuid","args":["trailing.a😀b😀c"],"ok":false}
+{"fn":"isValidUuid","args":["line1\nline2tab\tseparated"],"ok":false}
+{"fn":"isValidUuid","args":["日本語のテキストİstanbul"],"ok":false}
+{"fn":"isValidUuid","args":[".leading日本語のテキスト"],"ok":false}
+{"fn":"isValidUuid","args":["  padded  key_name-1"],"ok":false}
+{"fn":"isValidUuid","args":["ΣΊΣΥΦΟΣ  padded  "],"ok":false}
+{"fn":"isValidUuid","args":["日本語のテキスト﻿bom"],"ok":false}
+{"fn":"isValidUuid","args":["src/a/b.tsünïcödé"],"ok":false}
+{"fn":"isValidUuid","args":["straßea:b:c"],"ok":false}
+{"fn":"isValidUuid","args":["HELLOab"],"ok":false}
+{"fn":"isValidUuid","args":["emoji 👍🏽 mixsrc/a/b.ts"],"ok":false}
+{"fn":"isValidUuid","args":["hello worldé"],"ok":false}
+{"fn":"isValidUuid","args":["src/a/b.tsa:b:c"],"ok":false}
+{"fn":"isValidUuid","args":["a:b:ca.b.c"],"ok":false}
+{"fn":"isValidUuid","args":["{name} has {count} itemsa:b:c"],"ok":false}
+{"fn":"isValidUuid","args":["a:b:c﻿bom"],"ok":false}
+{"fn":"isValidUuid","args":["ünïcödéabc"],"ok":false}
+{"fn":"isValidUuid","args":["abca"],"ok":false}
+{"fn":"isValidUuid","args":["straße{name} has {count} items"],"ok":false}
+{"fn":"isValidUuid","args":["a.b.cé"],"ok":false}
+{"fn":"isValidUuid","args":["a..bİstanbul"],"ok":false}
+{"fn":"isValidUuid","args":["İstanbul日本語のテキスト"],"ok":false}
+{"fn":"isValidUuid","args":["ab.leading"],"ok":false}
+{"fn":"isValidUuid","args":["aHELLO"],"ok":false}
+{"fn":"isValidUuid","args":["ünïcödé.leading"],"ok":false}
+{"fn":"isValidUuid","args":["ünïcödéΣΊΣΥΦΟΣ"],"ok":false}
+{"fn":"isValidUuid","args":["Hello Worlda.b.c"],"ok":false}
+{"fn":"isValidUuid","args":["Hello Worldstraße"],"ok":false}
+{"fn":"isValidUuid","args":["trailing.a"],"ok":false}
+{"fn":"isValidUuid","args":["a:b:c😀"],"ok":false}
+{"fn":"isValidUuid","args":["日本語のテキストa"],"ok":false}
+{"fn":"isValidUuid","args":["tab\tseparatedhello world"],"ok":false}
+{"fn":"isValidUuid","args":[".leading﻿bom"],"ok":false}
+{"fn":"isValidUuid","args":["./x/**/*.json./x/**/*.json"],"ok":false}
+{"fn":"isValidUuid","args":["hello worldhello"],"ok":false}
+{"fn":"isValidUuid","args":["😀a😀b😀c"],"ok":false}
+{"fn":"isValidUuid","args":["src/a/b.tssrc/a/b.ts"],"ok":false}
+{"fn":"isValidUuid","args":["Hello Worldİstanbul"],"ok":false}
+{"fn":"isValidUuid","args":["trailing.﻿bom"],"ok":false}
+{"fn":"isValidUuid","args":["tab\tseparatedtrailing."],"ok":false}
+{"fn":"isValidUuid","args":["./x/**/*.json😀"],"ok":false}
+{"fn":"isValidUuid","args":["İstanbulé"],"ok":false}
+{"fn":"isValidUuid","args":["./x/**/*.jsonkey_name-1"],"ok":false}
+{"fn":"isValidUuid","args":["HELLO:"],"ok":false}
+{"fn":"isValidUuid","args":["a.b.cabc"],"ok":false}
+{"fn":"isValidUuid","args":["hello  padded  "],"ok":false}
+{"fn":"isValidUuid","args":["line1\nline2é"],"ok":false}
+{"fn":"isValidUuid","args":["日本語のテキスト:"],"ok":false}
+{"fn":"isValidUuid","args":["a😀b😀ca😀b😀c"],"ok":false}
+{"fn":"isValidUuid","args":[".leadingtab\tseparated"],"ok":false}
+{"fn":"isValidUuid","args":["tab\tseparated{name} has {count} items"],"ok":false}
+{"fn":"isValidUuid","args":["a..bé"],"ok":false}
+{"fn":"isValidUuid","args":["a.b.ca:b:c"],"ok":false}
+{"fn":"isValidUuid","args":["ünïcödéa"],"ok":false}
+{"fn":"isValidUuid","args":["straßeHELLO"],"ok":false}
+{"fn":"isValidUuid","args":["a:b:cünïcödé"],"ok":false}
+{"fn":"isValidUuid","args":["ns:key.pathsrc/a/b.ts"],"ok":false}
+{"fn":"isValidUuid","args":["emoji 👍🏽 mixhello world"],"ok":false}
+{"fn":"isValidUuid","args":["a😀"],"ok":false}
+{"fn":"isValidUuid","args":["key_name-1İstanbul"],"ok":false}
+{"fn":"isValidUuid","args":[":ab"],"ok":false}
+{"fn":"isValidUuid","args":["ab﻿bom"],"ok":false}
+{"fn":"isValidUuid","args":["Hello Worldemoji 👍🏽 mix"],"ok":false}
+{"fn":"isValidUuid","args":["ns:key.path日本語のテキスト"],"ok":false}
+{"fn":"isValidUuid","args":["hello worlda😀b😀c"],"ok":false}
+{"fn":"isValidUuid","args":["helloΣΊΣΥΦΟΣ"],"ok":false}
+{"fn":"isValidUuid","args":["ΣΊΣΥΦΟΣhello"],"ok":false}
+{"fn":"isValidUuid","args":["ΣΊΣΥΦΟΣ😀"],"ok":false}
+{"fn":"isValidUuid","args":["emoji 👍🏽 mix﻿bom"],"ok":false}
+{"fn":"isValidUuid","args":["a.b.ca.b.c"],"ok":false}
+{"fn":"isValidUuid","args":["Hello Worldns:key.path"],"ok":false}
+{"fn":"isValidUuid","args":["﻿boma:b:c"],"ok":false}
+{"fn":"isValidUuid","args":["héllo wörld"],"ok":false}
+{"fn":"isValidUuid","args":["👍🏽 thumbs"],"ok":false}
+{"fn":"isValidUuid","args":["日本語"],"ok":false}
+{"fn":"isValidUuid","args":["ılık ırmak"],"ok":false}
+{"fn":"isValidUuid","args":["👨‍👩‍👧 family"],"ok":false}
+{"fn":"isValidUuid","args":["a b"],"ok":false}
+{"fn":"isValidUuid","args":["a😀b"],"ok":false}
+{"fn":"isValidUuid","args":["a²b x½ y①"],"ok":false}
+{"fn":"isValidUuid","args":["aⅠb Ⅻ"],"ok":false}
+{"fn":"isValidUuid","args":["a𐐀b 𝐀bc"],"ok":false}
+{"fn":"isValidUuid","args":["कि ٣٤"],"ok":false}
+{"fn":"validateUuidOrError","args":["helloa:b:c","é"],"ok":{"valid":false,"error":"Invalid é: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["  padded  ","straße"],"ok":{"valid":false,"error":"Invalid straße: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["emoji 👍🏽 mix","ΣΊΣΥΦΟΣ"],"ok":{"valid":false,"error":"Invalid ΣΊΣΥΦΟΣ: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["{name} has {count} items日本語のテキスト","  padded  "],"ok":{"valid":false,"error":"Invalid   padded  : must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ΣΊΣΥΦΟΣ","😀"],"ok":{"valid":false,"error":"Invalid 😀: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["Hello Worldİstanbul","﻿bom"],"ok":{"valid":false,"error":"Invalid ﻿bom: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["OM","﻿bom"],"ok":{"valid":false,"error":"Invalid ﻿bom: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["line1\nline2","abc"],"ok":{"valid":false,"error":"Invalid abc: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["é","line1\nline2"],"ok":{"valid":false,"error":"Invalid line1\nline2: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["tab\tseparated","ΣΊΣΥΦΟΣa😀b😀c"],"ok":{"valid":false,"error":"Invalid ΣΊΣΥΦΟΣa😀b😀c: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["lead",".leading"],"ok":{"valid":false,"error":"Invalid .leading: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ab","﻿bom"],"ok":{"valid":false,"error":"Invalid ﻿bom: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a:b:c","ab"],"ok":{"valid":false,"error":"Invalid ab: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["line1\nline2","emoji 👍🏽 mixhello"],"ok":{"valid":false,"error":"Invalid emoji 👍🏽 mixhello: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["emoji 👍🏽 mix","tab\tseparated"],"ok":{"valid":false,"error":"Invalid tab\tseparated: must be a UUID"}}
+{"fn":"validateUuidOrError","args":[":",":"],"ok":{"valid":false,"error":"Invalid :: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["emoji 👍🏽 mix"," 👍🏽 mix"],"ok":{"valid":false,"error":"Invalid  👍🏽 mix: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["emoji 👍🏽 mix","hello world"],"ok":{"valid":false,"error":"Invalid hello world: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["HELLO",".leading"],"ok":{"valid":false,"error":"Invalid .leading: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["src/a/b.ts","  padded  "],"ok":{"valid":false,"error":"Invalid   padded  : must be a UUID"}}
+{"fn":"validateUuidOrError","args":["é","straße"],"ok":{"valid":false,"error":"Invalid straße: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["C","a:b:c"],"ok":{"valid":false,"error":"Invalid a:b:c: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["","line1\nline2a.b.c"],"ok":{"valid":false,"error":"Invalid line1\nline2a.b.c: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["trailing.","a:b:cstraße"],"ok":{"valid":false,"error":"Invalid a:b:cstraße: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ab","İstanbul"],"ok":{"valid":false,"error":"Invalid İstanbul: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["tab\tseparated","ΣΊΣΥΦΟΣ"],"ok":{"valid":false,"error":"Invalid ΣΊΣΥΦΟΣ: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["key_name-1","tab\tseparated:"],"ok":{"valid":false,"error":"Invalid tab\tseparated:: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ns:key.path","a😀b😀cİstanbul"],"ok":{"valid":false,"error":"Invalid a😀b😀cİstanbul: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["abc","./x/**/*.json"],"ok":{"valid":false,"error":"Invalid ./x/**/*.json: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["key_name-1","a😀b😀c"],"ok":{"valid":false,"error":"Invalid a😀b😀c: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a:b:c","ünïcödé"],"ok":{"valid":false,"error":"Invalid ünïcödé: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["straße","a"],"ok":{"valid":false,"error":"Invalid a: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["Hello World","ΣΊΣΥΦΟΣ"],"ok":{"valid":false,"error":"Invalid ΣΊΣΥΦΟΣ: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["hellotrailing.","hello world"],"ok":{"valid":false,"error":"Invalid hello world: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["key_name-1","a:b:c"],"ok":{"valid":false,"error":"Invalid a:b:c: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["trailing.","src/a/b.ts"],"ok":{"valid":false,"error":"Invalid src/a/b.ts: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["abc","ünïcödé"],"ok":{"valid":false,"error":"Invalid ünïcödé: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a.b.","a.b.c"],"ok":{"valid":false,"error":"Invalid a.b.c: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["İstanbul","Hello World"],"ok":{"valid":false,"error":"Invalid Hello World: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["m","﻿bom"],"ok":{"valid":false,"error":"Invalid ﻿bom: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ünïcödéemoji 👍🏽 mix","abc"],"ok":{"valid":false,"error":"Invalid abc: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["HELLO","key_name-1"],"ok":{"valid":false,"error":"Invalid key_name-1: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["emoji 👍🏽 mixabc","﻿bomemoji 👍🏽 mix"],"ok":{"valid":false,"error":"Invalid ﻿bomemoji 👍🏽 mix: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a..b","a.leading"],"ok":{"valid":false,"error":"Invalid a.leading: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["  padded  ","ab"],"ok":{"valid":false,"error":"Invalid ab: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ΣΊΣΥΦΟΣ","ns:key.pathns:key.path"],"ok":{"valid":false,"error":"Invalid ns:key.pathns:key.path: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["﻿bom","a.b.c"],"ok":{"valid":false,"error":"Invalid a.b.c: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["emoji 👍🏽 mix","./x/**/*.json"],"ok":{"valid":false,"error":"Invalid ./x/**/*.json: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ΣΊΣΥΦΟΣ","日本語のテキスト"],"ok":{"valid":false,"error":"Invalid 日本語のテキスト: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["  padded  ","Hello World"],"ok":{"valid":false,"error":"Invalid Hello World: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ab.leading","straße"],"ok":{"valid":false,"error":"Invalid straße: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["abc","ns:key.path"],"ok":{"valid":false,"error":"Invalid ns:key.path: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["src/a/b.ts",""],"ok":{"valid":false,"error":"Invalid : must be a UUID"}}
+{"fn":"validateUuidOrError","args":["","日本語のテキスト"],"ok":{"valid":false,"error":"Invalid 日本語のテキスト: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a.b.c","😀"],"ok":{"valid":false,"error":"Invalid 😀: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a.b.c","HELLO"],"ok":{"valid":false,"error":"Invalid HELLO: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["HELLO","a:b:c"],"ok":{"valid":false,"error":"Invalid a:b:c: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ixh","emoji 👍🏽 mixhello world"],"ok":{"valid":false,"error":"Invalid emoji 👍🏽 mixhello world: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["trailing.a",".A"],"ok":{"valid":false,"error":"Invalid .A: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["emoji 👍🏽 mix","a😀b😀c"],"ok":{"valid":false,"error":"Invalid a😀b😀c: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ΣΊΣΥΦΟΣ","trailing.HELLO"],"ok":{"valid":false,"error":"Invalid trailing.HELLO: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ns:key.path","ns:k"],"ok":{"valid":false,"error":"Invalid ns:k: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["","İstanbul"],"ok":{"valid":false,"error":"Invalid İstanbul: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["trailing.hello","😀"],"ok":{"valid":false,"error":"Invalid 😀: must be a UUID"}}
+{"fn":"validateUuidOrError","args":[":",""],"ok":{"valid":false,"error":"Invalid : must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a..b","./x/**/*.json"],"ok":{"valid":false,"error":"Invalid ./x/**/*.json: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["HELLO.leading","abc"],"ok":{"valid":false,"error":"Invalid abc: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["Hello Worldtrailing.","  padded  "],"ok":{"valid":false,"error":"Invalid   padded  : must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ab","hello world"],"ok":{"valid":false,"error":"Invalid hello world: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["tab\tseparated","hellotrailing."],"ok":{"valid":false,"error":"Invalid hellotrailing.: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["日本語のテキスト","日本"],"ok":{"valid":false,"error":"Invalid 日本: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a..b日本語のテキスト","abé"],"ok":{"valid":false,"error":"Invalid abé: must be a UUID"}}
+{"fn":"validateUuidOrError","args":[".B","a..b"],"ok":{"valid":false,"error":"Invalid a..b: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a😀b😀c","{name} has {count} items"],"ok":{"valid":false,"error":"Invalid {name} has {count} items: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a.b.c",""],"ok":{"valid":false,"error":"Invalid : must be a UUID"}}
+{"fn":"validateUuidOrError","args":["L","hello"],"ok":{"valid":false,"error":"Invalid hello: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["absrc/a/b.ts","/B"],"ok":{"valid":false,"error":"Invalid /B: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["HELLO","src/a/b.ts"],"ok":{"valid":false,"error":"Invalid src/a/b.ts: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ts","src/a/b.ts"],"ok":{"valid":false,"error":"Invalid src/a/b.ts: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a..b","hello world"],"ok":{"valid":false,"error":"Invalid hello world: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["日本語のテキスト","hello world"],"ok":{"valid":false,"error":"Invalid hello world: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a😀b😀c./x/**/*.json","İstanbul"],"ok":{"valid":false,"error":"Invalid İstanbul: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["","a😀b😀c"],"ok":{"valid":false,"error":"Invalid a😀b😀c: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ΣΊΣΥΦΟΣ","straße😀"],"ok":{"valid":false,"error":"Invalid straße😀: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a","trailing."],"ok":{"valid":false,"error":"Invalid trailing.: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a..b","straße"],"ok":{"valid":false,"error":"Invalid straße: must be a UUID"}}
+{"fn":"validateUuidOrError","args":[":HELLO","ünïcödé"],"ok":{"valid":false,"error":"Invalid ünïcödé: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ns:key.path","é日本語のテキスト"],"ok":{"valid":false,"error":"Invalid é日本語のテキスト: must be a UUID"}}
+{"fn":"validateUuidOrError","args":[":","straßekey_name-1"],"ok":{"valid":false,"error":"Invalid straßekey_name-1: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["emoji 👍🏽 mix","İstanbul"],"ok":{"valid":false,"error":"Invalid İstanbul: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["straße","hello"],"ok":{"valid":false,"error":"Invalid hello: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a😀b😀c","HELLOns:key.path"],"ok":{"valid":false,"error":"Invalid HELLOns:key.path: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["trailing.",":"],"ok":{"valid":false,"error":"Invalid :: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["Hello World","line1\nline2"],"ok":{"valid":false,"error":"Invalid line1\nline2: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["日本語のテキスト","Hello World"],"ok":{"valid":false,"error":"Invalid Hello World: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["😀hello world","abc"],"ok":{"valid":false,"error":"Invalid abc: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["{name} has {count} itemsa.b.c","ns:key.path"],"ok":{"valid":false,"error":"Invalid ns:key.path: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["LO","HELLO"],"ok":{"valid":false,"error":"Invalid HELLO: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a","hello"],"ok":{"valid":false,"error":"Invalid hello: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["key_name-1ns:key.path",":"],"ok":{"valid":false,"error":"Invalid :: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["abc","a..b"],"ok":{"valid":false,"error":"Invalid a..b: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ine1\nl","line1\nline2"],"ok":{"valid":false,"error":"Invalid line1\nline2: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["{name} has {count} items","abc"],"ok":{"valid":false,"error":"Invalid abc: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["hello world","abc"],"ok":{"valid":false,"error":"Invalid abc: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["😀","😀"],"ok":{"valid":false,"error":"Invalid 😀: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["","hello"],"ok":{"valid":false,"error":"Invalid hello: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["line1\nline2","a.b.c"],"ok":{"valid":false,"error":"Invalid a.b.c: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["emoji 👍🏽 mix","😀"],"ok":{"valid":false,"error":"Invalid 😀: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["./x/**/*.json","tab\tseparated"],"ok":{"valid":false,"error":"Invalid tab\tseparated: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["Hello World","HELLO"],"ok":{"valid":false,"error":"Invalid HELLO: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["tab\tseparated","İstanbul"],"ok":{"valid":false,"error":"Invalid İstanbul: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["straße","a..b"],"ok":{"valid":false,"error":"Invalid a..b: must be a UUID"}}
+{"fn":"validateUuidOrError","args":[".leading","a:b:c"],"ok":{"valid":false,"error":"Invalid a:b:c: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a..b",":"],"ok":{"valid":false,"error":"Invalid :: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["hello world","line1\nline2  padded  "],"ok":{"valid":false,"error":"Invalid line1\nline2  padded  : must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a:b:ckey_name-1","name"],"ok":{"valid":false,"error":"Invalid name: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["line1\nline2",":"],"ok":{"valid":false,"error":"Invalid :: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["hello","abstraße"],"ok":{"valid":false,"error":"Invalid abstraße: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ΣΊΣΥΦΟΣ","emoji 👍🏽 mix"],"ok":{"valid":false,"error":"Invalid emoji 👍🏽 mix: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["日本語のテキストHELLO","trailing."],"ok":{"valid":false,"error":"Invalid trailing.: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a.b.cab","hello world😀"],"ok":{"valid":false,"error":"Invalid hello world😀: must be a UUID"}}
+{"fn":"validateUuidOrError","args":[":","a:b:c"],"ok":{"valid":false,"error":"Invalid a:b:c: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["Hello World","Hello W"],"ok":{"valid":false,"error":"Invalid Hello W: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["hello","l"],"ok":{"valid":false,"error":"Invalid l: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["éİstanbul","src/a/b.ts"],"ok":{"valid":false,"error":"Invalid src/a/b.ts: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ünïcödé","  padded  "],"ok":{"valid":false,"error":"Invalid   padded  : must be a UUID"}}
+{"fn":"validateUuidOrError","args":["./x/**/*.json","so"],"ok":{"valid":false,"error":"Invalid so: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ΣΊΣΥΦΟΣ","straße"],"ok":{"valid":false,"error":"Invalid straße: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["-1","key_name-1ab"],"ok":{"valid":false,"error":"Invalid key_name-1ab: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["hello world","😀"],"ok":{"valid":false,"error":"Invalid 😀: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["abHello World","😀"],"ok":{"valid":false,"error":"Invalid 😀: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a😀b😀c","😀"],"ok":{"valid":false,"error":"Invalid 😀: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ab","日本語のテキスト"],"ok":{"valid":false,"error":"Invalid 日本語のテキスト: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["﻿bom","﻿bo"],"ok":{"valid":false,"error":"Invalid ﻿bo: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["tab\tseparatedHELLO","hello"],"ok":{"valid":false,"error":"Invalid hello: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a/b.t","src/a/b.tsa..b"],"ok":{"valid":false,"error":"Invalid src/a/b.tsa..b: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["日本語のテキスト","line1\nline2a:b:c"],"ok":{"valid":false,"error":"Invalid line1\nline2a:b:c: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["straßeab","ns:key.path"],"ok":{"valid":false,"error":"Invalid ns:key.path: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["key_name-1","EY_N"],"ok":{"valid":false,"error":"Invalid EY_N: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ünïcödé","tab\tseparated"],"ok":{"valid":false,"error":"Invalid tab\tseparated: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["emoji 👍🏽 mix","HELLOabc"],"ok":{"valid":false,"error":"Invalid HELLOabc: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["HELLO","a.b.ca😀b😀c"],"ok":{"valid":false,"error":"Invalid a.b.ca😀b😀c: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["TAB\tSE","tab\tseparated"],"ok":{"valid":false,"error":"Invalid tab\tseparated: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["é","aHELLO"],"ok":{"valid":false,"error":"Invalid aHELLO: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["HELLO","ünïcödé"],"ok":{"valid":false,"error":"Invalid ünïcödé: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["hello","a..b"],"ok":{"valid":false,"error":"Invalid a..b: must be a UUID"}}
+{"fn":"validateUuidOrError","args":[".TS","src/a/b.ts"],"ok":{"valid":false,"error":"Invalid src/a/b.ts: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["hello worldns:key.path","﻿bom"],"ok":{"valid":false,"error":"Invalid ﻿bom: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["İstanbulİstanbul","abc"],"ok":{"valid":false,"error":"Invalid abc: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["straße﻿bom","  padded  "],"ok":{"valid":false,"error":"Invalid   padded  : must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ab","a:b:c"],"ok":{"valid":false,"error":"Invalid a:b:c: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["İstanbul","a:b:c"],"ok":{"valid":false,"error":"Invalid a:b:c: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["src/a/b.ts","abcHello World"],"ok":{"valid":false,"error":"Invalid abcHello World: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a:b:c","emoji 👍🏽 mix"],"ok":{"valid":false,"error":"Invalid emoji 👍🏽 mix: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["./x/**/*.json","﻿bom"],"ok":{"valid":false,"error":"Invalid ﻿bom: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["line1\nline2","{name} has {count} items"],"ok":{"valid":false,"error":"Invalid {name} has {count} items: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a..b",".b"],"ok":{"valid":false,"error":"Invalid .b: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["Hello World","ld"],"ok":{"valid":false,"error":"Invalid ld: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["straße","./x/**/*.json"],"ok":{"valid":false,"error":"Invalid ./x/**/*.json: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["😀","emoji 👍🏽 mix😀"],"ok":{"valid":false,"error":"Invalid emoji 👍🏽 mix😀: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["./x/**/*.json","/*.js"],"ok":{"valid":false,"error":"Invalid /*.js: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["{name} has {count} items","line1\nline2"],"ok":{"valid":false,"error":"Invalid line1\nline2: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["./x/**/*.json","é  padded  "],"ok":{"valid":false,"error":"Invalid é  padded  : must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ns:key.path","tab\tseparated"],"ok":{"valid":false,"error":"Invalid tab\tseparated: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["emoji 👍🏽 mixa..b","a😀b😀c"],"ok":{"valid":false,"error":"Invalid a😀b😀c: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["hello world","a:b:c"],"ok":{"valid":false,"error":"Invalid a:b:c: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ΣΊΣΥΦΟΣabc","﻿bom"],"ok":{"valid":false,"error":"Invalid ﻿bom: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["n","line1\nline2"],"ok":{"valid":false,"error":"Invalid line1\nline2: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["﻿bomstraße","a..b{name} has {count} items"],"ok":{"valid":false,"error":"Invalid a..b{name} has {count} items: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["tab\tseparated","b\t"],"ok":{"valid":false,"error":"Invalid b\t: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["hello world","o"],"ok":{"valid":false,"error":"Invalid o: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ns:key.pathhello world","日本語のテキストa:b:c"],"ok":{"valid":false,"error":"Invalid 日本語のテキストa:b:c: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ns:key.pathline1\nline2","é"],"ok":{"valid":false,"error":"Invalid é: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["line1\nline2","ab"],"ok":{"valid":false,"error":"Invalid ab: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["trailing.","a😀b😀c"],"ok":{"valid":false,"error":"Invalid a😀b😀c: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["aba😀b😀c","A"],"ok":{"valid":false,"error":"Invalid A: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["é","tab\tseparated"],"ok":{"valid":false,"error":"Invalid tab\tseparated: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["😀a😀b😀c","ünïcödé"],"ok":{"valid":false,"error":"Invalid ünïcödé: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["trailing.straße","line1\nline2"],"ok":{"valid":false,"error":"Invalid line1\nline2: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["́","é"],"ok":{"valid":false,"error":"Invalid é: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["キスト","日本語のテキスト"],"ok":{"valid":false,"error":"Invalid 日本語のテキスト: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["trailing.日本語のテキスト","G.日本語"],"ok":{"valid":false,"error":"Invalid G.日本語: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ünïcödé","d"],"ok":{"valid":false,"error":"Invalid d: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a:b:c","ΣΊΣΥΦΟΣ"],"ok":{"valid":false,"error":"Invalid ΣΊΣΥΦΟΣ: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["hello world","Hello World"],"ok":{"valid":false,"error":"Invalid Hello World: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a😀b😀c","B😀"],"ok":{"valid":false,"error":"Invalid B😀: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["./x/**/*.json  padded  ","ab"],"ok":{"valid":false,"error":"Invalid ab: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a:b:c",":"],"ok":{"valid":false,"error":"Invalid :: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a:b:c","tab\tseparatedhello world"],"ok":{"valid":false,"error":"Invalid tab\tseparatedhello world: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a😀b😀c﻿bom","Hello World"],"ok":{"valid":false,"error":"Invalid Hello World: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["trailing.",".leading"],"ok":{"valid":false,"error":"Invalid .leading: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a","a"],"ok":{"valid":false,"error":"Invalid a: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["Hello World","a"],"ok":{"valid":false,"error":"Invalid a: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d  ","  padded  "],"ok":{"valid":false,"error":"Invalid   padded  : must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ab","Hello World"],"ok":{"valid":false,"error":"Invalid Hello World: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["trailing.","Hello Worldabc"],"ok":{"valid":false,"error":"Invalid Hello Worldabc: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a.b.c",":"],"ok":{"valid":false,"error":"Invalid :: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["日本語のテキスト:","é"],"ok":{"valid":false,"error":"Invalid é: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a:b:c","c"],"ok":{"valid":false,"error":"Invalid c: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["日本語のテキスト","日本語のテキスト"],"ok":{"valid":false,"error":"Invalid 日本語のテキスト: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["héllo wörld","é"],"ok":{"valid":false,"error":"Invalid é: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["👍🏽 thumbs","é"],"ok":{"valid":false,"error":"Invalid é: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["日本語","é"],"ok":{"valid":false,"error":"Invalid é: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["","é"],"ok":{"valid":false,"error":"Invalid é: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["é","é"],"ok":{"valid":false,"error":"Invalid é: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["İstanbul","é"],"ok":{"valid":false,"error":"Invalid é: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["straße","é"],"ok":{"valid":false,"error":"Invalid é: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ılık ırmak","é"],"ok":{"valid":false,"error":"Invalid é: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["👨‍👩‍👧 family","é"],"ok":{"valid":false,"error":"Invalid é: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a b","é"],"ok":{"valid":false,"error":"Invalid é: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["ΣΊΣΥΦΟΣ","é"],"ok":{"valid":false,"error":"Invalid é: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a😀b","é"],"ok":{"valid":false,"error":"Invalid é: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["﻿bom","é"],"ok":{"valid":false,"error":"Invalid é: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a²b x½ y①","é"],"ok":{"valid":false,"error":"Invalid é: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["aⅠb Ⅻ","é"],"ok":{"valid":false,"error":"Invalid é: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["a𐐀b 𝐀bc","é"],"ok":{"valid":false,"error":"Invalid é: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["कि ٣٤","é"],"ok":{"valid":false,"error":"Invalid é: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["helloa:b:c","héllo wörld"],"ok":{"valid":false,"error":"Invalid héllo wörld: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["helloa:b:c","👍🏽 thumbs"],"ok":{"valid":false,"error":"Invalid 👍🏽 thumbs: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["helloa:b:c","日本語"],"ok":{"valid":false,"error":"Invalid 日本語: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["helloa:b:c",""],"ok":{"valid":false,"error":"Invalid : must be a UUID"}}
+{"fn":"validateUuidOrError","args":["helloa:b:c","İstanbul"],"ok":{"valid":false,"error":"Invalid İstanbul: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["helloa:b:c","straße"],"ok":{"valid":false,"error":"Invalid straße: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["helloa:b:c","ılık ırmak"],"ok":{"valid":false,"error":"Invalid ılık ırmak: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["helloa:b:c","👨‍👩‍👧 family"],"ok":{"valid":false,"error":"Invalid 👨‍👩‍👧 family: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["helloa:b:c","a b"],"ok":{"valid":false,"error":"Invalid a b: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["helloa:b:c","ΣΊΣΥΦΟΣ"],"ok":{"valid":false,"error":"Invalid ΣΊΣΥΦΟΣ: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["helloa:b:c","a😀b"],"ok":{"valid":false,"error":"Invalid a😀b: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["helloa:b:c","﻿bom"],"ok":{"valid":false,"error":"Invalid ﻿bom: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["helloa:b:c","a²b x½ y①"],"ok":{"valid":false,"error":"Invalid a²b x½ y①: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["helloa:b:c","aⅠb Ⅻ"],"ok":{"valid":false,"error":"Invalid aⅠb Ⅻ: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["helloa:b:c","a𐐀b 𝐀bc"],"ok":{"valid":false,"error":"Invalid a𐐀b 𝐀bc: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["helloa:b:c","कि ٣٤"],"ok":{"valid":false,"error":"Invalid कि ٣٤: must be a UUID"}}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-4918-964d-60f975548940"],"ok":true}
+{"fn":"isValidUuid","args":["D86F0E6C-AF67-4918-964D-60F975548940"],"ok":true}
+{"fn":"isValidUuid","args":["D86f0E6c-Af67-4918-964D-60F975548940"],"ok":true}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-0918-064d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-0918-764d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-0918-864d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-0918-964d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-0918-a64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-0918-b64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-0918-c64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-0918-d64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-0918-e64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-0918-f64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-1918-064d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-1918-764d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-1918-864d-60f975548940"],"ok":true}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-1918-964d-60f975548940"],"ok":true}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-1918-a64d-60f975548940"],"ok":true}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-1918-b64d-60f975548940"],"ok":true}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-1918-c64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-1918-d64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-1918-e64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-1918-f64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-2918-064d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-2918-764d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-2918-864d-60f975548940"],"ok":true}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-2918-964d-60f975548940"],"ok":true}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-2918-a64d-60f975548940"],"ok":true}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-2918-b64d-60f975548940"],"ok":true}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-2918-c64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-2918-d64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-2918-e64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-2918-f64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-3918-064d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-3918-764d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-3918-864d-60f975548940"],"ok":true}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-3918-964d-60f975548940"],"ok":true}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-3918-a64d-60f975548940"],"ok":true}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-3918-b64d-60f975548940"],"ok":true}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-3918-c64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-3918-d64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-3918-e64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-3918-f64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-4918-064d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-4918-764d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-4918-864d-60f975548940"],"ok":true}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-4918-964d-60f975548940"],"ok":true}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-4918-a64d-60f975548940"],"ok":true}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-4918-b64d-60f975548940"],"ok":true}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-4918-c64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-4918-d64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-4918-e64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-4918-f64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-5918-064d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-5918-764d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-5918-864d-60f975548940"],"ok":true}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-5918-964d-60f975548940"],"ok":true}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-5918-a64d-60f975548940"],"ok":true}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-5918-b64d-60f975548940"],"ok":true}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-5918-c64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-5918-d64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-5918-e64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-5918-f64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-6918-064d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-6918-764d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-6918-864d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-6918-964d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-6918-a64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-6918-b64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-6918-c64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-6918-d64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-6918-e64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-6918-f64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-7918-064d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-7918-764d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-7918-864d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-7918-964d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-7918-a64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-7918-b64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-7918-c64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-7918-d64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-7918-e64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-7918-f64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-8918-064d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-8918-764d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-8918-864d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-8918-964d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-8918-a64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-8918-b64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-8918-c64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-8918-d64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-8918-e64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-8918-f64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-9918-064d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-9918-764d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-9918-864d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-9918-964d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-9918-a64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-9918-b64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-9918-c64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-9918-d64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-9918-e64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-9918-f64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-a918-064d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-a918-764d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-a918-864d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-a918-964d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-a918-a64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-a918-b64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-a918-c64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-a918-d64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-a918-e64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-a918-f64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-b918-064d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-b918-764d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-b918-864d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-b918-964d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-b918-a64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-b918-b64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-b918-c64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-b918-d64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-b918-e64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-b918-f64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-c918-064d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-c918-764d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-c918-864d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-c918-964d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-c918-a64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-c918-b64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-c918-c64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-c918-d64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-c918-e64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-c918-f64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-d918-064d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-d918-764d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-d918-864d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-d918-964d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-d918-a64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-d918-b64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-d918-c64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-d918-d64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-d918-e64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-d918-f64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-e918-064d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-e918-764d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-e918-864d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-e918-964d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-e918-a64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-e918-b64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-e918-c64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-e918-d64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-e918-e64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-e918-f64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-f918-064d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-f918-764d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-f918-864d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-f918-964d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-f918-a64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-f918-b64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-f918-c64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-f918-d64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-f918-e64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-f918-f64d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["00000000-0000-0000-0000-000000000000"],"ok":false}
+{"fn":"isValidUuid","args":["ffffffff-ffff-5fff-bfff-ffffffffffff"],"ok":true}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-4918-964d-60f975548940\n"],"ok":false}
+{"fn":"isValidUuid","args":["\nd86f0e6c-af67-4918-964d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-4918-964d-60f975548940 "],"ok":false}
+{"fn":"isValidUuid","args":[" d86f0e6c-af67-4918-964d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["86f0e6c-af67-4918-964d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-4918-964d-60f9755489400"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6caf674918964d60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c_af67-4918-964d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["{d86f0e6c-af67-4918-964d-60f975548940}"],"ok":false}
+{"fn":"isValidUuid","args":["urn:uuid:d86f0e6c-af67-4918-964d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-gf67-4918-964d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["ｄ86f0e6c-af67-4918-964d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d８6f0e6c-af67-4918-964d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86K0e6c-af67-4918-964d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-4918-964d-60f97554894İ"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-٤918-964d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c‐af67‐4918‐964d‐60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":["d86f0e6c-af67-4918-964d-60f975548940‍"],"ok":false}
+{"fn":"isValidUuid","args":["﻿d86f0e6c-af67-4918-964d-60f975548940"],"ok":false}
+{"fn":"isValidUuid","args":[""],"ok":false}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-4918-964d-60f975548940","id"],"ok":{"valid":true}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-4918-964d-60f975548940","cueId"],"ok":{"valid":true}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-4918-964d-60f975548940","audioFileId"],"ok":{"valid":true}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-4918-964d-60f975548940","ünïcödé 🎵"],"ok":{"valid":true}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-4918-964d-60f975548940",""],"ok":{"valid":true}}
+{"fn":"validateUuidOrError","args":["D86F0E6C-AF67-4918-964D-60F975548940","id"],"ok":{"valid":true}}
+{"fn":"validateUuidOrError","args":["D86F0E6C-AF67-4918-964D-60F975548940","cueId"],"ok":{"valid":true}}
+{"fn":"validateUuidOrError","args":["D86F0E6C-AF67-4918-964D-60F975548940","audioFileId"],"ok":{"valid":true}}
+{"fn":"validateUuidOrError","args":["D86F0E6C-AF67-4918-964D-60F975548940","ünïcödé 🎵"],"ok":{"valid":true}}
+{"fn":"validateUuidOrError","args":["D86F0E6C-AF67-4918-964D-60F975548940",""],"ok":{"valid":true}}
+{"fn":"validateUuidOrError","args":["D86f0E6c-Af67-4918-964D-60F975548940","id"],"ok":{"valid":true}}
+{"fn":"validateUuidOrError","args":["D86f0E6c-Af67-4918-964D-60F975548940","cueId"],"ok":{"valid":true}}
+{"fn":"validateUuidOrError","args":["D86f0E6c-Af67-4918-964D-60F975548940","audioFileId"],"ok":{"valid":true}}
+{"fn":"validateUuidOrError","args":["D86f0E6c-Af67-4918-964D-60F975548940","ünïcödé 🎵"],"ok":{"valid":true}}
+{"fn":"validateUuidOrError","args":["D86f0E6c-Af67-4918-964D-60F975548940",""],"ok":{"valid":true}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-064d-60f975548940","id"],"ok":{"valid":false,"error":"Invalid id: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-064d-60f975548940","cueId"],"ok":{"valid":false,"error":"Invalid cueId: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-064d-60f975548940","audioFileId"],"ok":{"valid":false,"error":"Invalid audioFileId: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-064d-60f975548940","ünïcödé 🎵"],"ok":{"valid":false,"error":"Invalid ünïcödé 🎵: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-064d-60f975548940",""],"ok":{"valid":false,"error":"Invalid : must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-764d-60f975548940","id"],"ok":{"valid":false,"error":"Invalid id: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-764d-60f975548940","cueId"],"ok":{"valid":false,"error":"Invalid cueId: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-764d-60f975548940","audioFileId"],"ok":{"valid":false,"error":"Invalid audioFileId: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-764d-60f975548940","ünïcödé 🎵"],"ok":{"valid":false,"error":"Invalid ünïcödé 🎵: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-764d-60f975548940",""],"ok":{"valid":false,"error":"Invalid : must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-864d-60f975548940","id"],"ok":{"valid":false,"error":"Invalid id: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-864d-60f975548940","cueId"],"ok":{"valid":false,"error":"Invalid cueId: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-864d-60f975548940","audioFileId"],"ok":{"valid":false,"error":"Invalid audioFileId: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-864d-60f975548940","ünïcödé 🎵"],"ok":{"valid":false,"error":"Invalid ünïcödé 🎵: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-864d-60f975548940",""],"ok":{"valid":false,"error":"Invalid : must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-964d-60f975548940","id"],"ok":{"valid":false,"error":"Invalid id: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-964d-60f975548940","cueId"],"ok":{"valid":false,"error":"Invalid cueId: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-964d-60f975548940","audioFileId"],"ok":{"valid":false,"error":"Invalid audioFileId: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-964d-60f975548940","ünïcödé 🎵"],"ok":{"valid":false,"error":"Invalid ünïcödé 🎵: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-964d-60f975548940",""],"ok":{"valid":false,"error":"Invalid : must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-a64d-60f975548940","id"],"ok":{"valid":false,"error":"Invalid id: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-a64d-60f975548940","cueId"],"ok":{"valid":false,"error":"Invalid cueId: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-a64d-60f975548940","audioFileId"],"ok":{"valid":false,"error":"Invalid audioFileId: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-a64d-60f975548940","ünïcödé 🎵"],"ok":{"valid":false,"error":"Invalid ünïcödé 🎵: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-a64d-60f975548940",""],"ok":{"valid":false,"error":"Invalid : must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-b64d-60f975548940","id"],"ok":{"valid":false,"error":"Invalid id: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-b64d-60f975548940","cueId"],"ok":{"valid":false,"error":"Invalid cueId: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-b64d-60f975548940","audioFileId"],"ok":{"valid":false,"error":"Invalid audioFileId: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-b64d-60f975548940","ünïcödé 🎵"],"ok":{"valid":false,"error":"Invalid ünïcödé 🎵: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-b64d-60f975548940",""],"ok":{"valid":false,"error":"Invalid : must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-c64d-60f975548940","id"],"ok":{"valid":false,"error":"Invalid id: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-c64d-60f975548940","cueId"],"ok":{"valid":false,"error":"Invalid cueId: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-c64d-60f975548940","audioFileId"],"ok":{"valid":false,"error":"Invalid audioFileId: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-c64d-60f975548940","ünïcödé 🎵"],"ok":{"valid":false,"error":"Invalid ünïcödé 🎵: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-c64d-60f975548940",""],"ok":{"valid":false,"error":"Invalid : must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-d64d-60f975548940","id"],"ok":{"valid":false,"error":"Invalid id: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-d64d-60f975548940","cueId"],"ok":{"valid":false,"error":"Invalid cueId: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-d64d-60f975548940","audioFileId"],"ok":{"valid":false,"error":"Invalid audioFileId: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-d64d-60f975548940","ünïcödé 🎵"],"ok":{"valid":false,"error":"Invalid ünïcödé 🎵: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-d64d-60f975548940",""],"ok":{"valid":false,"error":"Invalid : must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-e64d-60f975548940","id"],"ok":{"valid":false,"error":"Invalid id: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-e64d-60f975548940","cueId"],"ok":{"valid":false,"error":"Invalid cueId: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-e64d-60f975548940","audioFileId"],"ok":{"valid":false,"error":"Invalid audioFileId: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-e64d-60f975548940","ünïcödé 🎵"],"ok":{"valid":false,"error":"Invalid ünïcödé 🎵: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["d86f0e6c-af67-0918-e64d-60f975548940",""],"ok":{"valid":false,"error":"Invalid : must be a UUID"}}
+{"fn":"validateUuidOrError","args":["nope","id"],"ok":{"valid":false,"error":"Invalid id: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["nope","cueId"],"ok":{"valid":false,"error":"Invalid cueId: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["nope","Zażółć 🎵"],"ok":{"valid":false,"error":"Invalid Zażółć 🎵: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["nope","a\nb"],"ok":{"valid":false,"error":"Invalid a\nb: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["nope","$&"],"ok":{"valid":false,"error":"Invalid $&: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["nope","${x}"],"ok":{"valid":false,"error":"Invalid ${x}: must be a UUID"}}
+{"fn":"validateUuidOrError","args":["nope",""],"ok":{"valid":false,"error":"Invalid : must be a UUID"}}

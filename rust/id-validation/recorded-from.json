@@ -1,0 +1,23 @@
+{
+  "unit": "rust/shims/id-validation/",
+  "files": 1,
+  "fingerprint": "8ea2f9ebf0d29809",
+  "coverage": {
+    "lines": 36,
+    "reached": 26,
+    "files": [
+      {
+        "file": "rust/shims/id-validation/index.ts",
+        "lines": 11,
+        "reached": 11,
+        "missed": ""
+      },
+      {
+        "file": "src/backend/utils/idValidation.js",
+        "lines": 25,
+        "reached": 15,
+        "missed": "14-23"
+      }
+    ]
+  }
+}
