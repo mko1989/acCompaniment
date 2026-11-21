@@ -17,3 +17,5 @@ work orders" in [CLAUDE.md](../CLAUDE.md) for the workflow and template.
 | [WO-010](WO-010-recordings-deleted-by-playwright.md) | Loopback suite recordings are deleted by the next Playwright run | Low | Done | - |
 | [WO-011](WO-011-cross-built-installers-ship-mac-rtaudio.md) | Windows and Linux installers built on a Mac contain the macOS audio engine binary | Critical | Done | - |
 | [WO-012](WO-012-windows-no-audio-devices-abort.md) | On Windows with no audio devices, probing devices aborts the process | High | Open | Pursue? (needs Windows) |
+| [WO-013](WO-013-shutdown-waits-for-websocket-clients.md) | Shutdown stalls and ends in SIGKILL while a WebSocket client is connected | Low | Awaiting decision | Option 1 or 2 |
+| [WO-014](WO-014-tests-read-voices-before-mixer-reports.md) | Smoke tests read the mixer's voices before the worker has reported them (intermittent failure) | Low | Awaiting decision | Option 1 or 2 |

@@ -1,0 +1,55 @@
+# WO-013: Shutdown stalls and ends in SIGKILL while a WebSocket client is connected
+
+| | |
+|---|---|
+| Status | Awaiting decision |
+| Severity | Low |
+| Feature | Server shutdown (quit from the tray, SIGTERM/SIGINT) |
+| Opened | 2026-11-21, by Claude (found by the HTTP/WebSocket research for the Rust port, `rust/research/http-websocket.md`) |
+| Reproduction test | `test/shutdown.test.js` - "SIGTERM with a WebSocket client connected exits promptly with code 0" |
+| Related | - |
+
+## Feature
+On SIGTERM or SIGINT the server cleans up (saves state, stops playback, releases the audio
+device), closes the HTTP server and exits with code 0. The Electron launcher sends SIGTERM when
+the app quits and waits up to 5 s before force-killing the server.
+
+## Problem
+With any WebSocket client connected (the browser UI, the remote page, Companion), the server
+never finishes closing. `stop()` calls `this.server.close(...)` (`server.js:250`ff), which waits
+for every open connection to end, and nothing closes the WebSocket connections: the `ws` server
+is never closed and its clients are never terminated. The exit only comes from a force-kill:
+
+- run on its own: the 10 s timer in `stop()` fires and the server SIGKILLs itself
+  (`forceExit()`, `server.js:293`); the reproduction test sees `{ code: null, signal: 'SIGKILL' }`
+  after about 11 s;
+- under the launcher: quitting the app stalls for 5 s, then the launcher SIGKILLs the server
+  (`electron-launcher/main.js:590`).
+
+State is not lost: `cueManager.cleanup()` runs before `server.close()`. What the user sees is a
+5 s stall on quit whenever the UI is open, which is nearly always.
+
+## Proposed solution
+In `stop()`, after `cueManager.cleanup()`, close the WebSocket side before `server.close()`:
+terminate every client in `this.wss.clients` (or close them with code 1001 "going away" and
+terminate after a short grace period), call `this.wss.close()`, and call
+`this.server.closeAllConnections()` for idle keep-alive HTTP connections.
+
+Options:
+1. **Terminate clients immediately** (recommended): simplest; the UI already reconnects on its
+   own when the server comes back.
+2. Send close 1001 and wait up to ~500 ms for clients to close, then terminate: friendlier to
+   clients, slightly slower quit.
+
+Acceptance: the reproduction test passes (exit code 0 within 5 s with a client connected); the
+existing shutdown tests still pass.
+
+The Rust port must do the same on shutdown (axum's graceful shutdown does not track upgraded
+WebSocket connections; see `rust/research/http-websocket.md`).
+
+## What has been done
+- 2026-11-21: reproduced with the test above (marked `todo`): SIGKILL after ~11 s instead of exit
+  code 0. Checked the launcher's side (5 s, then SIGKILL).
+
+## Decision
+Pending. The owner said on 2026-11-21 that open decisions are taken later.
