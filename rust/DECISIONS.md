@@ -100,3 +100,26 @@ by the core when Wave B ports it (MAP.md).
 Consequences: generated inputs follow the shim's types; add real inputs with `record --inputs`.
 Shim types must be as wide as the original's callers use (a value the shim's type excludes is
 never recorded).
+
+## ADR-015: How Wave B is built and measured
+Status: accepted (2026-11-21), a technical choice made by Claude when the owner said "start b";
+the owner may revisit
+Context: every route shares the same cue, playback and file state, so the core can't be wired
+route by route through the front door (MAP.md, Wave B). It has to grow in Rust beside the proxy and
+switch over at once.
+Decision:
+- The core lives in `rust/app/src/core/` (one module per original manager), and uses the Wave A
+  ports' `port.rs` code directly (no napi in the app binary).
+- A development switch: `ACCOMPANIMENT_CORE=rust` makes the binary serve everything from the Rust
+  core and not start Node; without it, the front door proxies to Node as before. Progress is the
+  replay pass rate with the switch on:
+  `rust-anything app replay . --build "env ACCOMPANIMENT_CORE=rust rust/app/target/release/accompaniment"`.
+- Stages, in order, each its own checkpoint report: B1 data layer (files, config, library, cue
+  data, bundles), B3 cue engine (against an `AudioEngine` trait with a silent engine), B2 routes and
+  WebSocket, B4 audio engine (cpal + symphonia; needs the owner's audio decisions first).
+- The core reproduces the original as recorded, including the open work orders' bugs (WO-013 to
+  WO-020), until the owner decides each; a fix then goes into both the Node app and the core.
+- When replay with the switch on is 100% and the node:test and Playwright suites pass against it,
+  `app wire --route '*'` makes the core the default, with the kill switch back to Node until the
+  lift.
+Consequences: the fallback rate stays 100% until the switch-over, then drops to 0 in one step.

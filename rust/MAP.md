@@ -15,7 +15,7 @@ Read first: [DECISIONS.md](DECISIONS.md) (ADR index below), [GLOSSARY.md](GLOSSA
 005 equivalence bar (key order and error text free) · 006 same on-disk formats ·
 007 cpal + symphonia · 008 Tauri launcher · 009 targets · 010 checkpoints · 011 branch and cutover ·
 012 record quietly · 013 Spotify cue creation answers 400 (proposed) ·
-014 CommonJS units bridged through typed shims
+014 CommonJS units bridged through typed shims · 015 how Wave B is built and measured
 
 ## Proof
 
@@ -48,7 +48,7 @@ cannot be proxied route by route. Built in stages inside `rust/app`, switched ov
 
 | Stage | Covers | State |
 | --- | --- | --- |
-| B1 data layer | pathManager, appConfigManager, atomicWrite, mediaLibrary IO, cueDataManager, projectBundle, audioFileManager (metadata) | open |
+| B1 data layer | pathManager, appConfigManager, atomicWrite, mediaLibrary IO, cueDataManager, projectBundle, audioFileManager (metadata) | claimed by session ce56df02 2026-11-21 (subagent) |
 | B2 server | server.js, routes/*, middleware, websocketManager, static UI | open |
 | B3 cue engine | cueManager (triggers, retrigger, fades, ducking, playlists, crossfade) | open |
 | B4 audio engine | audioPlaybackManager, workerMixer, audioEngineWorker, audioDecoder, pcmCache on cpal + symphonia | open |
