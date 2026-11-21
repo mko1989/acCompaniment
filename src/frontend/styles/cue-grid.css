@@ -423,24 +423,3 @@
     font-size: 0.9em;
     line-height: 1.4;
 }
-
-
-/* Plays from Spotify (through a Spotify player, not the audio engine) */
-.cue-button[data-cue-type="spotify"] {
-    border-color: rgba(29, 185, 84, 0.6);
-}
-.cue-source-badge {
-    position: absolute;
-    top: 5px;
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 0 5px;
-    border-radius: 3px;
-    font-size: 9px;
-    font-weight: bold;
-    letter-spacing: 0.5px;
-    line-height: 14px;
-    color: #fff;
-    background-color: rgba(29, 185, 84, 0.85);
-    pointer-events: none;
-}

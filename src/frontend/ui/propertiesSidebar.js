@@ -25,7 +25,6 @@ import {
     deleteCueProperties,
     populateFormWithCueData
 } from './propertiesSidebarForm.js';
-import { initSpotifyFields, applySpotifyLink } from './propertiesSidebarSpotify.js';
 import { 
     initEventHandlers, 
     bindPropertiesSidebarEventListeners,
@@ -66,7 +65,6 @@ function initPropertiesSidebar(csModule, acModule, websocketAPI, uiCoreInterface
     // Initialize all modules
     initFormManager(cueStore, audioController, uiCore);
     initPlaylistManager(debouncedSaveCueProperties, websocketBindingsModule);
-    initSpotifyFields(cueStore, () => activePropertiesCueId, debouncedSaveCueProperties);
     
     // Get DOM elements for event handlers
     const domElements = {
@@ -179,7 +177,7 @@ function updateReplaceFileButton(cue) {
     const status = document.getElementById('replaceCueFileStatus');
     if (status) status.textContent = '';
     if (button) {
-        const hasFile = cue && cue.type !== 'playlist' && cue.type !== 'spotify' && Boolean(cue.audioFileId);
+        const hasFile = cue && cue.type !== 'playlist' && Boolean(cue.audioFileId);
         button.style.display = hasFile ? '' : 'none';
     }
 }
@@ -336,14 +334,6 @@ async function setFilePathInProperties(audioFile) {
     return Boolean(result?.success);
 }
 
-// A Spotify link dropped onto the sidebar of an open Spotify cue.
-async function setSpotifyLinkInProperties(link) {
-    const activeCue = activePropertiesCueId ? cueStore.getCueById(activePropertiesCueId) : null;
-    if (!activeCue || activeCue.type !== 'spotify') return false;
-    const input = document.getElementById('propSpotifyLink');
-    if (input) input.value = link;
-    return applySpotifyLink(link);
-}
 
 function handleCuePropertyChangeFromWaveform(trimStart, trimEnd) {
     if (!activePropertiesCueId) return;
@@ -413,7 +403,6 @@ export {
     getActivePropertiesCueId,
     refreshPlaylistPropertiesView,
     setFilePathInProperties,
-    setSpotifyLinkInProperties,
     handleCuePropertyChangeFromWaveform,
     highlightPlayingPlaylistItemInSidebarWrapper as highlightPlayingPlaylistItemInSidebar,
     handleSaveCueProperties,

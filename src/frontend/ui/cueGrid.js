@@ -24,16 +24,12 @@ const RETRIGGER_BADGE_INFO = {
     play_next_item: { key: 'next-item', glyph: '⏭', label: 'Play Next Item' },
 };
 
-// Spotify cues that play a playlist (album, ...) rather than one track.
-const SPOTIFY_CONTEXT_TYPES = ['playlist', 'album', 'artist', 'show'];
-
 function hasPlaylistNavigation(cue) {
-    if (cue.type === 'spotify') return SPOTIFY_CONTEXT_TYPES.includes(cue.spotifyType);
     return cue.type === 'playlist' && cue.playlistItems && cue.playlistItems.length > 1;
 }
 
 // Shows a playing track's name (and the "now/next" item names); names come
-// from files and from Spotify, so they're text, not markup.
+// from files, so they're text, not markup.
 function escapeHtml(text) {
     return String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
@@ -134,7 +130,7 @@ function renderCues() {
         emptyStateMessage.innerHTML = `
             <div class="empty-state-content">
                 <h3>No cues yet</h3>
-                <p>Drag and drop audio files here to create cues - or a track or playlist from Spotify</p>
+                <p>Drag and drop audio files here to create cues</p>
             </div>
         `;
         cueGridContainer.appendChild(emptyStateMessage);
@@ -173,13 +169,6 @@ function renderCues() {
         retriggerBadge.classList.add(`cue-retrigger-badge-${retriggerInfo.key}`);
         button.appendChild(retriggerBadge);
 
-        if (cue.type === 'spotify') {
-            const sourceBadge = document.createElement('div');
-            sourceBadge.className = 'cue-source-badge';
-            sourceBadge.textContent = 'SPOTIFY';
-            sourceBadge.title = 'Plays from Spotify';
-            button.appendChild(sourceBadge);
-        }
 
         const nameContainer = document.createElement('div');
         nameContainer.className = 'cue-button-name-container';
@@ -521,8 +510,7 @@ function renderCues() {
     }
 }
 
-// A drag from outside the grid - files, or a link from the Spotify app - as
-// opposed to a cue button being dragged to reorder it.
+// A drag from outside the grid - files - as opposed to a cue button being dragged to reorder it.
 function isExternalDrag(event) {
     return Array.from(event.dataTransfer?.types || []).includes('Files')
         || !document.querySelector('.cue-wrapper.dragging-cue');
@@ -652,7 +640,7 @@ function updateButtonPlayingState(cueId, isPlaying, statusTextArg = null, isCued
         const actualIsCued = isCuedOverride || playbackState.isCued;
         const currentItemName = playbackState.currentPlaylistItemName && escapeHtml(playbackState.currentPlaylistItemName);
         const nextItemName = playbackState.nextPlaylistItemName && escapeHtml(playbackState.nextPlaylistItemName);
-        const showsItems = cue.type === 'playlist' || cue.type === 'spotify';
+        const showsItems = cue.type === 'playlist';
         
         let playlistInfoHTML = ''; // Initialize playlistInfoHTML here
 

@@ -58,6 +58,14 @@ function moveTrimOnTypeChange(previous, cue, updates) {
     return cue;
 }
 
+// Spotify was removed (ADR-003 in rust/DECISIONS.md). Spotify cues in saved
+// projects are kept in the file exactly as they were, but the app never
+// loads them: they're held aside per project (hiddenCues) and written back
+// in their place among the project's other cues.
+function isHiddenCue(cue) {
+    return Boolean(cue) && cue.type === 'spotify';
+}
+
 function normalizeCueFieldAliases(data) {
     if (!data || typeof data !== 'object') {
         return data;
@@ -83,6 +91,7 @@ class CueDataManager {
         
         this.currentWorkspace = null;
         this.cues = [];
+        this.hiddenCues = new Map(); // project id -> its Spotify cues, as read
         this._saveQueue = Promise.resolve();
         
         this.ensureDirectories();
@@ -237,6 +246,48 @@ class CueDataManager {
     getCues() {
         return [...this.cues];
     }
+
+    // Splits a project's cues as read from its file: the Spotify ones are
+    // held aside, unchanged, for when the project is written again - each
+    // with the ids of the visible cues before it in the file, nearest first,
+    // so it can go back in the same place.
+    _takeHiddenCues(workspaceId, cues) {
+        const list = Array.isArray(cues) ? cues : [];
+        const hidden = [];
+        const visible = [];
+        for (const cue of list) {
+            if (isHiddenCue(cue)) {
+                hidden.push({ cue, after: visible.map((c) => c.id).reverse() });
+            } else {
+                visible.push(cue);
+            }
+        }
+        if (hidden.length > 0) this.hiddenCues.set(workspaceId, hidden);
+        else this.hiddenCues.delete(workspaceId);
+        return visible;
+    }
+
+    // The project as it is written to disk or into a bundle: its cues with
+    // the Spotify cues it had when read put back - each right after the
+    // nearest cue that preceded it in the file and still exists, or first
+    // if none does.
+    withHiddenCues(workspace) {
+        const hidden = this.hiddenCues.get(workspace.id);
+        if (!hidden) return workspace;
+        const visible = workspace.cues || [];
+        const ids = new Set(visible.map((cue) => cue.id));
+        const byAnchor = new Map(); // visible cue id (null: first) -> hidden cues after it
+        for (const { cue, after } of hidden) {
+            const anchor = after.find((id) => ids.has(id)) ?? null;
+            if (!byAnchor.has(anchor)) byAnchor.set(anchor, []);
+            byAnchor.get(anchor).push(cue);
+        }
+        const cues = [...(byAnchor.get(null) || [])];
+        for (const cue of visible) {
+            cues.push(cue, ...(byAnchor.get(cue.id) || []));
+        }
+        return { ...workspace, cues };
+    }
     
     /**
      * Remove provably-empty workspace files (0 bytes, whitespace-only, or missing id).
@@ -297,7 +348,7 @@ class CueDataManager {
             id: uuidv4(),
             name: name || 'New Workspace',
             description: description,
-            cues: (options.cues || []).map((cue) => this.validateCue(cue)),
+            cues: [],
             layout: options.layout || {
                 gridColumns: 4,
                 gridRows: 4,
@@ -306,9 +357,10 @@ class CueDataManager {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
         };
+        workspace.cues = this._takeHiddenCues(workspace.id, options.cues).map((cue) => this.validateCue(cue));
         
         const workspacePath = path.join(this.workspacesDir, `${workspace.id}.json`);
-        await writeJsonAtomic(workspacePath, workspace);
+        await writeJsonAtomic(workspacePath, this.withHiddenCues(workspace));
         
         if (setAsCurrent) {
             this.currentWorkspace = workspace;
@@ -326,7 +378,7 @@ class CueDataManager {
             await this.createBackup(workspacePath);
         }
 
-        await writeJsonAtomic(workspacePath, workspace);
+        await writeJsonAtomic(workspacePath, this.withHiddenCues(workspace));
         return workspacePath;
     }
     
@@ -387,7 +439,7 @@ class CueDataManager {
             }
 
             const workspace = JSON.parse(workspaceData);
-            workspace.cues = (workspace.cues || []).map(cue => this.validateCue(cue));
+            workspace.cues = this._takeHiddenCues(workspaceId, workspace.cues).map(cue => this.validateCue(cue));
 
             return { success: true, workspace };
         } catch (error) {
@@ -414,7 +466,8 @@ class CueDataManager {
         };
 
         if (updates.cues) {
-            workspace.cues = updates.cues.map(cue => this.validateCue(cue));
+            // Spotify cues can't be added this way (ADR-003).
+            workspace.cues = updates.cues.filter((cue) => !isHiddenCue(cue)).map(cue => this.validateCue(cue));
         }
 
         await this._writeWorkspaceToDisk(workspace);
@@ -470,8 +523,11 @@ class CueDataManager {
                             continue;
                         }
 
-                        if (!includeCues) {
-                            workspace.cueCount = Array.isArray(workspace.cues) ? workspace.cues.length : 0;
+                        const cues = Array.isArray(workspace.cues) ? workspace.cues.filter((cue) => !isHiddenCue(cue)) : [];
+                        if (includeCues) {
+                            workspace.cues = cues;
+                        } else {
+                            workspace.cueCount = cues.length;
                             delete workspace.cues;
                         }
                         
@@ -520,6 +576,7 @@ class CueDataManager {
             
             await this.createBackup(workspacePath);
             await fs.remove(workspacePath);
+            this.hiddenCues.delete(workspaceId);
             
             if (this.currentWorkspace?.id === workspaceId) {
                 this.currentWorkspace = null;
@@ -625,7 +682,7 @@ class CueDataManager {
             }
 
             const exportData = {
-                ...readResult.workspace,
+                ...this.withHiddenCues(readResult.workspace),
                 exportedAt: new Date().toISOString(),
                 includeAudioFiles: includeAudioFiles
             };
@@ -709,10 +766,10 @@ class CueDataManager {
             
             workspace.id = uuidv4();
             workspace.importedAt = new Date().toISOString();
-            workspace.cues = workspace.cues.map(cue => this.validateCue(cue));
+            workspace.cues = this._takeHiddenCues(workspace.id, workspace.cues).map(cue => this.validateCue(cue));
             
             const workspacePath = path.join(this.workspacesDir, `${workspace.id}.json`);
-            await writeJsonAtomic(workspacePath, workspace);
+            await writeJsonAtomic(workspacePath, this.withHiddenCues(workspace));
             
             console.log(`CueDataManager: Imported workspace: ${workspace.name} (${workspace.id})`);
             return { success: true, workspace };

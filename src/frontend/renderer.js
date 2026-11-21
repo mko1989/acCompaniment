@@ -10,7 +10,6 @@ import * as dragDropHandler from './dragDropHandler.js';
 import * as ui from './ui.js';
 import * as appConfigUI from './ui/appConfigUI.js';
 import * as waveformControls from './ui/waveformControls.js';
-import * as spotifySettings from './ui/spotifySettings.js';
 import { showErrorBanner } from './ui/errorBanner.js';
 // import * as sidebars from './ui/propertiesSidebar.js'; // TODO: Port this
 
@@ -132,7 +131,6 @@ function handleWebSocketMessage(data) {
                     voiceCount: data.payload.voiceCount,
                     playlistIndex: data.payload.playlistIndex,
                     nextPlaylistIndex: data.payload.nextPlaylistIndex,
-                    nowPlaying: data.payload.nowPlaying,
                 });
             }
             if (data.payload && window.ui && typeof window.ui.updateCueButtonTimeDisplay === 'function') {
@@ -165,15 +163,6 @@ function handleWebSocketMessage(data) {
             // mid-show). Playback may have silently stopped producing
             // sound - surface it instead of leaving the operator guessing.
             showErrorBanner(`Audio engine error: ${data.payload?.message || 'Unknown audio engine error'}`);
-            break;
-
-        case 'spotify-error':
-            // A Spotify cue couldn't play (no player open, no Premium, ...).
-            showErrorBanner(data.payload?.message || 'Spotify error');
-            break;
-
-        case 'spotify-status':
-            spotifySettings.applyStatus(data.payload);
             break;
 
         default:
@@ -313,7 +302,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('Renderer: Initializing AppConfigUI...');
         const initialAppConfig = await appConfigUI.init(websocketBindings);
         console.log('Renderer: AppConfigUI initialized. Received config:', initialAppConfig);
-        await spotifySettings.init();
 
         // 3. Initialize Main UI module (which also initializes its sub-modules: cueGrid, sidebars, modals)
         console.log('Renderer: Initializing Main UI Module (ui.js)...');

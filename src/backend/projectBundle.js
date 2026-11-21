@@ -28,7 +28,8 @@ function audioReferences(cues) {
         if (cue.type === 'playlist') {
             for (const item of cue.playlistItems || []) refs.push(item);
         } else if (cue.type === 'spotify') {
-            // Plays from Spotify - any file it had as another type isn't used.
+            // Kept in the project unchanged, never played (ADR-003 in
+            // rust/DECISIONS.md) - any file it had as another type isn't used.
         } else if (cue.audioFileId || cue.relativePath) {
             refs.push(cue);
         }

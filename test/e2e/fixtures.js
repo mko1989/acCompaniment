@@ -56,8 +56,7 @@ async function json(baseURL, method, urlPath, body) {
 }
 
 const test = base.test.extend({
-    // Extra environment for the worker's server; a spec can override this
-    // (spotify.spec.js points it at a fake Spotify).
+    // Extra environment for the worker's server; a spec can override this.
     serverEnv: [async ({}, use) => {
         await use({});
     }, { scope: 'worker' }],

@@ -4,7 +4,6 @@
  */
 
 import { formatWaveformTime } from './waveformControls.js';
-import { setSpotifyFieldsVisible, populateSpotifyFields, readSpotifyFields } from './propertiesSidebarSpotify.js';
 import { 
     normalizeTrimValues, 
     validateCueName, 
@@ -135,8 +134,6 @@ function collectFormData(activePropertiesCueId, domElements, stagedPlaylistItems
         activePropertiesCueId
     );
 
-    const selectedType = domElements.propCueTypeSelect ? domElements.propCueTypeSelect.value : existingCue.type;
-
     const formData = {
         id: activePropertiesCueId,
         name: cueName,
@@ -165,7 +162,6 @@ function collectFormData(activePropertiesCueId, domElements, stagedPlaylistItems
         shufflePlaylist: (domElements.propCueTypeSelect && domElements.propCueTypeSelect.value === 'playlist' && domElements.propShufflePlaylistCheckbox) 
             ? domElements.propShufflePlaylistCheckbox.checked 
             : existingCue.shufflePlaylist,
-        ...(selectedType === 'spotify' ? readSpotifyFields() : {}),
         repeatOnePlaylistItem: (domElements.propCueTypeSelect && domElements.propCueTypeSelect.value === 'playlist' && domElements.propRepeatOnePlaylistItemCheckbox) 
             ? domElements.propRepeatOnePlaylistItemCheckbox.checked 
             : existingCue.repeatOnePlaylistItem,
@@ -264,15 +260,12 @@ function populateFormWithCueData(cue, domElements, setStagedPlaylistItems, rende
     if(domElements.propCueTypeSelect) domElements.propCueTypeSelect.value = cue.type || 'single';
     
     const isPlaylist = cue.type === 'playlist';
-    const isSpotify = cue.type === 'spotify';
     if(domElements.propPlaylistConfigDiv) domElements.propPlaylistConfigDiv.style.display = isPlaylist ? 'block' : 'none';
-    if(domElements.propSingleFileConfigDiv) domElements.propSingleFileConfigDiv.style.display = (isPlaylist || isSpotify) ? 'none' : 'block';
-    setSpotifyFieldsVisible(isSpotify);
-    if (isSpotify) populateSpotifyFields(cue);
+    if(domElements.propSingleFileConfigDiv) domElements.propSingleFileConfigDiv.style.display = isPlaylist ? 'none' : 'block';
     const playlistSpecificControls = document.getElementById('playlistSpecificControls');
     if (playlistSpecificControls) playlistSpecificControls.style.display = isPlaylist ? 'block' : 'none';
     const waveformDisplayContainer = document.getElementById('waveformDisplay');
-    if (waveformDisplayContainer) waveformDisplayContainer.style.display = (isPlaylist || isSpotify) ? 'none' : 'block';
+    if (waveformDisplayContainer) waveformDisplayContainer.style.display = isPlaylist ? 'none' : 'block';
 
     if (isPlaylist) {
         if(domElements.propFilePathInput) domElements.propFilePathInput.value = '';
@@ -289,7 +282,7 @@ function populateFormWithCueData(cue, domElements, setStagedPlaylistItems, rende
         currentWaveformTrimStart = cue.trimStartTime || 0;
         // Keep undefined/null if not explicitly set so waveform shows full length
         currentWaveformTrimEnd = (cue.trimEndTime !== undefined && cue.trimEndTime !== null) ? cue.trimEndTime : undefined;
-        if (cue.filePath && !isSpotify) {
+        if (cue.filePath) {
             showWaveformForCue(cue);
         }
     }
@@ -323,7 +316,7 @@ function populateFormWithCueData(cue, domElements, setStagedPlaylistItems, rende
         updateDuckingControlsVisibility(domElements.propIsDuckingTriggerCheckbox.checked);
     }
 
-    if (domElements.propTrimConfig && !isPlaylist && !isSpotify) {
+    if (domElements.propTrimConfig && !isPlaylist) {
         domElements.propTrimConfig.style.display = 'block';
         if (domElements.propTrimStartTimeInput) domElements.propTrimStartTimeInput.value = formatWaveformTime(cue.trimStartTime || 0);
         if (domElements.propTrimEndTimeInput) domElements.propTrimEndTimeInput.value = (cue.trimEndTime !== undefined && cue.trimEndTime !== null) ? formatWaveformTime(cue.trimEndTime) : 'End';
@@ -332,8 +325,6 @@ function populateFormWithCueData(cue, domElements, setStagedPlaylistItems, rende
     }
 
     updateOutputPatchVisibility(domElements, appConfig);
-    // Spotify plays out of the Spotify player, not these outputs.
-    if (isSpotify && domElements.propOutputPatchGroup) domElements.propOutputPatchGroup.style.display = 'none';
     const patch = normalizeOutputPatch(cue.outputPatch, appConfig.audioOutputChannelCount || 2);
     if (domElements.propOutputPatchLeft) domElements.propOutputPatchLeft.value = String(patch[0]);
     if (domElements.propOutputPatchRight) domElements.propOutputPatchRight.value = String(patch[1]);

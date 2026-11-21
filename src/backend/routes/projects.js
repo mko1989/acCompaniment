@@ -132,7 +132,7 @@ router.get('/:id/bundle', async (req, res) => {
 
         res.setHeader('Content-Type', 'application/zip');
         res.setHeader('Content-Disposition', contentDisposition(read.workspace.name));
-        await writeBundle(read.workspace, res, async (ref) => {
+        await writeBundle(cueDataManager.withHiddenCues(read.workspace), res, async (ref) => {
             return (ref.audioFileId && await audioFileManager.loadAudioFileMetadata(ref.audioFileId))
                 || (ref.relativePath && await audioFileManager.getAudioFileByPath(ref.relativePath))
                 || null;

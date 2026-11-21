@@ -2,8 +2,6 @@
 // Manages global drag and drop functionality.
 // Adapted from Electron version to work in browser environment.
 
-import { spotifyLinksFromDataTransfer, findSpotifyLinks } from './spotifyCues.js';
-
 let uiRef;
 let cueStoreRef; // May not be strictly needed if uiRef handles all cue data interactions
 let appConfigUIRef; // For accessing app config defaults
@@ -27,20 +25,6 @@ function setupGlobalDragDropListeners() {
     // the window, which left the overlay up after a drop on them.
     window.addEventListener('drop', hideOverlay, true);
     window.addEventListener('dragend', hideOverlay, true);
-    window.addEventListener('paste', handlePaste);
-}
-
-// A Spotify link pasted anywhere but a text field becomes a cue.
-function handlePaste(event) {
-    const target = event.target;
-    if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) {
-        return;
-    }
-    const links = findSpotifyLinks(event.clipboardData?.getData('text/plain'));
-    if (links.length > 0 && uiRef && typeof uiRef.handleSpotifyLinkDrop === 'function') {
-        event.preventDefault();
-        uiRef.handleSpotifyLinkDrop(links, document.getElementById('cueGridContainer'));
-    }
 }
 
 function hideOverlay() {
@@ -54,11 +38,10 @@ function handleDragOver(event) {
     // e.g., event.target.classList.add('drag-over-active');
     // However, ui.js might handle more specific drop-target highlighting.
     // General indication that a drag is in progress on the window can be useful.
-    // Only a drag carrying files (or a link - from the Spotify app, say)
-    // gets the "drop here" overlay - dragging a cue button to reorder the
-    // grid fires dragover here too.
+    // Only a drag carrying files gets the "drop audio files here" overlay -
+    // dragging a cue button to reorder the grid fires dragover here too.
     const types = event.dataTransfer ? Array.from(event.dataTransfer.types || []) : [];
-    if (types.includes('Files') || types.includes('text/uri-list')) {
+    if (types.includes('Files')) {
         document.body.classList.add('app-drag-over');
     }
 }
@@ -112,12 +95,7 @@ async function handleDrop(event) {
                 await handleMultipleFileDropDirect(fileArray);
             }
         } else {
-            const links = spotifyLinksFromDataTransfer(event.dataTransfer);
-            if (links.length > 0 && uiRef && typeof uiRef.handleSpotifyLinkDrop === 'function') {
-                await uiRef.handleSpotifyLinkDrop(links, dropTargetElement);
-            } else {
-                console.log('DragDropHandler: Drop event with no files.');
-            }
+            console.log('DragDropHandler: Drop event with no files.');
         }
     } catch (error) {
         console.error('DragDropHandler: Error handling drop event:', error);
@@ -277,7 +255,6 @@ function destroy() {
     window.removeEventListener('drop', handleDrop);
     window.removeEventListener('drop', hideOverlay, true);
     window.removeEventListener('dragend', hideOverlay, true);
-    window.removeEventListener('paste', handlePaste);
     document.body.classList.remove('app-drag-over');
     console.log('DragDropHandler Destroyed');
 }

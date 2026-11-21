@@ -11,7 +11,6 @@ const os = require('os');
 // before any of the class-level error handling below even runs. Catch it
 // and fail with a clear message instead of a raw native-addon stack trace.
 let AudioFileManager, CueDataManager, PathManager, AppConfigManager, WebSocketManager, CueManager, migrateLibrary;
-let SpotifyClient, SpotifyPlayer;
 try {
     AudioFileManager = require('./src/backend/audioFileManager');
     CueDataManager = require('./src/backend/cueDataManager');
@@ -20,8 +19,6 @@ try {
     WebSocketManager = require('./src/backend/websocketManager');
     CueManager = require('./src/backend/cueManager');
     ({ migrateLibrary } = require('./src/backend/mediaLibrary'));
-    ({ SpotifyClient } = require('./src/backend/spotify/spotifyClient'));
-    ({ SpotifyPlayer } = require('./src/backend/spotify/spotifyPlayer'));
 } catch (error) {
     console.error('Failed to load server modules:', error.message);
     if (error.cause) {
@@ -47,7 +44,6 @@ class AccompanimentServer {
         this.appConfigManager = null;
         this.websocketManager = null;
         this.cueManager = null;
-        this.spotifyClient = null;
         
         // Data directory
         this.dataDir = process.env.ACCOMPANIMENT_DATA_DIR || path.join(os.homedir(), '.accompaniment');
@@ -110,7 +106,6 @@ class AccompanimentServer {
         this.app.use('/api/workspaces', require('./src/backend/routes/workspaces'));
         this.app.use('/api/projects', require('./src/backend/routes/projects'));
         this.app.use('/api/remote', require('./src/backend/routes/remote'));
-        this.app.use('/api/spotify', require('./src/backend/routes/spotify'));
     }
     
     async initialize() {
@@ -180,19 +175,6 @@ class AccompanimentServer {
                 if (result.success) this.cueManager.setConfig(this.appConfigManager.getConfig());
             });
 
-            // Spotify cues play through Spotify Connect. Spotify only sends a
-            // login back to the address registered for the user's Spotify
-            // app, which must be a loopback one for plain http.
-            this.spotifyClient = new SpotifyClient({
-                configDir: this.pathManager.configDir,
-                getRedirectUri: () => `http://127.0.0.1:${this.appConfigManager.getListeningPort()}/api/spotify/callback`,
-            });
-            await this.spotifyClient.load();
-            this.spotifyClient.on('status', (status) => {
-                this.websocketManager.broadcast({ type: 'spotify-status', payload: status });
-            });
-            this.cueManager.setSpotifyPlayer(new SpotifyPlayer(this.spotifyClient));
-
             // Initialize cue manager
             await this.cueManager.initialize();
             console.log('Cue manager initialized');
@@ -211,7 +193,6 @@ class AccompanimentServer {
                 appConfigManager: this.appConfigManager,
                 websocketManager: this.websocketManager,
                 cueManager: this.cueManager,
-                spotifyClient: this.spotifyClient,
             };
             
             console.log('All managers initialized successfully');

@@ -97,6 +97,8 @@ function rewriteCueReferences(cues, mapRef) {
     for (const cue of cues || []) {
         if (cue.type === 'playlist') {
             for (const item of cue.playlistItems || []) apply(item);
+        } else if (cue.type === 'spotify') {
+            // Kept in the file unchanged, never played (ADR-003 in rust/DECISIONS.md).
         } else if (cue.audioFileId || cue.relativePath) {
             apply(cue);
         }

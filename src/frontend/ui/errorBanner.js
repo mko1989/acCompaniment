@@ -1,6 +1,5 @@
 // A dismissible banner across the top of the app, for problems the server
-// reports that the operator must see (audio device gone, Spotify refusing
-// to play, ...).
+// reports that the operator must see (audio device gone, ...).
 
 function showErrorBanner(message) {
     let banner = document.getElementById('errorBanner');
