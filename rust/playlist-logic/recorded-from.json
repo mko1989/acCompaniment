@@ -1,0 +1,23 @@
+{
+  "unit": "rust/shims/playlist-logic/",
+  "files": 1,
+  "fingerprint": "b27419d4d3f10dc8",
+  "coverage": {
+    "lines": 156,
+    "reached": 156,
+    "files": [
+      {
+        "file": "rust/shims/playlist-logic/index.ts",
+        "lines": 47,
+        "reached": 47,
+        "missed": ""
+      },
+      {
+        "file": "src/backend/playlistLogic.js",
+        "lines": 109,
+        "reached": 109,
+        "missed": ""
+      }
+    ]
+  }
+}

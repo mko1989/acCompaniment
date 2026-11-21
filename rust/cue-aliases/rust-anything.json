@@ -1,0 +1,30 @@
+{
+  "schema": "rust-anything/bridge@1",
+  "root": "/Users/marcin/CascadeProjects/acCompaniment-NODEtoRUST",
+  "unit": "rust/shims/cue-aliases/",
+  "language": "ts",
+  "kind": "napi",
+  "crate_name": "cue-aliases",
+  "exports": [
+    {
+      "name": "normalizeCueFieldAliases",
+      "file": "rust/shims/cue-aliases/index.ts",
+      "line": 9,
+      "params": [
+        {
+          "name": "data",
+          "ts_type": "unknown",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "returns": "unknown",
+      "is_async": false,
+      "is_generator": false,
+      "type_params": [],
+      "uses_instanceof": false
+    }
+  ],
+  "classes": [],
+  "js_only": []
+}

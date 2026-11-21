@@ -1,0 +1,23 @@
+{
+  "unit": "rust/shims/soundboard-mixer/",
+  "files": 1,
+  "fingerprint": "5e06e5bfaf1d2958",
+  "coverage": {
+    "lines": 486,
+    "reached": 480,
+    "files": [
+      {
+        "file": "rust/shims/soundboard-mixer/index.ts",
+        "lines": 81,
+        "reached": 81,
+        "missed": ""
+      },
+      {
+        "file": "src/backend/soundboardMixer.js",
+        "lines": 405,
+        "reached": 399,
+        "missed": "37-38, 45-46, 53-54"
+      }
+    ]
+  }
+}

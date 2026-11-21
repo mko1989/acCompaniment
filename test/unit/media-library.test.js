@@ -224,3 +224,29 @@ test('migration of an empty library just marks it current', async () => {
     assert.equal(result.files, 0);
     assert.equal(JSON.parse(fs.readFileSync(path.join(lib.dirs.audioDir, 'library.json'), 'utf-8')).version, 2);
 });
+
+// WO-019: names over 200 UTF-16 units are cut with the extension (and may split an emoji), so
+// an upload or import of such a file is refused as "Unsupported file format: (none)".
+test('a long filename keeps its extension and whole characters when shortened',
+    { todo: 'WO-019: sanitizeFilename cuts the extension off names over 200 units' },
+    () => {
+        const { sanitizeFilename: sanitize } = require('../../src/backend/mediaLibrary');
+        for (const name of ['a'.repeat(250) + '.wav', 'a'.repeat(199) + '😀.wav', '😀'.repeat(120) + '.flac']) {
+            const out = sanitize(name);
+            assert.ok(out.length <= 200, `${out.length} units`);
+            assert.equal(path.extname(out), path.extname(name), `extension of ${JSON.stringify(out.slice(-8))}`);
+            assert.doesNotMatch(out, /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/, 'no half characters');
+        }
+    });
+
+// WO-020: Windows reserved device names pass through, so on Windows the file can't be created
+// (or is opened as the device). Needs checking on Windows.
+test('Windows reserved device names are made safe',
+    { todo: 'WO-020: CON, NUL, COM1, LPT1, ... pass through sanitizeFilename unchanged' },
+    () => {
+        const { sanitizeFilename: sanitize } = require('../../src/backend/mediaLibrary');
+        for (const name of ['CON.wav', 'nul.mp3', 'Com1.flac', 'LPT9.ogg', 'aux', 'PRN.m4a']) {
+            const base = sanitize(name).split('.')[0];
+            assert.doesNotMatch(base, /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i, `${name} -> ${sanitize(name)}`);
+        }
+    });

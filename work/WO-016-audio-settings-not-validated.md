@@ -42,8 +42,12 @@ Rust port validates the same way.
 
 ## What has been done
 - 2026-11-21: reproduced with the test above (marked `todo`); cause traced. The Rust port's
-  recording keeps the case but its playback phase must not depend on it (the inputs now restore a
-  valid rate right after).
+  recording keeps the case, in its last phase after playback (a valid rate put back does not
+  recover the engine: WO-017).
+- 2026-11-21: another consequence, found by the Rust port of `outputPatch.js`: with a fractional
+  `audioOutputChannelCount` (e.g. 2.5, accepted today), `normalizeOutputPatch` clamps patches to
+  fractional channels (`[5,7]` -> `[1.5,1.5]`, `src/backend/utils/outputPatch.js:15-17`). Option 1's
+  integer check covers it.
 
 ## Decision
 Pending. The owner said on 2026-11-21 that open decisions are taken later.

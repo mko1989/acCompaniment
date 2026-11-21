@@ -1,0 +1,23 @@
+{
+  "unit": "rust/shims/retrigger-logic/",
+  "files": 1,
+  "fingerprint": "5d51a852425bd4f4",
+  "coverage": {
+    "lines": 97,
+    "reached": 97,
+    "files": [
+      {
+        "file": "rust/shims/retrigger-logic/index.ts",
+        "lines": 14,
+        "reached": 14,
+        "missed": ""
+      },
+      {
+        "file": "src/backend/retriggerLogic.js",
+        "lines": 83,
+        "reached": 83,
+        "missed": ""
+      }
+    ]
+  }
+}

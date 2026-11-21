@@ -1,0 +1,60 @@
+{
+  "schema": "rust-anything/bridge@1",
+  "root": "/Users/marcin/CascadeProjects/acCompaniment-NODEtoRUST",
+  "unit": "rust/shims/soundboard-mixer/",
+  "language": "ts",
+  "kind": "napi",
+  "crate_name": "soundboard-mixer",
+  "exports": [
+    {
+      "name": "runMixer",
+      "file": "rust/shims/soundboard-mixer/index.ts",
+      "line": 57,
+      "params": [
+        {
+          "name": "sampleRate",
+          "ts_type": "number",
+          "optional": false,
+          "rest": false
+        },
+        {
+          "name": "channelCount",
+          "ts_type": "number",
+          "optional": false,
+          "rest": false
+        },
+        {
+          "name": "sources",
+          "ts_type": "Source[]",
+          "optional": false,
+          "rest": false
+        },
+        {
+          "name": "commands",
+          "ts_type": "Command[]",
+          "optional": false,
+          "rest": false
+        },
+        {
+          "name": "blocks",
+          "ts_type": "number",
+          "optional": false,
+          "rest": false
+        },
+        {
+          "name": "frames",
+          "ts_type": "number",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "returns": "MixerRun",
+      "is_async": false,
+      "is_generator": false,
+      "type_params": [],
+      "uses_instanceof": false
+    }
+  ],
+  "classes": [],
+  "js_only": []
+}

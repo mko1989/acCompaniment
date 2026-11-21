@@ -34,13 +34,13 @@ each through a typed ES-module shim in `rust/shims/` (ADR-014). Crates are libra
 | Unit | Lines | State |
 | --- | ---: | --- |
 | `src/backend/utils/idValidation.js` | 29 | done 2026-11-21: `rust/id-validation`, gate passed, 696/696 |
-| `src/backend/utils/outputPatch.js` | 23 | open |
-| `src/backend/utils/lruCache.js` | 73 | open |
-| `src/backend/retriggerLogic.js` | 90 | open |
-| `src/backend/playlistLogic.js` | 121 | open |
-| `src/backend/mediaLibrary.js` (pure helpers: `sanitizeFilename`, `withCopyNumber`, ...) | ~100 | open |
-| `cueDataManager.normalizeCueFieldAliases` | ~60 | open |
-| `src/backend/soundboardMixer.js` (DSP, float tolerance) | 451 | open |
+| `src/backend/utils/outputPatch.js` | 23 | done 2026-11-21: `rust/output-patch`, gate passed, 955/955 |
+| `src/backend/utils/lruCache.js` | 73 | done 2026-11-21: `rust/lru-cache`, gate passed, 463/463 |
+| `src/backend/retriggerLogic.js` | 90 | done 2026-11-21: `rust/retrigger-logic`, gate passed, 993/993 |
+| `src/backend/playlistLogic.js` | 121 | done 2026-11-21: `rust/playlist-logic`, gate passed, 7971/7971 (25 generated 1,000,000-item cases, 6.9 MB each, removed from `cases.jsonl` for size after they matched; `record` regenerates them) |
+| `src/backend/mediaLibrary.js` (pure helpers: `sanitizeFilename`, `withCopyNumber`, `cleanLegacyName`, `isSupportedAudio`) | ~100 | done 2026-11-21: `rust/media-library-names`, gate passed, 1306/1306 |
+| `cueDataManager.normalizeCueFieldAliases` | ~60 | done 2026-11-21: `rust/cue-aliases`, gate passed, 85/85 |
+| `src/backend/soundboardMixer.js` (DSP) | 451 | done 2026-11-21: `rust/soundboard-mixer`, gate passed, 447/447 bit-exact |
 
 Wave B: the stateful core, one piece. Every route shares the same cue and playback state, so it
 cannot be proxied route by route. Built in stages inside `rust/app`, switched over at once
@@ -54,6 +54,20 @@ cannot be proxied route by route. Built in stages inside `rust/app`, switched ov
 | B4 audio engine | audioPlaybackManager, workerMixer, audioEngineWorker, audioDecoder, pcmCache on cpal + symphonia | open |
 
 Wave C: Tauri tray app replacing `electron-launcher/` (ADR-008), and CI installers (WO-011).
+
+## Rules for later stages (found while porting)
+
+- B4: the decoder must hand the mixer 2-channel buffers, as `audioDecoder.js` does (`channels = 2`):
+  the mixer reads a 1-channel buffer's next frame as its right side (latent in the original,
+  reproduced by `rust/soundboard-mixer`).
+- Wave B: JS value coercion (`Number()`, `String()`, truthiness) is now written in more than one
+  unit crate (`output-patch`, `retrigger-logic`, `cue-aliases`); pull it into one shared module when
+  the crates become libraries of `rust/app`.
+- rust-anything 2.1.0 issues met (worked around): a zero-argument export generates code clippy
+  rejects; `refresh` leaves a removed export in `rust-anything.json` (re-bridge instead).
+- Known quirks of the original, not reachable from its callers, no work order (owner may decide
+  otherwise): `LruCache` stops evicting after an `undefined` key; a NaN byte size disables byte
+  eviction until `clear()` (`rust/lru-cache`).
 
 ## Out of scope
 
@@ -78,7 +92,14 @@ Wave C: Tauri tray app replacing `electron-launcher/` (ADR-008), and CI installe
 - WO-015 (High: a moved data dir plays nothing): decide the fix; the Rust port does the same.
 - WO-016 (invalid audio settings are saved, then nothing plays): decide the fix.
 - WO-017 (engine stays dead after one failed reopen): confirm the fix.
+- WO-018 (NaN on a file's right channel reaches the output): decide the fix.
+- WO-019 (long filenames lose their extension), WO-020 (Windows reserved names; needs Windows).
 - WO-013 (shutdown stalls with a WebSocket client connected): decide the fix; the Rust server
   must shut down cleanly either way.
+- Playlists, for the owner (behaviors found by `rust/playlist-logic`, maybe intended): when the
+  current index is not in the play order (e.g. after items were deleted), the next item is
+  `order[1]`, skipping `order[0]` (`playlistLogic.js:70`, `:96`); with shuffle on and a stale order
+  (items added or removed), a fresh order is drawn and play continues from the current item's place
+  in it, skipping the items before it for that pass.
 - Recording must include .flac, .ogg, .m4a and .aac files, which no test covers today
   (research/audio-engine.md).

@@ -4,9 +4,12 @@ Where the port stands (2026-11-21). Load the `rust-anything` skill, then read [M
 
 ## State
 
-- Checkpoint 1 (ADR-010) reached: the HTTP API is recorded and the front door replays 167/167.
-  Fallback rate 100% (no unit ported yet). No unit claimed. Waiting for the owner's go-ahead on
-  the plan in MAP.md and the deferred decisions listed there.
+- Wave A done (2026-11-21): all eight pure-logic units ported, each through a typed shim
+  (ADR-014), every gate passing (12,916 recorded cases). Checkpoint (ADR-010): waiting for the
+  owner's go-ahead on Wave B. Fallback rate still 100%: Wave A crates are libraries for the core
+  and change no route until Wave B wires the core in. No unit claimed.
+- Re-check any Wave A crate: `rust-anything gate $PWD/rust/<crate>` (absolute path: relative
+  ones break `build`).
 - Front door: `rust/app` (binary `accompaniment`), an axum server that starts `node server.js` on
   a free internal port and proxies everything to it (hyper: paths unchanged, bodies streamed,
   WebSocket upgrades piped). Same `PORT`/`HOST` defaults as server.js. Shutdown sends the original
@@ -54,9 +57,10 @@ What the recording taught (keep when re-recording):
 
 ## Next
 
-1. Owner: approve the plan in MAP.md (Wave A pure units, then the core as one piece) and take the
-   deferred decisions there when ready.
-2. Then Wave A, one unit at a time (SKILL.md steps 1-5), claiming each in MAP.md.
+1. Owner: go-ahead for Wave B (MAP.md), and the deferred decisions there when ready.
+2. Wave B, stage B1 (data layer) first. Read research/files-and-metadata.md, the "Rules for later
+   stages" in MAP.md, and decide with the owner how B1 is proved before the core switches over
+   (it can't be wired route by route: MAP.md, Wave B).
 
 ## Known limits of the front door
 

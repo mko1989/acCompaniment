@@ -1,0 +1,463 @@
+{"fn":"runCache","args":[0.5,42,[{"op":"hello worldhello world","key":"ünïcödé","bytes":1000},{"op":"ünïcödé","key":"﻿bom","value":9007199254740992,"bytes":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[10,0.5,[]],"ok":[]}
+{"fn":"runCache","args":[10,2147483648,[{"op":"{name} has {count} items","key":"HELLO","bytes":3}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0.5,{"$num":"NaN"},[]],"ok":[]}
+{"fn":"runCache","args":[100,-1,[{"op":"line1\nline2","key":"hello world","value":1000000,"bytes":2},{"op":"a😀b😀ctrailing.","key":"日本語のテキスト","value":100,"bytes":{"$num":"-Infinity"}},{"op":"﻿bom","key":"hello"}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"-Infinity"},1,[{"op":"line1\nline2","key":"İstanbul","value":100},{"op":"ns:key.pathtrailing.","key":"İstanbulab","value":2147483648,"bytes":1000},{"op":"ΣΊΣΥΦΟΣ","key":"ΣΊΣΥΦΟΣns:key.path","value":-1,"bytes":{"$num":"NaN"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[9007199254740992,3,{"a":"b"}],"error":"ops.map is not a function"}
+{"fn":"runCache","args":[-2.5,{"$num":"-0"},"x"],"error":"ops.map is not a function"}
+{"fn":"runCache","args":[-1,2,"x"],"error":"ops.map is not a function"}
+{"fn":"runCache","args":[{"$num":"Infinity"},42,[{"op":"HELLO","key":"trailing.","bytes":9007199254740992},{"op":":","key":"hello worldline1\nline2","value":0},{"op":"ns:key.path","key":"é","bytes":9007199254740992}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1,42,[{"op":"straße","key":"a😀b😀c","value":10,"bytes":1000000},{"op":"日本語のテキスト","key":"trailing.","value":2,"bytes":-1}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"Infinity"},2147483648,[{"op":"straßeline1\nline2","key":".leading","value":{"$num":"-Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"Infinity"},{"$num":"NaN"},[{"op":"éab","key":"a.b.c","value":-2.5},{"op":"a😀b😀c","key":"helloa😀b😀c","value":100,"bytes":3},{"op":"hello world😀","key":"hello","value":42,"bytes":100}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[10,1000,[{"op":"é","key":"a.b.c","value":42,"bytes":{"$num":"NaN"}},{"op":"{name} has {count} itemsa","key":"a..b","value":2147483648,"bytes":0.5}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[3,1000,[]],"ok":[]}
+{"fn":"runCache","args":[10,2147483648,[{"op":"key_name-1","key":"  padded  trailing.","value":{"$num":"Infinity"},"bytes":0},{"op":"hello world","key":"straße","value":2,"bytes":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1000000,3,[]],"ok":[]}
+{"fn":"runCache","args":[2147483648,1000,["a",1]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"-0"},0,[{"op":"","key":"trailing.","value":-1,"bytes":2147483648},{"op":"straße","key":"İstanbul","bytes":10}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[42,-1,[{"op":"Hello World","key":"aa😀b😀c","value":0.5,"bytes":1}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"-0"},1000,[{"op":"tab\tseparated","key":"日本語のテキスト","value":-1,"bytes":2}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[2147483648,3,[]],"ok":[]}
+{"fn":"runCache","args":[-2.5,{"$num":"NaN"},[{"op":"ΣΊΣΥΦΟΣ","key":":a:b:c","bytes":0.5}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1,{"$num":"NaN"},[]],"ok":[]}
+{"fn":"runCache","args":[42,9007199254740992,[]],"ok":[]}
+{"fn":"runCache","args":[2,{"$num":"NaN"},[{"op":"hello world","key":"hello","value":{"$num":"-0"},"bytes":2}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"-Infinity"},-2.5,[{"op":"./x/**/*.json日本語のテキスト","key":".leading","value":1000,"bytes":10},{"op":"a","key":"emoji 👍🏽 mix","value":100},{"op":"tab\tseparated","key":"ns:key.path","value":100,"bytes":10}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"Infinity"},1000,[{"op":"straße","key":"hello world","value":2,"bytes":-1},{"op":"a.b.ca..b","key":"ns:key.pathİstanbul","value":-1,"bytes":{"$num":"-0"}},{"op":"a..b","key":"line1\nline2","value":{"$num":"-Infinity"},"bytes":42}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0.5,-1,[{"op":"ΣΊΣΥΦΟΣ{name} has {count} items","key":"﻿bom","bytes":42},{"op":".leading  padded  ","key":"tab\tseparated"}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[42,2147483648,[{"op":"./x/**/*.json","key":"hello worldabc","value":2147483648,"bytes":{"$num":"-Infinity"}},{"op":"İstanbul","key":"İstanbul","value":-1,"bytes":0.5}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0.5,-2.5,[{"op":"  padded  HELLO","key":"src/a/b.ts","value":{"$num":"-0"},"bytes":{"$num":"NaN"}},{"op":"./x/**/*.json","key":"a:b:c","value":-2.5,"bytes":9007199254740992}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"NaN"},9007199254740992,[{"op":"﻿bom","key":"straße","value":100},{"op":"﻿boma..b","key":"a","value":1000000},{"op":"a.b.c","key":"İstanbul","value":2,"bytes":-1}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[-2.5,1,[{"op":"key_name-1src/a/b.ts","key":"  padded  ","value":2147483648,"bytes":3}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[2147483648,2,[]],"ok":[]}
+{"fn":"runCache","args":[42,-2.5,[{"op":"a😀b😀c","key":"😀é","value":100,"bytes":2},{"op":"src/a/b.tsünïcödé","key":"tab\tseparated","value":0,"bytes":0.5},{"op":"abc{name} has {count} items","key":"abc","value":{"$num":"-0"},"bytes":{"$num":"-Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[10,42,[{"op":"é","key":"a.b.c","value":9007199254740992},{"op":"tab\tseparatedΣΊΣΥΦΟΣ","key":"Hello Worldabc","value":-2.5,"bytes":3}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[100,{"$num":"NaN"},[{"op":"emoji 👍🏽 mix{name} has {count} items","key":"a:b:c","value":{"$num":"-0"},"bytes":2},{"op":"a😀b😀c","key":"😀","bytes":9007199254740992},{"op":"﻿bom","key":"a..b"}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[100,10,[]],"ok":[]}
+{"fn":"runCache","args":[9007199254740992,{"$num":"Infinity"},[]],"ok":[]}
+{"fn":"runCache","args":[2,0,[]],"ok":[]}
+{"fn":"runCache","args":[-1,{"$num":"-Infinity"},[{"op":"src/a/b.ts","key":"a😀b😀c","value":{"$num":"Infinity"},"bytes":1000},{"op":"a:b:c","key":":","value":-2.5,"bytes":10}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[9007199254740992,9007199254740992,0],"error":"ops.map is not a function"}
+{"fn":"runCache","args":[10,2,[{"op":"a😀b😀c","key":"ünïcödé","value":0.5,"bytes":1}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0,{"$num":"-Infinity"},[]],"ok":[]}
+{"fn":"runCache","args":[1000,1000,0],"error":"ops.map is not a function"}
+{"fn":"runCache","args":[2147483648,-2.5,"x"],"error":"ops.map is not a function"}
+{"fn":"runCache","args":[3,2147483648,[{"op":"src/a/b.ts","key":"😀","value":9007199254740992},{"op":"é","key":"emoji 👍🏽 mix","value":0,"bytes":1000000}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"-0"},10,[{"op":"straße","key":"ΣΊΣΥΦΟΣ","value":9007199254740992},{"op":"  padded  ","key":"emoji 👍🏽 mix日本語のテキスト","value":0,"bytes":2}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1000,10,[{"op":"ΣΊΣΥΦΟΣ","key":"é.leading","value":0.5,"bytes":9007199254740992},{"op":"hello","key":"İstanbul","value":1000,"bytes":10},{"op":"line1\nline2","key":"src/a/b.ts"}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[2147483648,{"$num":"-0"},[{"op":"  padded  ","key":"ns:key.path","value":10,"bytes":0},{"op":"İstanbul","key":"abc","value":1,"bytes":{"$num":"NaN"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[2147483648,10,{}],"error":"ops.map is not a function"}
+{"fn":"runCache","args":[-2.5,{"$num":"NaN"},[{"op":"line1\nline2Hello World","key":"abc","value":100},{"op":"HELLO","key":":","bytes":0},{"op":"hello","key":"İstanbul","value":{"$num":"-0"},"bytes":{"$num":"NaN"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[42,0,[]],"ok":[]}
+{"fn":"runCache","args":[100,1000000,[{"op":".leading","key":"tab\tseparated﻿bom","value":{"$num":"-0"},"bytes":42},{"op":".leading","key":".leading","value":42}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[-1,{"$num":"-0"},[]],"ok":[]}
+{"fn":"runCache","args":[1000000,100,{"a":"b"}],"error":"ops.map is not a function"}
+{"fn":"runCache","args":[100,1000,[{"op":"HELLOHello World","key":"emoji 👍🏽 mix","value":9007199254740992,"bytes":1000000},{"op":"a.b.c","key":"hello"}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"NaN"},2147483648,[{"op":"ünïcödéHELLO","key":"line1\nline2straße","value":0.5},{"op":"hello worldİstanbul","key":"ab","value":{"$num":"-Infinity"},"bytes":1},{"op":"日本語のテキスト","key":"hello","value":1000,"bytes":1}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[9007199254740992,9007199254740992,[]],"ok":[]}
+{"fn":"runCache","args":[100,42,[{"op":"ns:key.path","key":"hello","value":-1,"bytes":1000000},{"op":"😀","key":"abc","bytes":42},{"op":"./x/**/*.json","key":"./x/**/*.json","value":0,"bytes":1000000}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[3,-1,[]],"ok":[]}
+{"fn":"runCache","args":[1000000,-2.5,[{"op":"key_name-1","key":"hello","value":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[9007199254740992,-1,[{"op":"hello","key":"./x/**/*.json","value":{"$num":"-Infinity"},"bytes":100}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[-1,2147483648,[{"op":"src/a/b.tssrc/a/b.ts","key":"","value":-2.5},{"op":"./x/**/*.json","key":":","value":42,"bytes":0},{"op":"a..b","key":"日本語のテキスト","value":2147483648,"bytes":2}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"Infinity"},0,[{"op":"tab\tseparateda","key":"a","value":0}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1000,1000000,[{"op":"a..bkey_name-1","key":"HELLOİstanbul","value":1000000,"bytes":{"$num":"Infinity"}},{"op":"tab\tseparatedemoji 👍🏽 mix","key":"helloab","value":2147483648,"bytes":-1}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0.5,{"$num":"Infinity"},[{"op":"ab","key":"  padded  ","value":100,"bytes":2147483648},{"op":"a","key":"hello","value":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[-1,{"$num":"Infinity"},[{"op":"a","key":"src/a/b.ts","value":{"$num":"-Infinity"}},{"op":"","key":"a..b","bytes":10},{"op":"src/a/b.ts","key":"ns:key.path","value":42,"bytes":10}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0.5,3,[{"op":"İstanbul","key":"Hello World","value":9007199254740992}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[-1,{"$num":"NaN"},[{"op":"src/a/b.ts","key":"a:b:c","value":2147483648,"bytes":2147483648},{"op":"straße","key":"HELLOstraße","value":1000}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"Infinity"},2,[{"op":".leading","key":"key_name-1","value":100,"bytes":{"$num":"NaN"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"Infinity"},10,[{"op":"日本語のテキスト","key":"ünïcödé.leading","bytes":0},{"op":"key_name-1","key":"日本語のテキスト","value":1,"bytes":-2.5}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"-0"},-1,[{"op":"straße","key":"İstanbula😀b😀c","value":1000000,"bytes":-2.5},{"op":"a.b.c","key":"src/a/b.tsHELLO","value":0.5,"bytes":1}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1000000,-2.5,[{"op":"key_name-1","key":"a..b"},{"op":"ns:key.pathkey_name-1","key":"é","value":0,"bytes":9007199254740992},{"op":"a😀b😀c","key":"a..b","value":1,"bytes":-2.5}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1000,9007199254740992,[{"op":"./x/**/*.json","key":":","value":3,"bytes":42},{"op":"trailing.","key":"a./x/**/*.json","bytes":100},{"op":"hello","key":"emoji 👍🏽 mix","bytes":{"$num":"-0"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"Infinity"},42,[{"op":"﻿bom","key":"a😀b😀ckey_name-1","value":42},{"op":"ünïcödé","key":"ns:key.path","value":100,"bytes":3},{"op":"  padded  ","key":"line1\nline2","bytes":{"$num":"NaN"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0.5,2147483648,[{"op":"tab\tseparated","key":"emoji 👍🏽 mix","value":{"$num":"NaN"},"bytes":{"$num":"-Infinity"}},{"op":"trailing.  padded  ","key":"ΣΊΣΥΦΟΣ","value":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[9007199254740992,1000,[{"op":"Hello World","key":"hello  padded  ","value":2147483648},{"op":"./x/**/*.jsontab\tseparated","key":"trailing.","value":3,"bytes":42}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[-1,{"$num":"Infinity"},[{"op":"é","key":"😀","value":3,"bytes":{"$num":"-0"}},{"op":"key_name-1","key":"straße","bytes":{"$num":"Infinity"}},{"op":"tab\tseparatedé","key":"a:b:c","value":{"$num":"NaN"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[2,{"$num":"-Infinity"},[{"op":"trailing.","key":"HELLO./x/**/*.json","value":{"$num":"Infinity"},"bytes":42}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1,2,[{"op":"HELLO./x/**/*.json","key":"ab","value":2,"bytes":{"$num":"NaN"}},{"op":"hello","key":"abc","value":0},{"op":"a..b","key":"日本語のテキスト","value":{"$num":"-Infinity"},"bytes":-1}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[3,10,{}],"error":"ops.map is not a function"}
+{"fn":"runCache","args":[{"$num":"NaN"},1,[{"op":"ab","key":"a","value":100,"bytes":{"$num":"NaN"}},{"op":"a.b.c","key":"{name} has {count} items","value":-2.5,"bytes":100}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[2,{"$num":"-0"},[]],"ok":[]}
+{"fn":"runCache","args":[2147483648,{"$num":"Infinity"},[{"op":"ΣΊΣΥΦΟΣhello world","key":"HELLOhello world","value":{"$num":"NaN"},"bytes":{"$num":"NaN"}},{"op":"日本語のテキストemoji 👍🏽 mix","key":"hello world","value":{"$num":"Infinity"},"bytes":2147483648}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"Infinity"},{"$num":"-0"},[]],"ok":[]}
+{"fn":"runCache","args":[{"$num":"-Infinity"},42,[{"op":"Hello World","key":"ünïcödé","value":9007199254740992,"bytes":0},{"op":"é","key":"﻿bom","value":9007199254740992},{"op":"a","key":"a","value":-1}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[-2.5,2147483648,[{"op":"line1\nline2trailing.","key":"key_name-1","value":1,"bytes":-2.5}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[9007199254740992,-2.5,0],"error":"ops.map is not a function"}
+{"fn":"runCache","args":[1,-1,[{"op":"  padded  ","key":"étab\tseparated","bytes":9007199254740992}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[10,2147483648,[{"op":"ΣΊΣΥΦΟΣ","key":"a..ba","value":1,"bytes":1}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0,2147483648,{"a":"b"}],"error":"ops.map is not a function"}
+{"fn":"runCache","args":[{"$num":"Infinity"},-2.5,[{"op":"hello worldline1\nline2","key":"é","value":{"$num":"NaN"},"bytes":10},{"op":"ns:key.path","key":"a😀b😀c","value":3,"bytes":1},{"op":"./x/**/*.json","key":"a😀b😀c","value":{"$num":"-Infinity"},"bytes":2147483648}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"-Infinity"},{"$num":"-Infinity"},[]],"ok":[]}
+{"fn":"runCache","args":[-2.5,{"$num":"-0"},[{"op":"abchello world","key":":","bytes":0.5},{"op":"﻿bom","key":"","value":1000000,"bytes":{"$num":"Infinity"}},{"op":"a..b","key":"İstanbul"}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0,42,[{"op":"﻿bom","key":"hello world","value":{"$num":"-0"}},{"op":"","key":"é","value":-1,"bytes":{"$num":"NaN"}},{"op":"src/a/b.ts  padded  ","key":"Hello World","value":1000000,"bytes":1}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0.5,2,[{"op":"😀","key":":","value":{"$num":"-Infinity"}},{"op":"ünïcödé","key":"a.b.c","value":0.5,"bytes":0},{"op":"Hello Worlda:b:c","key":"line1\nline2","value":1000000,"bytes":{"$num":"NaN"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[2,10,[]],"ok":[]}
+{"fn":"runCache","args":[{"$num":"Infinity"},42,{"a":{"b":"c"}}],"error":"ops.map is not a function"}
+{"fn":"runCache","args":[1000,3,[{"op":"a","key":"﻿bom","value":{"$num":"NaN"},"bytes":3},{"op":"Hello Worldstraße","key":"é","value":42,"bytes":100}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"-0"},100,[]],"ok":[]}
+{"fn":"runCache","args":[100,1000000,[{"op":"line1\nline2","key":"trailing.","bytes":-2.5},{"op":"étrailing.","key":"  padded  ","bytes":{"$num":"NaN"}},{"op":"Hello World","key":"straße","value":10}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"NaN"},2,[]],"ok":[]}
+{"fn":"runCache","args":[0,{"$num":"Infinity"},[{"op":"ns:key.path","key":"ns:key.pathab","value":{"$num":"-Infinity"},"bytes":10},{"op":"ns:key.path","key":"  padded  ","value":42,"bytes":-2.5}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"-Infinity"},9007199254740992,[{"op":"helloé","key":"a:b:chello world","value":-1,"bytes":2}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"-0"},{"$num":"NaN"},[]],"ok":[]}
+{"fn":"runCache","args":[{"$num":"-Infinity"},1000000,[{"op":"tab\tseparated","key":"straße","value":10,"bytes":{"$num":"-Infinity"}},{"op":"ΣΊΣΥΦΟΣ","key":"hello","bytes":100}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[42,{"$num":"-0"},[]],"ok":[]}
+{"fn":"runCache","args":[1,1000000,[{"op":"a.b.c","key":"  padded  ","value":-2.5,"bytes":{"$num":"-Infinity"}},{"op":"﻿bom","key":".leading","value":3,"bytes":{"$num":"NaN"}},{"op":"a.b.c","key":"line1\nline2","bytes":-1}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1000000,0.5,[{"op":"abc","key":"ünïcödéhello world","value":{"$num":"Infinity"},"bytes":1},{"op":"a..b","key":"hello","value":2147483648}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[9007199254740992,1000,[{"op":"a..b","key":"ΣΊΣΥΦΟΣ","value":0.5,"bytes":2},{"op":"😀","key":"hello.leading","bytes":2147483648}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[9007199254740992,10,[]],"ok":[]}
+{"fn":"runCache","args":[1,3,[{"op":"a😀b😀c","key":"./x/**/*.json","value":42,"bytes":{"$num":"NaN"}},{"op":"  padded  ","key":"{name} has {count} items","value":9007199254740992,"bytes":0},{"op":"trailing.","key":"a","value":9007199254740992,"bytes":2}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[3,2147483648,[]],"ok":[]}
+{"fn":"runCache","args":[9007199254740992,1000,[{"op":"日本語のテキスト😀","key":"line1\nline2ab","value":{"$num":"-Infinity"},"bytes":2147483648},{"op":"emoji 👍🏽 mixkey_name-1","key":"hello","value":9007199254740992,"bytes":0.5}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1000,9007199254740992,[]],"ok":[]}
+{"fn":"runCache","args":[{"$num":"-0"},9007199254740992,{"a":"b"}],"error":"ops.map is not a function"}
+{"fn":"runCache","args":[1000,42,[{"op":"a.b.c","key":"./x/**/*.json","value":10,"bytes":-1},{"op":"HELLO","key":"trailing.","value":9007199254740992,"bytes":-1},{"op":"😀","key":"./x/**/*.json","value":42,"bytes":-2.5}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[-2.5,100,[{"op":"a","key":"emoji 👍🏽 mix","value":0.5}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0,2,[{"op":"emoji 👍🏽 mix","key":"hello😀","value":2147483648,"bytes":{"$num":"NaN"}},{"op":"a..ba","key":"HELLO","value":{"$num":"NaN"},"bytes":100},{"op":"ns:key.path","key":"ns:key.path","value":1000,"bytes":1000}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[2,1000,[{"op":"emoji 👍🏽 mixab","key":"hello","value":2147483648,"bytes":100}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[2147483648,1,{"a":"b"}],"error":"ops.map is not a function"}
+{"fn":"runCache","args":[10,42,[{"op":"abc","key":"İstanbul","value":3,"bytes":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[2,{"$num":"-0"},[{"op":"src/a/b.ts","key":"{name} has {count} items  padded  ","value":-2.5,"bytes":{"$num":"Infinity"}},{"op":":","key":"trailing.","value":{"$num":"-0"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"Infinity"},2147483648,[{"op":"﻿bom","key":"a..b","value":-1,"bytes":10},{"op":"","key":"  padded  a..b","value":1},{"op":"İstanbul","key":"ünïcödé","value":-1,"bytes":3}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[2147483648,{"$num":"NaN"},[{"op":"a😀b😀c","key":"é","value":{"$num":"-0"},"bytes":1000000},{"op":"straße﻿bom","key":"a😀b😀c","value":2,"bytes":10},{"op":"İstanbul","key":"ab","value":2,"bytes":42}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[100,{"$num":"Infinity"},[]],"ok":[]}
+{"fn":"runCache","args":[0.5,-1,[{"op":"😀","key":"abc","bytes":3},{"op":"line1\nline2😀","key":"a.b.c"},{"op":"a","key":"a..b","value":0.5}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[2,-1,[{"op":"é","key":"trailing.","bytes":100},{"op":"a😀b😀c","key":"tab\tseparatedemoji 👍🏽 mix","value":2,"bytes":0}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[-1,-2.5,[{"op":"HELLO","key":"  padded  ","value":42,"bytes":3},{"op":"hello world","key":"ab","bytes":{"$num":"-Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[2147483648,{"$num":"-0"},["a",1]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1000,{"$num":"-0"},[{"op":"src/a/b.ts","key":"ünïcödétrailing.","value":-1,"bytes":9007199254740992},{"op":"tab\tseparated","key":"😀abc","value":0.5}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1000,1000000,[{"op":"İstanbul","key":"abc","value":1000}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[100,{"$num":"-Infinity"},"x"],"error":"ops.map is not a function"}
+{"fn":"runCache","args":[-1,-2.5,[{"op":"straße","key":"Hello World","bytes":{"$num":"-0"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[100,{"$num":"-0"},["a",1]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[10,1000000,[]],"ok":[]}
+{"fn":"runCache","args":[2,1,["a",1]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"-Infinity"},2147483648,[{"op":"﻿bom","key":"line1\nline2","bytes":1000},{"op":"a..b","key":"tab\tseparateda😀b😀c","value":42}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1000,42,[{"op":"hello","key":"","value":{"$num":"NaN"}},{"op":"{name} has {count} items","key":"trailing.","value":0},{"op":"a:b:c","key":"a.b.c","bytes":1000}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[2147483648,{"$num":"-Infinity"},[{"op":"abline1\nline2","key":"﻿bom","value":{"$num":"NaN"},"bytes":{"$num":"-0"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"-Infinity"},1000000,[]],"ok":[]}
+{"fn":"runCache","args":[2,10,[{"op":"é","key":"  padded  ","value":0,"bytes":100}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[100,{"$num":"-Infinity"},[{"op":"hello","key":"a.b.cHello World","value":{"$num":"-Infinity"},"bytes":-2.5},{"op":"ns:key.path","key":"İstanbul","value":{"$num":"-Infinity"},"bytes":42}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1000000,3,[{"op":"trailing.","key":"HELLO./x/**/*.json","value":1000000},{"op":"a","key":"emoji 👍🏽 mix","value":{"$num":"Infinity"},"bytes":-2.5},{"op":"a.b.c","key":"  padded  ","value":1,"bytes":2}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[9007199254740992,1000,[{"op":"abc","key":"Hello World","bytes":1000000}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1000000,1000000,[{"op":"","key":"","value":{"$num":"-Infinity"}},{"op":"hello world","key":"src/a/b.tstrailing.","value":{"$num":"-0"},"bytes":1000000}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1000000,42,[{"op":"﻿bom","key":"","value":2,"bytes":{"$num":"-Infinity"}},{"op":"﻿bom","key":":","value":-2.5,"bytes":{"$num":"Infinity"}},{"op":"tab\tseparated","key":"hello world","value":1000000,"bytes":100}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[42,10,0],"error":"ops.map is not a function"}
+{"fn":"runCache","args":[{"$num":"-Infinity"},42,[{"op":"key_name-1","key":"abc","value":-2.5,"bytes":-1}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[-2.5,3,[{"op":"a","key":"😀","bytes":100},{"op":"a","key":"ünïcödé","bytes":0}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"-0"},1,[{"op":"{name} has {count} items","key":"src/a/b.ts","bytes":0.5},{"op":"a.b.c","key":"straße","value":1},{"op":"trailing.","key":"hello","value":2,"bytes":{"$num":"-Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1,-2.5,[{"op":":","key":"éhello world","bytes":{"$num":"-Infinity"}},{"op":"  padded  ","key":"emoji 👍🏽 mix","value":3,"bytes":0.5},{"op":"aa:b:c","key":"é","bytes":3}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[9007199254740992,{"$num":"Infinity"},[{"op":".leading","key":"hello"}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[2147483648,3,[{"op":"straße","key":"a..b","bytes":42}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1000,{"$num":"-Infinity"},[]],"ok":[]}
+{"fn":"runCache","args":[10,42,[]],"ok":[]}
+{"fn":"runCache","args":[42,9007199254740992,[{"op":".leading","key":".leading","value":-2.5,"bytes":{"$num":"-0"}},{"op":"tab\tseparated","key":"ΣΊΣΥΦΟΣ"}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1,0.5,[]],"ok":[]}
+{"fn":"runCache","args":[2147483648,3,true],"error":"ops.map is not a function"}
+{"fn":"runCache","args":[9007199254740992,0.5,[]],"ok":[]}
+{"fn":"runCache","args":[{"$num":"Infinity"},{"$num":"-Infinity"},true],"error":"ops.map is not a function"}
+{"fn":"runCache","args":[1,3,[{"op":"hello","key":"İstanbul","value":3}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[9007199254740992,{"$num":"-0"},[]],"ok":[]}
+{"fn":"runCache","args":[{"$num":"NaN"},0.5,[{"op":"a.b.c","key":"a.b.ca","value":10,"bytes":1000000}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1000000,{"$num":"Infinity"},[{"op":"./x/**/*.jsona😀b😀c","key":"a..btrailing.","value":3,"bytes":42},{"op":"a","key":"日本語のテキスト","value":42,"bytes":-2.5}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[-2.5,42,[]],"ok":[]}
+{"fn":"runCache","args":[100,{"$num":"Infinity"},[{"op":"straßeemoji 👍🏽 mix","key":"  padded  ","value":1,"bytes":2147483648},{"op":"a..b","key":"Hello World","value":{"$num":"NaN"},"bytes":1}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"NaN"},42,[{"op":"ns:key.path","key":"﻿bom","value":10},{"op":"ns:key.path","key":"İstanbul","value":0,"bytes":{"$num":"Infinity"}},{"op":"ünïcödé","key":"abc.leading","value":9007199254740992,"bytes":0}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0,0,[{"op":"tab\tseparated","key":"src/a/b.ts","value":9007199254740992,"bytes":{"$num":"NaN"}},{"op":"﻿bom日本語のテキスト","key":"hello","value":10},{"op":"trailing.","key":".leading","value":2}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1,{"$num":"-0"},{"a":"b"}],"error":"ops.map is not a function"}
+{"fn":"runCache","args":[-2.5,1000000,[{"op":"  padded  ","key":"İstanbul","value":-1,"bytes":1000},{"op":"İstanbul","key":"a:b:c","value":1000000,"bytes":0},{"op":"aa:b:c","key":""}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[2,-2.5,[]],"ok":[]}
+{"fn":"runCache","args":[1,-1,[{"op":"emoji 👍🏽 mix","key":":","value":1000,"bytes":1}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"-0"},-1,[]],"ok":[]}
+{"fn":"runCache","args":[0,-2.5,0],"error":"ops.map is not a function"}
+{"fn":"runCache","args":[1000000,{"$num":"-Infinity"},[]],"ok":[]}
+{"fn":"runCache","args":[0.5,9007199254740992,[{"op":"","key":"abHello World","value":1,"bytes":{"$num":"-0"}},{"op":"  padded  ","key":"tab\tseparated","bytes":1000000},{"op":"a😀b😀ckey_name-1","key":"line1\nline2","bytes":-1}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[2,1,[{"op":"ns:key.patha","key":"emoji 👍🏽 mix","value":{"$num":"Infinity"},"bytes":3},{"op":"a.b.c","key":"src/a/b.ts","value":0.5,"bytes":-1}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1000000,1000000,[{"op":"","key":"ab","value":1000,"bytes":2147483648},{"op":"hello world","key":"hello world","value":-2.5},{"op":":","key":"a:b:c"}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0.5,100,[{"op":"src/a/b.tsstraße","key":"HELLO","value":1},{"op":"İstanbul","key":"hello"},{"op":"hello","key":"Hello World","value":42,"bytes":3}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"-0"},2147483648,0],"error":"ops.map is not a function"}
+{"fn":"runCache","args":[{"$num":"Infinity"},-2.5,[{"op":"a﻿bom","key":"straße","value":{"$num":"-0"},"bytes":0.5}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0,-2.5,[]],"ok":[]}
+{"fn":"runCache","args":[42,-2.5,[]],"ok":[]}
+{"fn":"runCache","args":[-1,3,[{"op":"a..b","key":"abc","value":100,"bytes":{"$num":"-Infinity"}},{"op":"é","key":"ab","value":3,"bytes":{"$num":"-Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[-2.5,1,[{"op":"emoji 👍🏽 mixHELLO","key":"﻿bom","value":{"$num":"-Infinity"},"bytes":{"$num":"-Infinity"}},{"op":"src/a/b.ts","key":"a..b","value":42,"bytes":{"$num":"NaN"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[2147483648,{"$num":"NaN"},[{"op":"helloİstanbul","key":"tab\tseparated","value":{"$num":"-0"},"bytes":0},{"op":"hello world","key":"a😀b😀c","value":0,"bytes":-2.5}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0.5,{"$num":"NaN"},[{"op":"HELLO﻿bom","key":"hello world"},{"op":"İstanbul","key":"tab\tseparatedhello world","value":0,"bytes":{"$num":"NaN"}},{"op":"a..b","key":"Hello World"}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1000000,-2.5,[]],"ok":[]}
+{"fn":"runCache","args":[10,2147483648,[{"op":"trailing.","key":"HELLO","bytes":1000}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"Infinity"},2147483648,[{"op":"src/a/b.ts","key":"","value":{"$num":"Infinity"},"bytes":42},{"op":"key_name-1","key":"","bytes":0.5}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[42,{"$num":"-Infinity"},[{"op":"./x/**/*.json","key":".leading"},{"op":"HELLO","key":"a😀b😀cΣΊΣΥΦΟΣ","value":1000000,"bytes":9007199254740992},{"op":"ns:key.pathkey_name-1","key":"","value":0.5,"bytes":2147483648}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"NaN"},100,[{"op":"HELLO","key":"ns:key.path","value":2147483648,"bytes":{"$num":"NaN"}},{"op":"straße","key":"😀","value":2,"bytes":1}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"Infinity"},-2.5,[{"op":"straße","key":"line1\nline2","value":0},{"op":"é","key":"a.b.c","value":100}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1,1000000,[{"op":"  padded  ","key":"src/a/b.ts","bytes":{"$num":"-0"}},{"op":"日本語のテキスト","key":"key_name-1","bytes":42},{"op":"ns:key.pathünïcödé","key":"ünïcödé","value":{"$num":"NaN"},"bytes":42}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0.5,1000,[{"op":"Hello World","key":"a.b.c","value":9007199254740992,"bytes":-1},{"op":"hello world","key":"ΣΊΣΥΦΟΣ","value":{"$num":"-Infinity"},"bytes":100}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[9007199254740992,{"$num":"-Infinity"},[]],"ok":[]}
+{"fn":"runCache","args":[1000000,{"$num":"-Infinity"},{}],"error":"ops.map is not a function"}
+{"fn":"runCache","args":[1,2147483648,[{"op":"İstanbultab\tseparated","key":"src/a/b.ts","value":{"$num":"-0"},"bytes":-1},{"op":"line1\nline2","key":"tab\tseparated"}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[-7.5,42,[{"op":"hello worldhello world","key":"ünïcödé","bytes":1000},{"op":"ünïcödé","key":"﻿bom","value":9007199254740992,"bytes":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0.1,42,[{"op":"hello worldhello world","key":"ünïcödé","bytes":1000},{"op":"ünïcödé","key":"﻿bom","value":9007199254740992,"bytes":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0.30000000000000004,42,[{"op":"hello worldhello world","key":"ünïcödé","bytes":1000},{"op":"ünïcödé","key":"﻿bom","value":9007199254740992,"bytes":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1e+21,42,[{"op":"hello worldhello world","key":"ünïcödé","bytes":1000},{"op":"ünïcödé","key":"﻿bom","value":9007199254740992,"bytes":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1e-7,42,[{"op":"hello worldhello world","key":"ünïcödé","bytes":1000},{"op":"ünïcödé","key":"﻿bom","value":9007199254740992,"bytes":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[5e-324,42,[{"op":"hello worldhello world","key":"ünïcödé","bytes":1000},{"op":"ünïcödé","key":"﻿bom","value":9007199254740992,"bytes":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[1.7976931348623157e+308,42,[{"op":"hello worldhello world","key":"ünïcödé","bytes":1000},{"op":"ünïcödé","key":"﻿bom","value":9007199254740992,"bytes":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[9007199254740992,42,[{"op":"hello worldhello world","key":"ünïcödé","bytes":1000},{"op":"ünïcödé","key":"﻿bom","value":9007199254740992,"bytes":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[{"$num":"-0"},42,[{"op":"hello worldhello world","key":"ünïcödé","bytes":1000},{"op":"ünïcödé","key":"﻿bom","value":9007199254740992,"bytes":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0.5,-7.5,[{"op":"hello worldhello world","key":"ünïcödé","bytes":1000},{"op":"ünïcödé","key":"﻿bom","value":9007199254740992,"bytes":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0.5,0.1,[{"op":"hello worldhello world","key":"ünïcödé","bytes":1000},{"op":"ünïcödé","key":"﻿bom","value":9007199254740992,"bytes":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0.5,0.30000000000000004,[{"op":"hello worldhello world","key":"ünïcödé","bytes":1000},{"op":"ünïcödé","key":"﻿bom","value":9007199254740992,"bytes":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0.5,1e+21,[{"op":"hello worldhello world","key":"ünïcödé","bytes":1000},{"op":"ünïcödé","key":"﻿bom","value":9007199254740992,"bytes":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0.5,1e-7,[{"op":"hello worldhello world","key":"ünïcödé","bytes":1000},{"op":"ünïcödé","key":"﻿bom","value":9007199254740992,"bytes":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0.5,5e-324,[{"op":"hello worldhello world","key":"ünïcödé","bytes":1000},{"op":"ünïcödé","key":"﻿bom","value":9007199254740992,"bytes":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0.5,1.7976931348623157e+308,[{"op":"hello worldhello world","key":"ünïcödé","bytes":1000},{"op":"ünïcödé","key":"﻿bom","value":9007199254740992,"bytes":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0.5,9007199254740992,[{"op":"hello worldhello world","key":"ünïcödé","bytes":1000},{"op":"ünïcödé","key":"﻿bom","value":9007199254740992,"bytes":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0.5,{"$num":"-0"},[{"op":"hello worldhello world","key":"ünïcödé","bytes":1000},{"op":"ünïcödé","key":"﻿bom","value":9007199254740992,"bytes":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"estimateAudioBufferBytes","args":[0.5,3,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[2,2147483648,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[-2.5,{"$num":"NaN"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"Infinity"},0.5,true],"ok":{"$num":"Infinity"}}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"-Infinity"},2147483648,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[42,1000,true],"ok":168000}
+{"fn":"estimateAudioBufferBytes","args":[42,3,true],"ok":504}
+{"fn":"estimateAudioBufferBytes","args":[1000,0,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[0,-2.5,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"-0"},1,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"-Infinity"},100,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"-0"},{"$num":"-Infinity"},true],"ok":{"$num":"NaN"}}
+{"fn":"estimateAudioBufferBytes","args":[1000000,1,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[1,42,true],"ok":168}
+{"fn":"estimateAudioBufferBytes","args":[-2.5,-1,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[10,10,true],"ok":400}
+{"fn":"estimateAudioBufferBytes","args":[1000,1,true],"ok":4000}
+{"fn":"estimateAudioBufferBytes","args":[-2.5,0.5,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[1000,0,true],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[9007199254740992,0,true],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[2,9007199254740992,true],"ok":72057594037927940}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"NaN"},{"$num":"-Infinity"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[1000,1000000,true],"ok":4000000000}
+{"fn":"estimateAudioBufferBytes","args":[2,1000000,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"NaN"},{"$num":"Infinity"},true],"ok":{"$num":"NaN"}}
+{"fn":"estimateAudioBufferBytes","args":[-1,0.5,true],"ok":-2}
+{"fn":"estimateAudioBufferBytes","args":[3,10,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"-0"},{"$num":"Infinity"},true],"ok":{"$num":"NaN"}}
+{"fn":"estimateAudioBufferBytes","args":[9007199254740992,42,true],"ok":1513209474796486700}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"NaN"},1000,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[0.5,1000000,true],"ok":2000000}
+{"fn":"estimateAudioBufferBytes","args":[100,{"$num":"-0"},true],"ok":{"$num":"-0"}}
+{"fn":"estimateAudioBufferBytes","args":[1000,1000,true],"ok":4000000}
+{"fn":"estimateAudioBufferBytes","args":[9007199254740992,1000000,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"-Infinity"},9007199254740992,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[-2.5,-2.5,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"-0"},-1,true],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[1000,100,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[0,100,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[1000,-1,true],"ok":-4000}
+{"fn":"estimateAudioBufferBytes","args":[9007199254740992,{"$num":"-Infinity"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"-Infinity"},{"$num":"-Infinity"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[2147483648,{"$num":"Infinity"},true],"ok":{"$num":"Infinity"}}
+{"fn":"estimateAudioBufferBytes","args":[0,{"$num":"-Infinity"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[9007199254740992,2147483648,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"NaN"},2,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[0,2,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[10,100,true],"ok":4000}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"Infinity"},10,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[42,1000000,true],"ok":168000000}
+{"fn":"estimateAudioBufferBytes","args":[2147483648,{"$num":"NaN"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[2,100,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[1,1000000,true],"ok":4000000}
+{"fn":"estimateAudioBufferBytes","args":[1,1000,true],"ok":4000}
+{"fn":"estimateAudioBufferBytes","args":[-1,{"$num":"-0"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[1000000,100,true],"ok":400000000}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"NaN"},{"$num":"Infinity"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[0.5,{"$num":"-0"},true],"ok":{"$num":"-0"}}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"Infinity"},2147483648,true],"ok":{"$num":"Infinity"}}
+{"fn":"estimateAudioBufferBytes","args":[-1,{"$num":"-Infinity"},true],"ok":{"$num":"Infinity"}}
+{"fn":"estimateAudioBufferBytes","args":[0.5,9007199254740992,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[9007199254740992,0,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[1,2147483648,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[3,42,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[0.5,3,true],"ok":6}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"-0"},{"$num":"-0"},true],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"-Infinity"},2,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"-Infinity"},1000,true],"ok":{"$num":"-Infinity"}}
+{"fn":"estimateAudioBufferBytes","args":[0.5,1,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[2,0,true],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[2,0.5,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[1000000,{"$num":"NaN"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[-2.5,42,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[1000000,3,true],"ok":12000000}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"NaN"},2,true],"ok":{"$num":"NaN"}}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"-0"},0,true],"ok":{"$num":"-0"}}
+{"fn":"estimateAudioBufferBytes","args":[2147483648,42,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[2,{"$num":"Infinity"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[1000000,1000000,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[3,0.5,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[3,3,true],"ok":36}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"NaN"},1,true],"ok":{"$num":"NaN"}}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"Infinity"},-1,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[3,2147483648,true],"ok":25769803776}
+{"fn":"estimateAudioBufferBytes","args":[1,1,true],"ok":4}
+{"fn":"estimateAudioBufferBytes","args":[1000000,-1,true],"ok":-4000000}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"-0"},{"$num":"NaN"},true],"ok":{"$num":"NaN"}}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"NaN"},0.5,true],"ok":{"$num":"NaN"}}
+{"fn":"estimateAudioBufferBytes","args":[-1,{"$num":"NaN"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[-2.5,3,true],"ok":-30}
+{"fn":"estimateAudioBufferBytes","args":[-2.5,10,true],"ok":-100}
+{"fn":"estimateAudioBufferBytes","args":[0,0.5,true],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[-2.5,0.5,true],"ok":-5}
+{"fn":"estimateAudioBufferBytes","args":[10,{"$num":"Infinity"},true],"ok":{"$num":"Infinity"}}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"NaN"},-1,true],"ok":{"$num":"NaN"}}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"Infinity"},-2.5,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[42,2147483648,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"NaN"},1000000,true],"ok":{"$num":"NaN"}}
+{"fn":"estimateAudioBufferBytes","args":[10,-1,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[0.5,100,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[1,0,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[-1,1000000,true],"ok":-4000000}
+{"fn":"estimateAudioBufferBytes","args":[100,0.5,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[10,9007199254740992,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[2,1000,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[-2.5,{"$num":"Infinity"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[0.5,100,true],"ok":200}
+{"fn":"estimateAudioBufferBytes","args":[-1,1,true],"ok":-4}
+{"fn":"estimateAudioBufferBytes","args":[2,{"$num":"-0"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[100,1000,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"Infinity"},{"$num":"-0"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[2147483648,-1,true],"ok":-8589934592}
+{"fn":"estimateAudioBufferBytes","args":[0,42,true],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[42,{"$num":"Infinity"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[0.5,1000000,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[10,1,true],"ok":40}
+{"fn":"estimateAudioBufferBytes","args":[0,100,true],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[9007199254740992,100,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[2,{"$num":"-0"},true],"ok":{"$num":"-0"}}
+{"fn":"estimateAudioBufferBytes","args":[100,{"$num":"Infinity"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[1000000,-1,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[42,100,true],"ok":16800}
+{"fn":"estimateAudioBufferBytes","args":[42,42,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[9007199254740992,100,true],"ok":3602879701896397000}
+{"fn":"estimateAudioBufferBytes","args":[42,{"$num":"-0"},true],"ok":{"$num":"-0"}}
+{"fn":"estimateAudioBufferBytes","args":[0.5,-2.5,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[1000000,{"$num":"-0"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[2147483648,0.5,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[42,10,true],"ok":1680}
+{"fn":"estimateAudioBufferBytes","args":[1000000,2,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"-Infinity"},0,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[42,{"$num":"-0"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"-Infinity"},{"$num":"Infinity"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[100,0,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[10,0,true],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[2147483648,1,true],"ok":8589934592}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"-0"},1000,true],"ok":{"$num":"-0"}}
+{"fn":"estimateAudioBufferBytes","args":[1000,{"$num":"NaN"},true],"ok":{"$num":"NaN"}}
+{"fn":"estimateAudioBufferBytes","args":[10,0,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[2147483648,2,true],"ok":17179869184}
+{"fn":"estimateAudioBufferBytes","args":[1000000,-2.5,true],"ok":-10000000}
+{"fn":"estimateAudioBufferBytes","args":[1000000,2147483648,true],"ok":8589934592000000}
+{"fn":"estimateAudioBufferBytes","args":[-2.5,{"$num":"-Infinity"},true],"ok":{"$num":"Infinity"}}
+{"fn":"estimateAudioBufferBytes","args":[9007199254740992,-1,true],"ok":-36028797018963970}
+{"fn":"estimateAudioBufferBytes","args":[1000,{"$num":"NaN"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"-0"},2,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[3,-2.5,true],"ok":-30}
+{"fn":"estimateAudioBufferBytes","args":[100,{"$num":"-Infinity"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"-0"},{"$num":"Infinity"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[2,2147483648,true],"ok":17179869184}
+{"fn":"estimateAudioBufferBytes","args":[9007199254740992,9007199254740992,true],"ok":3.2451855365842673e+32}
+{"fn":"estimateAudioBufferBytes","args":[-1,0,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"NaN"},{"$num":"NaN"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[0.5,9007199254740992,true],"ok":18014398509481984}
+{"fn":"estimateAudioBufferBytes","args":[1000000,2147483648,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[0,-1,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[42,0,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[1000000,-2.5,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[-1,42,true],"ok":-168}
+{"fn":"estimateAudioBufferBytes","args":[-2.5,0,true],"ok":{"$num":"-0"}}
+{"fn":"estimateAudioBufferBytes","args":[2147483648,100,true],"ok":858993459200}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"Infinity"},1000,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"NaN"},9007199254740992,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[10,1000,true],"ok":40000}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"-0"},-2.5,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[9007199254740992,{"$num":"-0"},true],"ok":{"$num":"-0"}}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"NaN"},0.5,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"Infinity"},{"$num":"-Infinity"},true],"ok":{"$num":"-Infinity"}}
+{"fn":"estimateAudioBufferBytes","args":[-1,2,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"Infinity"},0,true],"ok":{"$num":"NaN"}}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"-Infinity"},0.5,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[-1,42,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[1,3,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[1000000,1000000,true],"ok":4000000000000}
+{"fn":"estimateAudioBufferBytes","args":[3,1000,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[1000000,10,true],"ok":40000000}
+{"fn":"estimateAudioBufferBytes","args":[0,{"$num":"-0"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[-2.5,1000000,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[1,{"$num":"Infinity"},true],"ok":{"$num":"Infinity"}}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"-0"},1000,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[2,0.5,true],"ok":4}
+{"fn":"estimateAudioBufferBytes","args":[2,-2.5,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[1000000,1,true],"ok":4000000}
+{"fn":"estimateAudioBufferBytes","args":[0.5,{"$num":"-Infinity"},true],"ok":{"$num":"-Infinity"}}
+{"fn":"estimateAudioBufferBytes","args":[1000,3,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[9007199254740992,0.5,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[9007199254740992,2,true],"ok":72057594037927940}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"NaN"},{"$num":"-0"},true],"ok":{"$num":"NaN"}}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"Infinity"},10,true],"ok":{"$num":"Infinity"}}
+{"fn":"estimateAudioBufferBytes","args":[2,100,true],"ok":800}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"NaN"},0,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[2,{"$num":"-Infinity"},true],"ok":{"$num":"-Infinity"}}
+{"fn":"estimateAudioBufferBytes","args":[-2.5,1000,true],"ok":-10000}
+{"fn":"estimateAudioBufferBytes","args":[1000,{"$num":"-Infinity"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[10,2147483648,true],"ok":85899345920}
+{"fn":"estimateAudioBufferBytes","args":[0.5,{"$num":"Infinity"},true],"ok":{"$num":"Infinity"}}
+{"fn":"estimateAudioBufferBytes","args":[9007199254740992,{"$num":"Infinity"},false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[3,-2.5,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[0.5,0.5,true],"ok":1}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"NaN"},3,true],"ok":{"$num":"NaN"}}
+{"fn":"estimateAudioBufferBytes","args":[-7.5,3,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[0.1,3,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[0.30000000000000004,3,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[1e+21,3,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[1e-7,3,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[5e-324,3,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[1.7976931348623157e+308,3,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[9007199254740992,3,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[{"$num":"-0"},3,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[0.5,-7.5,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[0.5,0.1,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[0.5,0.30000000000000004,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[0.5,1e+21,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[0.5,1e-7,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[0.5,5e-324,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[0.5,1.7976931348623157e+308,false],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[0.5,{"$num":"-0"},false],"ok":0}
+{"fn":"runCache","args":[50,100,[{"op":"set","key":"a","value":1,"bytes":40},{"op":"set","key":"b","value":2,"bytes":40},{"op":"set","key":"c","value":3,"bytes":40},{"op":"get","key":"a"},{"op":"get","key":"b"}]],"ok":[{"result":null,"size":1,"totalBytes":40,"keys":["a"]},{"result":null,"size":2,"totalBytes":80,"keys":["a","b"]},{"result":null,"size":2,"totalBytes":80,"keys":["b","c"]},{"result":null,"size":2,"totalBytes":80,"keys":["b","c"]},{"result":2,"size":2,"totalBytes":80,"keys":["c","b"]}]}
+{"fn":"runCache","args":[50,100,[{"op":"set","key":"a","value":1,"bytes":40},{"op":"set","key":"b","value":2,"bytes":40},{"op":"get","key":"a"},{"op":"set","key":"c","value":3,"bytes":40},{"op":"get","key":"b"},{"op":"get","key":"a"},{"op":"get","key":"c"}]],"ok":[{"result":null,"size":1,"totalBytes":40,"keys":["a"]},{"result":null,"size":2,"totalBytes":80,"keys":["a","b"]},{"result":1,"size":2,"totalBytes":80,"keys":["b","a"]},{"result":null,"size":2,"totalBytes":80,"keys":["a","c"]},{"result":null,"size":2,"totalBytes":80,"keys":["a","c"]},{"result":1,"size":2,"totalBytes":80,"keys":["c","a"]},{"result":3,"size":2,"totalBytes":80,"keys":["a","c"]}]}
+{"fn":"runCache","args":[2,0,[{"op":"set","key":"a","value":1,"bytes":1},{"op":"set","key":"b","value":2,"bytes":1},{"op":"set","key":"c","value":3,"bytes":1},{"op":"get","key":"a"}]],"ok":[{"result":null,"size":1,"totalBytes":1,"keys":["a"]},{"result":null,"size":2,"totalBytes":2,"keys":["a","b"]},{"result":null,"size":2,"totalBytes":2,"keys":["b","c"]},{"result":null,"size":2,"totalBytes":2,"keys":["b","c"]}]}
+{"fn":"runCache","args":[2,0,[{"op":"set","key":"a","value":1},{"op":"set","key":"b","value":2},{"op":"get","key":"a"},{"op":"set","key":"c","value":3},{"op":"get","key":"b"}]],"ok":[{"result":null,"size":1,"totalBytes":0,"keys":["a"]},{"result":null,"size":2,"totalBytes":0,"keys":["a","b"]},{"result":1,"size":2,"totalBytes":0,"keys":["b","a"]},{"result":null,"size":2,"totalBytes":0,"keys":["a","c"]},{"result":null,"size":2,"totalBytes":0,"keys":["a","c"]}]}
+{"fn":"runCache","args":[50,100,[{"op":"set","key":"a","value":1,"bytes":40},{"op":"set","key":"a","value":9,"bytes":90},{"op":"get","key":"a"},{"op":"set","key":"b","value":2,"bytes":20}]],"ok":[{"result":null,"size":1,"totalBytes":40,"keys":["a"]},{"result":null,"size":1,"totalBytes":90,"keys":["a"]},{"result":9,"size":1,"totalBytes":90,"keys":["a"]},{"result":null,"size":1,"totalBytes":20,"keys":["b"]}]}
+{"fn":"runCache","args":[50,100,[{"op":"set","key":"big","value":1,"bytes":500},{"op":"get","key":"big"}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[50,100,[{"op":"set","key":"a","value":1,"bytes":10},{"op":"set","key":"big","value":2,"bytes":500},{"op":"get","key":"a"}]],"ok":[{"result":null,"size":1,"totalBytes":10,"keys":["a"]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[0,0,[{"op":"set","key":"a","value":1,"bytes":1000000000000},{"op":"set","key":"b","value":2,"bytes":1000000000000},{"op":"set","key":"c","value":3,"bytes":5}]],"ok":[{"result":null,"size":1,"totalBytes":1000000000000,"keys":["a"]},{"result":null,"size":2,"totalBytes":2000000000000,"keys":["a","b"]},{"result":null,"size":3,"totalBytes":2000000000005,"keys":["a","b","c"]}]}
+{"fn":"runCache","args":[-1,-5,[{"op":"set","key":"a","value":1,"bytes":10},{"op":"set","key":"b","value":2,"bytes":10}]],"ok":[{"result":null,"size":1,"totalBytes":10,"keys":["a"]},{"result":null,"size":2,"totalBytes":20,"keys":["a","b"]}]}
+{"fn":"runCache","args":[50,100,[{"op":"set","key":"a","value":1,"bytes":-30},{"op":"set","key":"b","value":2,"bytes":120},{"op":"set","key":"c","value":3,"bytes":10}]],"ok":[{"result":null,"size":1,"totalBytes":-30,"keys":["a"]},{"result":null,"size":2,"totalBytes":90,"keys":["a","b"]},{"result":null,"size":3,"totalBytes":100,"keys":["a","b","c"]}]}
+{"fn":"runCache","args":[50,100,[{"op":"set","key":"a","value":1,"bytes":0},{"op":"set","key":"b","value":2,"bytes":0},{"op":"set","key":"c","value":3,"bytes":100},{"op":"set","key":"d","value":4,"bytes":1}]],"ok":[{"result":null,"size":1,"totalBytes":0,"keys":["a"]},{"result":null,"size":2,"totalBytes":0,"keys":["a","b"]},{"result":null,"size":3,"totalBytes":100,"keys":["a","b","c"]},{"result":null,"size":1,"totalBytes":1,"keys":["d"]}]}
+{"fn":"runCache","args":[50,100,[{"op":"set","key":"a","value":1,"bytes":0.1},{"op":"set","key":"b","value":2,"bytes":0.2},{"op":"set","key":"c","value":3,"bytes":99.7},{"op":"set","key":"d","value":4,"bytes":1e-7}]],"ok":[{"result":null,"size":1,"totalBytes":0.1,"keys":["a"]},{"result":null,"size":2,"totalBytes":0.30000000000000004,"keys":["a","b"]},{"result":null,"size":3,"totalBytes":100,"keys":["a","b","c"]},{"result":null,"size":3,"totalBytes":99.9000001,"keys":["b","c","d"]}]}
+{"fn":"runCache","args":[3,100,[{"op":"set","key":"a","value":1,"bytes":10},{"op":"delete","key":"a"},{"op":"delete","key":"a"},{"op":"delete","key":"zz"},{"op":"set","key":"b","value":2,"bytes":10},{"op":"clear","key":""},{"op":"get","key":"b"},{"op":"set","key":"c","value":3,"bytes":10}]],"ok":[{"result":null,"size":1,"totalBytes":10,"keys":["a"]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":1,"totalBytes":10,"keys":["b"]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":1,"totalBytes":10,"keys":["c"]}]}
+{"fn":"runCache","args":[1,1,[{"op":"get","key":"missing"},{"op":"delete","key":"missing"},{"op":"clear","key":""},{"op":"clear","key":""}]],"ok":[{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]},{"result":null,"size":0,"totalBytes":0,"keys":[]}]}
+{"fn":"runCache","args":[3,0,[{"op":"set","key":"x","value":1},{"op":"set","key":"y","value":2},{"op":"set","key":"z","value":3},{"op":"get","key":"x"},{"op":"set","key":"w","value":4},{"op":"get","key":"y"},{"op":"get","key":"x"},{"op":"get","key":"z"},{"op":"get","key":"w"}]],"ok":[{"result":null,"size":1,"totalBytes":0,"keys":["x"]},{"result":null,"size":2,"totalBytes":0,"keys":["x","y"]},{"result":null,"size":3,"totalBytes":0,"keys":["x","y","z"]},{"result":1,"size":3,"totalBytes":0,"keys":["y","z","x"]},{"result":null,"size":3,"totalBytes":0,"keys":["z","x","w"]},{"result":null,"size":3,"totalBytes":0,"keys":["z","x","w"]},{"result":1,"size":3,"totalBytes":0,"keys":["z","w","x"]},{"result":3,"size":3,"totalBytes":0,"keys":["w","x","z"]},{"result":4,"size":3,"totalBytes":0,"keys":["x","z","w"]}]}
+{"fn":"runCache","args":[50,1000,[{"op":"set","key":"ż🎵","value":1,"bytes":10},{"op":"set","key":"","value":2,"bytes":10},{"op":"set","key":"ż🎵","value":3,"bytes":10},{"op":"get","key":""},{"op":"get","key":"ż🎵"}]],"ok":[{"result":null,"size":1,"totalBytes":10,"keys":["ż🎵"]},{"result":null,"size":2,"totalBytes":20,"keys":["ż🎵",""]},{"result":null,"size":2,"totalBytes":20,"keys":["","ż🎵"]},{"result":2,"size":2,"totalBytes":20,"keys":["ż🎵",""]},{"result":3,"size":2,"totalBytes":20,"keys":["","ż🎵"]}]}
+{"fn":"runCache","args":[2,50,[{"op":"set","key":"a","value":1,"bytes":30},{"op":"set","key":"b","value":2,"bytes":30},{"op":"set","key":"c","value":3,"bytes":30}]],"ok":[{"result":null,"size":1,"totalBytes":30,"keys":["a"]},{"result":null,"size":1,"totalBytes":30,"keys":["b"]},{"result":null,"size":1,"totalBytes":30,"keys":["c"]}]}
+{"fn":"runCache","args":[50,1.5,[{"op":"set","key":"a","value":1,"bytes":1},{"op":"set","key":"b","value":2,"bytes":0.5},{"op":"set","key":"c","value":3,"bytes":0.1}]],"ok":[{"result":null,"size":1,"totalBytes":1,"keys":["a"]},{"result":null,"size":2,"totalBytes":1.5,"keys":["a","b"]},{"result":null,"size":2,"totalBytes":0.6000000000000001,"keys":["b","c"]}]}
+{"fn":"estimateAudioBufferBytes","args":[0,2,true],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[441000,2,true],"ok":3528000}
+{"fn":"estimateAudioBufferBytes","args":[441000,1,true],"ok":1764000}
+{"fn":"estimateAudioBufferBytes","args":[1.5,2,true],"ok":12}
+{"fn":"estimateAudioBufferBytes","args":[1000000000000000,8,true],"ok":32000000000000000}
+{"fn":"estimateAudioBufferBytes","args":[-10,2,true],"ok":-80}
+{"fn":"estimateAudioBufferBytes","args":[100,0,true],"ok":0}
+{"fn":"estimateAudioBufferBytes","args":[100,2,false],"ok":0}
+{"fn":"runCache","args":[1,0,[{"op":"set","value":1},{"op":"set","key":"a","value":2},{"op":"get"},{"op":"set","key":"b","value":3}]],"ok":[{"result":null,"size":1,"totalBytes":0,"keys":[{"$undefined":true}]},{"result":null,"size":2,"totalBytes":0,"keys":[{"$undefined":true},"a"]},{"result":1,"size":2,"totalBytes":0,"keys":["a",{"$undefined":true}]},{"result":null,"size":2,"totalBytes":0,"keys":[{"$undefined":true},"b"]}]}
+{"fn":"runCache","args":[50,0,[{"op":"set","key":"n","value":1},{"op":"set","key":{"$num":"-0"},"value":2},{"op":"get","key":0},{"op":"set","key":{"$num":"NaN"},"value":3},{"op":"get","key":{"$num":"NaN"}},{"op":"set","key":"x","value":4,"bytes":{"$num":"NaN"}},{"op":"set","key":"y","value":5,"bytes":{"$num":"Infinity"}}]],"ok":[{"result":null,"size":1,"totalBytes":0,"keys":["n"]},{"result":null,"size":2,"totalBytes":0,"keys":["n",0]},{"result":2,"size":2,"totalBytes":0,"keys":["n",0]},{"result":null,"size":3,"totalBytes":0,"keys":["n",0,{"$num":"NaN"}]},{"result":3,"size":3,"totalBytes":0,"keys":["n",0,{"$num":"NaN"}]},{"result":null,"size":4,"totalBytes":{"$num":"NaN"},"keys":["n",0,{"$num":"NaN"},"x"]},{"result":null,"size":5,"totalBytes":{"$num":"NaN"},"keys":["n",0,{"$num":"NaN"},"x","y"]}]}

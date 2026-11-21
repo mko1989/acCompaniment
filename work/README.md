@@ -22,3 +22,6 @@ work orders" in [CLAUDE.md](../CLAUDE.md) for the workflow and template.
 | [WO-015](WO-015-moved-data-dir-cues-silent.md) | After the data dir moves, no cue plays (files looked up at their old absolute path) | High | Awaiting decision | Option 1 or 2 |
 | [WO-016](WO-016-audio-settings-not-validated.md) | Invalid audio settings are saved, and then no cue plays | Medium | Awaiting decision | Option 1 or 2 |
 | [WO-017](WO-017-engine-stays-dead-after-failed-reopen.md) | After a failed engine reopen, no cue plays until the app restarts | Medium | Awaiting decision | Also retry on trigger? (recommended: no) |
+| [WO-018](WO-018-nan-sample-right-channel.md) | A NaN sample on a file's right channel reaches the output and spoils other cues | Low | Awaiting decision | Option 1 or 2 |
+| [WO-019](WO-019-long-filenames-lose-extension.md) | Files with names over 200 characters can't be added (the extension is cut off) | Low | Awaiting decision | Option 1 or 2 |
+| [WO-020](WO-020-windows-reserved-filenames.md) | Windows reserved names (CON, NUL, COM1, ...) are used as library file names | Low | Open | Pursue? (needs Windows) |

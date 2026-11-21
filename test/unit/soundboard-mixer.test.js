@@ -359,3 +359,21 @@ test('without a queued next, or after a stop, the voice ends as before', () => {
     assert.equal(mixer.hasCue('q'), false);
     assert.deepEqual(completions[1], { cueId: 'q', reason: 'completed' });
 });
+
+// WO-018: a NaN sample is silenced on the left (`buf[idx] || 0`) but passed through on the right
+// (`buf[idx + 1] ?? left`), and then spoils every other cue mixed into that output sample.
+test('a NaN sample in a file is silenced on both sides and does not spoil other cues',
+    { todo: 'WO-018: NaN on the right channel passes through to the output' },
+    () => {
+        const { mixer } = makeMixer();
+        const withNaN = constBuffer(10, 0.25);
+        withNaN[2 * 3 + 1] = NaN; // frame 3, right
+        mixer.playCue('nan', withNaN, { sampleRate: SR, channels: 2 });
+        mixer.playCue('clean', constBuffer(10, 0.5), { sampleRate: SR, channels: 2 });
+
+        const out = render(mixer, 10);
+        for (let i = 0; i < out.length; i++) {
+            assert.ok(Number.isFinite(out[i]), `output sample ${i} is ${out[i]}`);
+        }
+        assert.ok(Math.abs(out[2 * 3 + 1] - 0.5) < 1e-6, 'the clean cue still plays at frame 3, right');
+    });
