@@ -1,0 +1,15 @@
+[request]
+method = "POST"
+path = "/api/cues/stop-all?case=3031"
+body = '{"behavior":"fade_out_and_stop"}'
+
+[request.headers]
+content-type = "application/json"
+
+[response]
+status = 200
+
+[response.headers]
+access-control-allow-credentials = "true"
+content-type = "application/json; charset=utf-8"
+vary = "Origin"

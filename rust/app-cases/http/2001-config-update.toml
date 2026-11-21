@@ -1,0 +1,15 @@
+[request]
+method = "PUT"
+path = "/api/config?case=2001"
+body = '{"defaultFadeInTime":250,"crossfadeTime":1500,"theme":"dark"}'
+
+[request.headers]
+content-type = "application/json"
+
+[response]
+status = 200
+
+[response.headers]
+access-control-allow-credentials = "true"
+content-type = "application/json; charset=utf-8"
+vary = "Origin"

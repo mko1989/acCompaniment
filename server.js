@@ -224,7 +224,10 @@ class AccompanimentServer {
 
             // Start the server on the configured port
             this.server.listen(this.port, this.host, () => {
-                this.appConfigManager?.setListeningPort(this.server.address().port);
+                // Behind the Rust port's front door (rust/app) this server listens on an
+                // internal port; clients use the front door's, which it passes here.
+                const publicPort = Number(process.env.ACCOMPANIMENT_PUBLIC_PORT);
+                this.appConfigManager?.setListeningPort(publicPort > 0 ? publicPort : this.server.address().port);
         console.log(`HTTP Server running at http://${this.host}:${this.port}`);
         console.log(`WebSocket Server running at ws://${this.host}:${this.port}`);
         console.log(`Browser UI: http://localhost:${this.port}`);

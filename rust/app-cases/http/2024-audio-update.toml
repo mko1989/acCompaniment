@@ -1,0 +1,15 @@
+[request]
+method = "PUT"
+path = "/api/audio/7a57b5ef-e306-4928-b627-26059c24bf8b?case=2024"
+body = '{"name":"Renamed MP3","tags":["a","ż"]}'
+
+[request.headers]
+content-type = "application/json"
+
+[response]
+status = 200
+
+[response.headers]
+access-control-allow-credentials = "true"
+content-type = "application/json; charset=utf-8"
+vary = "Origin"

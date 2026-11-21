@@ -1,0 +1,15 @@
+[request]
+method = "POST"
+path = "/api/cues/579933b0-9fee-4d06-b1b4-6ab043194548/playlist/navigate?case=3019"
+body = '{"direction":"up"}'
+
+[request.headers]
+content-type = "application/json"
+
+[response]
+status = 400
+
+[response.headers]
+access-control-allow-credentials = "true"
+content-type = "application/json; charset=utf-8"
+vary = "Origin"

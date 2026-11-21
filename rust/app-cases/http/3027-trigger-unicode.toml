@@ -1,0 +1,15 @@
+[request]
+method = "POST"
+path = "/api/cues/2b149964-7488-4b5a-b921-59e0b16d5aa5/trigger?case=3027"
+body = "{}"
+
+[request.headers]
+content-type = "application/json"
+
+[response]
+status = 200
+
+[response.headers]
+access-control-allow-credentials = "true"
+content-type = "application/json; charset=utf-8"
+vary = "Origin"

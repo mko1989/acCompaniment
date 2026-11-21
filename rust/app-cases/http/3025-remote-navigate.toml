@@ -1,0 +1,15 @@
+[request]
+method = "POST"
+path = "/api/remote/cues/9cca8200-f996-476a-a53d-b826982c2eed/playlist/navigate?case=3025"
+body = '{"direction":"next"}'
+
+[request.headers]
+content-type = "application/json"
+
+[response]
+status = 200
+
+[response.headers]
+access-control-allow-credentials = "true"
+content-type = "application/json; charset=utf-8"
+vary = "Origin"

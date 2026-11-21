@@ -1,0 +1,29 @@
+{
+  "schema": "rust-anything/app-cases@1",
+  "name": "accompaniment",
+  "run": [
+    "env",
+    "ACCOMPANIMENT_DATA_DIR=rust/app-fixtures/data",
+    "HOST=127.0.0.1",
+    "node",
+    "server.js"
+  ],
+  "normalize": [
+    "key-order",
+    "timestamps"
+  ],
+  "normalizers": {
+    "filestamp": "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{3}Z",
+    "ports": "\"(httpPort|websocketPort)\":[0-9]+|(127\\.0\\.0\\.1|localhost|[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+):[0-9]+",
+    "timing": "\"(startTime\":[0-9.eE+-]+|(currentTime|positionSec)\":(0\\.[0-9eE+-]+|[1-9][0-9.eE+-]*))",
+    "workdir": "rust-anything-app-server[-0-9]*"
+  },
+  "timeout_secs": 180,
+  "http": {
+    "fresh": [
+      "rust/app-fixtures/data",
+      "rust/app-fixtures/incoming"
+    ],
+    "pace_ms": 100
+  }
+}

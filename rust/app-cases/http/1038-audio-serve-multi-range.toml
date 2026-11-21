@@ -1,0 +1,17 @@
+[request]
+method = "GET"
+path = "/api/audio/serve/fc3baef5-a934-41ed-adf9-b8ad84f60fd3?case=1038"
+
+[request.headers]
+range = "bytes=0-1,4-5"
+
+[response]
+status = 416
+
+[response.headers]
+accept-ranges = "bytes"
+access-control-allow-credentials = "true"
+cache-control = "no-cache"
+content-range = "bytes */882078"
+content-type = "audio/wav; charset=utf-8"
+vary = "Origin"

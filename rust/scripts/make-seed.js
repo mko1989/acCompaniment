@@ -21,7 +21,7 @@ const { ffmpegBinary } = require('../../test/audio/lib/signals');
 const REPO = path.join(__dirname, '..', '..');
 const OUT = path.join(REPO, 'rust', 'app-fixtures', 'data');
 
-// name, file, extra ffmpeg args (input is a 2 s sine), unusual on purpose where it helps
+// name, file, extra ffmpeg args (input is a 10 s sine: long enough that nothing ends on its own while the recorded playback phase runs), unusual on purpose where it helps
 const FORMATS = [
     ['Tone WAV mono 44k', 'tone-mono-44k.wav', ['-ac', '1', '-ar', '44100', '-c:a', 'pcm_s16le']],
     ['Tone WAV stereo 48k', 'tone-stereo-48k.wav', ['-ac', '2', '-ar', '48000', '-c:a', 'pcm_s24le']],
@@ -41,7 +41,7 @@ async function main() {
 
     const ffmpeg = ffmpegBinary();
     for (const [, file, args] of FORMATS) {
-        execFileSync(ffmpeg, ['-v', 'error', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=2',
+        execFileSync(ffmpeg, ['-v', 'error', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=10',
             ...args, path.join(srcDir, file)]);
     }
 

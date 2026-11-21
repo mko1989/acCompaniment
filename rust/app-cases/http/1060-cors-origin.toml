@@ -1,0 +1,15 @@
+[request]
+method = "GET"
+path = "/api/remote/health?case=1060"
+
+[request.headers]
+origin = "http://example.test"
+
+[response]
+status = 200
+
+[response.headers]
+access-control-allow-credentials = "true"
+access-control-allow-origin = "http://example.test"
+content-type = "application/json; charset=utf-8"
+vary = "Origin"

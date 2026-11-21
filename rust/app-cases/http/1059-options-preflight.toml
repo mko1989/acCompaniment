@@ -1,0 +1,16 @@
+[request]
+method = "OPTIONS"
+path = "/api/cues?case=1059"
+
+[request.headers]
+access-control-request-method = "POST"
+origin = "http://example.test"
+
+[response]
+status = 204
+
+[response.headers]
+access-control-allow-credentials = "true"
+access-control-allow-methods = "GET,HEAD,PUT,PATCH,POST,DELETE"
+access-control-allow-origin = "http://example.test"
+vary = "Origin, Access-Control-Request-Headers"

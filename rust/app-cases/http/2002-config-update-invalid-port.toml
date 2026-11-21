@@ -1,0 +1,15 @@
+[request]
+method = "PUT"
+path = "/api/config?case=2002"
+body = '{"httpRemotePort":70000}'
+
+[request.headers]
+content-type = "application/json"
+
+[response]
+status = 400
+
+[response.headers]
+access-control-allow-credentials = "true"
+content-type = "application/json; charset=utf-8"
+vary = "Origin"

@@ -1,0 +1,15 @@
+[request]
+method = "PUT"
+path = "/api/cues/d86f0e6c-af67-4918-964d-60f975548940?case=2011"
+body = '{"name":"Plain renamed","volume":0.04,"loop":true}'
+
+[request.headers]
+content-type = "application/json"
+
+[response]
+status = 200
+
+[response.headers]
+access-control-allow-credentials = "true"
+content-type = "application/json; charset=utf-8"
+vary = "Origin"

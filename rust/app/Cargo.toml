@@ -1,0 +1,21 @@
+[package]
+name = "accompaniment"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "acCompaniment server (Rust port, rust/DECISIONS.md). Front door scaffolded by rust-anything: Rust owns the server, the original answers what is not ported yet"
+
+[[bin]]
+name = "accompaniment"
+path = "src/main.rs"
+
+[dependencies]
+axum = "0.8"
+hyper = { version = "1", features = ["client", "http1"] }
+hyper-util = { version = "0.1", features = ["client-legacy", "http1", "tokio"] }
+tokio = { version = "1", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "time"] }
+
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.30", features = ["signal"] }
+
+[workspace]

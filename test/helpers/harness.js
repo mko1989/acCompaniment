@@ -28,9 +28,17 @@ function getFreePort() {
     });
 }
 
-/** `execPath` picks the runtime (default: this test's Node; see shutdown.test.js). */
+/**
+ * `execPath` picks the runtime (default: this test's Node; see shutdown.test.js).
+ * ACCOMPANIMENT_SERVER_BIN runs the suite against another server binary instead - the Rust
+ * port (rust/MAP.md, "Proof"): e.g. ACCOMPANIMENT_SERVER_BIN=rust/app/target/release/accompaniment.
+ */
 function spawnServer(env, execPath = process.execPath) {
-    const child = spawn(execPath, [path.join(REPO_ROOT, 'start-nodejs.js')], {
+    const bin = process.env.ACCOMPANIMENT_SERVER_BIN;
+    const [command, args] = bin
+        ? [path.resolve(REPO_ROOT, bin), []]
+        : [execPath, [path.join(REPO_ROOT, 'start-nodejs.js')]];
+    const child = spawn(command, args, {
         cwd: REPO_ROOT,
         env: { ...process.env, ...env },
         stdio: ['ignore', 'pipe', 'pipe'],

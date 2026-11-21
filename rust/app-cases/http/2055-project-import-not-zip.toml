@@ -1,0 +1,22 @@
+[request]
+method = "POST"
+path = "/api/projects/import?case=2055"
+body = """
+--rustanythingboundary\r
+Content-Disposition: form-data; name="bundle"; filename="x.zip"\r
+Content-Type: application/octet-stream\r
+\r
+not a zip\r
+--rustanythingboundary--\r
+"""
+
+[request.headers]
+content-type = "multipart/form-data; boundary=rustanythingboundary"
+
+[response]
+status = 400
+
+[response.headers]
+access-control-allow-credentials = "true"
+content-type = "application/json; charset=utf-8"
+vary = "Origin"

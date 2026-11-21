@@ -1,0 +1,16 @@
+{
+  "id": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+  "path": "tone.flac",
+  "relativePath": "tone.flac",
+  "filename": "tone.flac",
+  "name": "Tone FLAC",
+  "size": 260883,
+  "format": ".flac",
+  "duration": 10,
+  "bitrate": 202076,
+  "sampleRate": 96000,
+  "channels": 2,
+  "hash": "144e650d2733b70c4b188287193cb3e9e3717baec14427b702002d11c33985df",
+  "importedAt": "2026-11-21T11:50:03.899Z",
+  "tags": []
+}

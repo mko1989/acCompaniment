@@ -1,0 +1,13 @@
+[request]
+method = "GET"
+path = "/remote?case=1048"
+
+[response]
+status = 200
+
+[response.headers]
+accept-ranges = "bytes"
+access-control-allow-credentials = "true"
+cache-control = "public, max-age=0"
+content-type = "text/html; charset=utf-8"
+vary = "Origin"

@@ -1,0 +1,16 @@
+{
+  "id": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+  "path": "tone-mono-44k.wav",
+  "relativePath": "tone-mono-44k.wav",
+  "filename": "tone-mono-44k.wav",
+  "name": "Tone WAV mono 44k",
+  "size": 882078,
+  "format": ".wav",
+  "duration": 10,
+  "bitrate": 705600,
+  "sampleRate": 44100,
+  "channels": 1,
+  "hash": "9d6ac4efa08c30f958865fa07738c4c8de45ff84a0f34af3fb7f3fdf02173c30",
+  "importedAt": "2026-11-21T11:50:03.652Z",
+  "tags": []
+}

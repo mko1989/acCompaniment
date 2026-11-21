@@ -1,0 +1,16 @@
+{
+  "id": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+  "path": "tone.ogg",
+  "relativePath": "tone.ogg",
+  "filename": "tone.ogg",
+  "name": "Tone OGG Vorbis",
+  "size": 29894,
+  "format": ".ogg",
+  "duration": 10,
+  "bitrate": 112000,
+  "sampleRate": 44100,
+  "channels": 2,
+  "hash": "c8aa8e8f3c37c3b89f57c98075954e979f213bc2efb776859356b932a55853b2",
+  "importedAt": "2026-11-21T11:50:03.972Z",
+  "tags": []
+}

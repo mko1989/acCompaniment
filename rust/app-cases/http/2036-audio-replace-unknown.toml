@@ -1,0 +1,22 @@
+[request]
+method = "POST"
+path = "/api/audio/00000000-0000-4000-8000-000000000000/replace?case=2036"
+body = """
+--rustanythingboundary\r
+Content-Disposition: form-data; name="audioFile"; filename="x.wav"\r
+Content-Type: application/octet-stream\r
+\r
+x\r
+--rustanythingboundary--\r
+"""
+
+[request.headers]
+content-type = "multipart/form-data; boundary=rustanythingboundary"
+
+[response]
+status = 404
+
+[response.headers]
+access-control-allow-credentials = "true"
+content-type = "application/json; charset=utf-8"
+vary = "Origin"

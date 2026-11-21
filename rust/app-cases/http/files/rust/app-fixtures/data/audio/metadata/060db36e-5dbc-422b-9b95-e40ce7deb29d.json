@@ -1,0 +1,16 @@
+{
+  "id": "060db36e-5dbc-422b-9b95-e40ce7deb29d",
+  "path": "tone.aac",
+  "relativePath": "tone.aac",
+  "filename": "tone.aac",
+  "name": "Tone AAC ADTS",
+  "size": 163558,
+  "format": ".aac",
+  "duration": 10.031020408163265,
+  "bitrate": 130442.26432291666,
+  "sampleRate": 44100,
+  "channels": 2,
+  "hash": "cd9927456a1557f41a9a57ef0bd95f429e9e8db75ff79cae6f30ffe49ea1707a",
+  "importedAt": "2026-11-21T11:50:04.265Z",
+  "tags": []
+}

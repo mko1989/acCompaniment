@@ -39,6 +39,14 @@ missing-voice failures; the full smoke suite passes.
 
 ## What has been done
 - 2026-11-21: traced the cause (above). No code changed.
+- 2026-11-21: two full smoke runs (one through the Rust port's front door, one on Node) failed 2
+  tests each, all intermittent, three of them this race: "a cue plays at its own volume"
+  (`test/cue-properties.test.js`), "play_cue starts a cue" (`test/companion-protocol.test.js`)
+  and "a bundle opened on another (empty) installation plays there" (`test/projects.test.js:404`,
+  reads `voices` right after the trigger answers `playing`). Rerunning the three files 3 times on
+  each server: 5 of 6 runs clean, one bundle-test failure on plain Node. The fourth failure, a
+  file-level harness error in the Node run (server not ready?), left no detail and did not recur;
+  not attributed to this work order.
 
 ## Decision
 Pending. The owner said on 2026-11-21 that open decisions are taken later.

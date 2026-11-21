@@ -1,0 +1,1 @@
+{"success":false,"error":"Invalid configuration","details":["HTTP remote port must be between 1 and 65535"]}

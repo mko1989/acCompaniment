@@ -1,0 +1,15 @@
+[request]
+method = "POST"
+path = "/api/remote/master-volume?case=2019"
+body = '{"volume":0.5}'
+
+[request.headers]
+content-type = "application/json"
+
+[response]
+status = 200
+
+[response.headers]
+access-control-allow-credentials = "true"
+content-type = "application/json; charset=utf-8"
+vary = "Origin"

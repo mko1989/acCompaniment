@@ -1,0 +1,13 @@
+[request]
+method = "GET"
+path = "/styles/missing.css?case=1051"
+
+[response]
+status = 404
+
+[response.headers]
+access-control-allow-credentials = "true"
+content-security-policy = "default-src 'none'"
+content-type = "text/html; charset=utf-8"
+vary = "Origin"
+x-content-type-options = "nosniff"

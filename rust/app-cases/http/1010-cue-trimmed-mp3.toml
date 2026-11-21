@@ -1,0 +1,11 @@
+[request]
+method = "GET"
+path = "/api/cues/a7826383-017e-4f9a-afef-689004e31c97?case=1010"
+
+[response]
+status = 200
+
+[response.headers]
+access-control-allow-credentials = "true"
+content-type = "application/json; charset=utf-8"
+vary = "Origin"

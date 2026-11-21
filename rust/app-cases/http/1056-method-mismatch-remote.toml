@@ -1,0 +1,13 @@
+[request]
+method = "GET"
+path = "/api/remote/cues/stop-all?case=1056"
+
+[response]
+status = 404
+
+[response.headers]
+access-control-allow-credentials = "true"
+content-security-policy = "default-src 'none'"
+content-type = "text/html; charset=utf-8"
+vary = "Origin"
+x-content-type-options = "nosniff"

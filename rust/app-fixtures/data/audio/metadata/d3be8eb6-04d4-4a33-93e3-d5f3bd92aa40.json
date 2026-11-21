@@ -1,0 +1,16 @@
+{
+  "id": "d3be8eb6-04d4-4a33-93e3-d5f3bd92aa40",
+  "path": "tone-stereo-48k.wav",
+  "relativePath": "tone-stereo-48k.wav",
+  "filename": "tone-stereo-48k.wav",
+  "name": "Tone WAV stereo 48k",
+  "size": 2880102,
+  "format": ".wav",
+  "duration": 10,
+  "bitrate": 2304000,
+  "sampleRate": 48000,
+  "channels": 2,
+  "hash": "94aada59d718bffbb18248d34ccc0f5f9f2563b24f0056372195c2495f945e32",
+  "importedAt": "2026-11-21T11:50:03.741Z",
+  "tags": []
+}

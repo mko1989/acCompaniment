@@ -6,7 +6,7 @@
 | Severity | Medium |
 | Feature | Audio engine: applying audio settings (`AudioPlaybackManager.applyAudioConfig`) |
 | Opened | 2026-11-21, by Claude (found by the Rust port's HTTP recording, while checking WO-016) |
-| Reproduction test | `test/engine-recovery.test.js` - "cues play again after a failed engine reopen, once the settings are valid again" (written; not yet run: `node_modules` went missing, see below) |
+| Reproduction test | `test/engine-recovery.test.js` - "cues play again after a failed engine reopen, once the settings are valid again" |
 | Related | WO-016, WO-002 |
 
 ## Feature
@@ -49,8 +49,10 @@ at the API, the reproduction test needs another way to make the reopen fail (see
 - 2026-11-21: reproduced by hand (above); cause traced; reproduction test written (marked `todo`).
   Its first version used a rate of 1 Hz, which RtAudio accepts (the test passed, so it did not
   reproduce); a 1 GHz version hung decoding a 10 s file to 10^10 samples and was stopped. The
-  current version uses `"fast"`; it has not been run yet because `node_modules` disappeared from
-  the working tree (not deleted by Claude; to be reinstalled with the owner's go-ahead).
+  current version uses `"fast"`.
+- 2026-11-21: after `node_modules` was reinstalled (`brew install cmake`, `npm ci`, with the owner's
+  go-ahead), the reproduction test fails as expected: "trigger after recovery failed: Audio engine
+  not initialized" (reported as `todo`).
 
 ## Decision
 Pending. The owner said on 2026-11-21 that open decisions are taken later.

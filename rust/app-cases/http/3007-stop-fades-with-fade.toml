@@ -1,0 +1,15 @@
+[request]
+method = "POST"
+path = "/api/cues/7e015e7a-6654-4ad0-90d5-158a060fb22a/stop?case=3007"
+body = '{"fadeOut":true}'
+
+[request.headers]
+content-type = "application/json"
+
+[response]
+status = 200
+
+[response.headers]
+access-control-allow-credentials = "true"
+content-type = "application/json; charset=utf-8"
+vary = "Origin"

@@ -1,0 +1,11 @@
+[request]
+method = "DELETE"
+path = "/api/projects/2983bc21-f2d7-4df4-bd84-4d2105e47fd9?case=4007"
+
+[response]
+status = 409
+
+[response.headers]
+access-control-allow-credentials = "true"
+content-type = "application/json; charset=utf-8"
+vary = "Origin"

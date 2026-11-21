@@ -1,0 +1,1 @@
+{"success":true,"info":{"name":"acCompaniment","version":"0.3.0",[..],[..],"networkInterfaces":[{"name":"en0","address":"192.168.50.39","httpUrl":"http://[..]","wsUrl":"ws://[..]"}],"features":{"httpRemote":true,"websocket":true,"audioFormats":[".mp3",".wav",".m4a",".aac",".ogg",".flac"]}}}

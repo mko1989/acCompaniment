@@ -1,0 +1,11 @@
+[request]
+method = "GET"
+path = "/api/audio?limit=2&offset=1&case=1025"
+
+[response]
+status = 200
+
+[response.headers]
+access-control-allow-credentials = "true"
+content-type = "application/json; charset=utf-8"
+vary = "Origin"

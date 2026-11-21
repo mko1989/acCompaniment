@@ -18,10 +18,11 @@ Read first: [DECISIONS.md](DECISIONS.md) (ADR index below), [GLOSSARY.md](GLOSSA
 
 ## Proof
 
-1. `rust-anything app record` of the HTTP API (`rust/app-cases/http/`), from a fixed seed data dir.
-2. The existing node:test smoke suite and Playwright e2e run against the Rust binary (the harness
-   gets a switch to start it instead of `start-nodejs.js`). These cover the WebSocket protocol,
-   which `app record` does not.
+1. `rust-anything app record` of the HTTP API: 167 cases in `rust/app-cases/http/`, from a fixed
+   seed data dir (`rust/app-fixtures/`, built by `rust/scripts/`). Original and front door 167/167.
+2. The existing node:test smoke suite (and later Playwright e2e) run against the Rust binary:
+   `ACCOMPANIMENT_SERVER_BIN=rust/app/target/release/accompaniment node --test test/*.test.js`.
+   These cover the WebSocket protocol and shutdown, which `app record` does not.
 3. `npm run test:audio` and `npm run test:audio:ui` for everything audible (ADR-007).
 
 ## Plan (proposed, for checkpoint 1)
