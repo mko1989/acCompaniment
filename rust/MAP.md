@@ -52,7 +52,7 @@ cannot be proxied route by route. Built in stages inside `rust/app`, switched ov
 | --- | --- | --- |
 | B1 data layer | pathManager, appConfigManager, atomicWrite, mediaLibrary IO, cueDataManager, projectBundle, audioFileManager (metadata) | done 2026-11-22: `rust/app/src/core/` (paths, config, nodefs, library, cues, bundle, audio_files, probe, jsv); differential check vs. Node 303/303 (`node rust/scripts/diff-data.js`), seed round-trips byte for byte |
 | B2 server | server.js, routes/*, middleware, websocketManager, static UI | open |
-| B3 cue engine | cueManager (triggers, retrigger, fades, ducking, playlists, crossfade) | claimed by session ce56df02 2026-11-22 (subagent) |
+| B3 cue engine | cueManager (triggers, retrigger, fades, ducking, playlists, crossfade) | done 2026-11-22: `core/cue_engine.rs` + `clock.rs` (injectable clock/timers) + `AudioEngine` trait with a recording fake (`cue_fakes.rs`); differential 245/245 new ops (548/548 with B1) |
 | B4 audio engine | audioPlaybackManager, workerMixer, audioEngineWorker, audioDecoder, pcmCache on cpal + symphonia | open |
 
 Wave C: Tauri tray app replacing `electron-launcher/` (ADR-008), and CI installers (WO-011).
@@ -82,6 +82,16 @@ Wave C: Tauri tray app replacing `electron-launcher/` (ADR-008), and CI installe
   - Accepted differences (ADR-005): V8's `JSON.parse` error wording; a JSON file with lone-surrogate
     escapes reads as corrupt; zip names valid as UTF-8 are read as UTF-8 without the flag, and CRCs
     are checked (yauzl doesn't).
+
+- From B3 (for B2/B4):
+  - B2: hold `CueManager` behind one lock; drive `run_due_timers()` from a real timer (the 300 ms
+    debounced save, the 100 ms playback-time broadcast); call `pump_engine_events()` after engine
+    callbacks. Node interleaves operations on different cues at each `await`; the Rust core runs
+    one at a time: watch for order differences in replay.
+  - B4: `queue_next(still_wanted)` must become decode-first-then-ask (the fake calls it at once);
+    engine end reasons other than completed/stopped are untested.
+  - Known quirk, not reachable from the UI, no work order (ADR-019 style): `POST /api/cues` with a
+    `null` playlist item fails with a raw TypeError message; the port reproduces it.
 
 ## Out of scope
 

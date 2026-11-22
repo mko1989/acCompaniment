@@ -12,6 +12,10 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { spawnSync } = require('node:child_process');
 
+// Saved before cm.init replaces the timer functions with the fake clock (B3).
+const realSetTimeout = setTimeout;
+const { installClock, makeSettle, makeRng, makeFakeWs, makeFakeEngine } = require('./cue-engine-fakes');
+
 const REPO = path.join(__dirname, '..', '..');
 const B = path.join(REPO, 'src', 'backend');
 const PathManager = require(path.join(B, 'pathManager'));
@@ -27,6 +31,10 @@ const ops = JSON.parse(fs.readFileSync(opsFile, 'utf8'));
 for (const k of ['log', 'warn', 'error']) console[k] = () => {};
 
 let pm, config, afm, cdm;
+// B3: the original cue manager, run against fakes (cue-engine-fakes.js).
+let cm, engine, ws, clock, rng, settle;
+let seenEngine = 0;
+let seenWs = 0;
 let uploadN = 0;
 
 function dump() {
@@ -124,10 +132,95 @@ const OPS = {
         const f = m.format;
         return { duration: f.duration, bitrate: f.bitrate, sampleRate: f.sampleRate, numberOfChannels: f.numberOfChannels, title: m.common.title, artist: m.common.artist, album: m.common.album };
     },
+    // --- B3: the cue engine (cueManager.js) ----------------------------------------------------
+    'cm.init': async (rngValues) => {
+        clock = installClock();
+        engine = makeFakeEngine();
+        ws = makeFakeWs();
+        rng = makeRng(rngValues || [0.42, 0.13, 0.87, 0.55, 0.07, 0.99, 0.31, 0.66, 0.2, 0.75]);
+        settle = makeSettle(() => `${engine.log.length}/${ws.log.length}`);
+        const CueManager = require(path.join(B, 'cueManager'));
+        cm = new CueManager(afm, cdm, ws);
+        cm.audioPlaybackManager = engine;
+        cm._rng = rng;
+        cm.setConfig(config.getConfig());
+        await cm.initialize();
+    },
+    'cm.rng': (values) => { rng.reset(values); return true; },
+    'cm.trigger': (id, options) => cm.triggerCue(id, options || {}),
+    'cm.toggle': (id, options) => cm.toggleCue(id, options || {}),
+    'cm.play': (id, options) => cm.playCue(id, options || {}),
+    'cm.doublePress': async (id, options) => Promise.all([cm.triggerCue(id, options || {}), cm.triggerCue(id, options || {})]),
+    'cm.stop': (id, fadeOut) => cm.stopCue(id, fadeOut),
+    'cm.stopAll': (behavior) => cm.stopAllCues(behavior),
+    'cm.togglePause': (id) => cm.togglePauseCue(id),
+    'cm.navigate': (id, direction) => cm.navigatePlaylist(id, direction),
+    'cm.jump': (id, index) => cm.jumpToPlaylistItem(id, index),
+    'cm.create': (data) => cm.createCue(data),
+    'cm.update': (id, updates) => cm.updateCue(id, updates),
+    'cm.delete': (id) => cm.deleteCue(id),
+    'cm.reorder': (order) => cm.reorderCues(order),
+    'cm.crossfade': (enabled) => cm.setCrossfadeMode(enabled),
+    'cm.masterVolume': (v) => cm.setMasterVolume(v),
+    'cm.applyConfig': async (updates) => {
+        const prev = cm.getConfig();
+        const r = await config.updateConfig(updates);
+        if (!r.success) return r;
+        return cm.applyConfig(prev, config.getConfig());
+    },
+    'cm.newProject': (name) => cm.newProject(name),
+    'cm.openProject': (id) => cm.openProject(id),
+    'cm.renameProject': (name) => cm.renameProject(name),
+    'cm.deleteProject': (id) => cm.deleteProject(id),
+    'cm.listProjects': () => cm.listProjects(),
+    'cm.currentProject': () => cm.getCurrentProject(),
+    'cm.getCues': () => cm.getCues(),
+    'cm.getCue': (id) => cm.getCue(id) ?? null,
+    'cm.status': () => cm.getPlaybackStatus(),
+    'cm.flush': () => cm.flushPersistWorkspace(),
+    'cm.cleanup': () => cm.cleanup(),
+    'cm.audioReplace': async (id, from, name) => {
+        const r = await afm.replaceFile(id, stage(from, name), name);
+        if (!r.success) return r;
+        return cm.handleAudioFileReplaced(r.audioFile, r.previous);
+    },
+    'cm.importProject': (project, files) => cm.importProject({
+        project,
+        audio: (files || []).map(([from, name]) => ({ path: stage(from, name), name })),
+    }),
+    'engine.script': (method, result) => { engine.script.push({ method, result }); return true; },
+    'engine.end': (id, reason) => { engine.end(id, reason); },
+    'engine.advance': (id, token) => { engine.advance(id, token); },
+    'engine.error': (payload) => { engine.error(payload); },
+    'clock.advance': (ms) => clock.advance(ms, settle),
     'fs.zipOut': (p, entries) => spawnSync(process.execPath, [path.join(__dirname, 'make-zip.js'), path.join(outDir, p), JSON.stringify(entries)]).status === 0,
     'fs.writeOut': (p, text) => { fs.writeFileSync(path.join(outDir, p), text); return true; },
     'fs.write': (p, text) => { fs.mkdirSync(path.dirname(path.join(dataDir, p)), { recursive: true }); fs.writeFileSync(path.join(dataDir, p), text); return true; },
 };
+
+/** What the cue manager did and holds after an op (B3): engine calls, broadcasts, live state. */
+function cueEngineState() {
+    const lines = ['--- engine'];
+    for (const e of engine.log.slice(seenEngine)) lines.push(JSON.stringify(e));
+    seenEngine = engine.log.length;
+    lines.push('--- ws');
+    for (const e of ws.log.slice(seenWs)) lines.push(JSON.stringify(e));
+    seenWs = ws.log.length;
+    lines.push('--- state');
+    lines.push(JSON.stringify({
+        status: cm.getPlaybackStatus(),
+        playingCues: Object.fromEntries(cm.playingCues),
+        shuffleOrders: Object.fromEntries(cm.shuffleOrders),
+        queuedNext: Object.fromEntries(cm._queuedNext),
+        queueToken: cm._queueToken,
+        duckState: Object.fromEntries(cm._duckState),
+        crossfadeMode: cm.crossfadeMode,
+        config: cm.config,
+        timers: clock.pending(),
+        now: clock.now,
+    }));
+    return `${lines.join('\n')}\n`;
+}
 
 (async () => {
     for (const [i, { op, args = [] }] of ops.entries()) {
@@ -138,9 +231,10 @@ const OPS = {
         } catch (error) {
             result = { $error: error.message };
         }
+        if (settle) await settle();
         const text = result === undefined ? 'undefined' : JSON.stringify(result);
-        process.stdout.write(`### ${i} ${op}\n${text}\n${dump()}`);
+        process.stdout.write(`### ${i} ${op}\n${text}\n${cm ? cueEngineState() : ''}${dump()}`);
         // Distinct timestamps per op, on both sides, so backups never share a name.
-        await new Promise((r) => setTimeout(r, 3));
+        await new Promise((r) => realSetTimeout(r, 3));
     }
 })();

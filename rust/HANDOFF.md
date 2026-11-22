@@ -5,10 +5,11 @@ Where the port stands (2026-11-21). Load the `rust-anything` skill, then read [M
 ## State
 
 - Wave A done (2026-11-21): eight pure-logic units, every gate passing.
-- Wave B (ADR-015): B1 data layer done (2026-11-22) in `rust/app/src/core/`, proved by the
-  differential check `node rust/scripts/diff-data.js` (Node managers vs. Rust core on the same op
-  scripts, data dir compared after every op: 303/303). No route served by Rust yet: fallback rate
-  100%. Next: B3 cue engine, then B2 routes/WebSocket, then B4 audio (MAP.md).
+- Wave B (ADR-015): B1 data layer and B3 cue engine done (2026-11-22) in `rust/app/src/core/`,
+  proved by the differential check `node rust/scripts/diff-data.js` (Node vs. Rust on the same op
+  scripts in `rust/scripts/data-ops/`; results, engine calls, broadcasts, state and the data dir
+  compared after every op: 548/548). No route served by Rust yet: fallback rate 100%.
+  Next: B2 routes/WebSocket, then B4 audio (MAP.md).
 - The owner delegated open decisions (ADR-016); WO-013 to WO-023 are fixed in Node and the port.
 - Re-check any Wave A crate: `rust-anything gate $PWD/rust/<crate>` (absolute path: relative
   ones break `build`).
@@ -26,12 +27,12 @@ Rebuild the seed and inputs only if the app changed (`node rust/scripts/make-see
 
 ```sh
 rm -rf rust/app-cases
-rust-anything app record . --http --no-traps --normalize key-order --normalize timestamps \
+rust-anything app record . --http --no-traps --normalize key-order --normalize timestamps --normalize uuids \
   --normalize 'filestamp=[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{3}Z' \
   --normalize 'workdir=rust-anything-app-server[-0-9]*' \
   --normalize 'ports="(httpPort|websocketPort)":[0-9]+|(127\.0\.0\.1|localhost|[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+):[0-9]+' \
   --normalize 'timing="(startTime|currentTime|positionSec)":(0\.[0-9eE+-]+|[1-9][0-9.eE+-]*)' \
-  --pace 100 --timeout 600 --inputs rust/app-fixtures/http-inputs.jsonl \
+  --pace 500 --timeout 900 --inputs rust/app-fixtures/http-inputs.jsonl \
   --fresh rust/app-fixtures/data --fresh rust/app-fixtures/incoming \
   --db-dump "node $PWD/rust/scripts/dump-data.js rust/app-fixtures/data" \
   -- env ACCOMPANIMENT_DATA_DIR=rust/app-fixtures/data HOST=127.0.0.1 node server.js
@@ -47,6 +48,13 @@ prints every file (JSON in full, audio as size + SHA-256; not the PCM cache or `
 Rust core must write the same files (ADR-006). Its order ignores random UUIDs.
 
 What the recording taught (keep when re-recording):
+- `--pace 500`: the app saves 300 ms after a change (debounced); with a shorter pace the data dump
+  after a request may or may not include that save, depending on load (a replay under load failed
+  on 101 dumps). 500 ms is past it; checked by replaying while a cargo build ran.
+- `--normalize uuids`: ids the server generates are random; when the two recording runs' UUIDs
+  happen to share characters, the wildcard keeps them literally and later replays fail. All UUIDs
+  are wildcards now; the B1/B3 differential check (`diff-data.js`) still compares ids, mapped by
+  first appearance.
 - rust-anything drops a request identical to an earlier one: `make-inputs.js` tags every path
   with `?case=NNNN`.
 - With `key-order`, a body is compared re-formatted only when it is valid JSON. A `[..]` wildcard
@@ -64,9 +72,11 @@ What the recording taught (keep when re-recording):
 
 ## Next
 
-1. B3 cue engine (`cueManager.js`) against an `AudioEngine` trait with a silent engine; prove it
-   with the same differential method (extend `drive-data.js` / `drive-data` with cue-engine ops),
-   reading MAP.md "Rules for later stages" first.
+1. B2: HTTP routes, WebSocket, static UI and the `ACCOMPANIMENT_CORE=rust` switch on the B1/B3
+   core, with a silent `AudioEngine` until B4. Measure with
+   `rust-anything app replay . --build "env ACCOMPANIMENT_CORE=rust rust/app/target/release/accompaniment"`
+   (playback cases need B4) and the node:test suites with `ACCOMPANIMENT_SERVER_BIN`. Read MAP.md
+   "Rules for later stages" first.
 
 ## Known limits of the front door
 

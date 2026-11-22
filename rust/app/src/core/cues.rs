@@ -425,6 +425,13 @@ impl CueDataManager {
         }
     }
 
+    /// `getCurrentWorkspace().name = name` (the cue manager's `renameProject`).
+    pub fn set_current_name(&mut self, name: Value) {
+        if let Some(ws) = self.current.as_mut() {
+            ws.insert("name".into(), name);
+        }
+    }
+
     /// `clearCurrentWorkspace()`.
     pub fn clear_current_workspace(&mut self) {
         self.current = None;

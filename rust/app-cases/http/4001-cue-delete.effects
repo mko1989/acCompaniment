@@ -5,9 +5,9 @@ db
   "migratedAt": "[..]",
   "files": 0
 }
-=== audio/metadata/7a57b5ef-e306-4928-b627-26059c24bf8b.json
+=== audio/metadata/[..].json
 {
-  "id": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+  "id": "[..]",
   "path": "/private/var/folders/qp/gzwlhtm16bq03snqr3gdf_380000gn/T/[..]/cwd/rust/app-fixtures/data/audio/tone.mp3",
   "relativePath": "tone.mp3",
   "filename": "tone.mp3",
@@ -26,9 +26,9 @@ db
   ],
   "updatedAt": "[..]"
 }
-=== audio/metadata/fc3baef5-a934-41ed-adf9-b8ad84f60fd3.json
+=== audio/metadata/[..].json
 {
-  "id": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+  "id": "[..]",
   "path": "tone-mono-44k.wav",
   "relativePath": "tone-mono-44k.wav",
   "filename": "tone-mono-44k.wav",
@@ -43,9 +43,9 @@ db
   "importedAt": "[..]",
   "tags": []
 }
-=== audio/metadata/d3be8eb6-04d4-4a33-93e3-d5f3bd92aa40.json
+=== audio/metadata/[..].json
 {
-  "id": "d3be8eb6-04d4-4a33-93e3-d5f3bd92aa40",
+  "id": "[..]",
   "path": "tone-stereo-48k.wav",
   "relativePath": "tone-stereo-48k.wav",
   "filename": "tone-stereo-48k.wav",
@@ -60,9 +60,9 @@ db
   "importedAt": "[..]",
   "tags": []
 }
-=== audio/metadata/060db36e-5dbc-422b-9b95-e40ce7deb29d.json
+=== audio/metadata/[..].json
 {
-  "id": "060db36e-5dbc-422b-9b95-e40ce7deb29d",
+  "id": "[..]",
   "path": "tone.aac",
   "relativePath": "tone.aac",
   "filename": "tone.aac",
@@ -77,9 +77,9 @@ db
   "importedAt": "[..]",
   "tags": []
 }
-=== audio/metadata/eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5.json
+=== audio/metadata/[..].json
 {
-  "id": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+  "id": "[..]",
   "path": "tone.flac",
   "relativePath": "tone.flac",
   "filename": "tone.flac",
@@ -94,9 +94,9 @@ db
   "importedAt": "[..]",
   "tags": []
 }
-=== audio/metadata/63e27868-f364-4bbc-a5a9-610bd3e54d81.json
+=== audio/metadata/[..].json
 {
-  "id": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+  "id": "[..]",
   "path": "tone.m4a",
   "relativePath": "tone.m4a",
   "filename": "tone.m4a",
@@ -111,9 +111,9 @@ db
   "importedAt": "[..]",
   "tags": []
 }
-=== audio/metadata/c67b89e5-fb83-467f-bb72-ce70d8e049d3.json
+=== audio/metadata/[..].json
 {
-  "id": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+  "id": "[..]",
   "path": "tone.ogg",
   "relativePath": "tone.ogg",
   "filename": "tone.ogg",
@@ -128,9 +128,9 @@ db
   "importedAt": "[..]",
   "tags": []
 }
-=== audio/metadata/9c48d2bb-dfd7-449f-8e27-dde9bfccfebb.json
+=== audio/metadata/[..].json
 {
-  "id": "9c48d2bb-dfd7-449f-8e27-dde9bfccfebb",
+  "id": "[..]",
   "path": "zażółć-🎵.wav",
   "relativePath": "zażółć-🎵.wav",
   "filename": "zażółć-🎵.wav",
@@ -192,30 +192,16 @@ db
     ".flac"
   ],
   "notARealSetting": 1,
-  "lastOpenedProjectId": "2983bc21-f2d7-4df4-bd84-4d2105e47fd9"
+  "lastOpenedProjectId": "[..]"
 }
 === cues/backups/[..]_2983bc21-f2d7-4df4-bd84-4d2105e47fd9.json
 {
-  "id": "2983bc21-f2d7-4df4-bd84-4d2105e47fd9",
-  "name": "Default Workspace",
-  "description": "",
-  "cues": [],
-  "layout": {
-    "gridColumns": 4,
-    "gridRows": 4,
-    "cuePositions": {}
-  },
-  "createdAt": "[..]",
-  "updatedAt": "[..]"
-}
-=== cues/backups/[..]_2983bc21-f2d7-4df4-bd84-4d2105e47fd9.json
-{
-  "id": "2983bc21-f2d7-4df4-bd84-4d2105e47fd9",
+  "id": "[..]",
   "name": "Default Workspace",
   "description": "",
   "cues": [
     {
-      "id": "d86f0e6c-af67-4918-964d-60f975548940",
+      "id": "[..]",
       "name": "Plain",
       "type": "single_file",
       "status": "stopped",
@@ -237,13 +223,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "7e015e7a-6654-4ad0-90d5-158a060fb22a",
+      "id": "[..]",
       "name": "Fades and loop",
       "type": "single_file",
       "status": "stopped",
@@ -265,13 +251,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "d3be8eb6-04d4-4a33-93e3-d5f3bd92aa40",
+      "audioFileId": "[..]",
       "relativePath": "tone-stereo-48k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "a7826383-017e-4f9a-afef-689004e31c97",
+      "id": "[..]",
       "name": "Trimmed MP3",
       "type": "single_file",
       "status": "stopped",
@@ -293,13 +279,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+      "audioFileId": "[..]",
       "relativePath": "tone.mp3",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "6d90d28a-ff21-453c-a5ef-940971c0a35c",
+      "id": "[..]",
       "name": "Toggle retrigger",
       "type": "single_file",
       "status": "stopped",
@@ -321,13 +307,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+      "audioFileId": "[..]",
       "relativePath": "tone.flac",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "5fc03146-304c-4e6e-bc4f-850f9a3c7829",
+      "id": "[..]",
       "name": "Ducking trigger",
       "type": "single_file",
       "status": "stopped",
@@ -349,13 +335,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+      "audioFileId": "[..]",
       "relativePath": "tone.ogg",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "e7602c69-426c-4c48-8abf-a935bc0f2ace",
+      "id": "[..]",
       "name": "Ducked",
       "type": "single_file",
       "status": "stopped",
@@ -377,13 +363,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+      "audioFileId": "[..]",
       "relativePath": "tone.m4a",
       "knownDuration": 10.023219954648527,
       "filePath": ""
     },
     {
-      "id": "891cc443-984f-44c0-a43d-81bfc518fb45",
+      "id": "[..]",
       "name": "ADTS",
       "type": "single_file",
       "status": "stopped",
@@ -405,13 +391,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "060db36e-5dbc-422b-9b95-e40ce7deb29d",
+      "audioFileId": "[..]",
       "relativePath": "tone.aac",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "2b149964-7488-4b5a-b921-59e0b16d5aa5",
+      "id": "[..]",
       "name": "Zażółć 🎵 cue",
       "type": "single_file",
       "status": "stopped",
@@ -433,13 +419,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "9c48d2bb-dfd7-449f-8e27-dde9bfccfebb",
+      "audioFileId": "[..]",
       "relativePath": "zażółć-🎵.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "579933b0-9fee-4d06-b1b4-6ab043194548",
+      "id": "[..]",
       "name": "Playlist",
       "type": "playlist",
       "status": "stopped",
@@ -465,21 +451,21 @@ db
         {
           "id": "item-0",
           "name": "Tone WAV mono 44k",
-          "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+          "audioFileId": "[..]",
           "relativePath": "tone-mono-44k.wav",
           "knownDuration": 10
         },
         {
           "id": "item-1",
           "name": "Tone MP3",
-          "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+          "audioFileId": "[..]",
           "relativePath": "tone.mp3",
           "knownDuration": 10.031020408163265
         },
         {
           "id": "item-2",
           "name": "Tone FLAC",
-          "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+          "audioFileId": "[..]",
           "relativePath": "tone.flac",
           "knownDuration": 10
         }
@@ -490,7 +476,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "9cca8200-f996-476a-a53d-b826982c2eed",
+      "id": "[..]",
       "name": "Shuffled playlist",
       "type": "playlist",
       "status": "stopped",
@@ -516,14 +502,14 @@ db
         {
           "id": "shuffle-0",
           "name": "Tone OGG Vorbis",
-          "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+          "audioFileId": "[..]",
           "relativePath": "tone.ogg",
           "knownDuration": 10
         },
         {
           "id": "shuffle-1",
           "name": "Tone M4A AAC",
-          "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+          "audioFileId": "[..]",
           "relativePath": "tone.m4a",
           "knownDuration": 10.023219954648527
         }
@@ -544,12 +530,12 @@ db
 }
 === cues/backups/[..]_2983bc21-f2d7-4df4-bd84-4d2105e47fd9.json
 {
-  "id": "2983bc21-f2d7-4df4-bd84-4d2105e47fd9",
+  "id": "[..]",
   "name": "Default Workspace",
   "description": "",
   "cues": [
     {
-      "id": "d86f0e6c-af67-4918-964d-60f975548940",
+      "id": "[..]",
       "name": "Plain",
       "type": "single_file",
       "status": "stopped",
@@ -571,13 +557,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "7e015e7a-6654-4ad0-90d5-158a060fb22a",
+      "id": "[..]",
       "name": "Fades and loop",
       "type": "single_file",
       "status": "stopped",
@@ -599,13 +585,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "d3be8eb6-04d4-4a33-93e3-d5f3bd92aa40",
+      "audioFileId": "[..]",
       "relativePath": "tone-stereo-48k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "a7826383-017e-4f9a-afef-689004e31c97",
+      "id": "[..]",
       "name": "Trimmed MP3",
       "type": "single_file",
       "status": "stopped",
@@ -627,13 +613,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+      "audioFileId": "[..]",
       "relativePath": "tone.mp3",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "6d90d28a-ff21-453c-a5ef-940971c0a35c",
+      "id": "[..]",
       "name": "Toggle retrigger",
       "type": "single_file",
       "status": "stopped",
@@ -655,13 +641,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+      "audioFileId": "[..]",
       "relativePath": "tone.flac",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "5fc03146-304c-4e6e-bc4f-850f9a3c7829",
+      "id": "[..]",
       "name": "Ducking trigger",
       "type": "single_file",
       "status": "stopped",
@@ -683,13 +669,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+      "audioFileId": "[..]",
       "relativePath": "tone.ogg",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "e7602c69-426c-4c48-8abf-a935bc0f2ace",
+      "id": "[..]",
       "name": "Ducked",
       "type": "single_file",
       "status": "stopped",
@@ -711,13 +697,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+      "audioFileId": "[..]",
       "relativePath": "tone.m4a",
       "knownDuration": 10.023219954648527,
       "filePath": ""
     },
     {
-      "id": "891cc443-984f-44c0-a43d-81bfc518fb45",
+      "id": "[..]",
       "name": "ADTS",
       "type": "single_file",
       "status": "stopped",
@@ -739,13 +725,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "060db36e-5dbc-422b-9b95-e40ce7deb29d",
+      "audioFileId": "[..]",
       "relativePath": "tone.aac",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "2b149964-7488-4b5a-b921-59e0b16d5aa5",
+      "id": "[..]",
       "name": "Zażółć 🎵 cue",
       "type": "single_file",
       "status": "stopped",
@@ -767,13 +753,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "9c48d2bb-dfd7-449f-8e27-dde9bfccfebb",
+      "audioFileId": "[..]",
       "relativePath": "zażółć-🎵.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "579933b0-9fee-4d06-b1b4-6ab043194548",
+      "id": "[..]",
       "name": "Playlist",
       "type": "playlist",
       "status": "stopped",
@@ -799,21 +785,21 @@ db
         {
           "id": "item-0",
           "name": "Tone WAV mono 44k",
-          "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+          "audioFileId": "[..]",
           "relativePath": "tone-mono-44k.wav",
           "knownDuration": 10
         },
         {
           "id": "item-1",
           "name": "Tone MP3",
-          "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+          "audioFileId": "[..]",
           "relativePath": "tone.mp3",
           "knownDuration": 10.031020408163265
         },
         {
           "id": "item-2",
           "name": "Tone FLAC",
-          "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+          "audioFileId": "[..]",
           "relativePath": "tone.flac",
           "knownDuration": 10
         }
@@ -824,7 +810,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "9cca8200-f996-476a-a53d-b826982c2eed",
+      "id": "[..]",
       "name": "Shuffled playlist",
       "type": "playlist",
       "status": "stopped",
@@ -850,14 +836,14 @@ db
         {
           "id": "shuffle-0",
           "name": "Tone OGG Vorbis",
-          "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+          "audioFileId": "[..]",
           "relativePath": "tone.ogg",
           "knownDuration": 10
         },
         {
           "id": "shuffle-1",
           "name": "Tone M4A AAC",
-          "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+          "audioFileId": "[..]",
           "relativePath": "tone.m4a",
           "knownDuration": 10.023219954648527
         }
@@ -878,12 +864,12 @@ db
 }
 === cues/backups/[..]_2983bc21-f2d7-4df4-bd84-4d2105e47fd9.json
 {
-  "id": "2983bc21-f2d7-4df4-bd84-4d2105e47fd9",
+  "id": "[..]",
   "name": "Default Workspace",
   "description": "",
   "cues": [
     {
-      "id": "d86f0e6c-af67-4918-964d-60f975548940",
+      "id": "[..]",
       "name": "Plain",
       "type": "single_file",
       "status": "stopped",
@@ -905,13 +891,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "7e015e7a-6654-4ad0-90d5-158a060fb22a",
+      "id": "[..]",
       "name": "Fades and loop",
       "type": "single_file",
       "status": "stopped",
@@ -933,13 +919,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "d3be8eb6-04d4-4a33-93e3-d5f3bd92aa40",
+      "audioFileId": "[..]",
       "relativePath": "tone-stereo-48k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "a7826383-017e-4f9a-afef-689004e31c97",
+      "id": "[..]",
       "name": "Trimmed MP3",
       "type": "single_file",
       "status": "stopped",
@@ -961,13 +947,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+      "audioFileId": "[..]",
       "relativePath": "tone.mp3",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "6d90d28a-ff21-453c-a5ef-940971c0a35c",
+      "id": "[..]",
       "name": "Toggle retrigger",
       "type": "single_file",
       "status": "stopped",
@@ -989,13 +975,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+      "audioFileId": "[..]",
       "relativePath": "tone.flac",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "5fc03146-304c-4e6e-bc4f-850f9a3c7829",
+      "id": "[..]",
       "name": "Ducking trigger",
       "type": "single_file",
       "status": "stopped",
@@ -1017,13 +1003,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+      "audioFileId": "[..]",
       "relativePath": "tone.ogg",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "e7602c69-426c-4c48-8abf-a935bc0f2ace",
+      "id": "[..]",
       "name": "Ducked",
       "type": "single_file",
       "status": "stopped",
@@ -1045,13 +1031,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+      "audioFileId": "[..]",
       "relativePath": "tone.m4a",
       "knownDuration": 10.023219954648527,
       "filePath": ""
     },
     {
-      "id": "891cc443-984f-44c0-a43d-81bfc518fb45",
+      "id": "[..]",
       "name": "ADTS",
       "type": "single_file",
       "status": "stopped",
@@ -1073,13 +1059,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "060db36e-5dbc-422b-9b95-e40ce7deb29d",
+      "audioFileId": "[..]",
       "relativePath": "tone.aac",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "2b149964-7488-4b5a-b921-59e0b16d5aa5",
+      "id": "[..]",
       "name": "Zażółć 🎵 cue",
       "type": "single_file",
       "status": "stopped",
@@ -1101,13 +1087,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "9c48d2bb-dfd7-449f-8e27-dde9bfccfebb",
+      "audioFileId": "[..]",
       "relativePath": "zażółć-🎵.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "579933b0-9fee-4d06-b1b4-6ab043194548",
+      "id": "[..]",
       "name": "Playlist",
       "type": "playlist",
       "status": "stopped",
@@ -1133,21 +1119,21 @@ db
         {
           "id": "item-0",
           "name": "Tone WAV mono 44k",
-          "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+          "audioFileId": "[..]",
           "relativePath": "tone-mono-44k.wav",
           "knownDuration": 10
         },
         {
           "id": "item-1",
           "name": "Tone MP3",
-          "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+          "audioFileId": "[..]",
           "relativePath": "tone.mp3",
           "knownDuration": 10.031020408163265
         },
         {
           "id": "item-2",
           "name": "Tone FLAC",
-          "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+          "audioFileId": "[..]",
           "relativePath": "tone.flac",
           "knownDuration": 10
         }
@@ -1158,7 +1144,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "9cca8200-f996-476a-a53d-b826982c2eed",
+      "id": "[..]",
       "name": "Shuffled playlist",
       "type": "playlist",
       "status": "stopped",
@@ -1184,14 +1170,14 @@ db
         {
           "id": "shuffle-0",
           "name": "Tone OGG Vorbis",
-          "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+          "audioFileId": "[..]",
           "relativePath": "tone.ogg",
           "knownDuration": 10
         },
         {
           "id": "shuffle-1",
           "name": "Tone M4A AAC",
-          "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+          "audioFileId": "[..]",
           "relativePath": "tone.m4a",
           "knownDuration": 10.023219954648527
         }
@@ -1202,7 +1188,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Created 🎵",
       "type": "single_file",
       "status": "stopped",
@@ -1224,13 +1210,764 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
+      "relativePath": "tone-mono-44k.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    }
+  ],
+  "layout": {
+    "gridColumns": 4,
+    "gridRows": 4,
+    "cuePositions": {}
+  },
+  "createdAt": "[..]",
+  "updatedAt": "[..]"
+}
+=== cues/backups/[..]_2983bc21-f2d7-4df4-bd84-4d2105e47fd9.json
+{
+  "id": "[..]",
+  "name": "Default Workspace",
+  "description": "",
+  "cues": [
+    {
+      "id": "[..]",
+      "name": "Plain",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
+      "name": "Fades and loop",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 300,
+      "fadeOutTime": 500,
+      "loop": true,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone-stereo-48k.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Trimmed MP3",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0.25,
+      "trimEndTime": 1.5,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.mp3",
+      "knownDuration": 10.031020408163265,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Toggle retrigger",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "pause",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.flac",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Ducking trigger",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": true,
+      "enableDucking": false,
+      "duckingLevel": 0.3,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.ogg",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Ducked",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": true,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.m4a",
+      "knownDuration": 10.023219954648527,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "ADTS",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.aac",
+      "knownDuration": 10.031020408163265,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Zażółć 🎵 cue",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "zażółć-🎵.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Playlist",
+      "type": "playlist",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "playlistItems": [
+        {
+          "id": "item-0",
+          "name": "Tone WAV mono 44k",
+          "audioFileId": "[..]",
+          "relativePath": "tone-mono-44k.wav",
+          "knownDuration": 10
+        },
+        {
+          "id": "item-1",
+          "name": "Tone MP3",
+          "audioFileId": "[..]",
+          "relativePath": "tone.mp3",
+          "knownDuration": 10.031020408163265
+        },
+        {
+          "id": "item-2",
+          "name": "Tone FLAC",
+          "audioFileId": "[..]",
+          "relativePath": "tone.flac",
+          "knownDuration": 10
+        }
+      ],
+      "currentPlaylistIndex": 0,
+      "shufflePlaylist": false,
+      "repeatOnePlaylistItem": false,
+      "playlistPlayMode": "continue"
+    },
+    {
+      "id": "[..]",
+      "name": "Shuffled playlist",
+      "type": "playlist",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "playlistItems": [
+        {
+          "id": "shuffle-0",
+          "name": "Tone OGG Vorbis",
+          "audioFileId": "[..]",
+          "relativePath": "tone.ogg",
+          "knownDuration": 10
+        },
+        {
+          "id": "shuffle-1",
+          "name": "Tone M4A AAC",
+          "audioFileId": "[..]",
+          "relativePath": "tone.m4a",
+          "knownDuration": 10.023219954648527
+        }
+      ],
+      "shufflePlaylist": true,
+      "currentPlaylistIndex": 0,
+      "repeatOnePlaylistItem": false,
+      "playlistPlayMode": "continue"
+    },
+    {
+      "id": "[..]",
+      "name": "Created 🎵",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone-mono-44k.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Minimal",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 1,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "filePath": "",
+      "relativePath": "",
+      "knownDuration": 0
+    }
+  ],
+  "layout": {
+    "gridColumns": 4,
+    "gridRows": 4,
+    "cuePositions": {}
+  },
+  "createdAt": "[..]",
+  "updatedAt": "[..]"
+}
+=== cues/backups/[..]_2983bc21-f2d7-4df4-bd84-4d2105e47fd9.json
+{
+  "id": "[..]",
+  "name": "Default Workspace",
+  "description": "",
+  "cues": [
+    {
+      "id": "[..]",
+      "name": "Plain",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone-mono-44k.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Fades and loop",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 300,
+      "fadeOutTime": 500,
+      "loop": true,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone-stereo-48k.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Trimmed MP3",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0.25,
+      "trimEndTime": 1.5,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.mp3",
+      "knownDuration": 10.031020408163265,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Toggle retrigger",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "pause",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.flac",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Ducking trigger",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": true,
+      "enableDucking": false,
+      "duckingLevel": 0.3,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.ogg",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Ducked",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": true,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.m4a",
+      "knownDuration": 10.023219954648527,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "ADTS",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.aac",
+      "knownDuration": 10.031020408163265,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Zażółć 🎵 cue",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "zażółć-🎵.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Playlist",
+      "type": "playlist",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "playlistItems": [
+        {
+          "id": "item-0",
+          "name": "Tone WAV mono 44k",
+          "audioFileId": "[..]",
+          "relativePath": "tone-mono-44k.wav",
+          "knownDuration": 10
+        },
+        {
+          "id": "item-1",
+          "name": "Tone MP3",
+          "audioFileId": "[..]",
+          "relativePath": "tone.mp3",
+          "knownDuration": 10.031020408163265
+        },
+        {
+          "id": "item-2",
+          "name": "Tone FLAC",
+          "audioFileId": "[..]",
+          "relativePath": "tone.flac",
+          "knownDuration": 10
+        }
+      ],
+      "currentPlaylistIndex": 0,
+      "shufflePlaylist": false,
+      "repeatOnePlaylistItem": false,
+      "playlistPlayMode": "continue"
+    },
+    {
+      "id": "[..]",
+      "name": "Shuffled playlist",
+      "type": "playlist",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "playlistItems": [
+        {
+          "id": "shuffle-0",
+          "name": "Tone OGG Vorbis",
+          "audioFileId": "[..]",
+          "relativePath": "tone.ogg",
+          "knownDuration": 10
+        },
+        {
+          "id": "shuffle-1",
+          "name": "Tone M4A AAC",
+          "audioFileId": "[..]",
+          "relativePath": "tone.m4a",
+          "knownDuration": 10.023219954648527
+        }
+      ],
+      "shufflePlaylist": true,
+      "currentPlaylistIndex": 0,
+      "repeatOnePlaylistItem": false,
+      "playlistPlayMode": "continue"
+    },
+    {
+      "id": "[..]",
+      "name": "Created 🎵",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone-mono-44k.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
       "name": "Minimal",
       "type": "single_file",
       "status": "stopped",
@@ -1257,7 +1994,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",
@@ -1294,21 +2031,21 @@ db
 }
 === cues/backups/[..]_2983bc21-f2d7-4df4-bd84-4d2105e47fd9.json
 {
-  "id": "2983bc21-f2d7-4df4-bd84-4d2105e47fd9",
+  "id": "[..]",
   "name": "Default Workspace",
   "description": "",
   "cues": [
     {
-      "id": "d86f0e6c-af67-4918-964d-60f975548940",
-      "name": "Plain renamed",
+      "id": "[..]",
+      "name": "Plain",
       "type": "single_file",
       "status": "stopped",
       "currentTime": 0,
       "totalTime": 0,
-      "volume": 0.04,
+      "volume": 0.05,
       "fadeInTime": 0,
       "fadeOutTime": 0,
-      "loop": true,
+      "loop": false,
       "retriggerBehavior": "restart",
       "trimStartTime": 0,
       "trimEndTime": null,
@@ -1316,18 +2053,18 @@ db
       "enableDucking": false,
       "duckingLevel": 80,
       "outputPatch": [
-        1,
+        0,
         1
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "7e015e7a-6654-4ad0-90d5-158a060fb22a",
+      "id": "[..]",
       "name": "Fades and loop",
       "type": "single_file",
       "status": "stopped",
@@ -1349,13 +2086,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "d3be8eb6-04d4-4a33-93e3-d5f3bd92aa40",
+      "audioFileId": "[..]",
       "relativePath": "tone-stereo-48k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "a7826383-017e-4f9a-afef-689004e31c97",
+      "id": "[..]",
       "name": "Trimmed MP3",
       "type": "single_file",
       "status": "stopped",
@@ -1377,13 +2114,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+      "audioFileId": "[..]",
       "relativePath": "tone.mp3",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "6d90d28a-ff21-453c-a5ef-940971c0a35c",
+      "id": "[..]",
       "name": "Toggle retrigger",
       "type": "single_file",
       "status": "stopped",
@@ -1405,13 +2142,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+      "audioFileId": "[..]",
       "relativePath": "tone.flac",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "5fc03146-304c-4e6e-bc4f-850f9a3c7829",
+      "id": "[..]",
       "name": "Ducking trigger",
       "type": "single_file",
       "status": "stopped",
@@ -1433,13 +2170,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+      "audioFileId": "[..]",
       "relativePath": "tone.ogg",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "e7602c69-426c-4c48-8abf-a935bc0f2ace",
+      "id": "[..]",
       "name": "Ducked",
       "type": "single_file",
       "status": "stopped",
@@ -1461,13 +2198,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+      "audioFileId": "[..]",
       "relativePath": "tone.m4a",
       "knownDuration": 10.023219954648527,
       "filePath": ""
     },
     {
-      "id": "891cc443-984f-44c0-a43d-81bfc518fb45",
+      "id": "[..]",
       "name": "ADTS",
       "type": "single_file",
       "status": "stopped",
@@ -1489,13 +2226,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "060db36e-5dbc-422b-9b95-e40ce7deb29d",
+      "audioFileId": "[..]",
       "relativePath": "tone.aac",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "2b149964-7488-4b5a-b921-59e0b16d5aa5",
+      "id": "[..]",
       "name": "Zażółć 🎵 cue",
       "type": "single_file",
       "status": "stopped",
@@ -1517,13 +2254,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "9c48d2bb-dfd7-449f-8e27-dde9bfccfebb",
+      "audioFileId": "[..]",
       "relativePath": "zażółć-🎵.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "579933b0-9fee-4d06-b1b4-6ab043194548",
+      "id": "[..]",
       "name": "Playlist",
       "type": "playlist",
       "status": "stopped",
@@ -1549,21 +2286,21 @@ db
         {
           "id": "item-0",
           "name": "Tone WAV mono 44k",
-          "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+          "audioFileId": "[..]",
           "relativePath": "tone-mono-44k.wav",
           "knownDuration": 10
         },
         {
           "id": "item-1",
           "name": "Tone MP3",
-          "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+          "audioFileId": "[..]",
           "relativePath": "tone.mp3",
           "knownDuration": 10.031020408163265
         },
         {
           "id": "item-2",
           "name": "Tone FLAC",
-          "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+          "audioFileId": "[..]",
           "relativePath": "tone.flac",
           "knownDuration": 10
         }
@@ -1574,7 +2311,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "9cca8200-f996-476a-a53d-b826982c2eed",
+      "id": "[..]",
       "name": "Shuffled playlist",
       "type": "playlist",
       "status": "stopped",
@@ -1600,14 +2337,14 @@ db
         {
           "id": "shuffle-0",
           "name": "Tone OGG Vorbis",
-          "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+          "audioFileId": "[..]",
           "relativePath": "tone.ogg",
           "knownDuration": 10
         },
         {
           "id": "shuffle-1",
           "name": "Tone M4A AAC",
-          "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+          "audioFileId": "[..]",
           "relativePath": "tone.m4a",
           "knownDuration": 10.023219954648527
         }
@@ -1618,7 +2355,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Created 🎵",
       "type": "single_file",
       "status": "stopped",
@@ -1640,13 +2377,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Minimal",
       "type": "single_file",
       "status": "stopped",
@@ -1673,7 +2410,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",
@@ -1700,7 +2437,450 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
+      "name": "Weird",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 1.5,
+      "fadeInTime": -1,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 1e+21,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "filePath": "",
+      "relativePath": "",
+      "knownDuration": 0
+    }
+  ],
+  "layout": {
+    "gridColumns": 4,
+    "gridRows": 4,
+    "cuePositions": {}
+  },
+  "createdAt": "[..]",
+  "updatedAt": "[..]"
+}
+=== cues/backups/[..]_2983bc21-f2d7-4df4-bd84-4d2105e47fd9.json
+{
+  "id": "[..]",
+  "name": "Default Workspace",
+  "description": "",
+  "cues": [
+    {
+      "id": "[..]",
+      "name": "Plain",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone-mono-44k.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Fades and loop",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 300,
+      "fadeOutTime": 500,
+      "loop": true,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone-stereo-48k.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Trimmed MP3",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0.25,
+      "trimEndTime": 1.5,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.mp3",
+      "knownDuration": 10.031020408163265,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Toggle retrigger",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "pause",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.flac",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Ducking trigger",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": true,
+      "enableDucking": false,
+      "duckingLevel": 0.3,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.ogg",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Ducked",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": true,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.m4a",
+      "knownDuration": 10.023219954648527,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "ADTS",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.aac",
+      "knownDuration": 10.031020408163265,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Zażółć 🎵 cue",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "zażółć-🎵.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Playlist",
+      "type": "playlist",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "playlistItems": [
+        {
+          "id": "item-0",
+          "name": "Tone WAV mono 44k",
+          "audioFileId": "[..]",
+          "relativePath": "tone-mono-44k.wav",
+          "knownDuration": 10
+        },
+        {
+          "id": "item-1",
+          "name": "Tone MP3",
+          "audioFileId": "[..]",
+          "relativePath": "tone.mp3",
+          "knownDuration": 10.031020408163265
+        },
+        {
+          "id": "item-2",
+          "name": "Tone FLAC",
+          "audioFileId": "[..]",
+          "relativePath": "tone.flac",
+          "knownDuration": 10
+        }
+      ],
+      "currentPlaylistIndex": 0,
+      "shufflePlaylist": false,
+      "repeatOnePlaylistItem": false,
+      "playlistPlayMode": "continue"
+    },
+    {
+      "id": "[..]",
+      "name": "Shuffled playlist",
+      "type": "playlist",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "playlistItems": [
+        {
+          "id": "shuffle-0",
+          "name": "Tone OGG Vorbis",
+          "audioFileId": "[..]",
+          "relativePath": "tone.ogg",
+          "knownDuration": 10
+        },
+        {
+          "id": "shuffle-1",
+          "name": "Tone M4A AAC",
+          "audioFileId": "[..]",
+          "relativePath": "tone.m4a",
+          "knownDuration": 10.023219954648527
+        }
+      ],
+      "shufflePlaylist": true,
+      "currentPlaylistIndex": 0,
+      "repeatOnePlaylistItem": false,
+      "playlistPlayMode": "continue"
+    },
+    {
+      "id": "[..]",
+      "name": "Created 🎵",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone-mono-44k.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Minimal",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 1,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "filePath": "",
+      "relativePath": "",
+      "knownDuration": 0
+    },
+    {
+      "id": "[..]",
+      "name": "New Cue",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 1,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "filePath": "",
+      "relativePath": "",
+      "knownDuration": 0
+    },
+    {
+      "id": "[..]",
       "name": "Weird",
       "type": "single_file",
       "status": "stopped",
@@ -1727,7 +2907,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",
@@ -1764,14 +2944,182 @@ db
 }
 === cues/backups/[..]_2983bc21-f2d7-4df4-bd84-4d2105e47fd9.json
 {
-  "id": "2983bc21-f2d7-4df4-bd84-4d2105e47fd9",
+  "id": "[..]",
   "name": "Default Workspace",
   "description": "",
   "cues": [
     {
-      "id": "9cca8200-f996-476a-a53d-b826982c2eed",
-      "name": "Shuffled playlist",
-      "type": "playlist",
+      "id": "[..]",
+      "name": "Plain renamed",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.04,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": true,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone-mono-44k.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Fades and loop",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 300,
+      "fadeOutTime": 500,
+      "loop": true,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone-stereo-48k.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Trimmed MP3",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0.25,
+      "trimEndTime": 1.5,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.mp3",
+      "knownDuration": 10.031020408163265,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Toggle retrigger",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "pause",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.flac",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Ducking trigger",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": true,
+      "enableDucking": false,
+      "duckingLevel": 0.3,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.ogg",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Ducked",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": true,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.m4a",
+      "knownDuration": 10.023219954648527,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "ADTS",
+      "type": "single_file",
       "status": "stopped",
       "currentTime": 0,
       "totalTime": 0,
@@ -1791,29 +3139,41 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "playlistItems": [
-        {
-          "id": "shuffle-0",
-          "name": "Tone OGG Vorbis",
-          "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
-          "relativePath": "tone.ogg",
-          "knownDuration": 10
-        },
-        {
-          "id": "shuffle-1",
-          "name": "Tone M4A AAC",
-          "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
-          "relativePath": "tone.m4a",
-          "knownDuration": 10.023219954648527
-        }
-      ],
-      "shufflePlaylist": true,
-      "currentPlaylistIndex": 0,
-      "repeatOnePlaylistItem": false,
-      "playlistPlayMode": "continue"
+      "audioFileId": "[..]",
+      "relativePath": "tone.aac",
+      "knownDuration": 10.031020408163265,
+      "filePath": ""
     },
     {
-      "id": "579933b0-9fee-4d06-b1b4-6ab043194548",
+      "id": "[..]",
+      "name": "Zażółć 🎵 cue",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "zażółć-🎵.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
       "name": "Playlist",
       "type": "playlist",
       "status": "stopped",
@@ -1839,21 +3199,21 @@ db
         {
           "id": "item-0",
           "name": "Tone WAV mono 44k",
-          "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+          "audioFileId": "[..]",
           "relativePath": "tone-mono-44k.wav",
           "knownDuration": 10
         },
         {
           "id": "item-1",
           "name": "Tone MP3",
-          "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+          "audioFileId": "[..]",
           "relativePath": "tone.mp3",
           "knownDuration": 10.031020408163265
         },
         {
           "id": "item-2",
           "name": "Tone FLAC",
-          "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+          "audioFileId": "[..]",
           "relativePath": "tone.flac",
           "knownDuration": 10
         }
@@ -1864,9 +3224,9 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "2b149964-7488-4b5a-b921-59e0b16d5aa5",
-      "name": "Zażółć 🎵 cue",
-      "type": "single_file",
+      "id": "[..]",
+      "name": "Shuffled playlist",
+      "type": "playlist",
       "status": "stopped",
       "currentTime": 0,
       "totalTime": 0,
@@ -1886,209 +3246,29 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "9c48d2bb-dfd7-449f-8e27-dde9bfccfebb",
-      "relativePath": "zażółć-🎵.wav",
-      "knownDuration": 10,
-      "filePath": ""
-    },
-    {
-      "id": "891cc443-984f-44c0-a43d-81bfc518fb45",
-      "name": "ADTS",
-      "type": "single_file",
-      "status": "stopped",
-      "currentTime": 0,
-      "totalTime": 0,
-      "volume": 0.05,
-      "fadeInTime": 0,
-      "fadeOutTime": 0,
-      "loop": false,
-      "retriggerBehavior": "restart",
-      "trimStartTime": 0,
-      "trimEndTime": null,
-      "isDuckingTrigger": false,
-      "enableDucking": false,
-      "duckingLevel": 80,
-      "outputPatch": [
-        0,
-        1
+      "playlistItems": [
+        {
+          "id": "shuffle-0",
+          "name": "Tone OGG Vorbis",
+          "audioFileId": "[..]",
+          "relativePath": "tone.ogg",
+          "knownDuration": 10
+        },
+        {
+          "id": "shuffle-1",
+          "name": "Tone M4A AAC",
+          "audioFileId": "[..]",
+          "relativePath": "tone.m4a",
+          "knownDuration": 10.023219954648527
+        }
       ],
-      "createdAt": "[..]",
-      "updatedAt": "[..]",
-      "audioFileId": "060db36e-5dbc-422b-9b95-e40ce7deb29d",
-      "relativePath": "tone.aac",
-      "knownDuration": 10.031020408163265,
-      "filePath": ""
+      "shufflePlaylist": true,
+      "currentPlaylistIndex": 0,
+      "repeatOnePlaylistItem": false,
+      "playlistPlayMode": "continue"
     },
     {
-      "id": "e7602c69-426c-4c48-8abf-a935bc0f2ace",
-      "name": "Ducked",
-      "type": "single_file",
-      "status": "stopped",
-      "currentTime": 0,
-      "totalTime": 0,
-      "volume": 0.05,
-      "fadeInTime": 0,
-      "fadeOutTime": 0,
-      "loop": false,
-      "retriggerBehavior": "restart",
-      "trimStartTime": 0,
-      "trimEndTime": null,
-      "isDuckingTrigger": false,
-      "enableDucking": true,
-      "duckingLevel": 80,
-      "outputPatch": [
-        0,
-        1
-      ],
-      "createdAt": "[..]",
-      "updatedAt": "[..]",
-      "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
-      "relativePath": "tone.m4a",
-      "knownDuration": 10.023219954648527,
-      "filePath": ""
-    },
-    {
-      "id": "5fc03146-304c-4e6e-bc4f-850f9a3c7829",
-      "name": "Ducking trigger",
-      "type": "single_file",
-      "status": "stopped",
-      "currentTime": 0,
-      "totalTime": 0,
-      "volume": 0.05,
-      "fadeInTime": 0,
-      "fadeOutTime": 0,
-      "loop": false,
-      "retriggerBehavior": "restart",
-      "trimStartTime": 0,
-      "trimEndTime": null,
-      "isDuckingTrigger": true,
-      "enableDucking": false,
-      "duckingLevel": 0.3,
-      "outputPatch": [
-        0,
-        1
-      ],
-      "createdAt": "[..]",
-      "updatedAt": "[..]",
-      "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
-      "relativePath": "tone.ogg",
-      "knownDuration": 10,
-      "filePath": ""
-    },
-    {
-      "id": "6d90d28a-ff21-453c-a5ef-940971c0a35c",
-      "name": "Toggle retrigger",
-      "type": "single_file",
-      "status": "stopped",
-      "currentTime": 0,
-      "totalTime": 0,
-      "volume": 0.05,
-      "fadeInTime": 0,
-      "fadeOutTime": 0,
-      "loop": false,
-      "retriggerBehavior": "pause",
-      "trimStartTime": 0,
-      "trimEndTime": null,
-      "isDuckingTrigger": false,
-      "enableDucking": false,
-      "duckingLevel": 80,
-      "outputPatch": [
-        0,
-        1
-      ],
-      "createdAt": "[..]",
-      "updatedAt": "[..]",
-      "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
-      "relativePath": "tone.flac",
-      "knownDuration": 10,
-      "filePath": ""
-    },
-    {
-      "id": "a7826383-017e-4f9a-afef-689004e31c97",
-      "name": "Trimmed MP3",
-      "type": "single_file",
-      "status": "stopped",
-      "currentTime": 0,
-      "totalTime": 0,
-      "volume": 0.05,
-      "fadeInTime": 0,
-      "fadeOutTime": 0,
-      "loop": false,
-      "retriggerBehavior": "restart",
-      "trimStartTime": 0.25,
-      "trimEndTime": 1.5,
-      "isDuckingTrigger": false,
-      "enableDucking": false,
-      "duckingLevel": 80,
-      "outputPatch": [
-        0,
-        1
-      ],
-      "createdAt": "[..]",
-      "updatedAt": "[..]",
-      "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
-      "relativePath": "tone.mp3",
-      "knownDuration": 10.031020408163265,
-      "filePath": ""
-    },
-    {
-      "id": "7e015e7a-6654-4ad0-90d5-158a060fb22a",
-      "name": "Fades and loop",
-      "type": "single_file",
-      "status": "stopped",
-      "currentTime": 0,
-      "totalTime": 0,
-      "volume": 0.05,
-      "fadeInTime": 300,
-      "fadeOutTime": 500,
-      "loop": true,
-      "retriggerBehavior": "restart",
-      "trimStartTime": 0,
-      "trimEndTime": null,
-      "isDuckingTrigger": false,
-      "enableDucking": false,
-      "duckingLevel": 80,
-      "outputPatch": [
-        0,
-        1
-      ],
-      "createdAt": "[..]",
-      "updatedAt": "[..]",
-      "audioFileId": "d3be8eb6-04d4-4a33-93e3-d5f3bd92aa40",
-      "relativePath": "tone-stereo-48k.wav",
-      "knownDuration": 10,
-      "filePath": ""
-    },
-    {
-      "id": "d86f0e6c-af67-4918-964d-60f975548940",
-      "name": "Plain renamed",
-      "type": "single_file",
-      "status": "stopped",
-      "currentTime": 0,
-      "totalTime": 0,
-      "volume": 0.04,
-      "fadeInTime": 0,
-      "fadeOutTime": 0,
-      "loop": true,
-      "retriggerBehavior": "restart",
-      "trimStartTime": 0,
-      "trimEndTime": null,
-      "isDuckingTrigger": false,
-      "enableDucking": false,
-      "duckingLevel": 80,
-      "outputPatch": [
-        1,
-        1
-      ],
-      "createdAt": "[..]",
-      "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
-      "relativePath": "tone-mono-44k.wav",
-      "knownDuration": 10,
-      "filePath": ""
-    },
-    {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Created 🎵",
       "type": "single_file",
       "status": "stopped",
@@ -2110,13 +3290,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Minimal",
       "type": "single_file",
       "status": "stopped",
@@ -2143,7 +3323,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",
@@ -2170,7 +3350,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Weird",
       "type": "single_file",
       "status": "stopped",
@@ -2197,7 +3377,947 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
+      "name": "New Cue",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 1,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "filePath": "",
+      "relativePath": "",
+      "knownDuration": 0
+    }
+  ],
+  "layout": {
+    "gridColumns": 4,
+    "gridRows": 4,
+    "cuePositions": {}
+  },
+  "createdAt": "[..]",
+  "updatedAt": "[..]"
+}
+=== cues/backups/[..]_2983bc21-f2d7-4df4-bd84-4d2105e47fd9.json
+{
+  "id": "[..]",
+  "name": "Default Workspace",
+  "description": "",
+  "cues": [
+    {
+      "id": "[..]",
+      "name": "Plain renamed",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.04,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": true,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        1,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone-mono-44k.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Fades and loop",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 300,
+      "fadeOutTime": 500,
+      "loop": true,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone-stereo-48k.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Trimmed MP3",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0.25,
+      "trimEndTime": 1.5,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.mp3",
+      "knownDuration": 10.031020408163265,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Toggle retrigger",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "pause",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.flac",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Ducking trigger",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": true,
+      "enableDucking": false,
+      "duckingLevel": 0.3,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.ogg",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Ducked",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": true,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.m4a",
+      "knownDuration": 10.023219954648527,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "ADTS",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.aac",
+      "knownDuration": 10.031020408163265,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Zażółć 🎵 cue",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "zażółć-🎵.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Playlist",
+      "type": "playlist",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "playlistItems": [
+        {
+          "id": "item-0",
+          "name": "Tone WAV mono 44k",
+          "audioFileId": "[..]",
+          "relativePath": "tone-mono-44k.wav",
+          "knownDuration": 10
+        },
+        {
+          "id": "item-1",
+          "name": "Tone MP3",
+          "audioFileId": "[..]",
+          "relativePath": "tone.mp3",
+          "knownDuration": 10.031020408163265
+        },
+        {
+          "id": "item-2",
+          "name": "Tone FLAC",
+          "audioFileId": "[..]",
+          "relativePath": "tone.flac",
+          "knownDuration": 10
+        }
+      ],
+      "currentPlaylistIndex": 0,
+      "shufflePlaylist": false,
+      "repeatOnePlaylistItem": false,
+      "playlistPlayMode": "continue"
+    },
+    {
+      "id": "[..]",
+      "name": "Shuffled playlist",
+      "type": "playlist",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "playlistItems": [
+        {
+          "id": "shuffle-0",
+          "name": "Tone OGG Vorbis",
+          "audioFileId": "[..]",
+          "relativePath": "tone.ogg",
+          "knownDuration": 10
+        },
+        {
+          "id": "shuffle-1",
+          "name": "Tone M4A AAC",
+          "audioFileId": "[..]",
+          "relativePath": "tone.m4a",
+          "knownDuration": 10.023219954648527
+        }
+      ],
+      "shufflePlaylist": true,
+      "currentPlaylistIndex": 0,
+      "repeatOnePlaylistItem": false,
+      "playlistPlayMode": "continue"
+    },
+    {
+      "id": "[..]",
+      "name": "Created 🎵",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone-mono-44k.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Minimal",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 1,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "filePath": "",
+      "relativePath": "",
+      "knownDuration": 0
+    },
+    {
+      "id": "[..]",
+      "name": "New Cue",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 1,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "filePath": "",
+      "relativePath": "",
+      "knownDuration": 0
+    },
+    {
+      "id": "[..]",
+      "name": "Weird",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 1.5,
+      "fadeInTime": -1,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 1e+21,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "filePath": "",
+      "relativePath": "",
+      "knownDuration": 0
+    },
+    {
+      "id": "[..]",
+      "name": "New Cue",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 1,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "filePath": "",
+      "relativePath": "",
+      "knownDuration": 0
+    }
+  ],
+  "layout": {
+    "gridColumns": 4,
+    "gridRows": 4,
+    "cuePositions": {}
+  },
+  "createdAt": "[..]",
+  "updatedAt": "[..]"
+}
+=== cues/backups/[..]_2983bc21-f2d7-4df4-bd84-4d2105e47fd9.json
+{
+  "id": "[..]",
+  "name": "Default Workspace",
+  "description": "",
+  "cues": [
+    {
+      "id": "[..]",
+      "name": "Shuffled playlist",
+      "type": "playlist",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "playlistItems": [
+        {
+          "id": "shuffle-0",
+          "name": "Tone OGG Vorbis",
+          "audioFileId": "[..]",
+          "relativePath": "tone.ogg",
+          "knownDuration": 10
+        },
+        {
+          "id": "shuffle-1",
+          "name": "Tone M4A AAC",
+          "audioFileId": "[..]",
+          "relativePath": "tone.m4a",
+          "knownDuration": 10.023219954648527
+        }
+      ],
+      "shufflePlaylist": true,
+      "currentPlaylistIndex": 0,
+      "repeatOnePlaylistItem": false,
+      "playlistPlayMode": "continue"
+    },
+    {
+      "id": "[..]",
+      "name": "Playlist",
+      "type": "playlist",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "playlistItems": [
+        {
+          "id": "item-0",
+          "name": "Tone WAV mono 44k",
+          "audioFileId": "[..]",
+          "relativePath": "tone-mono-44k.wav",
+          "knownDuration": 10
+        },
+        {
+          "id": "item-1",
+          "name": "Tone MP3",
+          "audioFileId": "[..]",
+          "relativePath": "tone.mp3",
+          "knownDuration": 10.031020408163265
+        },
+        {
+          "id": "item-2",
+          "name": "Tone FLAC",
+          "audioFileId": "[..]",
+          "relativePath": "tone.flac",
+          "knownDuration": 10
+        }
+      ],
+      "currentPlaylistIndex": 0,
+      "shufflePlaylist": false,
+      "repeatOnePlaylistItem": false,
+      "playlistPlayMode": "continue"
+    },
+    {
+      "id": "[..]",
+      "name": "Zażółć 🎵 cue",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "zażółć-🎵.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "ADTS",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.aac",
+      "knownDuration": 10.031020408163265,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Ducked",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": true,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.m4a",
+      "knownDuration": 10.023219954648527,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Ducking trigger",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": true,
+      "enableDucking": false,
+      "duckingLevel": 0.3,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.ogg",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Toggle retrigger",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "pause",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.flac",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Trimmed MP3",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0.25,
+      "trimEndTime": 1.5,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.mp3",
+      "knownDuration": 10.031020408163265,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Fades and loop",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 300,
+      "fadeOutTime": 500,
+      "loop": true,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone-stereo-48k.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Plain renamed",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.04,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": true,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        1,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone-mono-44k.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Created 🎵",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone-mono-44k.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Minimal",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 1,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "filePath": "",
+      "relativePath": "",
+      "knownDuration": 0
+    },
+    {
+      "id": "[..]",
+      "name": "New Cue",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 1,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "filePath": "",
+      "relativePath": "",
+      "knownDuration": 0
+    },
+    {
+      "id": "[..]",
+      "name": "Weird",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 1.5,
+      "fadeInTime": -1,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 1e+21,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "filePath": "",
+      "relativePath": "",
+      "knownDuration": 0
+    },
+    {
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",
@@ -2234,7 +4354,7 @@ db
 }
 === cues/backups/[..]_[..]-[..]-[..]-[..]-[..].json
 {
-  "id": "[..]-[..]-[..]-[..]-[..]",
+  "id": "[..]",
   "name": "Second workspace",
   "description": "",
   "cues": [],
@@ -2248,7 +4368,7 @@ db
 }
 === cues/backups/[..]_[..]-[..]-[..]-[..]-[..].json
 {
-  "id": "[..]-[..]-[..]-[..]-[..]",
+  "id": "[..]",
   "name": "Untitled Project",
   "description": "",
   "cues": [],
@@ -2262,12 +4382,12 @@ db
 }
 === cues/backups/[..]_2983bc21-f2d7-4df4-bd84-4d2105e47fd9.json
 {
-  "id": "2983bc21-f2d7-4df4-bd84-4d2105e47fd9",
+  "id": "[..]",
   "name": "Default Workspace",
   "description": "",
   "cues": [
     {
-      "id": "9cca8200-f996-476a-a53d-b826982c2eed",
+      "id": "[..]",
       "name": "Shuffled playlist",
       "type": "playlist",
       "status": "stopped",
@@ -2293,14 +4413,14 @@ db
         {
           "id": "shuffle-0",
           "name": "Tone OGG Vorbis",
-          "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+          "audioFileId": "[..]",
           "relativePath": "tone.ogg",
           "knownDuration": 10
         },
         {
           "id": "shuffle-1",
           "name": "Tone M4A AAC",
-          "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+          "audioFileId": "[..]",
           "relativePath": "tone.m4a",
           "knownDuration": 10.023219954648527
         }
@@ -2311,7 +4431,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "579933b0-9fee-4d06-b1b4-6ab043194548",
+      "id": "[..]",
       "name": "Playlist",
       "type": "playlist",
       "status": "stopped",
@@ -2337,21 +4457,21 @@ db
         {
           "id": "item-0",
           "name": "Tone WAV mono 44k",
-          "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+          "audioFileId": "[..]",
           "relativePath": "tone-mono-44k.wav",
           "knownDuration": 10
         },
         {
           "id": "item-1",
           "name": "Tone MP3",
-          "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+          "audioFileId": "[..]",
           "relativePath": "tone.mp3",
           "knownDuration": 10.031020408163265
         },
         {
           "id": "item-2",
           "name": "Tone FLAC",
-          "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+          "audioFileId": "[..]",
           "relativePath": "tone.flac",
           "knownDuration": 10
         }
@@ -2362,7 +4482,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "2b149964-7488-4b5a-b921-59e0b16d5aa5",
+      "id": "[..]",
       "name": "Zażółć 🎵 cue",
       "type": "single_file",
       "status": "stopped",
@@ -2384,13 +4504,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "9c48d2bb-dfd7-449f-8e27-dde9bfccfebb",
+      "audioFileId": "[..]",
       "relativePath": "zażółć-🎵.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "891cc443-984f-44c0-a43d-81bfc518fb45",
+      "id": "[..]",
       "name": "ADTS",
       "type": "single_file",
       "status": "stopped",
@@ -2412,13 +4532,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "060db36e-5dbc-422b-9b95-e40ce7deb29d",
+      "audioFileId": "[..]",
       "relativePath": "tone.aac",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "e7602c69-426c-4c48-8abf-a935bc0f2ace",
+      "id": "[..]",
       "name": "Ducked",
       "type": "single_file",
       "status": "stopped",
@@ -2440,13 +4560,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+      "audioFileId": "[..]",
       "relativePath": "tone.m4a",
       "knownDuration": 10.023219954648527,
       "filePath": ""
     },
     {
-      "id": "5fc03146-304c-4e6e-bc4f-850f9a3c7829",
+      "id": "[..]",
       "name": "Ducking trigger",
       "type": "single_file",
       "status": "stopped",
@@ -2468,13 +4588,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+      "audioFileId": "[..]",
       "relativePath": "tone.ogg",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "6d90d28a-ff21-453c-a5ef-940971c0a35c",
+      "id": "[..]",
       "name": "Toggle retrigger",
       "type": "single_file",
       "status": "stopped",
@@ -2496,13 +4616,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+      "audioFileId": "[..]",
       "relativePath": "tone.flac",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "a7826383-017e-4f9a-afef-689004e31c97",
+      "id": "[..]",
       "name": "Trimmed MP3",
       "type": "single_file",
       "status": "stopped",
@@ -2524,13 +4644,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+      "audioFileId": "[..]",
       "relativePath": "tone.mp3",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "7e015e7a-6654-4ad0-90d5-158a060fb22a",
+      "id": "[..]",
       "name": "Fades and loop",
       "type": "single_file",
       "status": "stopped",
@@ -2552,13 +4672,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "d3be8eb6-04d4-4a33-93e3-d5f3bd92aa40",
+      "audioFileId": "[..]",
       "relativePath": "tone-stereo-48k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "d86f0e6c-af67-4918-964d-60f975548940",
+      "id": "[..]",
       "name": "Plain renamed",
       "type": "single_file",
       "status": "stopped",
@@ -2580,13 +4700,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Created 🎵",
       "type": "single_file",
       "status": "stopped",
@@ -2608,13 +4728,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Minimal",
       "type": "single_file",
       "status": "stopped",
@@ -2641,7 +4761,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",
@@ -2668,7 +4788,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Weird",
       "type": "single_file",
       "status": "stopped",
@@ -2695,7 +4815,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",
@@ -2732,7 +4852,7 @@ db
 }
 === cues/backups/[..]_[..]-[..]-[..]-[..]-[..].json
 {
-  "id": "[..]-[..]-[..]-[..]-[..]",
+  "id": "[..]",
   "name": "Saved",
   "description": "desc",
   "cues": [],
@@ -2746,12 +4866,12 @@ db
 }
 === cues/backups/[..]_2983bc21-f2d7-4df4-bd84-4d2105e47fd9.json
 {
-  "id": "2983bc21-f2d7-4df4-bd84-4d2105e47fd9",
+  "id": "[..]",
   "name": "Seed renamed",
   "description": "",
   "cues": [
     {
-      "id": "9cca8200-f996-476a-a53d-b826982c2eed",
+      "id": "[..]",
       "name": "Shuffled playlist",
       "type": "playlist",
       "status": "stopped",
@@ -2777,14 +4897,14 @@ db
         {
           "id": "shuffle-0",
           "name": "Tone OGG Vorbis",
-          "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+          "audioFileId": "[..]",
           "relativePath": "tone.ogg",
           "knownDuration": 10
         },
         {
           "id": "shuffle-1",
           "name": "Tone M4A AAC",
-          "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+          "audioFileId": "[..]",
           "relativePath": "tone.m4a",
           "knownDuration": 10.023219954648527
         }
@@ -2795,7 +4915,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "579933b0-9fee-4d06-b1b4-6ab043194548",
+      "id": "[..]",
       "name": "Playlist",
       "type": "playlist",
       "status": "stopped",
@@ -2821,21 +4941,21 @@ db
         {
           "id": "item-0",
           "name": "Tone WAV mono 44k",
-          "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+          "audioFileId": "[..]",
           "relativePath": "tone-mono-44k.wav",
           "knownDuration": 10
         },
         {
           "id": "item-1",
           "name": "Tone MP3",
-          "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+          "audioFileId": "[..]",
           "relativePath": "tone.mp3",
           "knownDuration": 10.031020408163265
         },
         {
           "id": "item-2",
           "name": "Tone FLAC",
-          "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+          "audioFileId": "[..]",
           "relativePath": "tone.flac",
           "knownDuration": 10
         }
@@ -2846,7 +4966,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "2b149964-7488-4b5a-b921-59e0b16d5aa5",
+      "id": "[..]",
       "name": "Zażółć 🎵 cue",
       "type": "single_file",
       "status": "stopped",
@@ -2868,13 +4988,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "9c48d2bb-dfd7-449f-8e27-dde9bfccfebb",
+      "audioFileId": "[..]",
       "relativePath": "zażółć-🎵.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "891cc443-984f-44c0-a43d-81bfc518fb45",
+      "id": "[..]",
       "name": "ADTS",
       "type": "single_file",
       "status": "stopped",
@@ -2896,13 +5016,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "060db36e-5dbc-422b-9b95-e40ce7deb29d",
+      "audioFileId": "[..]",
       "relativePath": "tone.aac",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "e7602c69-426c-4c48-8abf-a935bc0f2ace",
+      "id": "[..]",
       "name": "Ducked",
       "type": "single_file",
       "status": "stopped",
@@ -2924,13 +5044,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+      "audioFileId": "[..]",
       "relativePath": "tone.m4a",
       "knownDuration": 10.023219954648527,
       "filePath": ""
     },
     {
-      "id": "5fc03146-304c-4e6e-bc4f-850f9a3c7829",
+      "id": "[..]",
       "name": "Ducking trigger",
       "type": "single_file",
       "status": "stopped",
@@ -2952,13 +5072,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+      "audioFileId": "[..]",
       "relativePath": "tone.ogg",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "6d90d28a-ff21-453c-a5ef-940971c0a35c",
+      "id": "[..]",
       "name": "Toggle retrigger",
       "type": "single_file",
       "status": "stopped",
@@ -2980,13 +5100,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+      "audioFileId": "[..]",
       "relativePath": "tone.flac",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "a7826383-017e-4f9a-afef-689004e31c97",
+      "id": "[..]",
       "name": "Trimmed MP3",
       "type": "single_file",
       "status": "stopped",
@@ -3008,13 +5128,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+      "audioFileId": "[..]",
       "relativePath": "tone.mp3",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "7e015e7a-6654-4ad0-90d5-158a060fb22a",
+      "id": "[..]",
       "name": "Fades and loop",
       "type": "single_file",
       "status": "stopped",
@@ -3036,13 +5156,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "d3be8eb6-04d4-4a33-93e3-d5f3bd92aa40",
+      "audioFileId": "[..]",
       "relativePath": "tone-stereo-48k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "d86f0e6c-af67-4918-964d-60f975548940",
+      "id": "[..]",
       "name": "Plain renamed",
       "type": "single_file",
       "status": "stopped",
@@ -3064,13 +5184,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Created 🎵",
       "type": "single_file",
       "status": "stopped",
@@ -3092,13 +5212,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Minimal",
       "type": "single_file",
       "status": "stopped",
@@ -3125,7 +5245,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",
@@ -3152,7 +5272,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Weird",
       "type": "single_file",
       "status": "stopped",
@@ -3179,7 +5299,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",
@@ -3216,7 +5336,7 @@ db
 }
 === cues/backups/[..]_[..]-[..]-[..]-[..]-[..].json
 {
-  "id": "[..]-[..]-[..]-[..]-[..]",
+  "id": "[..]",
   "name": "New project",
   "description": "",
   "cues": [],
@@ -3230,7 +5350,7 @@ db
 }
 === cues/backups/[..]_[..]-[..]-[..]-[..]-[..].json
 {
-  "id": "[..]-[..]-[..]-[..]-[..]",
+  "id": "[..]",
   "name": "Renamed project ✓",
   "description": "",
   "cues": [],
@@ -3244,7 +5364,7 @@ db
 }
 === cues/backups/[..]_[..]-[..]-[..]-[..]-[..].json
 {
-  "id": "[..]-[..]-[..]-[..]-[..]",
+  "id": "[..]",
   "name": "Renamed project ✓",
   "description": "",
   "cues": [],
@@ -3258,12 +5378,12 @@ db
 }
 === cues/backups/[..]_2983bc21-f2d7-4df4-bd84-4d2105e47fd9.json
 {
-  "id": "2983bc21-f2d7-4df4-bd84-4d2105e47fd9",
+  "id": "[..]",
   "name": "Seed renamed",
   "description": "",
   "cues": [
     {
-      "id": "9cca8200-f996-476a-a53d-b826982c2eed",
+      "id": "[..]",
       "name": "Shuffled playlist",
       "type": "playlist",
       "status": "stopped",
@@ -3289,14 +5409,14 @@ db
         {
           "id": "shuffle-0",
           "name": "Tone OGG Vorbis",
-          "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+          "audioFileId": "[..]",
           "relativePath": "tone.ogg",
           "knownDuration": 10
         },
         {
           "id": "shuffle-1",
           "name": "Tone M4A AAC",
-          "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+          "audioFileId": "[..]",
           "relativePath": "tone.m4a",
           "knownDuration": 10.023219954648527
         }
@@ -3307,7 +5427,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "579933b0-9fee-4d06-b1b4-6ab043194548",
+      "id": "[..]",
       "name": "Playlist",
       "type": "playlist",
       "status": "stopped",
@@ -3333,21 +5453,21 @@ db
         {
           "id": "item-0",
           "name": "Tone WAV mono 44k",
-          "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+          "audioFileId": "[..]",
           "relativePath": "tone-mono-44k.wav",
           "knownDuration": 10
         },
         {
           "id": "item-1",
           "name": "Tone MP3",
-          "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+          "audioFileId": "[..]",
           "relativePath": "tone.mp3",
           "knownDuration": 10.031020408163265
         },
         {
           "id": "item-2",
           "name": "Tone FLAC",
-          "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+          "audioFileId": "[..]",
           "relativePath": "tone.flac",
           "knownDuration": 10
         }
@@ -3358,7 +5478,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "2b149964-7488-4b5a-b921-59e0b16d5aa5",
+      "id": "[..]",
       "name": "Zażółć 🎵 cue",
       "type": "single_file",
       "status": "stopped",
@@ -3380,13 +5500,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "9c48d2bb-dfd7-449f-8e27-dde9bfccfebb",
+      "audioFileId": "[..]",
       "relativePath": "zażółć-🎵.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "891cc443-984f-44c0-a43d-81bfc518fb45",
+      "id": "[..]",
       "name": "ADTS",
       "type": "single_file",
       "status": "stopped",
@@ -3408,13 +5528,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "060db36e-5dbc-422b-9b95-e40ce7deb29d",
+      "audioFileId": "[..]",
       "relativePath": "tone.aac",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "e7602c69-426c-4c48-8abf-a935bc0f2ace",
+      "id": "[..]",
       "name": "Ducked",
       "type": "single_file",
       "status": "stopped",
@@ -3436,13 +5556,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+      "audioFileId": "[..]",
       "relativePath": "tone.m4a",
       "knownDuration": 10.023219954648527,
       "filePath": ""
     },
     {
-      "id": "5fc03146-304c-4e6e-bc4f-850f9a3c7829",
+      "id": "[..]",
       "name": "Ducking trigger",
       "type": "single_file",
       "status": "stopped",
@@ -3464,13 +5584,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+      "audioFileId": "[..]",
       "relativePath": "tone.ogg",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "6d90d28a-ff21-453c-a5ef-940971c0a35c",
+      "id": "[..]",
       "name": "Toggle retrigger",
       "type": "single_file",
       "status": "stopped",
@@ -3492,13 +5612,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+      "audioFileId": "[..]",
       "relativePath": "tone.flac",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "a7826383-017e-4f9a-afef-689004e31c97",
+      "id": "[..]",
       "name": "Trimmed MP3",
       "type": "single_file",
       "status": "stopped",
@@ -3520,13 +5640,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+      "audioFileId": "[..]",
       "relativePath": "tone.mp3",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "7e015e7a-6654-4ad0-90d5-158a060fb22a",
+      "id": "[..]",
       "name": "Fades and loop",
       "type": "single_file",
       "status": "stopped",
@@ -3548,13 +5668,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "d3be8eb6-04d4-4a33-93e3-d5f3bd92aa40",
+      "audioFileId": "[..]",
       "relativePath": "tone-stereo-48k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "d86f0e6c-af67-4918-964d-60f975548940",
+      "id": "[..]",
       "name": "Plain renamed",
       "type": "single_file",
       "status": "stopped",
@@ -3576,13 +5696,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Created 🎵",
       "type": "single_file",
       "status": "stopped",
@@ -3604,13 +5724,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Minimal",
       "type": "single_file",
       "status": "stopped",
@@ -3637,7 +5757,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",
@@ -3664,7 +5784,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Weird",
       "type": "single_file",
       "status": "stopped",
@@ -3691,7 +5811,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",
@@ -3728,12 +5848,12 @@ db
 }
 === cues/backups/[..]_2983bc21-f2d7-4df4-bd84-4d2105e47fd9.json
 {
-  "id": "2983bc21-f2d7-4df4-bd84-4d2105e47fd9",
+  "id": "[..]",
   "name": "Seed renamed",
   "description": "",
   "cues": [
     {
-      "id": "9cca8200-f996-476a-a53d-b826982c2eed",
+      "id": "[..]",
       "name": "Shuffled playlist",
       "type": "playlist",
       "status": "stopped",
@@ -3759,14 +5879,14 @@ db
         {
           "id": "shuffle-0",
           "name": "Tone OGG Vorbis",
-          "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+          "audioFileId": "[..]",
           "relativePath": "tone.ogg",
           "knownDuration": 10
         },
         {
           "id": "shuffle-1",
           "name": "Tone M4A AAC",
-          "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+          "audioFileId": "[..]",
           "relativePath": "tone.m4a",
           "knownDuration": 10.023219954648527
         }
@@ -3777,7 +5897,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "579933b0-9fee-4d06-b1b4-6ab043194548",
+      "id": "[..]",
       "name": "Playlist",
       "type": "playlist",
       "status": "stopped",
@@ -3803,21 +5923,21 @@ db
         {
           "id": "item-0",
           "name": "Tone WAV mono 44k",
-          "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+          "audioFileId": "[..]",
           "relativePath": "tone-mono-44k.wav",
           "knownDuration": 10
         },
         {
           "id": "item-1",
           "name": "Tone MP3",
-          "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+          "audioFileId": "[..]",
           "relativePath": "tone.mp3",
           "knownDuration": 10.031020408163265
         },
         {
           "id": "item-2",
           "name": "Tone FLAC",
-          "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+          "audioFileId": "[..]",
           "relativePath": "tone.flac",
           "knownDuration": 10
         }
@@ -3828,7 +5948,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "2b149964-7488-4b5a-b921-59e0b16d5aa5",
+      "id": "[..]",
       "name": "Zażółć 🎵 cue",
       "type": "single_file",
       "status": "stopped",
@@ -3850,13 +5970,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "9c48d2bb-dfd7-449f-8e27-dde9bfccfebb",
+      "audioFileId": "[..]",
       "relativePath": "zażółć-🎵.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "891cc443-984f-44c0-a43d-81bfc518fb45",
+      "id": "[..]",
       "name": "ADTS",
       "type": "single_file",
       "status": "stopped",
@@ -3878,13 +5998,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "060db36e-5dbc-422b-9b95-e40ce7deb29d",
+      "audioFileId": "[..]",
       "relativePath": "tone.aac",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "e7602c69-426c-4c48-8abf-a935bc0f2ace",
+      "id": "[..]",
       "name": "Ducked",
       "type": "single_file",
       "status": "stopped",
@@ -3906,13 +6026,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+      "audioFileId": "[..]",
       "relativePath": "tone.m4a",
       "knownDuration": 10.023219954648527,
       "filePath": ""
     },
     {
-      "id": "5fc03146-304c-4e6e-bc4f-850f9a3c7829",
+      "id": "[..]",
       "name": "Ducking trigger",
       "type": "single_file",
       "status": "stopped",
@@ -3934,13 +6054,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+      "audioFileId": "[..]",
       "relativePath": "tone.ogg",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "6d90d28a-ff21-453c-a5ef-940971c0a35c",
+      "id": "[..]",
       "name": "Toggle retrigger",
       "type": "single_file",
       "status": "stopped",
@@ -3962,13 +6082,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+      "audioFileId": "[..]",
       "relativePath": "tone.flac",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "a7826383-017e-4f9a-afef-689004e31c97",
+      "id": "[..]",
       "name": "Trimmed MP3",
       "type": "single_file",
       "status": "stopped",
@@ -3990,13 +6110,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+      "audioFileId": "[..]",
       "relativePath": "tone.mp3",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "7e015e7a-6654-4ad0-90d5-158a060fb22a",
+      "id": "[..]",
       "name": "Fades and loop",
       "type": "single_file",
       "status": "stopped",
@@ -4018,13 +6138,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "d3be8eb6-04d4-4a33-93e3-d5f3bd92aa40",
+      "audioFileId": "[..]",
       "relativePath": "tone-stereo-48k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "d86f0e6c-af67-4918-964d-60f975548940",
+      "id": "[..]",
       "name": "Plain renamed",
       "type": "single_file",
       "status": "stopped",
@@ -4046,13 +6166,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Created 🎵",
       "type": "single_file",
       "status": "stopped",
@@ -4074,13 +6194,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Minimal",
       "type": "single_file",
       "status": "stopped",
@@ -4107,7 +6227,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",
@@ -4134,7 +6254,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Weird",
       "type": "single_file",
       "status": "stopped",
@@ -4161,7 +6281,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",
@@ -4198,12 +6318,12 @@ db
 }
 === cues/backups/[..]_2983bc21-f2d7-4df4-bd84-4d2105e47fd9.json
 {
-  "id": "2983bc21-f2d7-4df4-bd84-4d2105e47fd9",
+  "id": "[..]",
   "name": "Seed renamed",
   "description": "",
   "cues": [
     {
-      "id": "9cca8200-f996-476a-a53d-b826982c2eed",
+      "id": "[..]",
       "name": "Shuffled playlist",
       "type": "playlist",
       "status": "stopped",
@@ -4229,14 +6349,14 @@ db
         {
           "id": "shuffle-0",
           "name": "Tone OGG Vorbis",
-          "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+          "audioFileId": "[..]",
           "relativePath": "tone.ogg",
           "knownDuration": 10
         },
         {
           "id": "shuffle-1",
           "name": "Tone M4A AAC",
-          "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+          "audioFileId": "[..]",
           "relativePath": "tone.m4a",
           "knownDuration": 10.023219954648527
         }
@@ -4247,7 +6367,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "579933b0-9fee-4d06-b1b4-6ab043194548",
+      "id": "[..]",
       "name": "Playlist",
       "type": "playlist",
       "status": "stopped",
@@ -4273,21 +6393,21 @@ db
         {
           "id": "item-0",
           "name": "Tone WAV mono 44k",
-          "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+          "audioFileId": "[..]",
           "relativePath": "tone-mono-44k.wav",
           "knownDuration": 10
         },
         {
           "id": "item-1",
           "name": "Tone MP3",
-          "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+          "audioFileId": "[..]",
           "relativePath": "tone.mp3",
           "knownDuration": 10.031020408163265
         },
         {
           "id": "item-2",
           "name": "Tone FLAC",
-          "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+          "audioFileId": "[..]",
           "relativePath": "tone.flac",
           "knownDuration": 10
         }
@@ -4298,7 +6418,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "2b149964-7488-4b5a-b921-59e0b16d5aa5",
+      "id": "[..]",
       "name": "Zażółć 🎵 cue",
       "type": "single_file",
       "status": "stopped",
@@ -4320,13 +6440,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "9c48d2bb-dfd7-449f-8e27-dde9bfccfebb",
+      "audioFileId": "[..]",
       "relativePath": "zażółć-🎵.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "891cc443-984f-44c0-a43d-81bfc518fb45",
+      "id": "[..]",
       "name": "ADTS",
       "type": "single_file",
       "status": "stopped",
@@ -4348,13 +6468,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "060db36e-5dbc-422b-9b95-e40ce7deb29d",
+      "audioFileId": "[..]",
       "relativePath": "tone.aac",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "e7602c69-426c-4c48-8abf-a935bc0f2ace",
+      "id": "[..]",
       "name": "Ducked",
       "type": "single_file",
       "status": "stopped",
@@ -4376,13 +6496,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+      "audioFileId": "[..]",
       "relativePath": "tone.m4a",
       "knownDuration": 10.023219954648527,
       "filePath": ""
     },
     {
-      "id": "5fc03146-304c-4e6e-bc4f-850f9a3c7829",
+      "id": "[..]",
       "name": "Ducking trigger",
       "type": "single_file",
       "status": "stopped",
@@ -4404,13 +6524,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+      "audioFileId": "[..]",
       "relativePath": "tone.ogg",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "6d90d28a-ff21-453c-a5ef-940971c0a35c",
+      "id": "[..]",
       "name": "Toggle retrigger",
       "type": "single_file",
       "status": "stopped",
@@ -4432,13 +6552,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+      "audioFileId": "[..]",
       "relativePath": "tone.flac",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "a7826383-017e-4f9a-afef-689004e31c97",
+      "id": "[..]",
       "name": "Trimmed MP3",
       "type": "single_file",
       "status": "stopped",
@@ -4460,13 +6580,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+      "audioFileId": "[..]",
       "relativePath": "tone.mp3",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "7e015e7a-6654-4ad0-90d5-158a060fb22a",
+      "id": "[..]",
       "name": "Fades and loop",
       "type": "single_file",
       "status": "stopped",
@@ -4488,13 +6608,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "d3be8eb6-04d4-4a33-93e3-d5f3bd92aa40",
+      "audioFileId": "[..]",
       "relativePath": "tone-stereo-48k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "d86f0e6c-af67-4918-964d-60f975548940",
+      "id": "[..]",
       "name": "Plain renamed",
       "type": "single_file",
       "status": "stopped",
@@ -4516,13 +6636,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Created 🎵",
       "type": "single_file",
       "status": "stopped",
@@ -4544,13 +6664,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Minimal",
       "type": "single_file",
       "status": "stopped",
@@ -4577,7 +6697,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",
@@ -4604,7 +6724,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Weird",
       "type": "single_file",
       "status": "stopped",
@@ -4631,7 +6751,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",
@@ -4668,12 +6788,12 @@ db
 }
 === cues/backups/[..]_2983bc21-f2d7-4df4-bd84-4d2105e47fd9.json
 {
-  "id": "2983bc21-f2d7-4df4-bd84-4d2105e47fd9",
+  "id": "[..]",
   "name": "Seed renamed",
   "description": "",
   "cues": [
     {
-      "id": "9cca8200-f996-476a-a53d-b826982c2eed",
+      "id": "[..]",
       "name": "Shuffled playlist",
       "type": "playlist",
       "status": "stopped",
@@ -4699,14 +6819,14 @@ db
         {
           "id": "shuffle-0",
           "name": "Tone OGG Vorbis",
-          "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+          "audioFileId": "[..]",
           "relativePath": "tone.ogg",
           "knownDuration": 10
         },
         {
           "id": "shuffle-1",
           "name": "Tone M4A AAC",
-          "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+          "audioFileId": "[..]",
           "relativePath": "tone.m4a",
           "knownDuration": 10.023219954648527
         }
@@ -4717,7 +6837,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "579933b0-9fee-4d06-b1b4-6ab043194548",
+      "id": "[..]",
       "name": "Playlist",
       "type": "playlist",
       "status": "stopped",
@@ -4743,21 +6863,21 @@ db
         {
           "id": "item-0",
           "name": "Tone WAV mono 44k",
-          "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+          "audioFileId": "[..]",
           "relativePath": "tone-mono-44k.wav",
           "knownDuration": 10
         },
         {
           "id": "item-1",
           "name": "Tone MP3",
-          "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+          "audioFileId": "[..]",
           "relativePath": "tone.mp3",
           "knownDuration": 10.031020408163265
         },
         {
           "id": "item-2",
           "name": "Tone FLAC",
-          "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+          "audioFileId": "[..]",
           "relativePath": "tone.flac",
           "knownDuration": 10
         }
@@ -4768,7 +6888,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "2b149964-7488-4b5a-b921-59e0b16d5aa5",
+      "id": "[..]",
       "name": "Zażółć 🎵 cue",
       "type": "single_file",
       "status": "stopped",
@@ -4790,13 +6910,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "9c48d2bb-dfd7-449f-8e27-dde9bfccfebb",
+      "audioFileId": "[..]",
       "relativePath": "zażółć-🎵.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "891cc443-984f-44c0-a43d-81bfc518fb45",
+      "id": "[..]",
       "name": "ADTS",
       "type": "single_file",
       "status": "stopped",
@@ -4818,13 +6938,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "060db36e-5dbc-422b-9b95-e40ce7deb29d",
+      "audioFileId": "[..]",
       "relativePath": "tone.aac",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "e7602c69-426c-4c48-8abf-a935bc0f2ace",
+      "id": "[..]",
       "name": "Ducked",
       "type": "single_file",
       "status": "stopped",
@@ -4846,13 +6966,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+      "audioFileId": "[..]",
       "relativePath": "tone.m4a",
       "knownDuration": 10.023219954648527,
       "filePath": ""
     },
     {
-      "id": "5fc03146-304c-4e6e-bc4f-850f9a3c7829",
+      "id": "[..]",
       "name": "Ducking trigger",
       "type": "single_file",
       "status": "stopped",
@@ -4874,13 +6994,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+      "audioFileId": "[..]",
       "relativePath": "tone.ogg",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "6d90d28a-ff21-453c-a5ef-940971c0a35c",
+      "id": "[..]",
       "name": "Toggle retrigger",
       "type": "single_file",
       "status": "stopped",
@@ -4902,13 +7022,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+      "audioFileId": "[..]",
       "relativePath": "tone.flac",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "a7826383-017e-4f9a-afef-689004e31c97",
+      "id": "[..]",
       "name": "Trimmed MP3",
       "type": "single_file",
       "status": "stopped",
@@ -4930,13 +7050,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+      "audioFileId": "[..]",
       "relativePath": "tone.mp3",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "7e015e7a-6654-4ad0-90d5-158a060fb22a",
+      "id": "[..]",
       "name": "Fades and loop",
       "type": "single_file",
       "status": "stopped",
@@ -4958,13 +7078,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "d3be8eb6-04d4-4a33-93e3-d5f3bd92aa40",
+      "audioFileId": "[..]",
       "relativePath": "tone-stereo-48k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "d86f0e6c-af67-4918-964d-60f975548940",
+      "id": "[..]",
       "name": "Plain renamed",
       "type": "single_file",
       "status": "stopped",
@@ -4986,13 +7106,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Created 🎵",
       "type": "single_file",
       "status": "stopped",
@@ -5014,13 +7134,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Minimal",
       "type": "single_file",
       "status": "stopped",
@@ -5047,7 +7167,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",
@@ -5074,7 +7194,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Weird",
       "type": "single_file",
       "status": "stopped",
@@ -5101,7 +7221,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",
@@ -5138,12 +7258,12 @@ db
 }
 === cues/backups/[..]_2983bc21-f2d7-4df4-bd84-4d2105e47fd9.json
 {
-  "id": "2983bc21-f2d7-4df4-bd84-4d2105e47fd9",
+  "id": "[..]",
   "name": "Seed renamed",
   "description": "",
   "cues": [
     {
-      "id": "9cca8200-f996-476a-a53d-b826982c2eed",
+      "id": "[..]",
       "name": "Shuffled playlist",
       "type": "playlist",
       "status": "stopped",
@@ -5169,14 +7289,14 @@ db
         {
           "id": "shuffle-0",
           "name": "Tone OGG Vorbis",
-          "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+          "audioFileId": "[..]",
           "relativePath": "tone.ogg",
           "knownDuration": 10
         },
         {
           "id": "shuffle-1",
           "name": "Tone M4A AAC",
-          "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+          "audioFileId": "[..]",
           "relativePath": "tone.m4a",
           "knownDuration": 10.023219954648527
         }
@@ -5187,7 +7307,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "579933b0-9fee-4d06-b1b4-6ab043194548",
+      "id": "[..]",
       "name": "Playlist",
       "type": "playlist",
       "status": "stopped",
@@ -5213,32 +7333,32 @@ db
         {
           "id": "item-0",
           "name": "Tone WAV mono 44k",
-          "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+          "audioFileId": "[..]",
           "relativePath": "tone-mono-44k.wav",
           "knownDuration": 10
         },
         {
           "id": "item-1",
           "name": "Tone MP3",
-          "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+          "audioFileId": "[..]",
           "relativePath": "tone.mp3",
           "knownDuration": 10.031020408163265
         },
         {
           "id": "item-2",
           "name": "Tone FLAC",
-          "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+          "audioFileId": "[..]",
           "relativePath": "tone.flac",
           "knownDuration": 10
         }
       ],
-      "currentPlaylistIndex": 0,
+      "currentPlaylistIndex": 1,
       "shufflePlaylist": false,
       "repeatOnePlaylistItem": false,
       "playlistPlayMode": "continue"
     },
     {
-      "id": "2b149964-7488-4b5a-b921-59e0b16d5aa5",
+      "id": "[..]",
       "name": "Zażółć 🎵 cue",
       "type": "single_file",
       "status": "stopped",
@@ -5260,13 +7380,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "9c48d2bb-dfd7-449f-8e27-dde9bfccfebb",
+      "audioFileId": "[..]",
       "relativePath": "zażółć-🎵.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "891cc443-984f-44c0-a43d-81bfc518fb45",
+      "id": "[..]",
       "name": "ADTS",
       "type": "single_file",
       "status": "stopped",
@@ -5288,13 +7408,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "060db36e-5dbc-422b-9b95-e40ce7deb29d",
+      "audioFileId": "[..]",
       "relativePath": "tone.aac",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "e7602c69-426c-4c48-8abf-a935bc0f2ace",
+      "id": "[..]",
       "name": "Ducked",
       "type": "single_file",
       "status": "stopped",
@@ -5316,13 +7436,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+      "audioFileId": "[..]",
       "relativePath": "tone.m4a",
       "knownDuration": 10.023219954648527,
       "filePath": ""
     },
     {
-      "id": "5fc03146-304c-4e6e-bc4f-850f9a3c7829",
+      "id": "[..]",
       "name": "Ducking trigger",
       "type": "single_file",
       "status": "stopped",
@@ -5344,13 +7464,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+      "audioFileId": "[..]",
       "relativePath": "tone.ogg",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "6d90d28a-ff21-453c-a5ef-940971c0a35c",
+      "id": "[..]",
       "name": "Toggle retrigger",
       "type": "single_file",
       "status": "stopped",
@@ -5372,13 +7492,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+      "audioFileId": "[..]",
       "relativePath": "tone.flac",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "a7826383-017e-4f9a-afef-689004e31c97",
+      "id": "[..]",
       "name": "Trimmed MP3",
       "type": "single_file",
       "status": "stopped",
@@ -5400,13 +7520,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+      "audioFileId": "[..]",
       "relativePath": "tone.mp3",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "7e015e7a-6654-4ad0-90d5-158a060fb22a",
+      "id": "[..]",
       "name": "Fades and loop",
       "type": "single_file",
       "status": "stopped",
@@ -5428,13 +7548,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "d3be8eb6-04d4-4a33-93e3-d5f3bd92aa40",
+      "audioFileId": "[..]",
       "relativePath": "tone-stereo-48k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "d86f0e6c-af67-4918-964d-60f975548940",
+      "id": "[..]",
       "name": "Plain renamed",
       "type": "single_file",
       "status": "stopped",
@@ -5456,13 +7576,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Created 🎵",
       "type": "single_file",
       "status": "stopped",
@@ -5484,13 +7604,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Minimal",
       "type": "single_file",
       "status": "stopped",
@@ -5517,7 +7637,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",
@@ -5544,7 +7664,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Weird",
       "type": "single_file",
       "status": "stopped",
@@ -5571,7 +7691,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",
@@ -5608,12 +7728,12 @@ db
 }
 === cues/backups/[..]_2983bc21-f2d7-4df4-bd84-4d2105e47fd9.json
 {
-  "id": "2983bc21-f2d7-4df4-bd84-4d2105e47fd9",
+  "id": "[..]",
   "name": "Seed renamed",
   "description": "",
   "cues": [
     {
-      "id": "9cca8200-f996-476a-a53d-b826982c2eed",
+      "id": "[..]",
       "name": "Shuffled playlist",
       "type": "playlist",
       "status": "stopped",
@@ -5639,14 +7759,14 @@ db
         {
           "id": "shuffle-0",
           "name": "Tone OGG Vorbis",
-          "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+          "audioFileId": "[..]",
           "relativePath": "tone.ogg",
           "knownDuration": 10
         },
         {
           "id": "shuffle-1",
           "name": "Tone M4A AAC",
-          "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+          "audioFileId": "[..]",
           "relativePath": "tone.m4a",
           "knownDuration": 10.023219954648527
         }
@@ -5657,7 +7777,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "579933b0-9fee-4d06-b1b4-6ab043194548",
+      "id": "[..]",
       "name": "Playlist",
       "type": "playlist",
       "status": "stopped",
@@ -5683,21 +7803,491 @@ db
         {
           "id": "item-0",
           "name": "Tone WAV mono 44k",
-          "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+          "audioFileId": "[..]",
           "relativePath": "tone-mono-44k.wav",
           "knownDuration": 10
         },
         {
           "id": "item-1",
           "name": "Tone MP3",
-          "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+          "audioFileId": "[..]",
           "relativePath": "tone.mp3",
           "knownDuration": 10.031020408163265
         },
         {
           "id": "item-2",
           "name": "Tone FLAC",
-          "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+          "audioFileId": "[..]",
+          "relativePath": "tone.flac",
+          "knownDuration": 10
+        }
+      ],
+      "currentPlaylistIndex": 0,
+      "shufflePlaylist": false,
+      "repeatOnePlaylistItem": false,
+      "playlistPlayMode": "continue"
+    },
+    {
+      "id": "[..]",
+      "name": "Zażółć 🎵 cue",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "zażółć-🎵.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "ADTS",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.aac",
+      "knownDuration": 10.031020408163265,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Ducked",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": true,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.m4a",
+      "knownDuration": 10.023219954648527,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Ducking trigger",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": true,
+      "enableDucking": false,
+      "duckingLevel": 0.3,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.ogg",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Toggle retrigger",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "pause",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.flac",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Trimmed MP3",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0.25,
+      "trimEndTime": 1.5,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.mp3",
+      "knownDuration": 10.031020408163265,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Fades and loop",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 300,
+      "fadeOutTime": 500,
+      "loop": true,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone-stereo-48k.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Plain renamed",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.04,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": true,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        1,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone-mono-44k.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Created 🎵",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone-mono-44k.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Minimal",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 1,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "filePath": "",
+      "relativePath": "",
+      "knownDuration": 0
+    },
+    {
+      "id": "[..]",
+      "name": "New Cue",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 1,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "filePath": "",
+      "relativePath": "",
+      "knownDuration": 0
+    },
+    {
+      "id": "[..]",
+      "name": "Weird",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 1.5,
+      "fadeInTime": -1,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 1e+21,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "filePath": "",
+      "relativePath": "",
+      "knownDuration": 0
+    },
+    {
+      "id": "[..]",
+      "name": "New Cue",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 1,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "filePath": "",
+      "relativePath": "",
+      "knownDuration": 0
+    }
+  ],
+  "layout": {
+    "gridColumns": 4,
+    "gridRows": 4,
+    "cuePositions": {}
+  },
+  "createdAt": "[..]",
+  "updatedAt": "[..]"
+}
+=== cues/backups/[..]_2983bc21-f2d7-4df4-bd84-4d2105e47fd9.json
+{
+  "id": "[..]",
+  "name": "Seed renamed",
+  "description": "",
+  "cues": [
+    {
+      "id": "[..]",
+      "name": "Shuffled playlist",
+      "type": "playlist",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "playlistItems": [
+        {
+          "id": "shuffle-0",
+          "name": "Tone OGG Vorbis",
+          "audioFileId": "[..]",
+          "relativePath": "tone.ogg",
+          "knownDuration": 10
+        },
+        {
+          "id": "shuffle-1",
+          "name": "Tone M4A AAC",
+          "audioFileId": "[..]",
+          "relativePath": "tone.m4a",
+          "knownDuration": 10.023219954648527
+        }
+      ],
+      "shufflePlaylist": true,
+      "currentPlaylistIndex": 0,
+      "repeatOnePlaylistItem": false,
+      "playlistPlayMode": "continue"
+    },
+    {
+      "id": "[..]",
+      "name": "Playlist",
+      "type": "playlist",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "playlistItems": [
+        {
+          "id": "item-0",
+          "name": "Tone WAV mono 44k",
+          "audioFileId": "[..]",
+          "relativePath": "tone-mono-44k.wav",
+          "knownDuration": 10
+        },
+        {
+          "id": "item-1",
+          "name": "Tone MP3",
+          "audioFileId": "[..]",
+          "relativePath": "tone.mp3",
+          "knownDuration": 10.031020408163265
+        },
+        {
+          "id": "item-2",
+          "name": "Tone FLAC",
+          "audioFileId": "[..]",
           "relativePath": "tone.flac",
           "knownDuration": 10
         }
@@ -5708,7 +8298,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "2b149964-7488-4b5a-b921-59e0b16d5aa5",
+      "id": "[..]",
       "name": "Zażółć 🎵 cue",
       "type": "single_file",
       "status": "stopped",
@@ -5730,13 +8320,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "9c48d2bb-dfd7-449f-8e27-dde9bfccfebb",
+      "audioFileId": "[..]",
       "relativePath": "zażółć-🎵.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "891cc443-984f-44c0-a43d-81bfc518fb45",
+      "id": "[..]",
       "name": "ADTS",
       "type": "single_file",
       "status": "stopped",
@@ -5758,13 +8348,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "060db36e-5dbc-422b-9b95-e40ce7deb29d",
+      "audioFileId": "[..]",
       "relativePath": "tone.aac",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "e7602c69-426c-4c48-8abf-a935bc0f2ace",
+      "id": "[..]",
       "name": "Ducked",
       "type": "single_file",
       "status": "stopped",
@@ -5786,13 +8376,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+      "audioFileId": "[..]",
       "relativePath": "tone.m4a",
       "knownDuration": 10.023219954648527,
       "filePath": ""
     },
     {
-      "id": "5fc03146-304c-4e6e-bc4f-850f9a3c7829",
+      "id": "[..]",
       "name": "Ducking trigger",
       "type": "single_file",
       "status": "stopped",
@@ -5814,13 +8404,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+      "audioFileId": "[..]",
       "relativePath": "tone.ogg",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "6d90d28a-ff21-453c-a5ef-940971c0a35c",
+      "id": "[..]",
       "name": "Toggle retrigger",
       "type": "single_file",
       "status": "stopped",
@@ -5842,13 +8432,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+      "audioFileId": "[..]",
       "relativePath": "tone.flac",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "a7826383-017e-4f9a-afef-689004e31c97",
+      "id": "[..]",
       "name": "Trimmed MP3",
       "type": "single_file",
       "status": "stopped",
@@ -5870,13 +8460,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+      "audioFileId": "[..]",
       "relativePath": "tone.mp3",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "7e015e7a-6654-4ad0-90d5-158a060fb22a",
+      "id": "[..]",
       "name": "Fades and loop",
       "type": "single_file",
       "status": "stopped",
@@ -5898,13 +8488,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "d3be8eb6-04d4-4a33-93e3-d5f3bd92aa40",
+      "audioFileId": "[..]",
       "relativePath": "tone-stereo-48k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "d86f0e6c-af67-4918-964d-60f975548940",
+      "id": "[..]",
       "name": "Plain renamed",
       "type": "single_file",
       "status": "stopped",
@@ -5926,13 +8516,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Created 🎵",
       "type": "single_file",
       "status": "stopped",
@@ -5954,13 +8544,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Minimal",
       "type": "single_file",
       "status": "stopped",
@@ -5987,7 +8577,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",
@@ -6014,7 +8604,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Weird",
       "type": "single_file",
       "status": "stopped",
@@ -6041,7 +8631,477 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
+      "name": "New Cue",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 1,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "filePath": "",
+      "relativePath": "",
+      "knownDuration": 0
+    }
+  ],
+  "layout": {
+    "gridColumns": 4,
+    "gridRows": 4,
+    "cuePositions": {}
+  },
+  "createdAt": "[..]",
+  "updatedAt": "[..]"
+}
+=== cues/backups/[..]_2983bc21-f2d7-4df4-bd84-4d2105e47fd9.json
+{
+  "id": "[..]",
+  "name": "Seed renamed",
+  "description": "",
+  "cues": [
+    {
+      "id": "[..]",
+      "name": "Shuffled playlist",
+      "type": "playlist",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "playlistItems": [
+        {
+          "id": "shuffle-0",
+          "name": "Tone OGG Vorbis",
+          "audioFileId": "[..]",
+          "relativePath": "tone.ogg",
+          "knownDuration": 10
+        },
+        {
+          "id": "shuffle-1",
+          "name": "Tone M4A AAC",
+          "audioFileId": "[..]",
+          "relativePath": "tone.m4a",
+          "knownDuration": 10.023219954648527
+        }
+      ],
+      "shufflePlaylist": true,
+      "currentPlaylistIndex": 1,
+      "repeatOnePlaylistItem": false,
+      "playlistPlayMode": "continue"
+    },
+    {
+      "id": "[..]",
+      "name": "Playlist",
+      "type": "playlist",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "playlistItems": [
+        {
+          "id": "item-0",
+          "name": "Tone WAV mono 44k",
+          "audioFileId": "[..]",
+          "relativePath": "tone-mono-44k.wav",
+          "knownDuration": 10
+        },
+        {
+          "id": "item-1",
+          "name": "Tone MP3",
+          "audioFileId": "[..]",
+          "relativePath": "tone.mp3",
+          "knownDuration": 10.031020408163265
+        },
+        {
+          "id": "item-2",
+          "name": "Tone FLAC",
+          "audioFileId": "[..]",
+          "relativePath": "tone.flac",
+          "knownDuration": 10
+        }
+      ],
+      "currentPlaylistIndex": 2,
+      "shufflePlaylist": false,
+      "repeatOnePlaylistItem": false,
+      "playlistPlayMode": "continue"
+    },
+    {
+      "id": "[..]",
+      "name": "Zażółć 🎵 cue",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "zażółć-🎵.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "ADTS",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.aac",
+      "knownDuration": 10.031020408163265,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Ducked",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": true,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.m4a",
+      "knownDuration": 10.023219954648527,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Ducking trigger",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": true,
+      "enableDucking": false,
+      "duckingLevel": 0.3,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.ogg",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Toggle retrigger",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "pause",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.flac",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Trimmed MP3",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0.25,
+      "trimEndTime": 1.5,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone.mp3",
+      "knownDuration": 10.031020408163265,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Fades and loop",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 300,
+      "fadeOutTime": 500,
+      "loop": true,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone-stereo-48k.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Plain renamed",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.04,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": true,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        1,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone-mono-44k.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Created 🎵",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 0.05,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "audioFileId": "[..]",
+      "relativePath": "tone-mono-44k.wav",
+      "knownDuration": 10,
+      "filePath": ""
+    },
+    {
+      "id": "[..]",
+      "name": "Minimal",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 1,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "filePath": "",
+      "relativePath": "",
+      "knownDuration": 0
+    },
+    {
+      "id": "[..]",
+      "name": "New Cue",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 1,
+      "fadeInTime": 0,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 0,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "filePath": "",
+      "relativePath": "",
+      "knownDuration": 0
+    },
+    {
+      "id": "[..]",
+      "name": "Weird",
+      "type": "single_file",
+      "status": "stopped",
+      "currentTime": 0,
+      "totalTime": 0,
+      "volume": 1.5,
+      "fadeInTime": -1,
+      "fadeOutTime": 0,
+      "loop": false,
+      "retriggerBehavior": "restart",
+      "trimStartTime": 1e+21,
+      "trimEndTime": null,
+      "isDuckingTrigger": false,
+      "enableDucking": false,
+      "duckingLevel": 80,
+      "outputPatch": [
+        0,
+        1
+      ],
+      "createdAt": "[..]",
+      "updatedAt": "[..]",
+      "filePath": "",
+      "relativePath": "",
+      "knownDuration": 0
+    },
+    {
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",
@@ -6078,12 +9138,12 @@ db
 }
 === cues/workspace_export_2983bc21-f2d7-4df4-bd84-4d2105e47fd9_[..].json
 {
-  "id": "2983bc21-f2d7-4df4-bd84-4d2105e47fd9",
+  "id": "[..]",
   "name": "Seed renamed",
   "description": "",
   "cues": [
     {
-      "id": "9cca8200-f996-476a-a53d-b826982c2eed",
+      "id": "[..]",
       "name": "Shuffled playlist",
       "type": "playlist",
       "status": "stopped",
@@ -6109,14 +9169,14 @@ db
         {
           "id": "shuffle-0",
           "name": "Tone OGG Vorbis",
-          "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+          "audioFileId": "[..]",
           "relativePath": "tone.ogg",
           "knownDuration": 10
         },
         {
           "id": "shuffle-1",
           "name": "Tone M4A AAC",
-          "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+          "audioFileId": "[..]",
           "relativePath": "tone.m4a",
           "knownDuration": 10.023219954648527
         }
@@ -6127,7 +9187,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "579933b0-9fee-4d06-b1b4-6ab043194548",
+      "id": "[..]",
       "name": "Playlist",
       "type": "playlist",
       "status": "stopped",
@@ -6153,21 +9213,21 @@ db
         {
           "id": "item-0",
           "name": "Tone WAV mono 44k",
-          "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+          "audioFileId": "[..]",
           "relativePath": "tone-mono-44k.wav",
           "knownDuration": 10
         },
         {
           "id": "item-1",
           "name": "Tone MP3",
-          "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+          "audioFileId": "[..]",
           "relativePath": "tone.mp3",
           "knownDuration": 10.031020408163265
         },
         {
           "id": "item-2",
           "name": "Tone FLAC",
-          "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+          "audioFileId": "[..]",
           "relativePath": "tone.flac",
           "knownDuration": 10
         }
@@ -6178,7 +9238,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "2b149964-7488-4b5a-b921-59e0b16d5aa5",
+      "id": "[..]",
       "name": "Zażółć 🎵 cue",
       "type": "single_file",
       "status": "stopped",
@@ -6200,13 +9260,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "9c48d2bb-dfd7-449f-8e27-dde9bfccfebb",
+      "audioFileId": "[..]",
       "relativePath": "zażółć-🎵.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "891cc443-984f-44c0-a43d-81bfc518fb45",
+      "id": "[..]",
       "name": "ADTS",
       "type": "single_file",
       "status": "stopped",
@@ -6228,13 +9288,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "060db36e-5dbc-422b-9b95-e40ce7deb29d",
+      "audioFileId": "[..]",
       "relativePath": "tone.aac",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "e7602c69-426c-4c48-8abf-a935bc0f2ace",
+      "id": "[..]",
       "name": "Ducked",
       "type": "single_file",
       "status": "stopped",
@@ -6256,13 +9316,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+      "audioFileId": "[..]",
       "relativePath": "tone.m4a",
       "knownDuration": 10.023219954648527,
       "filePath": ""
     },
     {
-      "id": "5fc03146-304c-4e6e-bc4f-850f9a3c7829",
+      "id": "[..]",
       "name": "Ducking trigger",
       "type": "single_file",
       "status": "stopped",
@@ -6284,13 +9344,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+      "audioFileId": "[..]",
       "relativePath": "tone.ogg",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "6d90d28a-ff21-453c-a5ef-940971c0a35c",
+      "id": "[..]",
       "name": "Toggle retrigger",
       "type": "single_file",
       "status": "stopped",
@@ -6312,13 +9372,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+      "audioFileId": "[..]",
       "relativePath": "tone.flac",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "a7826383-017e-4f9a-afef-689004e31c97",
+      "id": "[..]",
       "name": "Trimmed MP3",
       "type": "single_file",
       "status": "stopped",
@@ -6340,13 +9400,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+      "audioFileId": "[..]",
       "relativePath": "tone.mp3",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "7e015e7a-6654-4ad0-90d5-158a060fb22a",
+      "id": "[..]",
       "name": "Fades and loop",
       "type": "single_file",
       "status": "stopped",
@@ -6368,13 +9428,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "d3be8eb6-04d4-4a33-93e3-d5f3bd92aa40",
+      "audioFileId": "[..]",
       "relativePath": "tone-stereo-48k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "d86f0e6c-af67-4918-964d-60f975548940",
+      "id": "[..]",
       "name": "Plain renamed",
       "type": "single_file",
       "status": "stopped",
@@ -6396,13 +9456,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Created 🎵",
       "type": "single_file",
       "status": "stopped",
@@ -6424,13 +9484,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Minimal",
       "type": "single_file",
       "status": "stopped",
@@ -6457,7 +9517,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",
@@ -6484,7 +9544,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Weird",
       "type": "single_file",
       "status": "stopped",
@@ -6511,7 +9571,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",
@@ -6548,9 +9608,9 @@ db
   "exportedAt": "[..]",
   "includeAudioFiles": false
 }
-=== cues/workspaces/[..]-[..]-[..]-[..]-[..].json
+=== cues/workspaces/[..].json
 {
-  "id": "[..]-[..]-[..]-[..]-[..]",
+  "id": "[..]",
   "name": "Renamed project ✓",
   "description": "",
   "cues": [],
@@ -6562,9 +9622,9 @@ db
   "createdAt": "[..]",
   "updatedAt": "[..]"
 }
-=== cues/workspaces/[..]-[..]-[..]-[..]-[..].json
+=== cues/workspaces/[..].json
 {
-  "id": "[..]-[..]-[..]-[..]-[..]",
+  "id": "[..]",
   "name": "Saved",
   "description": "desc",
   "cues": [],
@@ -6576,9 +9636,9 @@ db
   "createdAt": "[..]",
   "updatedAt": "[..]"
 }
-=== cues/workspaces/[..]-[..]-[..]-[..]-[..].json
+=== cues/workspaces/[..].json
 {
-  "id": "[..]-[..]-[..]-[..]-[..]",
+  "id": "[..]",
   "name": "Second workspace",
   "description": "",
   "cues": [],
@@ -6590,14 +9650,14 @@ db
   "createdAt": "[..]",
   "updatedAt": "[..]"
 }
-=== cues/workspaces/2983bc21-f2d7-4df4-bd84-4d2105e47fd9.json
+=== cues/workspaces/[..].json
 {
-  "id": "2983bc21-f2d7-4df4-bd84-4d2105e47fd9",
+  "id": "[..]",
   "name": "Seed renamed",
   "description": "",
   "cues": [
     {
-      "id": "9cca8200-f996-476a-a53d-b826982c2eed",
+      "id": "[..]",
       "name": "Shuffled playlist",
       "type": "playlist",
       "status": "stopped",
@@ -6623,14 +9683,14 @@ db
         {
           "id": "shuffle-0",
           "name": "Tone OGG Vorbis",
-          "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+          "audioFileId": "[..]",
           "relativePath": "tone.ogg",
           "knownDuration": 10
         },
         {
           "id": "shuffle-1",
           "name": "Tone M4A AAC",
-          "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+          "audioFileId": "[..]",
           "relativePath": "tone.m4a",
           "knownDuration": 10.023219954648527
         }
@@ -6641,7 +9701,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "579933b0-9fee-4d06-b1b4-6ab043194548",
+      "id": "[..]",
       "name": "Playlist",
       "type": "playlist",
       "status": "stopped",
@@ -6667,21 +9727,21 @@ db
         {
           "id": "item-0",
           "name": "Tone WAV mono 44k",
-          "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+          "audioFileId": "[..]",
           "relativePath": "tone-mono-44k.wav",
           "knownDuration": 10
         },
         {
           "id": "item-1",
           "name": "Tone MP3",
-          "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+          "audioFileId": "[..]",
           "relativePath": "tone.mp3",
           "knownDuration": 10.031020408163265
         },
         {
           "id": "item-2",
           "name": "Tone FLAC",
-          "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+          "audioFileId": "[..]",
           "relativePath": "tone.flac",
           "knownDuration": 10
         }
@@ -6692,7 +9752,7 @@ db
       "playlistPlayMode": "continue"
     },
     {
-      "id": "2b149964-7488-4b5a-b921-59e0b16d5aa5",
+      "id": "[..]",
       "name": "Zażółć 🎵 cue",
       "type": "single_file",
       "status": "stopped",
@@ -6714,41 +9774,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "9c48d2bb-dfd7-449f-8e27-dde9bfccfebb",
+      "audioFileId": "[..]",
       "relativePath": "zażółć-🎵.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "891cc443-984f-44c0-a43d-81bfc518fb45",
-      "name": "ADTS",
-      "type": "single_file",
-      "status": "stopped",
-      "currentTime": 0,
-      "totalTime": 0,
-      "volume": 0.05,
-      "fadeInTime": 0,
-      "fadeOutTime": 0,
-      "loop": false,
-      "retriggerBehavior": "restart",
-      "trimStartTime": 0,
-      "trimEndTime": null,
-      "isDuckingTrigger": false,
-      "enableDucking": false,
-      "duckingLevel": 80,
-      "outputPatch": [
-        0,
-        1
-      ],
-      "createdAt": "[..]",
-      "updatedAt": "[..]",
-      "audioFileId": "060db36e-5dbc-422b-9b95-e40ce7deb29d",
-      "relativePath": "tone.aac",
-      "knownDuration": 10.031020408163265,
-      "filePath": ""
-    },
-    {
-      "id": "e7602c69-426c-4c48-8abf-a935bc0f2ace",
+      "id": "[..]",
       "name": "Ducked",
       "type": "single_file",
       "status": "stopped",
@@ -6770,13 +9802,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "63e27868-f364-4bbc-a5a9-610bd3e54d81",
+      "audioFileId": "[..]",
       "relativePath": "tone.m4a",
       "knownDuration": 10.023219954648527,
       "filePath": ""
     },
     {
-      "id": "5fc03146-304c-4e6e-bc4f-850f9a3c7829",
+      "id": "[..]",
       "name": "Ducking trigger",
       "type": "single_file",
       "status": "stopped",
@@ -6798,13 +9830,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "c67b89e5-fb83-467f-bb72-ce70d8e049d3",
+      "audioFileId": "[..]",
       "relativePath": "tone.ogg",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "6d90d28a-ff21-453c-a5ef-940971c0a35c",
+      "id": "[..]",
       "name": "Toggle retrigger",
       "type": "single_file",
       "status": "stopped",
@@ -6826,13 +9858,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "eaa5da2f-9103-46b3-8e1a-42b2d6ee3ed5",
+      "audioFileId": "[..]",
       "relativePath": "tone.flac",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "a7826383-017e-4f9a-afef-689004e31c97",
+      "id": "[..]",
       "name": "Trimmed MP3",
       "type": "single_file",
       "status": "stopped",
@@ -6854,13 +9886,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "7a57b5ef-e306-4928-b627-26059c24bf8b",
+      "audioFileId": "[..]",
       "relativePath": "tone.mp3",
       "knownDuration": 10.031020408163265,
       "filePath": ""
     },
     {
-      "id": "7e015e7a-6654-4ad0-90d5-158a060fb22a",
+      "id": "[..]",
       "name": "Fades and loop",
       "type": "single_file",
       "status": "stopped",
@@ -6882,13 +9914,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "d3be8eb6-04d4-4a33-93e3-d5f3bd92aa40",
+      "audioFileId": "[..]",
       "relativePath": "tone-stereo-48k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "d86f0e6c-af67-4918-964d-60f975548940",
+      "id": "[..]",
       "name": "Plain renamed",
       "type": "single_file",
       "status": "stopped",
@@ -6910,13 +9942,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Created 🎵",
       "type": "single_file",
       "status": "stopped",
@@ -6938,13 +9970,13 @@ db
       ],
       "createdAt": "[..]",
       "updatedAt": "[..]",
-      "audioFileId": "fc3baef5-a934-41ed-adf9-b8ad84f60fd3",
+      "audioFileId": "[..]",
       "relativePath": "tone-mono-44k.wav",
       "knownDuration": 10,
       "filePath": ""
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Minimal",
       "type": "single_file",
       "status": "stopped",
@@ -6971,7 +10003,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",
@@ -6998,7 +10030,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "Weird",
       "type": "single_file",
       "status": "stopped",
@@ -7025,7 +10057,7 @@ db
       "knownDuration": 0
     },
     {
-      "id": "[..]-[..]-[..]-[..]-[..]",
+      "id": "[..]",
       "name": "New Cue",
       "type": "single_file",
       "status": "stopped",

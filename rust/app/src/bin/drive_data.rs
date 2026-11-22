@@ -8,7 +8,10 @@ use std::process::Command;
 
 use accompaniment::core::audio_files::AudioFileManager;
 use accompaniment::core::bundle;
+use accompaniment::core::clock::Clock;
 use accompaniment::core::config::AppConfigManager;
+use accompaniment::core::cue_engine::CueManager;
+use accompaniment::core::cue_fakes::{FakeEngine, FakeWs, Log};
 use accompaniment::core::cues::CueDataManager;
 use accompaniment::core::jsv::{self, Obj};
 use accompaniment::core::library;
@@ -26,6 +29,14 @@ struct Drive {
     afm: Option<AudioFileManager>,
     cdm: Option<CueDataManager>,
     upload_n: u32,
+    /// B3: the cue engine on fakes (`cue_fakes`), as `drive-data.js` runs the original.
+    cm: Option<CueManager>,
+    engine_log: Log,
+    ws_log: Log,
+    script: std::sync::Arc<std::sync::Mutex<Vec<(String, Value)>>>,
+    rng_values: std::sync::Arc<std::sync::Mutex<(Vec<f64>, usize)>>,
+    seen_engine: usize,
+    seen_ws: usize,
 }
 
 /// A missing argument is JS `undefined`.
@@ -58,7 +69,223 @@ impl Drive {
         target
     }
 
+    fn fake_engine(&mut self) -> Option<&mut FakeEngine> {
+        self.cm
+            .as_mut()?
+            .engine
+            .as_any_mut()
+            .downcast_mut::<FakeEngine>()
+    }
+
+    /// B3 ops: the cue engine, its fake engine and the fake clock.
+    fn run_cue_engine(&mut self, op: &str, a: &[Value]) -> Option<Option<Value>> {
+        let id = |i: usize| s(a, i);
+        let opt = |i: usize| arg(a, i).cloned().unwrap_or_else(|| json!({}));
+        if op == "cm.init" {
+            let clock = Clock::fake(1_700_000_000_000.0);
+            let shared = clock.shared()?;
+            let engine = FakeEngine::new(
+                self.engine_log.clone(),
+                self.script.clone(),
+                Box::new(move || shared.lock().map_or(f64::NAN, |t| *t)),
+            );
+            let ws = FakeWs {
+                log: self.ws_log.clone(),
+            };
+            let pm = self.pm.clone()?;
+            let mut cm = CueManager::new(
+                self.afm.take()?,
+                self.cdm.take()?,
+                Box::new(ws),
+                Box::new(engine),
+                &pm.pcm_cache_dir,
+                clock,
+            );
+            let values: Vec<f64> = match arg(a, 0) {
+                Some(Value::Array(v)) => v.iter().filter_map(Value::as_f64).collect(),
+                _ => vec![0.42, 0.13, 0.87, 0.55, 0.07, 0.99, 0.31, 0.66, 0.2, 0.75],
+            };
+            if let Ok(mut r) = self.rng_values.lock() {
+                *r = (values, 0);
+            }
+            let rng = self.rng_values.clone();
+            cm.rng = Box::new(move || {
+                let Ok(mut r) = rng.lock() else { return 0.0 };
+                if r.0.is_empty() {
+                    return 0.0;
+                }
+                let v = r.0[r.1 % r.0.len()];
+                r.1 += 1;
+                v
+            });
+            cm.set_config(Value::Object(self.config.as_ref()?.get_config()));
+            let r = cm.initialize();
+            self.cm = Some(cm);
+            return Some(match r {
+                Ok(()) => None,
+                Err(e) => Some(err(e)),
+            });
+        }
+        if !(op.starts_with("cm.") || op.starts_with("engine.") || op.starts_with("clock.")) {
+            return None;
+        }
+        if op == "engine.script" {
+            if let Ok(mut sc) = self.script.lock() {
+                sc.push((s(a, 0), arg(a, 1).cloned().unwrap_or(Value::Null)));
+            }
+            return Some(Some(json!(true)));
+        }
+        if op == "cm.rng" {
+            let values: Vec<f64> = arg(a, 0)
+                .and_then(Value::as_array)
+                .map(|v| v.iter().filter_map(Value::as_f64).collect())
+                .unwrap_or_default();
+            if let Ok(mut r) = self.rng_values.lock() {
+                *r = (values, 0);
+            }
+            return Some(Some(json!(true)));
+        }
+        match op {
+            "engine.end" => {
+                let reason = arg(a, 1).cloned().unwrap_or_else(js::undefined);
+                self.fake_engine()?.end(&id(0), &reason);
+                self.cm.as_mut()?.pump_engine_events();
+                return Some(None);
+            }
+            "engine.advance" => {
+                let token = arg(a, 1).cloned();
+                self.fake_engine()?.advance(&id(0), token.as_ref());
+                self.cm.as_mut()?.pump_engine_events();
+                return Some(None);
+            }
+            "engine.error" => {
+                let payload = arg(a, 0).cloned().unwrap_or(Value::Null);
+                self.fake_engine()?.error(payload);
+                self.cm.as_mut()?.pump_engine_events();
+                return Some(None);
+            }
+            _ => {}
+        }
+        // Staged uploads need `self` before the cue manager is borrowed.
+        let staged: Vec<(String, String)> = match op {
+            "cm.audioReplace" => {
+                let name = s(a, 2);
+                vec![(self.stage(&s(a, 1), Some(&name)), name)]
+            }
+            "cm.importProject" => arg(a, 1)
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default()
+                .iter()
+                .map(|pair| {
+                    let from = pair.get(0).map(jsv::to_js_string).unwrap_or_default();
+                    let name = pair.get(1).map(jsv::to_js_string).unwrap_or_default();
+                    (self.stage(&from, Some(&name)), name)
+                })
+                .collect(),
+            _ => Vec::new(),
+        };
+        let config = self.config.as_mut()?;
+        let cm = self.cm.as_mut()?;
+        let v = match op {
+            "cm.trigger" => cm.trigger_cue(&id(0), &opt(1)),
+            "cm.toggle" => cm.toggle_cue(&id(0), &opt(1)),
+            "cm.play" => cm.play_cue(&id(0), &opt(1)),
+            "cm.doublePress" => {
+                let first = cm.trigger_cue(&id(0), &opt(1));
+                let second = cm.trigger_cue(&id(0), &opt(1));
+                json!([first, second])
+            }
+            "cm.stop" => cm.stop_cue(&id(0), jsv::truthy_opt(arg(a, 1))),
+            "cm.stopAll" => cm.stop_all(arg(a, 0).filter(|v| !js::is_undefined(v))),
+            "cm.togglePause" => cm.toggle_pause_cue(&id(0)),
+            "cm.navigate" => cm.navigate_playlist(&id(0), arg(a, 1).unwrap_or(&js::undefined())),
+            "cm.jump" => cm.jump_to_playlist_item(&id(0), arg(a, 1).unwrap_or(&js::undefined())),
+            "cm.create" => cm.create_cue(arg(a, 0).unwrap_or(&js::undefined())),
+            "cm.update" => cm.update_cue(&id(0), arg(a, 1).unwrap_or(&js::undefined())),
+            "cm.delete" => cm.delete_cue(&id(0)),
+            "cm.reorder" => cm.reorder_cues(arg(a, 0).unwrap_or(&js::undefined())),
+            "cm.crossfade" => cm.set_crossfade_mode(arg(a, 0).unwrap_or(&js::undefined())),
+            "cm.masterVolume" => cm.set_master_volume(arg(a, 0).unwrap_or(&js::undefined())),
+            "cm.applyConfig" => {
+                let prev = cm.get_config().clone();
+                let r = config.update_config(arg(a, 0).unwrap_or(&js::undefined()));
+                if r.get("success") != Some(&json!(true)) {
+                    r
+                } else {
+                    let r = cm.apply_config(&prev, Value::Object(config.get_config()));
+                    cm.run_deferred();
+                    r
+                }
+            }
+            "cm.newProject" => cm.new_project(arg(a, 0).unwrap_or(&js::undefined())),
+            "cm.openProject" => cm.open_project(arg(a, 0).unwrap_or(&js::undefined())),
+            "cm.renameProject" => cm.rename_project(arg(a, 0).unwrap_or(&js::undefined())),
+            "cm.deleteProject" => cm.delete_project(arg(a, 0).unwrap_or(&js::undefined())),
+            "cm.listProjects" => cm.list_projects(),
+            "cm.currentProject" => cm.get_current_project(),
+            "cm.getCues" => Value::Array(cm.get_cues()),
+            "cm.getCue" => cm.get_cue(&id(0)).unwrap_or(Value::Null),
+            "cm.status" => cm.get_playback_status(),
+            "cm.flush" => cm.flush_persist_workspace(),
+            "cm.cleanup" => {
+                cm.cleanup();
+                return Some(None);
+            }
+            "cm.audioReplace" => {
+                let (path, name) = staged.first()?.clone();
+                let r =
+                    cm.afm
+                        .replace_file(arg(a, 0).unwrap_or(&js::undefined()), &path, Some(&name));
+                if r.get("success") != Some(&json!(true)) {
+                    r
+                } else {
+                    let af = r.get("audioFile").cloned().unwrap_or(Value::Null);
+                    let prev = r.get("previous").cloned().unwrap_or_else(|| json!({}));
+                    cm.handle_audio_file_replaced(&af, &prev)
+                }
+            }
+            "cm.importProject" => cm.import_project(arg(a, 0).unwrap_or(&json!({})), &staged),
+            "clock.advance" => {
+                cm.advance_clock(arg(a, 0).and_then(Value::as_f64).unwrap_or(0.0));
+                return Some(None);
+            }
+            _ => err(format!("unknown op {op}")),
+        };
+        Some(Some(v))
+    }
+
+    /// What the cue manager did and holds after an op (B3).
+    fn cue_engine_state(&mut self) -> String {
+        let Some(cm) = self.cm.as_ref() else {
+            return String::new();
+        };
+        let mut out = String::from("--- engine\n");
+        if let Ok(l) = self.engine_log.lock() {
+            for e in &l[self.seen_engine..] {
+                out.push_str(&jsv::stringify(e));
+                out.push('\n');
+            }
+            self.seen_engine = l.len();
+        }
+        out.push_str("--- ws\n");
+        if let Ok(l) = self.ws_log.lock() {
+            for e in &l[self.seen_ws..] {
+                out.push_str(&jsv::stringify(e));
+                out.push('\n');
+            }
+            self.seen_ws = l.len();
+        }
+        out.push_str("--- state\n");
+        out.push_str(&jsv::stringify(&cm.debug_state()));
+        out.push('\n');
+        out
+    }
+
     fn run(&mut self, op: &str, a: &[Value]) -> Option<Value> {
+        if let Some(r) = self.run_cue_engine(op, a) {
+            return r;
+        }
         if op == "init" {
             let pm = PathManager::new(&self.data);
             let mut config = AppConfigManager::new(&pm);
@@ -303,6 +530,13 @@ fn main() {
         afm: None,
         cdm: None,
         upload_n: 0,
+        cm: None,
+        engine_log: Log::default(),
+        ws_log: Log::default(),
+        script: Default::default(),
+        rng_values: Default::default(),
+        seen_engine: 0,
+        seen_ws: 0,
     };
     let Value::Array(ops) = ops else {
         eprintln!("ops must be a JSON array");
@@ -319,7 +553,8 @@ fn main() {
             Some(v) => jsv::stringify(&v),
             None => "undefined".into(),
         };
-        print!("### {i} {name}\n{text}\n{}", dump(&d.data));
+        let state = d.cue_engine_state();
+        print!("### {i} {name}\n{text}\n{state}{}", dump(&d.data));
         std::thread::sleep(std::time::Duration::from_millis(3));
     }
 }

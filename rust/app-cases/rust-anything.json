@@ -10,7 +10,8 @@
   ],
   "normalize": [
     "key-order",
-    "timestamps"
+    "timestamps",
+    "uuids"
   ],
   "normalizers": {
     "filestamp": "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{3}Z",
@@ -18,13 +19,13 @@
     "timing": "\"(startTime|currentTime|positionSec)\":(0\\.[0-9eE+-]+|[1-9][0-9.eE+-]*)",
     "workdir": "rust-anything-app-server[-0-9]*"
   },
-  "timeout_secs": 600,
+  "timeout_secs": 900,
   "http": {
     "fresh": [
       "rust/app-fixtures/data",
       "rust/app-fixtures/incoming"
     ],
-    "pace_ms": 100
+    "pace_ms": 500
   },
   "effects": {
     "db_dump": "node /Users/marcin/CascadeProjects/acCompaniment-NODEtoRUST/rust/scripts/dump-data.js rust/app-fixtures/data"
