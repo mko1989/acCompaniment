@@ -52,7 +52,7 @@ cannot be proxied route by route. Built in stages inside `rust/app`, switched ov
 | --- | --- | --- |
 | B1 data layer | pathManager, appConfigManager, atomicWrite, mediaLibrary IO, cueDataManager, projectBundle, audioFileManager (metadata) | done 2026-11-22: `rust/app/src/core/` (paths, config, nodefs, library, cues, bundle, audio_files, probe, jsv); differential check vs. Node 303/303 (`node rust/scripts/diff-data.js`), seed round-trips byte for byte |
 | B2 server | server.js, routes/*, middleware, websocketManager, static UI | open |
-| B3 cue engine | cueManager (triggers, retrigger, fades, ducking, playlists, crossfade) | open |
+| B3 cue engine | cueManager (triggers, retrigger, fades, ducking, playlists, crossfade) | claimed by session ce56df02 2026-11-22 (subagent) |
 | B4 audio engine | audioPlaybackManager, workerMixer, audioEngineWorker, audioDecoder, pcmCache on cpal + symphonia | open |
 
 Wave C: Tauri tray app replacing `electron-launcher/` (ADR-008), and CI installers (WO-011).
