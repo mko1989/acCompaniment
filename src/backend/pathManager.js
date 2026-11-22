@@ -3,6 +3,10 @@ const fs = require('fs-extra');
 
 class PathManager {
     constructor(dataDir) {
+        // Absolute from the start: a relative ACCOMPANIMENT_DATA_DIR mixed relative and absolute
+        // paths for the same file, and "replace file" then deleted the file it had just written
+        // (WO-023).
+        dataDir = path.resolve(dataDir);
         this.dataDir = dataDir;
         this.audioDir = path.join(dataDir, 'audio');
         this.cuesDir = path.join(dataDir, 'cues');

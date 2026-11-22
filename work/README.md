@@ -27,3 +27,4 @@ work orders" in [CLAUDE.md](../CLAUDE.md) for the workflow and template.
 | [WO-020](WO-020-windows-reserved-filenames.md) | Windows reserved names (CON, NUL, COM1, ...) are used as library file names | Low | Done | - |
 | [WO-021](WO-021-companion-test-misses-early-reply.md) | The Companion "play_cue" test can miss its reply (intermittent failure) | Low | Done | - |
 | [WO-022](WO-022-playlist-index-out-of-range.md) | A playlist whose current item was removed can't be triggered | Medium | Done | - |
+| [WO-023](WO-023-relative-data-dir-replace-deletes-file.md) | With a relative data dir, "replace file" deletes the file it just replaced | Medium | Done | - |

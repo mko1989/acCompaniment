@@ -50,7 +50,7 @@ cannot be proxied route by route. Built in stages inside `rust/app`, switched ov
 
 | Stage | Covers | State |
 | --- | --- | --- |
-| B1 data layer | pathManager, appConfigManager, atomicWrite, mediaLibrary IO, cueDataManager, projectBundle, audioFileManager (metadata) | claimed by session ce56df02 2026-11-21 (subagent) |
+| B1 data layer | pathManager, appConfigManager, atomicWrite, mediaLibrary IO, cueDataManager, projectBundle, audioFileManager (metadata) | done 2026-11-22: `rust/app/src/core/` (paths, config, nodefs, library, cues, bundle, audio_files, probe, jsv); differential check vs. Node 303/303 (`node rust/scripts/diff-data.js`), seed round-trips byte for byte |
 | B2 server | server.js, routes/*, middleware, websocketManager, static UI | open |
 | B3 cue engine | cueManager (triggers, retrigger, fades, ducking, playlists, crossfade) | open |
 | B4 audio engine | audioPlaybackManager, workerMixer, audioEngineWorker, audioDecoder, pcmCache on cpal + symphonia | open |
@@ -70,6 +70,18 @@ Wave C: Tauri tray app replacing `electron-launcher/` (ADR-008), and CI installe
 - Known quirks of the original, not reachable from its callers, no work order (owner may decide
   otherwise): `LruCache` stops evicting after an `undefined` key; a NaN byte size disables byte
   eviction until `clear()` (`rust/lru-cache`).
+
+- From B1 (open gaps, for B2/B4 and the lift):
+  - B2: one lock around the core (it is synchronous; it replaces Node's save queue); a streaming
+    zip writer for `GET /api/projects/:id/bundle` (B1's writes to a file); wire the config-change
+    listeners; port the network-interface listing.
+  - B4/ADR-018: the metadata probe can't read Ogg Opus/FLAC/Speex, fragmented MP4, APEv2/Lyrics3,
+    ID3v2 TXXX: use the ffmpeg fallback there too, or extend the probe.
+  - Lift (ADR-009): `core/nodefs.rs` ports Node's POSIX `path` only; Windows path rules are
+    still to do.
+  - Accepted differences (ADR-005): V8's `JSON.parse` error wording; a JSON file with lone-surrogate
+    escapes reads as corrupt; zip names valid as UTF-8 are read as UTF-8 without the flag, and CRCs
+    are checked (yauzl doesn't).
 
 ## Out of scope
 

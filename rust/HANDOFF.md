@@ -4,10 +4,12 @@ Where the port stands (2026-11-21). Load the `rust-anything` skill, then read [M
 
 ## State
 
-- Wave A done (2026-11-21): all eight pure-logic units ported, each through a typed shim
-  (ADR-014), every gate passing (12,916 recorded cases). Checkpoint (ADR-010): waiting for the
-  owner's go-ahead on Wave B. Fallback rate still 100%: Wave A crates are libraries for the core
-  and change no route until Wave B wires the core in. No unit claimed.
+- Wave A done (2026-11-21): eight pure-logic units, every gate passing.
+- Wave B (ADR-015): B1 data layer done (2026-11-22) in `rust/app/src/core/`, proved by the
+  differential check `node rust/scripts/diff-data.js` (Node managers vs. Rust core on the same op
+  scripts, data dir compared after every op: 303/303). No route served by Rust yet: fallback rate
+  100%. Next: B3 cue engine, then B2 routes/WebSocket, then B4 audio (MAP.md).
+- The owner delegated open decisions (ADR-016); WO-013 to WO-023 are fixed in Node and the port.
 - Re-check any Wave A crate: `rust-anything gate $PWD/rust/<crate>` (absolute path: relative
   ones break `build`).
 - Front door: `rust/app` (binary `accompaniment`), an axum server that starts `node server.js` on
@@ -62,10 +64,9 @@ What the recording taught (keep when re-recording):
 
 ## Next
 
-1. Owner: go-ahead for Wave B (MAP.md), and the deferred decisions there when ready.
-2. Wave B, stage B1 (data layer) first. Read research/files-and-metadata.md, the "Rules for later
-   stages" in MAP.md, and decide with the owner how B1 is proved before the core switches over
-   (it can't be wired route by route: MAP.md, Wave B).
+1. B3 cue engine (`cueManager.js`) against an `AudioEngine` trait with a silent engine; prove it
+   with the same differential method (extend `drive-data.js` / `drive-data` with cue-engine ops),
+   reading MAP.md "Rules for later stages" first.
 
 ## Known limits of the front door
 
