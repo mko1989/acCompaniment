@@ -13,6 +13,7 @@
 
 const base = require('@playwright/test');
 const { spawn } = require('node:child_process');
+const { serverCommand } = require('../helpers/serverCommand');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -65,9 +66,11 @@ const test = base.test.extend({
         const port = await getFreePort();
         const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'accompaniment-e2e-'));
         const baseURL = `http://127.0.0.1:${port}`;
-        const child = spawn(process.execPath, [path.join(REPO_ROOT, 'start-nodejs.js')], {
+        // ACCOMPANIMENT_SERVER_BIN/_ENV: run the suite against another server (test/helpers/serverCommand.js).
+        const server = serverCommand();
+        const child = spawn(server.command, server.args, {
             cwd: REPO_ROOT,
-            env: { ...process.env, ...serverEnv, PORT: String(port), HOST: '127.0.0.1', ACCOMPANIMENT_DATA_DIR: dataDir },
+            env: { ...process.env, ...server.env, ...serverEnv, PORT: String(port), HOST: '127.0.0.1', ACCOMPANIMENT_DATA_DIR: dataDir },
             stdio: ['ignore', 'ignore', 'pipe'],
         });
         let stderr = '';

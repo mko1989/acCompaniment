@@ -424,40 +424,34 @@ impl Mixer {
         self.set_paused(cue_id, false)
     }
 
+    fn voice_status(v: &Voice) -> VoiceStatus {
+        let ramping = v.gain_step != 0.0 && v.gain_target != v.current_gain;
+        VoiceStatus {
+            cue_id: v.cue_id.clone(),
+            voice_id: v.voice_id.clone(),
+            is_paused: v.is_paused,
+            stopping: v.stopping,
+            is_fading_out: ramping && v.stopping,
+            is_fading_in: ramping && !v.stopping && v.gain_step > 0.0,
+            fade_remaining_sec: if ramping {
+                ramp_remaining_sec(v.current_gain, v.gain_target, v.gain_step, v.sample_rate)
+            } else {
+                0.0
+            },
+            is_ducked: v.duck_target < 1.0,
+            duck_gain: v.duck_gain,
+            position_sec: v.position / v.sample_rate,
+            trim_start_sec: v.trim_start_frame / v.sample_rate,
+            trim_end_sec: v.trim_end_frame / v.sample_rate,
+            volume: v.volume,
+            current_gain: v.current_gain,
+            output_patch: v.output_patch,
+        }
+    }
+
     pub fn status(&self) -> MixerStatus {
-        let playing = self
-            .voices
-            .values()
-            .map(|v| {
-                let ramping = v.gain_step != 0.0 && v.gain_target != v.current_gain;
-                VoiceStatus {
-                    cue_id: v.cue_id.clone(),
-                    voice_id: v.voice_id.clone(),
-                    is_paused: v.is_paused,
-                    stopping: v.stopping,
-                    is_fading_out: ramping && v.stopping,
-                    is_fading_in: ramping && !v.stopping && v.gain_step > 0.0,
-                    fade_remaining_sec: if ramping {
-                        ramp_remaining_sec(
-                            v.current_gain,
-                            v.gain_target,
-                            v.gain_step,
-                            v.sample_rate,
-                        )
-                    } else {
-                        0.0
-                    },
-                    is_ducked: v.duck_target < 1.0,
-                    duck_gain: v.duck_gain,
-                    position_sec: v.position / v.sample_rate,
-                    trim_start_sec: v.trim_start_frame / v.sample_rate,
-                    trim_end_sec: v.trim_end_frame / v.sample_rate,
-                    volume: v.volume,
-                    current_gain: v.current_gain,
-                    output_patch: v.output_patch,
-                }
-            })
-            .collect();
+        let mut playing = Vec::new();
+        self.status_into(&mut playing);
         MixerStatus {
             sample_rate: self.sample_rate,
             channel_count: self.channel_count,
@@ -467,9 +461,23 @@ impl Mixer {
         }
     }
 
+    /// `getStatus().playing` into a reused vector: no allocation once it has room (the audio
+    /// thread reports status this way).
+    pub fn status_into(&self, out: &mut Vec<VoiceStatus>) {
+        out.clear();
+        out.extend(self.voices.values().map(Self::voice_status));
+    }
+
     /// `drainPeakLevels`: the loudest output per cue since the last drain, in first-seen order.
     pub fn drain_peak_levels(&mut self) -> Vec<(Arc<str>, f64)> {
-        let mut levels: Vec<(Arc<str>, f64)> = Vec::new();
+        let mut levels = Vec::new();
+        self.drain_peak_levels_into(&mut levels);
+        levels
+    }
+
+    /// [`Mixer::drain_peak_levels`] into a reused vector (cleared first).
+    pub fn drain_peak_levels_into(&mut self, levels: &mut Vec<(Arc<str>, f64)>) {
+        levels.clear();
         for v in self.voices.values_mut() {
             let level = if v.is_paused { 0.0 } else { v.peak_accum };
             match levels.iter_mut().find(|(c, _)| *c == v.cue_id) {
@@ -478,7 +486,6 @@ impl Mixer {
             }
             v.peak_accum = 0.0;
         }
-        levels
     }
 
     /// The events of the last [`Mixer::render`], in callback order.

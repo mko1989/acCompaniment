@@ -28,3 +28,9 @@ work orders" in [CLAUDE.md](../CLAUDE.md) for the workflow and template.
 | [WO-021](WO-021-companion-test-misses-early-reply.md) | The Companion "play_cue" test can miss its reply (intermittent failure) | Low | Done | - |
 | [WO-022](WO-022-playlist-index-out-of-range.md) | A playlist whose current item was removed can't be triggered | Medium | Done | - |
 | [WO-023](WO-023-relative-data-dir-replace-deletes-file.md) | With a relative data dir, "replace file" deletes the file it just replaced | Medium | Done | - |
+| [WO-024](WO-024-rust-voices-stale-after-stream-stall.md) | Rust core: the playback status can miss the last command when the stream has stalled | Low | Open | - (delegated: fix) |
+| [WO-025](WO-025-rust-stream-dies-on-device-rate-change.md) | Rust core: when another app changes the device's sample rate, playing cues go silent and never end | High | Open | - (delegated: reopen automatically) |
+| [WO-026](WO-026-retrigger-test-counts-boundary-slot.md) | The "play_new_instance" loopback test counts a segment boundary as a third copy (intermittent failure) | Low | Open | - (delegated: fix the test) |
+| [WO-027](WO-027-rust-first-press-slower.md) | Rust core: the first press after start-up sounds ~15 ms later than on Node | Low | Open | After investigation |
+| [WO-028](WO-028-rust-overload-treated-as-dead-stream.md) | Rust core: an audio overload (xrun) or a default-device change is treated as a dead stream | Medium | Open | - (delegated: fix) |
+| [WO-029](WO-029-rust-dropouts-not-reported.md) | Rust core: audio dropouts are not logged | Low | Open | - (delegated: fix) |

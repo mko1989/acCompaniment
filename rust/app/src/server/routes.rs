@@ -716,8 +716,12 @@ async fn audio_routes(ctx: Ctx, rest: &[&str]) -> Routed {
         }
     );
     route!(ctx, rest, Method::GET, [Lit("output-devices")], |p| {
-        // The engine lists RtAudio's devices; the interim engine has none (B4).
-        http::json(200, &json!({ "success": true, "devices": [] }))
+        // The engine lists the devices as RtAudio did (ADR-018).
+        op(&ctx.sh, |c| {
+            let devices = c.cm.engine.output_devices();
+            http::json(200, &json!({ "success": true, "devices": devices }))
+        })
+        .await
     });
     route!(ctx, rest, Method::GET, [Lit("search"), Param], |p| {
         let q = p[0].clone();

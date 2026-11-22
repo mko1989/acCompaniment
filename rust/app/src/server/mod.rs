@@ -151,7 +151,8 @@ fn initialize() -> Result<(Core, Option<u16>), String> {
     nfs::ensure_dir(&data).map_err(|e| e.to_string())?;
     let pm = PathManager::new(&data);
     let mut config = AppConfigManager::new(&pm);
-    let afm = AudioFileManager::new(&pm);
+    let mut afm = AudioFileManager::new(&pm);
+    afm.warm_pcm = true;
     let cdm = CueDataManager::new(&pm);
     let outbox: Outbox = Arc::default();
     let mut cm = CueManager::new(
@@ -160,7 +161,7 @@ fn initialize() -> Result<(Core, Option<u16>), String> {
         Box::new(QueueBroadcaster {
             outbox: outbox.clone(),
         }),
-        Box::new(engine::NoOutputEngine::new()),
+        Box::new(crate::audio::engine::CpalEngine::new()),
         &pm.pcm_cache_dir,
         Clock::real(),
     );

@@ -12,6 +12,7 @@ const os = require('node:os');
 const fs = require('node:fs/promises');
 const net = require('node:net');
 const WebSocket = require('ws');
+const { serverCommand } = require('./serverCommand');
 
 const REPO_ROOT = path.join(__dirname, '..', '..');
 const READY_TIMEOUT_MS = 15000;
@@ -34,16 +35,7 @@ function getFreePort() {
  * port (rust/MAP.md, "Proof"): e.g. ACCOMPANIMENT_SERVER_BIN=rust/app/target/release/accompaniment.
  */
 function spawnServer(env, execPath = process.execPath) {
-    const bin = process.env.ACCOMPANIMENT_SERVER_BIN;
-    const [command, args] = bin
-        ? [path.resolve(REPO_ROOT, bin), []]
-        : [execPath, [path.join(REPO_ROOT, 'start-nodejs.js')]];
-    // ACCOMPANIMENT_SERVER_ENV: extra `KEY=VALUE` pairs (space-separated) for that binary, e.g.
-    // ACCOMPANIMENT_SERVER_ENV=ACCOMPANIMENT_CORE=rust to run the Rust core (rust/ ADR-015).
-    const extra = bin
-        ? Object.fromEntries((process.env.ACCOMPANIMENT_SERVER_ENV || '').split(/\s+/).filter(Boolean)
-            .map((pair) => [pair.slice(0, pair.indexOf('=')), pair.slice(pair.indexOf('=') + 1)]))
-        : {};
+    const { command, args, env: extra } = serverCommand(execPath);
     const child = spawn(command, args, {
         cwd: REPO_ROOT,
         env: { ...process.env, ...extra, ...env },

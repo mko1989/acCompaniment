@@ -89,6 +89,10 @@ pub trait AudioEngine: Send {
     fn channel_count(&self) -> Value;
     fn cleanup(&mut self);
     fn take_events(&mut self) -> Vec<EngineEvent>;
+    /// `getOutputDevices()` (`GET /api/audio/output-devices`): none unless the engine has devices.
+    fn output_devices(&mut self) -> Value {
+        Value::Array(Vec::new())
+    }
     /// For the differential check's driver, to reach its fake engine.
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 }
@@ -154,14 +158,14 @@ fn opt_num(f: Option<f64>) -> Value {
 }
 
 /// `Math.max` / `Math.min` (NaN wins).
-fn js_max(a: f64, b: f64) -> f64 {
+pub(crate) fn js_max(a: f64, b: f64) -> f64 {
     if a.is_nan() || b.is_nan() {
         f64::NAN
     } else {
         a.max(b)
     }
 }
-fn js_min(a: f64, b: f64) -> f64 {
+pub(crate) fn js_min(a: f64, b: f64) -> f64 {
     if a.is_nan() || b.is_nan() {
         f64::NAN
     } else {
@@ -170,7 +174,7 @@ fn js_min(a: f64, b: f64) -> f64 {
 }
 
 /// `a === b` for JSON values (`None` is `undefined`).
-fn strict_eq(a: Option<&Value>, b: Option<&Value>) -> bool {
+pub(crate) fn strict_eq(a: Option<&Value>, b: Option<&Value>) -> bool {
     let a = a.filter(|v| !js::is_undefined(v));
     let b = b.filter(|v| !js::is_undefined(v));
     match (a, b) {

@@ -18,6 +18,16 @@ path = "src/main.rs"
 name = "drive-data"
 path = "src/bin/drive_data.rs"
 
+# Decoder comparison against the Node original (rust/scripts/compare-decode.js).
+[[bin]]
+name = "decode-file"
+path = "src/bin/decode_file.rs"
+
+# Output devices as the Rust engine lists them (B4).
+[[bin]]
+name = "list-devices"
+path = "src/bin/list_devices.rs"
+
 [dependencies]
 axum = { version = "0.8", features = ["ws"] }
 futures-util = "0.3"
@@ -37,6 +47,14 @@ sha2 = "0.10"
 uuid = { version = "1", features = ["v4"] }
 zip = { version = "9", default-features = false, features = ["deflate"] }
 tokio = { version = "1", features = ["fs", "io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+cpal = "0.18"
+rtrb = "0.4"
+symphonia = { version = "0.6", default-features = false, features = ["wav", "pcm", "flac", "vorbis", "ogg", "mp3", "aiff", "adpcm"] }
+rubato = "5.1"
+audioadapter-buffers = "5.1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = "0.10"
 
 [target.'cfg(unix)'.dependencies]
 nix = { version = "0.30", features = ["net", "signal"] }

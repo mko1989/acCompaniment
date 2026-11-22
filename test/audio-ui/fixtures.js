@@ -17,6 +17,7 @@
 
 const base = require('@playwright/test');
 const { spawn } = require('node:child_process');
+const { serverCommand } = require('../helpers/serverCommand');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -73,9 +74,11 @@ const test = base.test.extend({
             audioSampleRate: ANALYSIS_RATE,
         }));
         const baseURL = `http://127.0.0.1:${port}`;
-        const child = spawn(process.execPath, [path.join(REPO_ROOT, 'start-nodejs.js')], {
+        // ACCOMPANIMENT_SERVER_BIN/_ENV: run the suite against another server (test/helpers/serverCommand.js).
+        const server = serverCommand();
+        const child = spawn(server.command, server.args, {
             cwd: REPO_ROOT,
-            env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', ACCOMPANIMENT_DATA_DIR: dataDir },
+            env: { ...process.env, ...server.env, PORT: String(port), HOST: '127.0.0.1', ACCOMPANIMENT_DATA_DIR: dataDir },
             stdio: ['ignore', 'ignore', 'pipe'],
         });
         const exited = new Promise((resolve) => child.on('exit', resolve));

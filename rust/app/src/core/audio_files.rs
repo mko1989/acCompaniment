@@ -1,4 +1,5 @@
-//! Port of `src/backend/audioFileManager.js` (PCM-cache warming is a no-op hook until B4).
+//! Port of `src/backend/audioFileManager.js`. PCM-cache warming (`_warm`) runs on a background
+//! thread when `warm_pcm` is on (the server; the differential check leaves it off).
 //!
 //! Records are JSON objects, as the original keeps them. A probe field that was `undefined`
 //! keeps its key (as the JS `undefined` marker) so a later update lands in the same place;
@@ -56,6 +57,8 @@ pub struct AudioFileManager {
     pm: PathManager,
     pub max_file_size: f64,
     pub pcm_sample_rate: f64,
+    /// `_warm`: decode new and replaced files into the PCM cache in the background.
+    pub warm_pcm: bool,
     index: Option<Index>,
 }
 
@@ -65,8 +68,31 @@ impl AudioFileManager {
             pm: pm.clone(),
             max_file_size: 104_857_600.0,
             pcm_sample_rate: 48000.0,
+            warm_pcm: false,
             index: None,
         }
+    }
+
+    /// `_warm(audioFile)`: fire and forget, like the original's un-awaited promise.
+    fn warm(&self, rec: &Obj) {
+        if !self.warm_pcm {
+            return;
+        }
+        let Some(path) = rec.get("path").and_then(Value::as_str).map(str::to_string) else {
+            return;
+        };
+        let name = rec
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        let dir = self.pm.pcm_cache_dir.clone();
+        let rate = self.pcm_sample_rate as u32;
+        std::thread::spawn(move || {
+            if let Err(e) = crate::audio::pcm_cache::warm(&path, &dir, rate) {
+                eprintln!("AudioFileManager: PCM cache warm failed for {name}: {e}");
+            }
+        });
     }
 
     pub fn set_pcm_sample_rate(&mut self, v: &Value) {
@@ -380,6 +406,7 @@ impl AudioFileManager {
                         rec.insert("importedAt".into(), json!(jsv::iso_now()));
                         rec.insert("tags".into(), jsv::or(options.get("tags"), json!([])));
                         self.save_audio_file_metadata(&rec);
+                        self.warm(&rec);
                         return Ok(
                             json!({ "success": true, "audioFile": rec, "reused": false, "renamed": n > 1 }),
                         );
@@ -490,6 +517,7 @@ impl AudioFileManager {
             updated.insert("hash".into(), json!(hash));
             updated.insert("replacedAt".into(), json!(jsv::iso_now()));
             self.save_audio_file_metadata(&updated);
+            self.warm(&updated);
             Ok(json!({ "success": true, "audioFile": updated, "previous": previous }))
         })();
         match result {

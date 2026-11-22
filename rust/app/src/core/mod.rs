@@ -19,6 +19,8 @@ pub mod probe;
 pub mod cue_aliases;
 #[path = "../../../id-validation/src/port.rs"]
 pub mod id_validation;
+#[path = "../../../lru-cache/src/port.rs"]
+pub mod lru_cache;
 #[path = "../../../media-library-names/src/port.rs"]
 pub mod media_names;
 #[path = "../../../output-patch/src/port.rs"]
@@ -27,3 +29,5 @@ pub mod output_patch;
 pub mod playlist_logic;
 #[path = "../../../retrigger-logic/src/port.rs"]
 pub mod retrigger_logic;
+#[path = "../../../soundboard-mixer/src/port.rs"]
+pub mod soundboard_mixer;

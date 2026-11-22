@@ -4,5 +4,6 @@
 #[path = "../../media-library-names/src/js.rs"]
 pub mod js;
 
+pub mod audio;
 pub mod core;
 pub mod server;
