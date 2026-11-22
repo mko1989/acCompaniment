@@ -5,3 +5,4 @@
 pub mod js;
 
 pub mod core;
+pub mod server;

@@ -10,6 +10,11 @@ use original::shutdown_signal;
 #[tokio::main]
 async fn main() -> ExitCode {
     original::report_fallbacks();
+    // ADR-015: with ACCOMPANIMENT_CORE=rust the Rust core serves everything and Node is not
+    // started; otherwise the front door proxies to the original as before.
+    if std::env::var("ACCOMPANIMENT_CORE").as_deref() == Ok("rust") {
+        return accompaniment::server::run().await;
+    }
     // Same defaults as server.js: PORT or 3333, HOST or every interface.
     let port: u16 = std::env::var("PORT")
         .ok()

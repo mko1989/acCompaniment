@@ -19,7 +19,13 @@ name = "drive-data"
 path = "src/bin/drive_data.rs"
 
 [dependencies]
-axum = "0.8"
+axum = { version = "0.8", features = ["ws"] }
+futures-util = "0.3"
+form_urlencoded = "1"
+httpdate = "1"
+multer = "3"
+percent-encoding = "2"
+tokio-util = { version = "0.7", features = ["io"] }
 hyper = { version = "1", features = ["client", "http1"] }
 hyper-util = { version = "0.1", features = ["client-legacy", "http1", "tokio"] }
 hex = "0.4"
@@ -30,9 +36,9 @@ serde_json = { version = "1", features = ["preserve_order", "float_roundtrip", "
 sha2 = "0.10"
 uuid = { version = "1", features = ["v4"] }
 zip = { version = "9", default-features = false, features = ["deflate"] }
-tokio = { version = "1", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "time"] }
+tokio = { version = "1", features = ["fs", "io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 
 [target.'cfg(unix)'.dependencies]
-nix = { version = "0.30", features = ["signal"] }
+nix = { version = "0.30", features = ["net", "signal"] }
 
 [workspace]

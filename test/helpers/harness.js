@@ -38,9 +38,15 @@ function spawnServer(env, execPath = process.execPath) {
     const [command, args] = bin
         ? [path.resolve(REPO_ROOT, bin), []]
         : [execPath, [path.join(REPO_ROOT, 'start-nodejs.js')]];
+    // ACCOMPANIMENT_SERVER_ENV: extra `KEY=VALUE` pairs (space-separated) for that binary, e.g.
+    // ACCOMPANIMENT_SERVER_ENV=ACCOMPANIMENT_CORE=rust to run the Rust core (rust/ ADR-015).
+    const extra = bin
+        ? Object.fromEntries((process.env.ACCOMPANIMENT_SERVER_ENV || '').split(/\s+/).filter(Boolean)
+            .map((pair) => [pair.slice(0, pair.indexOf('=')), pair.slice(pair.indexOf('=') + 1)]))
+        : {};
     const child = spawn(command, args, {
         cwd: REPO_ROOT,
-        env: { ...process.env, ...env },
+        env: { ...process.env, ...extra, ...env },
         stdio: ['ignore', 'pipe', 'pipe'],
     });
     let stdout = '';

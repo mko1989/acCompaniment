@@ -51,7 +51,7 @@ cannot be proxied route by route. Built in stages inside `rust/app`, switched ov
 | Stage | Covers | State |
 | --- | --- | --- |
 | B1 data layer | pathManager, appConfigManager, atomicWrite, mediaLibrary IO, cueDataManager, projectBundle, audioFileManager (metadata) | done 2026-11-22: `rust/app/src/core/` (paths, config, nodefs, library, cues, bundle, audio_files, probe, jsv); differential check vs. Node 303/303 (`node rust/scripts/diff-data.js`), seed round-trips byte for byte |
-| B2 server | server.js, routes/*, middleware, websocketManager, static UI | claimed by session ce56df02 2026-11-22 (subagent) |
+| B2 server | server.js, routes/*, middleware, websocketManager, static UI | done 2026-11-22: `rust/app/src/server/`; with `ACCOMPANIMENT_CORE=rust` replay 146/167 (every failure needs B4), smoke 151/267 (every failure needs B4); interim `NoOutputEngine` answers like the original with no output device |
 | B3 cue engine | cueManager (triggers, retrigger, fades, ducking, playlists, crossfade) | done 2026-11-22: `core/cue_engine.rs` + `clock.rs` (injectable clock/timers) + `AudioEngine` trait with a recording fake (`cue_fakes.rs`); differential 245/245 new ops (548/548 with B1) |
 | B4 audio engine | audioPlaybackManager, workerMixer, audioEngineWorker, audioDecoder, pcmCache on cpal + symphonia | open |
 
@@ -92,6 +92,13 @@ Wave C: Tauri tray app replacing `electron-launcher/` (ADR-008), and CI installe
     engine end reasons other than completed/stopped are untested.
   - Known quirk, not reachable from the UI, no work order (ADR-019 style): `POST /api/cues` with a
     `null` playlist item fails with a raw TypeError message; the port reproduces it.
+
+- From B2 (for B4 and the lift):
+  - B4: replace `server/engine.rs`'s `NoOutputEngine` with the cpal engine (device list in RtAudio's
+    names and ids, ADR-018); real engine callbacks must wake the core (e.g. post into the timer task);
+    `queue_next` decode-first-then-ask. Then run e2e and both loopback suites against the core.
+  - Lift: Windows network interfaces, path rules and bundle temp-file removal; Range on static files;
+    non-identity `Content-Encoding` (415 today); nested urlencoded keys; busboy's latin1 filenames.
 
 ## Out of scope
 

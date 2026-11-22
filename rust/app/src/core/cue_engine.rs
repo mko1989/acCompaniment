@@ -49,7 +49,7 @@ pub enum EngineEvent {
 
 /// The `AudioPlaybackManager` surface `cueManager.js` uses, call for call. Results are the
 /// original's result objects. B4 implements it on cpal; `cue_fakes::FakeEngine` records calls.
-pub trait AudioEngine {
+pub trait AudioEngine: Send {
     fn init(&mut self, config: &Value);
     fn set_playback_end_callback(&mut self);
     fn set_playback_advance_callback(&mut self);
@@ -94,7 +94,7 @@ pub trait AudioEngine {
 }
 
 /// The `WebSocketManager` calls the cue manager makes.
-pub trait Broadcaster {
+pub trait Broadcaster: Send {
     fn broadcast(&mut self, message: Value);
     fn broadcast_cues_update(&mut self, cues: Vec<Value>);
     fn broadcast_cue_update(&mut self, cue_id: &str, updates: &Value);
@@ -289,6 +289,9 @@ pub struct CueManager {
     pub duck_state: IndexMap<String, f64>,
     pub rng: Box<dyn FnMut() -> f64 + Send>,
     pub clock: Clock,
+    /// `setProjectOpenedListener`: the id of a project just switched to, for the server to act
+    /// on after the operation (server.js remembers it as `lastOpenedProjectId`).
+    pub opened_project: Option<Value>,
     save_debounce_timer: Option<u64>,
     playback_time_interval: Option<u64>,
     save_debounce_ms: f64,
@@ -320,6 +323,7 @@ impl CueManager {
             duck_state: IndexMap::new(),
             rng: Box::new(rand_unit),
             clock,
+            opened_project: None,
             save_debounce_timer: None,
             playback_time_interval: None,
             save_debounce_ms: 300.0,
@@ -1766,8 +1770,10 @@ impl CueManager {
         let result = activate(self)?;
         if success(&result) {
             let ws = self.get_current_workspace();
+            let id = get(&ws, "id").cloned().unwrap_or_else(js::undefined);
             self.ws.broadcast_workspace_update(ws);
             self.broadcast_cues();
+            self.opened_project = Some(id);
         }
         Ok(result)
     }

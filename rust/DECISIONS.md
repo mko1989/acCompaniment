@@ -140,6 +140,9 @@ trace, Express adds `X-Powered-By: Express` and a weak ETag (and 304s) on JSON r
 Decision: for those error pages, the status and content type must match, the body need not; the
 Rust server sends no `X-Powered-By` and no ETag on JSON (static files and `/api/audio/serve` keep
 theirs). Everything else in ADR-005 stands.
+Consequences: the recorded body of `rust/app-cases/http/2004-config-bad-json` (Express's 400 page
+for bad JSON, with a Node stack trace) was replaced by `...` on 2026-11-22; its status and
+content-type are still compared. Re-recording brings the stack trace back: replace it again.
 
 ## ADR-018: Audio engine details (supersedes part of ADR-007)
 Status: accepted (2026-11-21), decided by Claude on the owner's delegation (ADR-016); answers the

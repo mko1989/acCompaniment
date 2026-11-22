@@ -8,8 +8,15 @@ Where the port stands (2026-11-21). Load the `rust-anything` skill, then read [M
 - Wave B (ADR-015): B1 data layer and B3 cue engine done (2026-11-22) in `rust/app/src/core/`,
   proved by the differential check `node rust/scripts/diff-data.js` (Node vs. Rust on the same op
   scripts in `rust/scripts/data-ops/`; results, engine calls, broadcasts, state and the data dir
-  compared after every op: 548/548). No route served by Rust yet: fallback rate 100%.
-  Next: B2 routes/WebSocket, then B4 audio (MAP.md).
+  compared after every op: 548/548). B2 done: the Rust core serves everything with
+  `ACCOMPANIMENT_CORE=rust` (replay 146/167, fallback 0%; every failure needs B4); without the
+  switch the front door proxies to Node (167/167). Next: B4 audio (MAP.md).
+- Smoke suite against the core:
+  `ACCOMPANIMENT_SERVER_BIN=rust/app/target/release/accompaniment ACCOMPANIMENT_SERVER_ENV=ACCOMPANIMENT_CORE=rust node --test test/*.test.js`
+- `app replay --case` replays one request on a fresh seed, without the requests before it: on this
+  stateful recording it fails on the data dump. Use full replays.
+- The differential once gave 546/548 straight after a release build (op names not captured); six
+  later runs were 548/548. If it recurs, capture the failing ops.
 - The owner delegated open decisions (ADR-016); WO-013 to WO-023 are fixed in Node and the port.
 - Re-check any Wave A crate: `rust-anything gate $PWD/rust/<crate>` (absolute path: relative
   ones break `build`).
@@ -72,11 +79,9 @@ What the recording taught (keep when re-recording):
 
 ## Next
 
-1. B2: HTTP routes, WebSocket, static UI and the `ACCOMPANIMENT_CORE=rust` switch on the B1/B3
-   core, with a silent `AudioEngine` until B4. Measure with
-   `rust-anything app replay . --build "env ACCOMPANIMENT_CORE=rust rust/app/target/release/accompaniment"`
-   (playback cases need B4) and the node:test suites with `ACCOMPANIMENT_SERVER_BIN`. Read MAP.md
-   "Rules for later stages" first.
+1. B4: the cpal + symphonia `AudioEngine` (ADR-007, ADR-018, research/audio-engine.md), replacing
+   `server/engine.rs`'s `NoOutputEngine`, using `rust/soundboard-mixer`'s port. Done when the core
+   replays 167/167 and smoke, e2e, test:audio and test:audio:ui pass against it.
 
 ## Known limits of the front door
 
