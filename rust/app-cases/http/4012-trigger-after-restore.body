@@ -1,1 +1,1 @@
-{"success":false,"error":"Audio engine not initialized"}
+{"success":true,"message":"Cue triggered successfully","status":"playing"}

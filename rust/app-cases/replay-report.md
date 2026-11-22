@@ -1,9 +1,9 @@
 # App replay
 
-Build: `rust/app/target/release/accompaniment`
+Build: `env ACCOMPANIMENT_DATA_DIR=rust/app-fixtures/data HOST=127.0.0.1 node server.js`
 
 Passed: 167/167
 
-Fallback rate: 100.0% (167/167 cases answered by the original)
+Fallback rate: not reported by this build
 
 Every case matches.

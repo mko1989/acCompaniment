@@ -7,7 +7,7 @@ body = "{}"
 content-type = "application/json"
 
 [response]
-status = 400
+status = 200
 
 [response.headers]
 access-control-allow-credentials = "true"

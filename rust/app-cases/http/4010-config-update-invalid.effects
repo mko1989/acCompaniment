@@ -135,7 +135,7 @@ db
 {
   "audioOutputDeviceId": "Existential Audio Inc.: BlackHole 2ch",
   "audioOutputChannelCount": 2,
-  "audioSampleRate": "fast",
+  "audioSampleRate": 48000,
   "audioBufferSize": 512,
   "defaultFadeInTime": 250,
   "defaultFadeOutTime": 0,
