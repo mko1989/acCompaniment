@@ -519,13 +519,18 @@ impl Mixer {
                     }
                 }
                 let idx = v.position * v.channels;
-                // `buf[idx] || 0` and `buf[idx + 1] ?? left`: NaN and -0 are silenced on the
-                // left only; on a 1-channel buffer `idx + 1` is the next frame.
-                let left = match element(&v.buffer, idx) {
-                    Some(x) if x != 0.0 && !x.is_nan() => f64::from(x),
-                    _ => 0.0,
+                // Non-finite samples (NaN, +/-Infinity) are silenced on both sides, -0 reads as 0,
+                // and a missing right sample falls back to the left (WO-018). On a 1-channel
+                // buffer `idx + 1` is the next frame, as in the original.
+                let finite = |x: f32| {
+                    if x.is_finite() && x != 0.0 {
+                        f64::from(x)
+                    } else {
+                        0.0
+                    }
                 };
-                let right = element(&v.buffer, idx + 1.0).map_or(left, f64::from);
+                let left = element(&v.buffer, idx).map_or(0.0, finite);
+                let right = element(&v.buffer, idx + 1.0).map_or(left, finite);
                 let vol = v.current_gain * v.duck_gain * master;
                 let mut out_l = left * vol;
                 let mut out_r = right * vol;
@@ -801,12 +806,15 @@ mod tests {
     }
 
     #[test]
-    fn nan_is_silenced_on_the_left_only() {
+    fn non_finite_samples_are_silenced_on_both_sides() {
         let mut m = Mixer::new(1000.0, 2.0);
-        m.play_cue("a", stereo(&[f32::NAN, f32::NAN]), &PlayOptions::default());
+        m.play_cue(
+            "a",
+            stereo(&[f32::NAN, f32::INFINITY]),
+            &PlayOptions::default(),
+        );
         let mut out = [0.0f32; 2];
         m.render(&mut out, 1, 2);
-        assert_eq!(out[0], 0.0);
-        assert!(out[1].is_nan());
+        assert_eq!(out, [0.0, 0.0]);
     }
 }

@@ -89,8 +89,50 @@ pub fn sanitize_filename_units(name: &[u16]) -> Vec<u16> {
         audio.extend_from_slice(extname(&clean));
         clean = audio;
     }
-    clean.truncate(200);
-    clean
+    // Windows can't create files named after its devices, with or without an extension
+    // (WO-020): `/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i` on the part before the first dot.
+    let first = clean.split(|&u| u == DOT).next().unwrap_or(&[]);
+    if is_reserved_device_name(first) {
+        clean.insert(0, u16::from(b'_'));
+    }
+    shorten_name(clean, 200)
+}
+
+fn is_reserved_device_name(base: &[u16]) -> bool {
+    let Ok(ascii) = String::from_utf16(base) else {
+        return false;
+    };
+    if !ascii.is_ascii() {
+        return false; // JS `/i` without `u` folds ASCII only
+    }
+    let lower = ascii.to_ascii_lowercase();
+    matches!(lower.as_str(), "con" | "prn" | "aux" | "nul")
+        || (lower.len() == 4
+            && (lower.starts_with("com") || lower.starts_with("lpt"))
+            && matches!(lower.as_bytes()[3], b'1'..=b'9'))
+}
+
+/// At most `max` code units, cut before the extension so it stays, and never between the two
+/// halves of a surrogate pair (WO-019).
+fn shorten_name(name: Vec<u16>, max: usize) -> Vec<u16> {
+    if name.len() <= max {
+        return name;
+    }
+    let ext = extname(&name).to_vec();
+    let keep_ext = !ext.is_empty() && ext.len() < max;
+    let mut base = if keep_ext {
+        name[..name.len() - ext.len()].to_vec()
+    } else {
+        name
+    };
+    base.truncate(if keep_ext { max - ext.len() } else { max });
+    if base.last().is_some_and(|&u| (0xD800..=0xDBFF).contains(&u)) {
+        base.pop();
+    }
+    if keep_ext {
+        base.extend_from_slice(&ext);
+    }
+    base
 }
 
 /// JS `String.prototype.trim`: WhiteSpace and LineTerminator code units at both ends.
