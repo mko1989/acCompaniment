@@ -51,7 +51,7 @@ cannot be proxied route by route. Built in stages inside `rust/app`, switched ov
 | Stage | Covers | State |
 | --- | --- | --- |
 | B1 data layer | pathManager, appConfigManager, atomicWrite, mediaLibrary IO, cueDataManager, projectBundle, audioFileManager (metadata) | done 2026-11-22: `rust/app/src/core/` (paths, config, nodefs, library, cues, bundle, audio_files, probe, jsv); differential check vs. Node 303/303 (`node rust/scripts/diff-data.js`), seed round-trips byte for byte |
-| B2 server | server.js, routes/*, middleware, websocketManager, static UI | open |
+| B2 server | server.js, routes/*, middleware, websocketManager, static UI | claimed by session ce56df02 2026-11-22 (subagent) |
 | B3 cue engine | cueManager (triggers, retrigger, fades, ducking, playlists, crossfade) | done 2026-11-22: `core/cue_engine.rs` + `clock.rs` (injectable clock/timers) + `AudioEngine` trait with a recording fake (`cue_fakes.rs`); differential 245/245 new ops (548/548 with B1) |
 | B4 audio engine | audioPlaybackManager, workerMixer, audioEngineWorker, audioDecoder, pcmCache on cpal + symphonia | open |
 
