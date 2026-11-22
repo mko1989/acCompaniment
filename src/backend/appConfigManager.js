@@ -305,6 +305,20 @@ class AppConfigManager {
             errors.push('Ducking fade time must be between 0ms and 10000ms');
         }
 
+        // Audio settings go straight to the engine: a bad value would stop every cue (WO-016).
+        const isPositiveInteger = (v) => Number.isInteger(v) && v > 0;
+        if (config.audioSampleRate !== undefined && !isPositiveInteger(config.audioSampleRate)) {
+            errors.push('Audio sample rate must be a positive whole number');
+        }
+        if (config.audioBufferSize !== undefined && !isPositiveInteger(config.audioBufferSize)) {
+            errors.push('Audio buffer size must be a positive whole number');
+        }
+        if (config.audioOutputChannelCount !== undefined
+            && !(Number.isInteger(config.audioOutputChannelCount)
+                && config.audioOutputChannelCount >= 1 && config.audioOutputChannelCount <= 64)) {
+            errors.push('Output channel count must be a whole number between 1 and 64');
+        }
+
         // Validate crossfade time
         if (config.crossfadeTime < 100 || config.crossfadeTime > 10000) {
             errors.push('Crossfade time must be between 100ms and 10000ms');

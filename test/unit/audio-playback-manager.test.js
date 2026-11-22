@@ -126,3 +126,28 @@ test('playCue refuses cleanly when the engine is not initialized', async () => {
     assert.equal(result.success, false);
     assert.match(result.error, /not initialized/);
 });
+
+// WO-017: one failed reopen used to leave the engine "not initialized" until the app restarted,
+// even after the settings were valid again and the reopen succeeded.
+test('the engine is usable again after a failed reopen, once a reopen succeeds', async () => {
+    const apm = new AudioPlaybackManager();
+    apm.rt = {
+        getDefaultOutputDevice: () => 1,
+        getDevices: () => [{ id: 1, name: 'Fake output', outputChannels: 2 }],
+    };
+    apm.mixer = new SoundboardMixer({ sampleRate: SR, channelCount: 2 });
+    apm.isInitialized = true; // as after init()
+    let opens = 0;
+    apm._openStream = async () => {
+        opens += 1;
+        if (opens === 1) throw new Error('device refused the stream');
+    };
+
+    const failed = await apm.applyAudioConfig({ audioSampleRate: 44100 });
+    assert.equal(failed.success, false);
+    assert.equal(apm.isInitialized, false);
+
+    const recovered = await apm.applyAudioConfig({ audioSampleRate: 48000 });
+    assert.equal(recovered.success, true);
+    assert.equal(apm.isInitialized, true, 'the engine must accept cues again');
+});

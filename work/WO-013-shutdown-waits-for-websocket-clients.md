@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | Awaiting decision |
+| Status | Done |
 | Severity | Low |
 | Feature | Server shutdown (quit from the tray, SIGTERM/SIGINT) |
 | Opened | 2026-11-21, by Claude (found by the HTTP/WebSocket research for the Rust port, `rust/research/http-websocket.md`) |
@@ -50,6 +50,9 @@ WebSocket connections; see `rust/research/http-websocket.md`).
 ## What has been done
 - 2026-11-21: reproduced with the test above (marked `todo`): SIGKILL after ~11 s instead of exit
   code 0. Checked the launcher's side (5 s, then SIGKILL).
+- 2026-11-22: fixed. `server.js` `stop()`: terminates every WebSocket client, closes the WebSocket server and idle keep-alive connections before `server.close()`. Reproduction test un-todo'd; it passes (exit code 0, promptly).
+  Verified: npm test: unit 139/139, smoke 285/285 (no todo left), e2e 175/175; test:audio 88/88 on an idle machine (a first run with Rust builds running beside it had 6 dropout failures, as CLAUDE.md warns); test:audio:ui 12 passed, 3 flaky (passed on retry).
 
 ## Decision
-Pending. The owner said on 2026-11-21 that open decisions are taken later.
+- 2026-11-21, decided by Claude on the owner's delegation. Owner, 2026-11-21: "do the best you can with those dillemas" - the open decisions were delegated to Claude.
+  Option 1: terminate every WebSocket client and close the WebSocket server in `stop()` before `server.close()`, and close idle keep-alive HTTP connections. The UI reconnects on its own.

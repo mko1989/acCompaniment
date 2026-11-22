@@ -246,6 +246,8 @@ class AudioPlaybackManager {
 
         try {
             await this._openStream();
+            // A reopen that failed earlier marked the engine unusable; this one worked (WO-017).
+            this.isInitialized = true;
             return { success: true, unchanged: false };
         } catch (error) {
             this.isInitialized = false;

@@ -265,6 +265,14 @@ class AccompanimentServer {
             }
             
             if (this.server) {
+                // server.close() waits for every open connection: close the WebSocket clients
+                // (the UI, the remote page, Companion - they reconnect on their own) and idle
+                // keep-alive connections, or shutdown waits for the force-exit timer (WO-013).
+                for (const client of this.wss?.clients ?? []) {
+                    client.terminate();
+                }
+                this.wss?.close();
+                this.server.closeIdleConnections?.();
                 this.server.close(() => {
                     clearTimeout(forceExitTimeout);
                     console.log('Server stopped');

@@ -15,7 +15,9 @@ Read first: [DECISIONS.md](DECISIONS.md) (ADR index below), [GLOSSARY.md](GLOSSA
 005 equivalence bar (key order and error text free) · 006 same on-disk formats ·
 007 cpal + symphonia · 008 Tauri launcher · 009 targets · 010 checkpoints · 011 branch and cutover ·
 012 record quietly · 013 Spotify cue creation answers 400 (proposed) ·
-014 CommonJS units bridged through typed shims · 015 how Wave B is built and measured
+014 CommonJS units bridged through typed shims · 015 how Wave B is built and measured ·
+016 decisions delegated · 017 HTTP details that need not match · 018 audio engine details ·
+019 playlist/cache behaviors kept
 
 ## Proof
 
@@ -77,29 +79,7 @@ Wave C: Tauri tray app replacing `electron-launcher/` (ADR-008), and CI installe
 
 ## Open questions
 
-- Audio engine (B4), for the owner at checkpoint 1: questions 1-7 and 9 in
-  [research/audio-engine.md §7](research/audio-engine.md) (Linux host, macOS device-name form,
-  formats symphonia can't decode, m4a priming, device ids, "System Default", resampler, channel
-  width). Question 8 (cpal's macOS 14.2 floor) is a fact to verify, not a decision:
-  the floor comes from loopback recording (`AudioHardwareCreateProcessTap`,
-  cpal `src/host/coreaudio/macos/loopback.rs:18`). On the first cpal build, check with
-  `nm -m` that the symbol is weak; if not, the binary won't launch below 14.2.
-- HTTP (B2), for the owner: Express's 400/413/415 HTML error pages carry a stack trace; compare
-  only status and content type for them? Accept `X-Powered-By` and the JSON weak ETag/304 as
-  differences? (research/http-websocket.md)
-- ADR-013 (proposed): creating a Spotify cue answers 400. Confirm.
-- WO-014 (flaky smoke tests reading voices too early): decide the fix.
-- WO-015 (High: a moved data dir plays nothing): decide the fix; the Rust port does the same.
-- WO-016 (invalid audio settings are saved, then nothing plays): decide the fix.
-- WO-017 (engine stays dead after one failed reopen): confirm the fix.
-- WO-018 (NaN on a file's right channel reaches the output): decide the fix.
-- WO-019 (long filenames lose their extension), WO-020 (Windows reserved names; needs Windows).
-- WO-013 (shutdown stalls with a WebSocket client connected): decide the fix; the Rust server
-  must shut down cleanly either way.
-- Playlists, for the owner (behaviors found by `rust/playlist-logic`, maybe intended): when the
-  current index is not in the play order (e.g. after items were deleted), the next item is
-  `order[1]`, skipping `order[0]` (`playlistLogic.js:70`, `:96`); with shuffle on and a stale order
-  (items added or removed), a fresh order is drawn and play continues from the current item's place
-  in it, skipping the items before it for that pass.
-- Recording must include .flac, .ogg, .m4a and .aac files, which no test covers today
-  (research/audio-engine.md).
+- None open. The owner delegated the open decisions on 2026-11-21 (ADR-016): see ADR-013 and
+  ADR-017 to ADR-019, and work orders WO-013 to WO-022.
+- Recording must include .flac, .ogg, .m4a and .aac files (done: the seed has one of each).
+

@@ -17,11 +17,13 @@ work orders" in [CLAUDE.md](../CLAUDE.md) for the workflow and template.
 | [WO-010](WO-010-recordings-deleted-by-playwright.md) | Loopback suite recordings are deleted by the next Playwright run | Low | Done | - |
 | [WO-011](WO-011-cross-built-installers-ship-mac-rtaudio.md) | Windows and Linux installers built on a Mac contain the macOS audio engine binary | Critical | Done | - |
 | [WO-012](WO-012-windows-no-audio-devices-abort.md) | On Windows with no audio devices, probing devices aborts the process | High | Open | Pursue? (needs Windows) |
-| [WO-013](WO-013-shutdown-waits-for-websocket-clients.md) | Shutdown stalls and ends in SIGKILL while a WebSocket client is connected | Low | Awaiting decision | Option 1 or 2 |
-| [WO-014](WO-014-tests-read-voices-before-mixer-reports.md) | Smoke tests read the mixer's voices before the worker has reported them (intermittent failure) | Low | Awaiting decision | Option 1 or 2 |
-| [WO-015](WO-015-moved-data-dir-cues-silent.md) | After the data dir moves, no cue plays (files looked up at their old absolute path) | High | Awaiting decision | Option 1 or 2 |
-| [WO-016](WO-016-audio-settings-not-validated.md) | Invalid audio settings are saved, and then no cue plays | Medium | Awaiting decision | Option 1 or 2 |
-| [WO-017](WO-017-engine-stays-dead-after-failed-reopen.md) | After a failed engine reopen, no cue plays until the app restarts | Medium | Awaiting decision | Also retry on trigger? (recommended: no) |
-| [WO-018](WO-018-nan-sample-right-channel.md) | A NaN sample on a file's right channel reaches the output and spoils other cues | Low | Awaiting decision | Option 1 or 2 |
-| [WO-019](WO-019-long-filenames-lose-extension.md) | Files with names over 200 characters can't be added (the extension is cut off) | Low | Awaiting decision | Option 1 or 2 |
-| [WO-020](WO-020-windows-reserved-filenames.md) | Windows reserved names (CON, NUL, COM1, ...) are used as library file names | Low | Open | Pursue? (needs Windows) |
+| [WO-013](WO-013-shutdown-waits-for-websocket-clients.md) | Shutdown stalls and ends in SIGKILL while a WebSocket client is connected | Low | Done | - |
+| [WO-014](WO-014-tests-read-voices-before-mixer-reports.md) | Smoke tests read the mixer's voices before the worker has reported them (intermittent failure) | Low | Done | - |
+| [WO-015](WO-015-moved-data-dir-cues-silent.md) | After the data dir moves, no cue plays (files looked up at their old absolute path) | High | Done | - |
+| [WO-016](WO-016-audio-settings-not-validated.md) | Invalid audio settings are saved, and then no cue plays | Medium | Done | - |
+| [WO-017](WO-017-engine-stays-dead-after-failed-reopen.md) | After a failed engine reopen, no cue plays until the app restarts | Medium | Done | - |
+| [WO-018](WO-018-nan-sample-right-channel.md) | A NaN sample on a file's right channel reaches the output and spoils other cues | Low | Done | - |
+| [WO-019](WO-019-long-filenames-lose-extension.md) | Files with names over 200 characters can't be added (the extension is cut off) | Low | Done | - |
+| [WO-020](WO-020-windows-reserved-filenames.md) | Windows reserved names (CON, NUL, COM1, ...) are used as library file names | Low | Done | - |
+| [WO-021](WO-021-companion-test-misses-early-reply.md) | The Companion "play_cue" test can miss its reply (intermittent failure) | Low | Done | - |
+| [WO-022](WO-022-playlist-index-out-of-range.md) | A playlist whose current item was removed can't be triggered | Medium | Done | - |

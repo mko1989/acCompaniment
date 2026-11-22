@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | Awaiting decision |
+| Status | Done |
 | Severity | Low |
 | Feature | Audio engine: mixer (`src/backend/soundboardMixer.js`) |
 | Opened | 2026-11-21, by Claude (found by the Rust port's recording of the mixer, `rust/soundboard-mixer`) |
@@ -41,6 +41,9 @@ the same way, with a `known-diffs.jsonl` entry for the recorded NaN case until i
 
 ## What has been done
 - 2026-11-21: found by the mixer port; reproduced with the test above (marked `todo`); traced.
+- 2026-11-22: fixed. `soundboardMixer.js`: every non-finite sample (NaN, +/-Infinity) is silenced on both sides; a missing right sample still falls back to the left. Reproduction test un-todo'd; added "an infinite sample in a file is silenced too". Both pass.
+  Verified: npm test: unit 139/139, smoke 285/285 (no todo left), e2e 175/175; test:audio 88/88 on an idle machine (a first run with Rust builds running beside it had 6 dropout failures, as CLAUDE.md warns); test:audio:ui 12 passed, 3 flaky (passed on retry).
 
 ## Decision
-Pending. The owner said on 2026-11-21 that open decisions are taken later.
+- 2026-11-21, decided by Claude on the owner's delegation. Owner, 2026-11-21: "do the best you can with those dillemas" - the open decisions were delegated to Claude.
+  Option 2, not the recommended option 1: silence every non-finite sample (NaN and +/-Infinity) on both sides. An infinite sample in a file would otherwise go out at full scale, which is worse in a show than the tiny behavior change.

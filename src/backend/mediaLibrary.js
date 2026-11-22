@@ -46,7 +46,24 @@ function sanitizeFilename(name) {
     if (!clean || clean === path.extname(clean)) {
         clean = `audio${path.extname(clean) || ''}`;
     }
-    return clean.slice(0, 200);
+    // Windows can't create files named after its devices, with or without an extension (WO-020).
+    if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(clean.split('.')[0])) {
+        clean = `_${clean}`;
+    }
+    return shortenName(clean, 200);
+}
+
+/**
+ * At most `max` UTF-16 units, cutting the name before its extension so the extension stays,
+ * and never between the two halves of a surrogate pair (WO-019).
+ */
+function shortenName(name, max) {
+    if (name.length <= max) return name;
+    const ext = path.extname(name);
+    const keepExt = ext.length > 0 && ext.length < max;
+    let base = (keepExt ? name.slice(0, name.length - ext.length) : name).slice(0, keepExt ? max - ext.length : max);
+    if (/[\uD800-\uDBFF]$/.test(base)) base = base.slice(0, -1);
+    return keepExt ? base + ext : base;
 }
 
 /** "Song.mp3" -> "Song (2).mp3" */

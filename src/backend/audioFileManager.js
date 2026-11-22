@@ -71,8 +71,8 @@ class AudioFileManager {
                     continue;
                 }
 
-                if (audioFile.path) {
-                    const safePath = this.pathManager.resolveWithinAudioDir(audioFile.path);
+                if (audioFile.path || audioFile.relativePath) {
+                    const safePath = this._resolveRecordPath(audioFile);
                     if (safePath) {
                         audioFile.path = safePath;
                         byAbsolutePath.set(safePath, audioFile);
@@ -91,6 +91,19 @@ class AudioFileManager {
 
         this._metadataIndex = { byId, byRelativePath, byAbsolutePath };
         return this._metadataIndex;
+    }
+
+    /**
+     * Where a metadata record's file is now. The stored absolute `path` is where the file was
+     * when it was written; if the data dir has moved since (restored on another computer, a
+     * renamed home folder, another ACCOMPANIMENT_DATA_DIR), only `relativePath` - inside the
+     * audio dir - still finds it (WO-015). A path that escapes the audio dir is refused (null).
+     */
+    _resolveRecordPath(audioFile) {
+        if (audioFile.relativePath) {
+            return this.pathManager.resolveWithinAudioDir(audioFile.relativePath);
+        }
+        return audioFile.path ? this.pathManager.resolveWithinAudioDir(audioFile.path) : null;
     }
 
     _indexAdd(audioFile) {
@@ -432,8 +445,8 @@ class AudioFileManager {
                 const data = await fs.readFile(metadataPath, 'utf-8');
                 const audioFile = JSON.parse(data);
 
-                if (audioFile.path) {
-                    const safePath = this.pathManager.resolveWithinAudioDir(audioFile.path);
+                if (audioFile.path || audioFile.relativePath) {
+                    const safePath = this._resolveRecordPath(audioFile);
                     if (!safePath) {
                         console.warn(`AudioFileManager: Metadata path escapes audio directory for ${audioFileId}`);
                         return null;

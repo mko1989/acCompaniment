@@ -82,6 +82,20 @@ function normalizeCueFieldAliases(data) {
     return out;
 }
 
+/**
+ * A playlist's current index must point at one of its items. When items are removed past it,
+ * start the playlist over rather than point at an item that's gone: the cue could no longer be
+ * triggered ("Audio file not found"), and stepping skipped its first item (WO-022).
+ */
+function keepPlaylistIndexInRange(cue) {
+    if (cue && cue.type === 'playlist' && Array.isArray(cue.playlistItems)
+        && typeof cue.currentPlaylistIndex === 'number'
+        && (cue.currentPlaylistIndex < 0 || cue.currentPlaylistIndex >= cue.playlistItems.length)) {
+        cue.currentPlaylistIndex = 0;
+    }
+    return cue;
+}
+
 class CueDataManager {
     constructor(pathManager) {
         this.pathManager = pathManager;
@@ -167,11 +181,11 @@ class CueDataManager {
         
         const previous = this.cues[cueIndex];
         const normalized = normalizeCueFieldAliases(updates);
-        this.cues[cueIndex] = moveTrimOnTypeChange(previous, keepOwnFileWhenBecomingPlaylist(previous, {
+        this.cues[cueIndex] = keepPlaylistIndexInRange(moveTrimOnTypeChange(previous, keepOwnFileWhenBecomingPlaylist(previous, {
             ...previous,
             ...normalized,
             updatedAt: new Date().toISOString()
-        }), normalized);
+        }), normalized));
         
         console.log(`📝 CueDataManager: Updated cue: ${this.cues[cueIndex].name} (${cueId})`);
         return { success: true, cue: this.cues[cueIndex] };
@@ -652,6 +666,7 @@ class CueDataManager {
         } else if (validatedCue.type === 'playlist') {
             validatedCue.playlistItems = Array.isArray(validatedCue.playlistItems) ? validatedCue.playlistItems : [];
             validatedCue.currentPlaylistIndex = typeof validatedCue.currentPlaylistIndex === 'number' ? validatedCue.currentPlaylistIndex : 0;
+            keepPlaylistIndexInRange(validatedCue);
             validatedCue.shufflePlaylist = Boolean(validatedCue.shufflePlaylist);
             validatedCue.repeatOnePlaylistItem = Boolean(validatedCue.repeatOnePlaylistItem);
             validatedCue.playlistPlayMode = validatedCue.playlistPlayMode || 'continue';

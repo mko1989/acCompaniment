@@ -223,3 +223,20 @@ test('the ▶ button on a cued playlist moves the cue without starting it', asyn
     assert.equal((await t.voices(cueId)).length, 0);
     await t.stopAll();
 });
+
+// WO-022: removing playlist items while the cue's current index pointed past the new end used to
+// leave the index out of range: triggering then found no item ("Audio file not found"), and the
+// next/previous step treated the index as position 0, skipping the first item.
+test('a playlist whose current item was removed still plays and steps from a sensible place', async () => {
+    const cueId = await t.createPlaylist(4, {}, 10);
+    await t.post(`/api/cues/${cueId}/playlist/jump`, { index: 3 });
+    const cue = await t.getCue(cueId);
+    await t.updateCue(cueId, { playlistItems: cue.playlistItems.slice(0, 2) });
+
+    const trigger = await t.post(`/api/cues/${cueId}/trigger`, {});
+    assert.equal(trigger.success, true, `trigger failed: ${trigger.error}`);
+    await t.stop(cueId);
+
+    const index = (await t.getCue(cueId)).currentPlaylistIndex;
+    assert.ok(index >= 0 && index < 2, `index ${index} is outside the 2 items`);
+});

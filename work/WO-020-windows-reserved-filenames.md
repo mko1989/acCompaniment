@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | Open |
+| Status | Done |
 | Severity | Low |
 | Feature | Media library: file names (`sanitizeFilename`), on Windows |
 | Opened | 2026-11-21, by Claude (found by the Rust port's recording of `mediaLibrary.js`, `rust/media-library-names`) |
@@ -34,6 +34,9 @@ Acceptance: the reproduction test passes; on Windows, uploading `CON.wav` works 
 ## What has been done
 - 2026-11-21: reproduction test written (marked `todo`); the pass-through confirmed on macOS.
   Needs a Windows machine to confirm the effect.
+- 2026-11-22: fixed. `mediaLibrary.js`: reserved base names get a `_` prefix. Reproduction test un-todo'd; it passes on macOS. Still to be confirmed on Windows.
+  Verified: npm test: unit 139/139, smoke 285/285 (no todo left), e2e 175/175; test:audio 88/88 on an idle machine (a first run with Rust builds running beside it had 6 dropout failures, as CLAUDE.md warns); test:audio:ui 12 passed, 3 flaky (passed on retry).
 
 ## Decision
-Pending: pursue? (needs Windows). The owner said on 2026-11-21 that open decisions are taken later.
+- 2026-11-21, decided by Claude on the owner's delegation. Owner, 2026-11-21: "do the best you can with those dillemas" - the open decisions were delegated to Claude.
+  Pursue: prefix reserved base names with `_` on every platform (harmless where the names are allowed). Still to be confirmed on Windows when one is available.

@@ -388,8 +388,12 @@ class SoundboardMixer {
                 }
 
                 const idx = voice.position * ch;
-                const left = buf[idx] || 0;
-                const right = buf[idx + 1] ?? left;
+                // Non-finite samples (NaN, +/-Infinity) in a file are silenced on both sides, so
+                // they can't reach the device or spoil the other cues in this sample (WO-018).
+                const rawL = buf[idx];
+                const rawR = buf[idx + 1];
+                const left = Number.isFinite(rawL) ? (rawL || 0) : 0;
+                const right = rawR === undefined ? left : (Number.isFinite(rawR) ? (rawR || 0) : 0);
 
                 const vol = voice.currentGain * voice.duckGain * this.masterGain;
                 let outL = left * vol;

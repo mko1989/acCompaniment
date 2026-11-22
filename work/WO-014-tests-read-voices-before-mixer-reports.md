@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | Awaiting decision |
+| Status | Done |
 | Severity | Low |
 | Feature | Smoke test suite (`test/*.test.js`): checks of what the audio engine plays |
 | Opened | 2026-11-21, by Claude (one failure in a full `npm run test:smoke` run during the Spotify removal, ADR-003 in `rust/DECISIONS.md`) |
@@ -40,13 +40,18 @@ missing-voice failures; the full smoke suite passes.
 ## What has been done
 - 2026-11-21: traced the cause (above). No code changed.
 - 2026-11-21: two full smoke runs (one through the Rust port's front door, one on Node) failed 2
-  tests each, all intermittent, three of them this race: "a cue plays at its own volume"
-  (`test/cue-properties.test.js`), "play_cue starts a cue" (`test/companion-protocol.test.js`)
+  tests each, all intermittent: "a cue plays at its own volume" (`test/cue-properties.test.js`)
   and "a bundle opened on another (empty) installation plays there" (`test/projects.test.js:404`,
   reads `voices` right after the trigger answers `playing`). Rerunning the three files 3 times on
   each server: 5 of 6 runs clean, one bundle-test failure on plain Node. The fourth failure, a
   file-level harness error in the Node run (server not ready?), left no detail and did not recur;
   not attributed to this work order.
 
+- 2026-11-21: correction - "play_cue starts a cue" (`test/companion-protocol.test.js`) was listed
+  here by mistake: it reads no voices; it is a different race, now WO-021.
+- 2026-11-22: fixed. `test/helpers/api.js` `playing()` also waits for each cue's voice; `test/projects.test.js` bundle test polls for its voice the same way.
+  Verified: npm test: unit 139/139, smoke 285/285 (no todo left), e2e 175/175; test:audio 88/88 on an idle machine (a first run with Rust builds running beside it had 6 dropout failures, as CLAUDE.md warns); test:audio:ui 12 passed, 3 flaky (passed on retry).
+
 ## Decision
-Pending. The owner said on 2026-11-21 that open decisions are taken later.
+- 2026-11-21, decided by Claude on the owner's delegation. Owner, 2026-11-21: "do the best you can with those dillemas" - the open decisions were delegated to Claude.
+  Option 1: `t.playing()` also waits until each cue has a voice in the playback status, so every test that reads voices is covered in one place.

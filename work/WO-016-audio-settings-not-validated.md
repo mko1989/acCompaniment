@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | Awaiting decision |
+| Status | Done |
 | Severity | Medium |
 | Feature | App config: audio settings (`PUT /api/config`) |
 | Opened | 2026-11-21, by Claude (found by the Rust port's HTTP recording, `rust/app-fixtures/http-inputs.jsonl` case `2002-config-update-invalid`) |
@@ -48,6 +48,9 @@ Rust port validates the same way.
   `audioOutputChannelCount` (e.g. 2.5, accepted today), `normalizeOutputPatch` clamps patches to
   fractional channels (`[5,7]` -> `[1.5,1.5]`, `src/backend/utils/outputPatch.js:15-17`). Option 1's
   integer check covers it.
+- 2026-11-22: fixed. `appConfigManager.validateConfig`: sample rate and buffer size must be positive integers, output channels an integer 1-64. Reproduction test un-todo'd; it passes.
+  Verified: npm test: unit 139/139, smoke 285/285 (no todo left), e2e 175/175; test:audio 88/88 on an idle machine (a first run with Rust builds running beside it had 6 dropout failures, as CLAUDE.md warns); test:audio:ui 12 passed, 3 flaky (passed on retry).
 
 ## Decision
-Pending. The owner said on 2026-11-21 that open decisions are taken later.
+- 2026-11-21, decided by Claude on the owner's delegation. Owner, 2026-11-21: "do the best you can with those dillemas" - the open decisions were delegated to Claude.
+  Option 1: type and range checks (positive integers for sample rate and buffer size, 1-64 output channels); any rate the device supports stays allowed.

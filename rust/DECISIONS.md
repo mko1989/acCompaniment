@@ -81,7 +81,8 @@ Decision: record at low volume, as the server tests do, and never at the same ti
 suites.
 
 ## ADR-013: Creating a Spotify cue is rejected with 400
-Status: proposed (2026-11-21), for the owner to confirm
+Status: accepted (2026-11-21; proposed earlier the same day, confirmed by Claude on the owner's
+delegation, ADR-016)
 Context: while implementing ADR-003, the app turned out not to validate cue types at all: any
 `type` is accepted. A cue created or changed to `spotify` would then be hidden on the next load.
 Decision: `POST /api/cues` and `PUT /api/cues/:id` with `type: 'spotify'` answer 400
@@ -123,3 +124,49 @@ Decision:
   `app wire --route '*'` makes the core the default, with the kill switch back to Node until the
   lift.
 Consequences: the fallback rate stays 100% until the switch-over, then drops to 0 in one step.
+
+## ADR-016: The owner delegated the open decisions
+Status: accepted (2026-11-21)
+Context: owner, 2026-11-21, after the open questions were listed in MAP.md: "do the best you can
+with those dillemas".
+Decision: Claude takes the open decisions, each recorded as delegated: the work orders' decisions
+in work/ (WO-013 to WO-022), and the port's decisions here (ADR-013 confirmed, ADR-017 to ADR-019).
+The owner can overturn any of them; a change gets a new dated entry, as always.
+
+## ADR-017: HTTP details that need not match
+Status: accepted (2026-11-21), decided by Claude on the owner's delegation (ADR-016)
+Context: rust/research/http-websocket.md: Express's 400/413/415 error pages are HTML with a stack
+trace, Express adds `X-Powered-By: Express` and a weak ETag (and 304s) on JSON responses.
+Decision: for those error pages, the status and content type must match, the body need not; the
+Rust server sends no `X-Powered-By` and no ETag on JSON (static files and `/api/audio/serve` keep
+theirs). Everything else in ADR-005 stands.
+
+## ADR-018: Audio engine details (supersedes part of ADR-007)
+Status: accepted (2026-11-21), decided by Claude on the owner's delegation (ADR-016); answers the
+questions in rust/research/audio-engine.md section 7
+Decision:
+- Decoding: symphonia first; files it can't decode (Ogg Opus, HE-AAC, multichannel AAC) fall back
+  to the ffmpeg the app already ships, so no file that plays today stops playing. This replaces
+  ADR-007's "no ffmpeg binary shipped"; dropping ffmpeg later is a separate decision once the
+  fallback is shown to be rare.
+- m4a/AAC: trim encoder delay and padding (edit list / iTunSMPB) as ffmpeg does, so gapless
+  playlists stay gapless (WO-006).
+- Resampling: a good-quality sinc resampler (rubato); the bar is the loopback suites (in tune,
+  right level, no audible artifacts), not sample-identity with swresample.
+- Output devices on macOS are reported in RtAudio's "Manufacturer: Name" form, and a saved device
+  matches in either form (old configs and the test harness keep working). Device ids in the API
+  stay RtAudio-style numbers (129, 130, ... in probe order), as the recorded responses show.
+- "System Default" is resolved when the stream opens, as today (not followed live).
+- The device is opened at its full channel count; channels no cue is patched to carry silence.
+- Linux: cpal's PulseAudio host, as today's RtAudio build.
+- macOS: the Rust app must run on every macOS the current app runs on. If cpal 0.18's CoreAudio
+  code needs macOS 14.2 at load time, weak-link it or use a cpal version that doesn't (to be
+  checked on the first build, MAP.md).
+
+## ADR-019: Playlist and cache behaviors kept as they are
+Status: accepted (2026-11-21), decided by Claude on the owner's delegation (ADR-016)
+Decision: with shuffle on, when items are added or removed mid-pass, a fresh order is drawn and
+play continues from the current item's place in it (kept: it never repeats the current item and
+needs no extra state). The two LruCache quirks (an `undefined` key stops eviction; a NaN size
+disables byte eviction) can't happen from the app's callers: no change, no work order. The
+out-of-range playlist index became WO-022 and is fixed.

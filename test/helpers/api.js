@@ -90,9 +90,15 @@ function api(server) {
         return pollUntil(async () => (await fn()) || null, { timeoutMs, intervalMs: 50 });
     }
 
+    /**
+     * Triggers the cues and waits until each reads as playing AND the mixer reports its voice:
+     * the status flips first, the voices come from the audio worker's next report, up to 40 ms
+     * later. Tests that read voices right after this would otherwise race it (WO-014).
+     */
     async function playing(...cueIds) {
         for (const id of cueIds) await trigger(id);
         for (const id of cueIds) await waitForStatus(id, 'playing');
+        for (const id of cueIds) await waitFor(async () => (await voices(id)).length > 0);
     }
 
     async function stopAll(behavior = 'stop') {

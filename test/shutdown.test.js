@@ -81,32 +81,30 @@ test('a single SIGTERM while a cue plays exits cleanly with code 0', async () =>
     assert.deepEqual(result, { code: 0, signal: null });
 });
 
-// WO-013: server.close() waits for every open connection, and nothing closes
-// the WebSocket clients, so with the UI (or Companion) connected a normal
-// shutdown waits for the 10 s force-exit timer and ends in SIGKILL.
-test('SIGTERM with a WebSocket client connected exits promptly with code 0',
-    { todo: 'WO-013: shutdown waits 10 s and SIGKILLs itself while a WebSocket client is connected' },
-    async () => {
-        const WebSocket = require('ws');
-        const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'accompaniment-shutdown-ws-'));
-        const port = await getFreePort();
-        const base = `http://127.0.0.1:${port}`;
-        const child = spawnServer({ PORT: String(port), HOST: '127.0.0.1', ACCOMPANIMENT_DATA_DIR: dataDir });
-        const exited = waitForExit(child);
-        await waitForHealth(base, 15000);
+// WO-013: server.close() waits for every open connection; with the UI (or
+// Companion) connected, shutdown used to wait for the 10 s force-exit timer
+// and end in SIGKILL.
+test('SIGTERM with a WebSocket client connected exits promptly with code 0', async () => {
+    const WebSocket = require('ws');
+    const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'accompaniment-shutdown-ws-'));
+    const port = await getFreePort();
+    const base = `http://127.0.0.1:${port}`;
+    const child = spawnServer({ PORT: String(port), HOST: '127.0.0.1', ACCOMPANIMENT_DATA_DIR: dataDir });
+    const exited = waitForExit(child);
+    await waitForHealth(base, 15000);
 
-        const ws = new WebSocket(`ws://127.0.0.1:${port}`);
-        await new Promise((resolve, reject) => { ws.once('open', resolve); ws.once('error', reject); });
-        ws.on('error', () => {});
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`);
+    await new Promise((resolve, reject) => { ws.once('open', resolve); ws.once('error', reject); });
+    ws.on('error', () => {});
 
-        const started = Date.now();
-        child.kill('SIGTERM');
-        const result = await Promise.race([exited, new Promise((r) => setTimeout(() => r('hung'), 15000))]);
-        const elapsedMs = Date.now() - started;
-        if (result === 'hung') child.kill('SIGKILL');
-        ws.terminate();
-        await fs.rm(dataDir, { recursive: true, force: true }).catch(() => {});
+    const started = Date.now();
+    child.kill('SIGTERM');
+    const result = await Promise.race([exited, new Promise((r) => setTimeout(() => r('hung'), 15000))]);
+    const elapsedMs = Date.now() - started;
+    if (result === 'hung') child.kill('SIGKILL');
+    ws.terminate();
+    await fs.rm(dataDir, { recursive: true, force: true }).catch(() => {});
 
-        assert.deepEqual(result, { code: 0, signal: null });
-        assert.ok(elapsedMs < 5000, `shutdown took ${elapsedMs} ms`);
-    });
+    assert.deepEqual(result, { code: 0, signal: null });
+    assert.ok(elapsedMs < 5000, `shutdown took ${elapsedMs} ms`);
+});

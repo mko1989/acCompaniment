@@ -61,10 +61,12 @@ test('toggle_cue (from Companion) plays a cue, then applies its retrigger behavi
 test('play_cue starts a cue', async () => {
     const cueId = await t.createCue();
     await withSocket(async (socket) => {
+        // Listen for both before sending: the reply can arrive before the status (WO-021).
         const playing = t.waitForCueStatus(socket, cueId, 'playing');
+        const played = reply(socket, 'cue_played');
         wsSend(socket, 'play_cue', { cueId });
         await playing;
-        assert.equal((await reply(socket, 'cue_played')).payload.success, true);
+        assert.equal((await played).payload.success, true);
     });
     await t.stop(cueId);
 });

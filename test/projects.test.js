@@ -14,7 +14,7 @@ const yauzl = require('yauzl');
 const yazl = require('yazl');
 
 const {
-    useServer, makeTestWav, spawnServer, getFreePort, waitForHealth, waitForExit, connectWs, waitForMessage,
+    useServer, makeTestWav, spawnServer, getFreePort, waitForHealth, waitForExit, connectWs, waitForMessage, pollUntil,
 } = require('./helpers/harness');
 const { api, sleep } = require('./helpers/api');
 
@@ -400,8 +400,11 @@ test('a bundle opened on another (empty) installation plays there', async () => 
 
     const trigger = await (await fetch(`${otherServer.baseUrl}/api/cues/${introCue.id}/trigger`, { method: 'POST' })).json();
     assert.equal(trigger.status, 'playing');
-    const status2 = (await (await fetch(`${otherServer.baseUrl}/api/cues/status/playback`)).json()).status;
-    const voice = status2.voices.find((v) => v.cueId === introCue.id);
+    // The voice shows up in the worker's next report, after the status flips (WO-014).
+    const voice = await pollUntil(async () => {
+        const status2 = (await (await fetch(`${otherServer.baseUrl}/api/cues/status/playback`)).json()).status;
+        return status2.voices.find((v) => v.cueId === introCue.id);
+    }, { timeoutMs: 5000, intervalMs: 50 });
     assert.equal(voice.volume, 0.3);
     assert.ok(Math.abs(voice.trimEndSec - 1.5) < 0.05);
     await fetch(`${otherServer.baseUrl}/api/cues/stop-all`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"behavior":"stop"}' });

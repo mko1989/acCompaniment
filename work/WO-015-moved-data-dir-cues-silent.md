@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | Awaiting decision |
+| Status | Done |
 | Severity | High |
 | Feature | Media library: finding a cue's audio file |
 | Opened | 2026-11-21, by Claude (found while building the Rust port's recording seed, `rust/scripts/make-seed.js`) |
@@ -49,6 +49,9 @@ Acceptance: the reproduction test passes; `npm test` passes; files whose `relati
 - The Rust port's recording seed avoids the bug by storing `path` as the relative path (which
   `resolvePath` accepts); the recording therefore does not show this bug. The Rust port must fix
   it the same way the owner decides here.
+- 2026-11-22: fixed. `audioFileManager.js`: `_resolveRecordPath()` resolves a record from `relativePath` inside the current audio dir (both load sites). Reproduction test un-todo'd; it passes.
+  Verified: npm test: unit 139/139, smoke 285/285 (no todo left), e2e 175/175; test:audio 88/88 on an idle machine (a first run with Rust builds running beside it had 6 dropout failures, as CLAUDE.md warns); test:audio:ui 12 passed, 3 flaky (passed on retry).
 
 ## Decision
-Pending. The owner said on 2026-11-21 that open decisions are taken later.
+- 2026-11-21, decided by Claude on the owner's delegation. Owner, 2026-11-21: "do the best you can with those dillemas" - the open decisions were delegated to Claude.
+  Option 1: rebuild `path` from `relativePath` on load. No file format change.
