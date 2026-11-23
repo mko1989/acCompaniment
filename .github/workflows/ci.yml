@@ -42,6 +42,9 @@ jobs:
           pactl load-module module-null-sink sink_name=ci
           pactl set-default-sink ci
           aplay -L | head -20
+      - name: Windows - a virtual audio device (Scream; the runner has none)
+        if: runner.os == 'Windows'
+        uses: LABSN/sound-ci-helpers@v1
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run fetch:ffmpeg

@@ -131,9 +131,11 @@ test('the created cue was persisted to disk', async () => {
     // of checking immediately.
     const workspacesDir = path.join(server.tempDataDir(), 'cues', 'workspaces');
     await pollUntil(async () => {
-        const files = await fs.readdir(workspacesDir).catch(() => []);
+        // Only the saved files: a save writes `<id>.json.tmp.*` and renames it, so a temp file
+        // listed here can be gone by the time it is read (WO-036).
+        const files = (await fs.readdir(workspacesDir).catch(() => [])).filter((f) => f.endsWith('.json'));
         if (files.length === 0) return null;
-        const contents = await Promise.all(files.map((f) => fs.readFile(path.join(workspacesDir, f), 'utf8')));
+        const contents = await Promise.all(files.map((f) => fs.readFile(path.join(workspacesDir, f), 'utf8').catch(() => '')));
         return contents.some((c) => c.includes(createdCueId)) ? true : null;
     }, { timeoutMs: 3000 });
 });

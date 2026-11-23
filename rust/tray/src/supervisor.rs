@@ -674,7 +674,11 @@ mod tests {
         std::env::var_os("ACCOMPANIMENT_SERVER_BIN")
             .map(PathBuf::from)
             .unwrap_or_else(|| {
-                Path::new(env!("CARGO_MANIFEST_DIR")).join("../app/target/release/accompaniment")
+                // WO-035: with the platform's suffix (`.exe` on Windows).
+                Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+                    "../app/target/release/accompaniment{}",
+                    std::env::consts::EXE_SUFFIX
+                ))
             })
     }
 

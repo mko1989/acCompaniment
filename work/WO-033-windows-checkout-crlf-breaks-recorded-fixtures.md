@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | In progress |
+| Status | Done |
 | Severity | Medium |
 | Feature | The test fixtures and recorded cases (`rust/app-fixtures/`, `rust/app-cases/`, `rust/app/tests/unit-cases/`) on Windows |
 | Opened | 2026-11-23, by Claude (first CI run on Windows: https://github.com/mko1989/acCompaniment/actions/runs/45260956244) |
@@ -37,6 +37,8 @@ written for LF (shell scripts in `packaging/` must be LF to run), and one rule i
 - 2026-11-23: found in the first Windows CI run; cause confirmed from the assertion (bytes
   13, 10 in the checked-out file). `.gitattributes` added; `git add --renormalize .` changed
   nothing.
+- 2026-11-23: CI run 45265130852 on Windows: `seed_roundtrip` passes, and so do the 12,916
+  recorded unit cases (8/8 suites), which hadn't run on Windows before.
 
 ## Decision
 - 2026-11-23, Claude on the owner's delegation (ADR-016): `.gitattributes` with `eol=lf` for the
