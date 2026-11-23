@@ -1,13 +1,9 @@
 /**
  * A second shutdown signal while the first is still being handled (Ctrl+C
  * in a terminal reaches both the launcher and the server, and the launcher
- * then sends its own SIGTERM) must still end the process. It used to call
- * process.exit() with the audio stream open, which deadlocked joining the
- * audio engine's worker thread: the server hung forever, still holding its
- * port, and every later launch failed with EADDRINUSE.
- *
- * The servers run on Electron's bundled Node, as the launcher runs them: the
- * hang reproduced there every time, but not under a plain Node.
+ * then sends its own SIGTERM) must still end the process, with the audio
+ * stream open. The Node server once deadlocked there, holding its port, so
+ * every later launch failed with EADDRINUSE.
  */
 
 const { test } = require('node:test');
@@ -19,16 +15,11 @@ const {
     getFreePort, spawnServer, waitForHealth, waitForExit, uploadTestAudio, pollUntil,
 } = require('./helpers/harness');
 
-// The electron package exports its binary's path when required from Node.
-const ELECTRON = require('electron');
-
 async function startPlayingServer() {
     const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'accompaniment-shutdown-'));
     const port = await getFreePort();
     const base = `http://127.0.0.1:${port}`;
-    const child = spawnServer({
-        PORT: String(port), HOST: '127.0.0.1', ACCOMPANIMENT_DATA_DIR: dataDir, ELECTRON_RUN_AS_NODE: '1',
-    }, ELECTRON);
+    const child = spawnServer({ PORT: String(port), HOST: '127.0.0.1', ACCOMPANIMENT_DATA_DIR: dataDir });
     const exited = waitForExit(child);
     await waitForHealth(base, 15000);
 

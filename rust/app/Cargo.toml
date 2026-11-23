@@ -3,7 +3,7 @@ name = "accompaniment"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "acCompaniment server (Rust port, rust/DECISIONS.md). Front door scaffolded by rust-anything: Rust owns the server, the original answers what is not ported yet"
+description = "acCompaniment soundboard server (rust/DECISIONS.md)"
 
 [lib]
 name = "accompaniment"
@@ -13,12 +13,7 @@ path = "src/lib.rs"
 name = "accompaniment"
 path = "src/main.rs"
 
-# Differential check of the core's data layer against the Node original (rust/scripts/diff-data.js).
-[[bin]]
-name = "drive-data"
-path = "src/bin/drive_data.rs"
-
-# Decoder comparison against the Node original (rust/scripts/compare-decode.js).
+# Decodes one file as the engine does (debugging).
 [[bin]]
 name = "decode-file"
 path = "src/bin/decode_file.rs"
@@ -36,8 +31,6 @@ httpdate = "1"
 multer = "3"
 percent-encoding = "2"
 tokio-util = { version = "0.7", features = ["io"] }
-hyper = { version = "1", features = ["client", "http1"] }
-hyper-util = { version = "0.1", features = ["client-legacy", "http1", "tokio"] }
 hex = "0.4"
 indexmap = "2"
 regex = { version = "1", default-features = false, features = ["std", "unicode-case", "unicode-perl"] }

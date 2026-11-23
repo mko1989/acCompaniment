@@ -5,8 +5,7 @@
     "env",
     "ACCOMPANIMENT_DATA_DIR=rust/app-fixtures/data",
     "HOST=127.0.0.1",
-    "node",
-    "server.js"
+    "rust/app/target/release/accompaniment"
   ],
   "normalize": [
     "key-order",

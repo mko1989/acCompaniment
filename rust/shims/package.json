@@ -1,5 +1,0 @@
-{
-  "private": true,
-  "type": "module",
-  "description": "Typed ES-module shims over the CommonJS backend, for rust-anything (rust/DECISIONS.md ADR-014)"
-}

@@ -1,166 +1,35 @@
 {
   "name": "accompaniment",
   "version": "2.0.5-beta",
-  "description": "A soundboard app",
-  "main": "electron-launcher/main.js",
-  "engines": {
-    "node": ">=20.17.0"
-  },
+  "private": true,
+  "description": "acCompaniment soundboard. The app is the Rust binary in rust/app; this package holds the test tooling (node:test, Playwright).",
+  "author": "Marcin Wardecki",
+  "homepage": "https://github.com/mko1989/acCompaniment/",
+  "license": "MIT",
   "scripts": {
-    "start": "electron .",
-    "start:node": "node start-nodejs.js",
-    "start:server": "node server.js",
-    "dev": "node start-nodejs.js --dev",
-    "test": "npm run test:unit && npm run test:smoke && npm run test:e2e",
-    "test:unit": "node scripts/test-soundboard-mixer.js && node --test test/unit/*.test.js",
+    "build": "cargo build --release --manifest-path rust/app/Cargo.toml",
+    "start": "npm run build && rust/app/target/release/accompaniment",
+    "test": "npm run build && npm run test:unit && npm run test:smoke && npm run test:e2e",
+    "test:rust": "cargo test --release --manifest-path rust/app/Cargo.toml",
+    "test:unit": "npm run test:rust && node --test test/unit/*.test.js",
     "test:smoke": "node --test test/*.test.js",
     "test:e2e": "playwright test",
     "test:audio": "node --test --test-concurrency=1 test/audio/*.test.js",
     "test:audio:ui": "ACCOMPANIMENT_AUDIO_UI=1 playwright test",
-    "probe:rtaudio": "node scripts/probe-rtaudio.js",
-    "postinstall": "electron-builder install-app-deps",
-    "pack": "electron-builder --dir",
-    "build:rtaudio": "node scripts/build-rtaudio.js",
-    "fetch:ffmpeg": "node scripts/fetch-ffmpeg.js",
-    "predist": "npm run build:rtaudio && node scripts/fetch-ffmpeg.js",
-    "dist": "NODE_ENV=production electron-builder --publish never",
-    "predist:mac": "npm run build:rtaudio && node scripts/fetch-ffmpeg.js darwin",
-    "dist:mac": "NODE_ENV=production electron-builder --mac --publish never",
-    "predist:win": "npm run build:rtaudio && node scripts/fetch-ffmpeg.js win32",
-    "dist:win": "NODE_ENV=production electron-builder --win --publish never",
-    "predist:linux": "npm run build:rtaudio && node scripts/fetch-ffmpeg.js linux",
-    "dist:linux": "NODE_ENV=production electron-builder --linux --publish never"
+    "fetch:ffmpeg": "node scripts/fetch-ffmpeg.js"
   },
-  "keywords": [
-    "electron",
-    "soundboard",
-    "companion",
-    "audio",
-    "cues",
-    "audiocues",
-    "waveform"
-  ],
-  "author": "Marcin Wardecki",
-  "homepage": "https://github.com/mko1989/acCompaniment/",
-  "email": "m.wardecki89@gmail.com",
-  "license": "MIT",
   "devDependencies": {
+    "@hamitzor/rtaudio.js": "^2.2.0",
     "@playwright/test": "^1.63.0",
-    "electron": "^44.4.5",
-    "electron-builder": "^26.15.3",
-    "prebuild": "file:scripts/npm-stubs/prebuild"
+    "prebuild": "file:scripts/npm-stubs/prebuild",
+    "ws": "^8.22.0",
+    "yauzl": "^3.4.0",
+    "yazl": "^3.3.1"
   },
   "overrides": {
     "@hamitzor/rtaudio.js": {
       "cmake-js": "^8.0.0",
       "prebuild": "$prebuild"
     }
-  },
-  "dependencies": {
-    "@hamitzor/rtaudio.js": "^2.2.0",
-    "cors": "^2.8.6",
-    "express": "^5.2.1",
-    "fs-extra": "^11.4.1",
-    "multer": "^2.4.0",
-    "music-metadata": "^11.16.1",
-    "ws": "^8.22.0",
-    "yauzl": "^3.4.0",
-    "yazl": "^3.3.1"
-  },
-  "build": {
-    "appId": "com.highpass.acCompaniment",
-    "productName": "acCompaniment",
-    "afterPack": "scripts/check-native-binaries.js",
-    "mac": {
-      "category": "public.app-category.music",
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "universal"
-          ]
-        }
-      ],
-      "icon": "assets/icons/icon.png",
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false,
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist",
-      "extendInfo": {
-        "NSMicrophoneUsageDescription": null,
-        "NSCameraUsageDescription": null,
-        "NSBluetoothAlwaysUsageDescription": null,
-        "NSBluetoothPeripheralUsageDescription": null
-      },
-      "extraResources": [
-        {
-          "from": "vendor/ffmpeg/darwin-universal/ffmpeg",
-          "to": "ffmpeg/ffmpeg"
-        }
-      ]
-    },
-    "win": {
-      "target": "nsis",
-      "icon": "assets/icons/icon.ico",
-      "extraResources": [
-        {
-          "from": "vendor/ffmpeg/win32-x64/ffmpeg.exe",
-          "to": "ffmpeg/ffmpeg.exe"
-        }
-      ]
-    },
-    "linux": {
-      "category": "AudioVideo",
-      "maintainer": "mko1989 <m.wardecki89@gmail.com>",
-      "target": [
-        {
-          "target": "deb",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        }
-      ],
-      "icon": "assets/icons/icon.png",
-      "extraResources": [
-        {
-          "from": "vendor/ffmpeg/linux-${arch}/ffmpeg",
-          "to": "ffmpeg/ffmpeg"
-        }
-      ]
-    },
-    "deb": {
-      "depends": [
-        "libgtk-3-0",
-        "libnotify4",
-        "libnss3",
-        "libxss1",
-        "libxtst6",
-        "xdg-utils",
-        "libatspi2.0-0",
-        "libuuid1",
-        "libsecret-1-0",
-        "libpulse0"
-      ]
-    },
-    "files": [
-      "electron-launcher/**/*",
-      "server.js",
-      "start-nodejs.js",
-      "src/backend/**/*",
-      "src/frontend/**/*",
-      "assets/**/*",
-      "package.json",
-      "!node_modules/.bin",
-      "!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
-      "!**/*.{md,lock,yaml,toml,gitattributes,editorconfig}",
-      "!**/.*ignore",
-      "!node_modules/@hamitzor/rtaudio.js/build/{CMakeFiles,rtaudio}${/*}",
-      "!node_modules/@hamitzor/rtaudio.js/build/*.{ninja,cmake,txt}",
-      "!node_modules/@hamitzor/rtaudio.js/build/.ninja_*"
-    ],
-    "asarUnpack": [
-      "node_modules/@hamitzor/rtaudio.js/**/*"
-    ]
   }
 }

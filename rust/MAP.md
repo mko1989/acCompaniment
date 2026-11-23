@@ -5,8 +5,10 @@ UI, keeps the HTTP/WebSocket protocol and on-disk formats, and passes the record
 existing test suites (smoke, e2e, loopback audio). Then a Tauri tray app replaces Electron.
 
 Read first: [DECISIONS.md](DECISIONS.md) (ADR index below), [GLOSSARY.md](GLOSSARY.md),
-`HANDOFF.md` when present, research in [research/](research/). Measured state:
-`rust-anything map --write` → `PORT_MAP.md`.
+[HANDOFF.md](HANDOFF.md), research in [research/](research/).
+
+State (2026-11-23): Waves A and B done and lifted - the Rust binary is the app; the Node original
+is no longer in this project (ADR-020; the owner keeps it elsewhere). Next: Wave C.
 
 ## ADRs
 
@@ -17,21 +19,23 @@ Read first: [DECISIONS.md](DECISIONS.md) (ADR index below), [GLOSSARY.md](GLOSSA
 012 record quietly · 013 Spotify cue creation answers 400 (proposed) ·
 014 CommonJS units bridged through typed shims · 015 how Wave B is built and measured ·
 016 decisions delegated · 017 HTTP details that need not match · 018 audio engine details ·
-019 playlist/cache behaviors kept
+019 playlist/cache behaviors kept · 020 Node removed, the Rust app is the app
 
 ## Proof
 
-1. `rust-anything app record` of the HTTP API: 167 cases in `rust/app-cases/http/`, from a fixed
-   seed data dir (`rust/app-fixtures/`, built by `rust/scripts/`). Original and front door 167/167.
-2. The existing node:test smoke suite (and later Playwright e2e) run against the Rust binary:
-   `ACCOMPANIMENT_SERVER_BIN=rust/app/target/release/accompaniment node --test test/*.test.js`.
-   These cover the WebSocket protocol and shutdown, which `app record` does not.
-3. `npm run test:audio` and `npm run test:audio:ui` for everything audible (ADR-007).
+1. `rust-anything app record` of the HTTP API (recorded from the Node original): 167 cases in
+   `rust/app-cases/http/`, from a fixed seed data dir (`rust/app-fixtures/`, built by
+   `rust/scripts/`). `rust-anything app replay . --build rust/app/target/release/accompaniment`.
+2. The Wave A units' recorded cases (12,916), run by `cargo test` (`rust/app/tests/unit_cases.rs`).
+3. The test suites, run against the Rust binary by default: smoke (node:test, covers the
+   WebSocket protocol and shutdown), e2e (Playwright), and `npm run test:audio` /
+   `npm run test:audio:ui` for everything audible (ADR-007).
 
 ## Plan (approved by the owner 2026-11-21: "start")
 
 Wave A: pure logic, ported and proved function by function (`bridge` / `record` / `diff` / `gate`),
-each through a typed ES-module shim in `rust/shims/` (ADR-014). Crates are libraries for the core.
+each through a typed ES-module shim (ADR-014). Lifted 2026-11-23 (ADR-020): the ports are modules
+of `rust/app/src/core/`, their cases run in `cargo test`; the crates, bindings and shims are gone.
 
 | Unit | Lines | State |
 | --- | ---: | --- |
@@ -46,7 +50,7 @@ each through a typed ES-module shim in `rust/shims/` (ADR-014). Crates are libra
 
 Wave B: the stateful core, one piece. Every route shares the same cue and playback state, so it
 cannot be proxied route by route. Built in stages inside `rust/app`, switched over at once
-(`app wire --route '*'`), with the whole-app kill switch back to Node until the lift:
+(done 2026-11-23, see below):
 
 | Stage | Covers | State |
 | --- | --- | --- |
@@ -55,7 +59,19 @@ cannot be proxied route by route. Built in stages inside `rust/app`, switched ov
 | B3 cue engine | cueManager (triggers, retrigger, fades, ducking, playlists, crossfade) | done 2026-11-22: `core/cue_engine.rs` + `clock.rs` (injectable clock/timers) + `AudioEngine` trait with a recording fake (`cue_fakes.rs`); differential 245/245 new ops (548/548 with B1) |
 | B4 audio engine | audioPlaybackManager, workerMixer, audioEngineWorker, audioDecoder, pcmCache on cpal + symphonia | done 2026-11-23: `rust/app/src/audio/` (decode, pcm_cache, devices, engine); decoder 50/50 against Node's (`node rust/scripts/compare-decode.js`); with `ACCOMPANIMENT_CORE=rust` replay 167/167 (fallback 0%), smoke 286/286, e2e 176/176, test:audio and test:audio:ui pass; WO-024 to WO-031 |
 
-Wave C: Tauri tray app replacing `electron-launcher/` (ADR-008), and CI installers (WO-011).
+Switch-over and lift: done 2026-11-23 by hand (ADR-020): the binary always serves from the
+core; proxy, switch and Node removed. (`app wire`/`app lift` assume units wired route by route.)
+
+Wave C: Tauri tray app (ADR-008; the Electron launcher it replaces is in the owner's Node copy:
+tray menu, start/stop, connection info, port settings) and CI installers per platform (WO-011's
+lessons: build each platform on its own runner). Checklist for it:
+- ship `src/frontend/` and ffmpeg with the binary (`ACCOMPANIMENT_FRONTEND_DIR` and the
+  `ffmpeg/` folder beside the binary are already looked up; the compiled-in repo path is only
+  for development);
+- first runs on Windows and Linux: build, the smoke suite, device listing (ids only approximate
+  RtAudio's there), a Windows machine without audio devices (WO-012's case);
+- macOS below 14: the binary starts (CoreAudio weak-linked) - try it;
+- a release workflow replacing the removed `.github/workflows/release.yml` (Electron).
 
 ## Rules for later stages (found while porting)
 
@@ -71,13 +87,13 @@ Wave C: Tauri tray app replacing `electron-launcher/` (ADR-008), and CI installe
   otherwise): `LruCache` stops evicting after an `undefined` key; a NaN byte size disables byte
   eviction until `clear()` (`rust/lru-cache`).
 
-- From B1 (open gaps, for B2/B4 and the lift):
+- From B1 (open gaps):
   - B2: one lock around the core (it is synchronous; it replaces Node's save queue); a streaming
     zip writer for `GET /api/projects/:id/bundle` (B1's writes to a file); wire the config-change
     listeners; port the network-interface listing.
   - B4/ADR-018: the metadata probe can't read Ogg Opus/FLAC/Speex, fragmented MP4, APEv2/Lyrics3,
     ID3v2 TXXX: use the ffmpeg fallback there too, or extend the probe.
-  - Lift (ADR-009): `core/nodefs.rs` ports Node's POSIX `path` only; Windows path rules are
+  - Open, Wave C (ADR-009): `core/nodefs.rs` ports Node's POSIX `path` only; Windows path rules are
     still to do.
   - Accepted differences (ADR-005): V8's `JSON.parse` error wording; a JSON file with lone-surrogate
     escapes reads as corrupt; zip names valid as UTF-8 are read as UTF-8 without the flag, and CRCs
@@ -93,18 +109,18 @@ Wave C: Tauri tray app replacing `electron-launcher/` (ADR-008), and CI installe
   - Known quirk, not reachable from the UI, no work order (ADR-019 style): `POST /api/cues` with a
     `null` playlist item fails with a raw TypeError message; the port reproduces it.
 
-- From B2 (for B4 and the lift):
+- From B2:
   - B4: replace `server/engine.rs`'s `NoOutputEngine` with the cpal engine (device list in RtAudio's
     names and ids, ADR-018); real engine callbacks must wake the core (e.g. post into the timer task);
     `queue_next` decode-first-then-ask. Then run e2e and both loopback suites against the core.
-  - Lift: Windows network interfaces, path rules and bundle temp-file removal; Range on static files;
+  - Open, Wave C and later: Windows network interfaces, path rules and bundle temp-file removal; Range on static files;
     non-identity `Content-Encoding` (415 today); nested urlencoded keys; busboy's latin1 filenames.
 
-- From B4 (for the lift and Wave C):
+- From B4 (open, for Wave C and later):
   - Real-time hygiene: applying a play or queue command allocates on the audio thread (ids, the
     voice's entry, as the original's worker did), and a decoded buffer the LRU has evicted can be
     freed inside the callback. Neither measured as a problem (the rendered output had no gaps in the
-    WO-031 probes), but both belong off the audio thread before the lift.
+    WO-031 probes), but both belong off the audio thread (open).
   - Devices: on macOS the list is CoreAudio's, identical to RtAudio's (names, ids from 129); on
     Windows and Linux it comes from cpal and the ids only approximate RtAudio's. Windows, Linux
     and macOS before 14 untested; `build.rs` weak-links CoreAudio so the binary starts below 14.2.
@@ -122,9 +138,10 @@ Wave C: Tauri tray app replacing `electron-launcher/` (ADR-008), and CI installe
 
 ## Out of scope
 
-`companion-module-highpass-accompaniment/`, `archive/`, Spotify (ADR-002, ADR-003);
-`src/frontend/` stays JS (ADR-001); `scripts/build-rtaudio.js`, `fetch-ffmpeg.js`,
-`probe-rtaudio.js` become obsolete with ADR-007; `electron-launcher/` is replaced, not ported.
+`companion-module-highpass-accompaniment/`, `archive/` (left in place, untouched), Spotify
+(ADR-002, ADR-003); `src/frontend/` stays JS (ADR-001); the Node app, Electron launcher and
+RtAudio build scripts are removed (ADR-020); `scripts/fetch-ffmpeg.js` stays until Wave C
+packages ffmpeg.
 
 ## Open questions
 

@@ -29,13 +29,9 @@ function getFreePort() {
     });
 }
 
-/**
- * `execPath` picks the runtime (default: this test's Node; see shutdown.test.js).
- * ACCOMPANIMENT_SERVER_BIN runs the suite against another server binary instead - the Rust
- * port (rust/MAP.md, "Proof"): e.g. ACCOMPANIMENT_SERVER_BIN=rust/app/target/release/accompaniment.
- */
-function spawnServer(env, execPath = process.execPath) {
-    const { command, args, env: extra } = serverCommand(execPath);
+/** Starts the server binary (test/helpers/serverCommand.js) with `env` added to this process's. */
+function spawnServer(env) {
+    const { command, args, env: extra } = serverCommand();
     const child = spawn(command, args, {
         cwd: REPO_ROOT,
         env: { ...process.env, ...extra, ...env },
@@ -128,8 +124,8 @@ async function uploadTestAudio(baseUrl, { name = 'Smoke Test Tone', durationSec 
 }
 
 /**
- * Boots a server in before(), tears it down (with SIGKILL escalation - see
- * FIX_PLAN.md Track G8 for why) in after(). Call at the top level of a test
+ * Boots a server in before(), tears it down in after() (SIGTERM, escalating to
+ * SIGKILL so a hung server never outlives the run). Call at the top level of a test
  * file; returns accessors that resolve once before() has run.
  *
  * `options.config` is written as the data directory's appConfig.json before
@@ -167,11 +163,8 @@ function useServer(extraEnv = {}, options = {}) {
             ]);
 
             if (result.code === 'timeout') {
-                // See FIX_PLAN.md Track G8: a rare, pre-existing deadlock in
-                // the third-party rtaudio.js binding's stopStream() can
-                // freeze the whole JS event loop during shutdown. SIGKILL
-                // is unconditional at the OS level and doesn't need the
-                // frozen process's cooperation.
+                // SIGKILL needs no cooperation from a hung process; the
+                // assertions below still fail the run.
                 console.error('Test harness: server did not exit within 12s of SIGTERM - force killing.');
                 const { stdout, stderr } = state.serverProcess.getOutput();
                 const tail = `${stdout}\n${stderr}`.trim().split('\n').slice(-15).join('\n');
@@ -188,15 +181,12 @@ function useServer(extraEnv = {}, options = {}) {
             assert.notEqual(
                 result.code,
                 'timeout-after-sigkill',
-                'Server did not exit even after SIGKILL (unexpected - investigate, this is not the known deadlock)'
+                'Server did not exit even after SIGKILL'
             );
             assert.notEqual(
                 result.signal,
                 'SIGKILL',
-                'Graceful SIGTERM shutdown hung and had to be force-killed. This is a known, rare, pre-existing '
-                + 'deadlock inside the third-party @hamitzor/rtaudio.js binding - see FIX_PLAN.md Track G8. The '
-                + 'server process itself was cleaned up correctly (no orphan left behind); an occasional failure '
-                + 'here is expected until upstream fixes it, but frequent failures warrant investigation.'
+                'Graceful SIGTERM shutdown hung and the server had to be force-killed'
             );
             assert.equal(result.code, 0, `Server should exit 0 on graceful SIGTERM shutdown, got ${result.code}`);
             return;

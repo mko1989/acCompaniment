@@ -1,10 +1,11 @@
 # acCompaniment - working notes for Claude
 
-Node soundboard: Express + WebSocket server (`src/backend/`), browser UI
-(`src/frontend/`), RtAudio engine on a worker thread
-(`src/backend/audioEngineWorker.js`), Electron tray launcher
-(`electron-launcher/`), Companion module (`companion-module-highpass-accompaniment/`).
-See README.md for running and the test scripts.
+Soundboard: one Rust binary (`rust/app/`: axum HTTP + WebSocket server, cue
+engine, data layer, cpal/symphonia audio engine) serving a JS browser UI
+(`src/frontend/`). Ported from a Node app, which is no longer in this project
+(rust/DECISIONS.md ADR-020); `rust/MAP.md` and `rust/HANDOFF.md` say where the
+port stands. Not part of the app: `companion-module-highpass-accompaniment/`,
+`archive/`. See README.md for running and the test scripts.
 
 ## Bugs are resolved through work orders
 
@@ -24,6 +25,7 @@ fix one silently as part of unrelated work.
    the bug stays visible:
    - node:test: `test(name, { todo: 'WO-NNN: what is wrong' }, fn)`
    - Playwright: `test.fail(true, 'WO-NNN: what is wrong')`
+   - Rust: `#[ignore = "WO-NNN: what is wrong"]` (run with `cargo test -- --ignored`)
    Audible behavior goes in the loopback suites (`test/audio/`,
    `test/audio-ui/`); the rest next to the existing tests for that area.
    Record the test in the work order.
@@ -87,14 +89,21 @@ Dated entries: what was decided, by whom. "Pending" until the owner decides.
 
 ## Tests
 
-- `npm run test:unit`, `npm run test:smoke`, `npm run test:e2e` - see README.md.
+- Build first: `npm run build` (`cargo` is in `~/.cargo/bin`; put it on PATH).
+  The JS suites run against `rust/app/target/release/accompaniment`.
+- `npm run test:unit` (cargo test + the test tooling's own tests),
+  `npm run test:smoke`, `npm run test:e2e` - see README.md. Rust: `cargo fmt
+  --check` and `cargo clippy --all-targets -- -D warnings` in `rust/app` too.
+- `rust-anything app replay . --build rust/app/target/release/accompaniment` -
+  the recorded HTTP cases (167).
 - `npm run test:audio` / `npm run test:audio:ui` - loopback audio suites: need a
   loopback device (BlackHole on this machine, picked automatically). Every
   take is saved to `test-recordings/audio*/` as a WAV + Audacity labels. They
-  retry a test only when its recording has a dropout in it; virtual devices
+  retry a test only when its recording has a dropout in it (a hole, or input the
+  recorder lost - WO-031); virtual devices
   (and this Mac generally - see WO-009) drop the odd buffer on their own.
 - The server tests play to the default output at low volume; don't run them
   at the same time as the audio suites (CPU contention causes dropouts).
 - The dropout tests (in `test/audio/calibration.test.js`) measure the
   machine as much as the app: run them with other heavy apps closed. Under
-  load even a bare RtAudio player drops out (WO-009).
+  load even a bare player drops out (WO-009).

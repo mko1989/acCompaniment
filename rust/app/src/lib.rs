@@ -1,7 +1,7 @@
-//! acCompaniment's Rust core (rust/DECISIONS.md ADR-015), grown beside the front door's proxy.
+//! acCompaniment's server: the HTTP and WebSocket API, the cue engine, the data layer and the audio
+//! engine (rust/DECISIONS.md).
 
-/// The JS value helpers shared with the Wave A unit crates (all eight copies are identical).
-#[path = "../../media-library-names/src/js.rs"]
+/// JS value semantics the port keeps (undefined, number formatting, sorting; ADR-005).
 pub mod js;
 
 pub mod audio;

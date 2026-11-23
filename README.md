@@ -1,6 +1,10 @@
 # acCompaniment Soundboard
 
-**acCompaniment** is a professional soundboard application designed for live performance, broadcasting, and advanced audio cue management. It runs as a Node.js audio server with a browser-based UI (wrapped in a minimal Electron tray launcher for system integration), and offers robust control over audio playback, extensive customization options, and integration capabilities with Bitfocus Companion.
+**acCompaniment** is a professional soundboard application designed for live performance, broadcasting, and advanced audio cue management. It runs as one native audio server, written in Rust, with a browser-based UI, and offers robust control over audio playback, extensive customization options, and integration capabilities with Bitfocus Companion.
+
+> This branch is the Rust version: the server and audio engine were ported from the Node.js app
+> (see `rust/MAP.md` and `rust/DECISIONS.md`). A system-tray launcher and installers are not
+> there yet (Wave C); until then the server runs from a terminal.
 
 ## Features
 
@@ -19,8 +23,9 @@
     *   Drag-and-drop interface for adding audio files.
     *   Automatic discovery of audio file durations.
 *   **Audio Playback Engine:**
-    *   Server-side playback via RtAudio and a custom PCM mixer, with
-        per-cue multichannel output routing.
+    *   Server-side playback (cpal) and a sample-accurate mixer, with
+        per-cue multichannel output routing; files decoded with symphonia (ffmpeg for AAC/M4A
+        and a few others).
     *   Visual waveform display for trimming audio start/end points.
     *   Precise control over playback: play, pause, stop, stop all, fade out and stop.
 *   **Projects:**
@@ -51,45 +56,31 @@
 
 ## System Requirements
 
-*   **Operating System:** Windows 10/11, macOS 10.15+
-*   **Memory:** 4GB RAM minimum, 8GB recommended
-*   **Storage:** 200MB for application, additional space for audio files
+*   **Operating System:** macOS (tested on macOS 15, Apple silicon; built to start on macOS 12 and
+    later, not yet tried below 14); Windows 10/11 and Linux are targets, not tested yet
 *   **Audio:** Compatible audio output device
 
 ## Getting Started
 
 ### Prerequisites
 
-*   Node.js 20.17+ (or 22.9+) and npm (for development builds)
-*   ffmpeg (`brew install ffmpeg` on macOS) - used to decode audio files;
-    found on the `PATH`, or set `FFMPEG_PATH` to point at it
-*   CMake (`brew install cmake` on macOS) - the audio engine's native
-    module (`@hamitzor/rtaudio.js`) ships a prebuilt binary, but it isn't
-    always usable as-is; `npm install` falls back to compiling it locally
-    with CMake, and that fallback is common enough in practice to treat
-    CMake as required, not optional. CMake 4 works thanks to the project's
-    `.npmrc` (npm prints an "Unknown project config" warning about that
-    line - it's expected; the setting is read by cmake-js, not npm)
+*   Rust (stable, via [rustup](https://rustup.rs)); `cargo` lives in `~/.cargo/bin`
+*   ffmpeg, for AAC/M4A and a few other formats: `npm run fetch:ffmpeg` puts a static build in
+    `vendor/ffmpeg/`, or install one on the `PATH`, or set `FFMPEG_PATH`
+*   For the tests only: Node.js 20+ and npm (`npm install`, then
+    `npx playwright install chromium` for the browser tests)
 
-### Installation & Running
+### Running
 
-#### For End Users
-Download the latest release from the [Releases](../../releases) page for your operating system.
+```bash
+cargo build --release --manifest-path rust/app/Cargo.toml
+rust/app/target/release/accompaniment
+```
 
-#### For Developers
-1.  **Clone the repository:**
-    ```bash
-    git clone <repository-url>
-    cd acCompaniment
-    ```
-2.  **Install dependencies:**
-    ```bash
-    npm install
-    ```
-3.  **Run the application:**
-    ```bash
-    npm start
-    ```
+Then open http://localhost:3333. Settings: `PORT` (default 3333, or the port in the app config),
+`HOST` (default every interface), `ACCOMPANIMENT_DATA_DIR` (default `~/.accompaniment`),
+`ACCOMPANIMENT_FRONTEND_DIR` (default the repo's `src/frontend`), `FFMPEG_PATH`.
+`npm start` builds and runs it in one step.
 
 ## Usage
 
@@ -136,102 +127,57 @@ Download the latest release from the [Releases](../../releases) page for your op
 
 ## Development
 
-acCompaniment runs as a Node.js server with a browser-based UI, wrapped in a
-minimal Electron tray launcher for system integration. Key technologies:
-
-*   **Node.js + Express:** HTTP/REST API and static file serving.
-*   **WebSockets (`ws`):** Real-time cue/playback state to the browser UI and
-    to Bitfocus Companion.
-*   **RtAudio (`@hamitzor/rtaudio.js`) + a custom PCM mixer:** Server-side
-    audio output, mixing, fades, and multichannel routing — see
-    `AUDIO_ENGINE_PLAN.md` for the design.
-*   **HTML, CSS, JavaScript (browser, no framework):** The main UI, served
-    to any browser on the LAN.
-*   **Electron:** A thin system-tray launcher only — it starts/stops the
-    Node.js server and shows connection info; it is not where the app's
-    logic lives.
+*   **Rust server** (`rust/app/`): HTTP/REST API and static file serving (axum), WebSockets for
+    the browser UI and Bitfocus Companion, the cue engine, the data layer and the audio engine
+    (cpal output, symphonia decoding, the mixer).
+*   **Browser UI** (`src/frontend/`, HTML/CSS/JavaScript, no framework): served by the server
+    to any browser on the LAN, including `remote_control/` (the HTTP remote page).
 
 ### Project Structure
 
-- `server.js` — Node.js server entry point (HTTP + WebSocket)
-- `src/backend/` — Server-side logic: cue/workspace management, audio
-  engine, REST routes
-- `src/frontend/` — Browser UI (served by the server), including
-  `remote_control/` (the HTTP remote control page)
-- `electron-launcher/` — Minimal Electron app: system tray, starts/stops the
-  server, configuration window
-- `start-nodejs.js` — Headless server launch script (no Electron/tray)
-- `assets/` — Application icons and resources
-- `archive/legacy-electron-app/` — The original, pre-migration monolithic
-  Electron app, kept for reference only (not built or maintained)
+- `rust/app/` — the server: `src/server/` (HTTP, WebSocket), `src/core/` (cues, projects, media
+  library, cue engine, playlist and retrigger logic, the mixer), `src/audio/` (devices,
+  decoding, output)
+- `rust/` — the port's records: `MAP.md` (plan and state), `DECISIONS.md` (ADRs),
+  `HANDOFF.md`, `app-cases/` (recorded HTTP behavior), `research/`
+- `src/frontend/` — browser UI
+- `test/` — the test suites (JavaScript, run against the Rust binary)
+- `work/` — work orders: every bug's record (see CLAUDE.md)
+- `assets/` — icons and resources
+- `archive/`, `companion-module-highpass-accompaniment/` — not part of the app
 
 ### Available Scripts
 
-*   `npm start` - Start the full app (Electron tray launcher + server)
-*   `npm run start:server` / `npm run start:node` - Start just the Node.js
-    server, headless (no Electron)
-*   `npm test` - Run the full test suite (unit + API/WebSocket smoke tests +
-    browser end-to-end tests)
-*   `npm run test:unit` - Just the unit tests (`test/unit/` - mixer, playlist and retrigger
-    logic, helpers; no server or audio device needed)
-*   `npm run test:smoke` - Just the API/WebSocket smoke tests (`test/*.test.js`) -
-    spawns real server instances against isolated temp data directories, no
-    browser needed
-*   `npm run test:e2e` - Just the Playwright tests: the browser UI
-    (`test/e2e/`, requires a one-time `npx playwright install chromium`; each
-    worker runs its own server and every test starts from a clean slate) and
-    the Electron tray launcher (`test/electron/`, run as a real app against an
-    isolated data directory and port)
-*   `npm run test:audio` - The loopback audio suite (`test/audio/`): the server
-    plays to a loopback audio device and the tests record what comes back,
-    checking every playback option by ear - volume, fades, trims, loops,
-    output routing, every retrigger behavior, pause, Stop All, crossfade,
-    ducking, playlist modes, file formats and sample rates, engine settings
-    and every control surface (REST, remote page, WebSocket, Companion).
-    The test files are generated tones whose frequency encodes the playback
-    position, so a recording shows exactly where each cue was and how loud.
-*   `npm run test:audio:ui` - The same idea through the browser UI
-    (`test/audio-ui/`, Playwright): real clicks on cues, sidebars, Stop All,
-    XFADE and the remote page, checked against the recording.
+*   `npm run build` - Build the server (`cargo build --release`)
+*   `npm start` - Build and run it
+*   `npm test` - Build, then the unit tests (Rust and the test tooling's), the API/WebSocket
+    smoke tests and the browser end-to-end tests
+*   `npm run test:rust` - `cargo test`: the server's Rust tests, including the recorded cases of
+    the pure logic (`rust/app/tests/unit_cases.rs`)
+*   `npm run test:smoke` - The API/WebSocket tests (`test/*.test.js`): each file starts its own
+    server against an isolated temp data directory
+*   `npm run test:e2e` - The browser UI in Playwright (`test/e2e/`; each worker runs its own
+    server and every test starts from a clean slate)
+*   `npm run test:audio` - The loopback audio suite (`test/audio/`): the server plays to a
+    loopback audio device and the tests record what comes back, checking every playback option
+    by ear - volume, fades, trims, loops, output routing, every retrigger behavior, pause, Stop
+    All, crossfade, ducking, playlist modes, file formats and sample rates, engine settings and
+    every control surface (REST, remote page, WebSocket, Companion). The test files are
+    generated tones whose frequency encodes the playback position, so a recording shows exactly
+    where each cue was and how loud.
+*   `npm run test:audio:ui` - The same idea through the browser UI (`test/audio-ui/`,
+    Playwright): real clicks on cues, sidebars, Stop All, XFADE and the remote page, checked
+    against the recording.
 
-    Both need a loopback device: macOS `brew install blackhole-2ch`, Windows
-    VB-Cable, Linux `snd-aloop` - or any virtual device whose input echoes its
-    output (found by name; set `ACCOMPANIMENT_LOOPBACK_DEVICE`, and
-    `ACCOMPANIMENT_LOOPBACK_INPUT` if input and output are separate devices).
-    Without one the tests are skipped. Every recording is saved to
-    `test-recordings/audio/` / `test-recordings/audio-ui/` as a WAV with an
-    Audacity label track (`.labels.txt`) marking each action. Tests marked
-    TODO document known issues they currently catch.
-*   `npm run probe:rtaudio` - Diagnose audio device / native module issues
-*   `npm run pack` - Package the application (without creating installers)
-*   `npm run dist` - Build the installer for this machine's platform
-*   `npm run dist:mac` / `dist:win` / `dist:linux` - The same, for that
-    platform - run each on that platform (see below)
-
-### Building for Distribution
-
-**Releases:** push a version tag and the release workflow
-(`.github/workflows/release.yml`) builds the macOS, Windows and Linux
-(x64 + arm64) installers, each on its own platform, and attaches them to the
-GitHub release for that tag (a tag with a `-`, like `v2.0.5-beta`, is
-published as a pre-release). Every push to the `node` branch builds them
-too, without releasing, so a broken build shows up before tagging.
-
-**Locally**, build the installer for the platform you're on:
-
-```bash
-npm install
-npm run dist        # this machine's platform
-```
-
-Built packages will be available in the `dist/` directory.
-
-Each platform has to be built on that platform: the audio engine is a
-native addon that can't be cross-compiled. A build that would package
-another platform's audio engine fails with an explanation
-(`scripts/check-native-binaries.js`, run by electron-builder after
-packaging). `node scripts/check-native-binaries.js dist/<unpacked dir> --load`
-also checks that the packaged app can load its audio engine on its own.
+    Both need a loopback device: macOS `brew install blackhole-2ch`, Windows VB-Cable, Linux
+    `snd-aloop` - or any virtual device whose input echoes its output (found by name; set
+    `ACCOMPANIMENT_LOOPBACK_DEVICE`, and `ACCOMPANIMENT_LOOPBACK_INPUT` if input and output are
+    separate devices). Without one the tests are skipped. Every recording is saved to
+    `test-recordings/audio/` / `test-recordings/audio-ui/` as a WAV with an Audacity label
+    track (`.labels.txt`) marking each action.
+*   `ACCOMPANIMENT_SERVER_BIN=<path>` runs any suite against another server binary.
+*   `rust-anything app replay . --build rust/app/target/release/accompaniment` - replays the
+    recorded HTTP cases (`rust/app-cases/`) against the server.
 
 ## Companion Module Integration
 

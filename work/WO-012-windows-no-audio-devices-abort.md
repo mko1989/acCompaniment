@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | Open |
+| Status | Won't fix |
 | Severity | High (if confirmed: the server dies) |
 | Feature | Audio engine - device listing / engine start (Windows) |
 | Opened | 2026-10-24, by Claude (seen in the release workflow, WO-011) |
@@ -44,7 +44,16 @@ yet.
 - 2026-10-24: Seen in the release workflow; the workflow's check no longer
   probes devices (it only loads the addon). Work order opened; nothing
   changed in the app.
+- 2026-11-23: the Node app and its RtAudio binding were removed from this
+  project (rust/DECISIONS.md ADR-020); the abort was inside that binding. The
+  Rust app lists devices through cpal; whether it copes with a Windows machine
+  without audio devices is on the Wave C checklist (rust/MAP.md), to be run on
+  a Windows CI runner. If it doesn't, that gets a new work order.
 
 ## Decision
 - Pending - owner to decide whether to pursue (needs a Windows machine, or
   a test run on a Windows CI runner).
+- 2026-11-23, Claude, following the owner's decision to remove Node from this
+  project (2026-11-23: "In this project we don't need the node at all. I have
+  it saved in another repo/folder."): Won't fix here - the code it concerns is
+  gone. No reproduction test existed to keep.

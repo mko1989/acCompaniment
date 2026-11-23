@@ -1,7 +1,7 @@
 /**
  * Worker thread that records a loopback device's input with RtAudio - kept
- * off the test's main thread for the same reason the app's engine is
- * (src/backend/audioEngineWorker.js): a late input callback loses samples.
+ * off the test's main thread, because a late input callback loses samples
+ * (WO-031).
  *
  * Commands (from recorder.js): open, start, stop, dispose. While started,
  * every buffer is kept along with the time it arrived, so the recording can

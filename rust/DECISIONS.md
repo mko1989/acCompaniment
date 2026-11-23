@@ -70,7 +70,7 @@ Decision: stop for the owner's go-ahead (1) after the whole app is recorded and 
 replays 100%, (2) after each wave of units, (3) after the audio engine passes the loopback suites.
 
 ## ADR-011: Branch and cutover
-Status: accepted (2026-11-21)
+Status: accepted (2026-11-21); superseded in part by ADR-020 (2026-11-23: no Node app in this project)
 Decision: work on the `rust-port` branch, committed at each checkpoint; `main` keeps the Node app.
 The Rust app ships as a separate beta only once it passes replay, `test:audio` and
 `test:audio:ui`. The Node app stays until the owner retires it.
@@ -104,7 +104,7 @@ never recorded).
 
 ## ADR-015: How Wave B is built and measured
 Status: accepted (2026-11-21), a technical choice made by Claude when the owner said "start b";
-the owner may revisit
+the owner may revisit; the switch and the Node fallback removed by ADR-020 (2026-11-23)
 Context: every route shares the same cue, playback and file state, so the core can't be wired
 route by route through the front door (MAP.md, Wave B). It has to grow in Rust beside the proxy and
 switch over at once.
@@ -173,3 +173,39 @@ play continues from the current item's place in it (kept: it never repeats the c
 needs no extra state). The two LruCache quirks (an `undefined` key stops eviction; a NaN size
 disables byte eviction) can't happen from the app's callers: no change, no work order. The
 out-of-range playlist index became WO-022 and is fixed.
+
+## ADR-020: Node is removed from this project; the Rust app is the app (supersedes part of ADR-011 and ADR-015)
+Status: accepted (2026-11-23), by the owner
+Context: B4 finished the core: with it the Rust binary passes the recorded HTTP cases (167/167,
+fallback 0%), the smoke, e2e and both loopback suites. The owner, 2026-11-23: "In this project we
+don't need the node at all. I have it saved in another repo/folder."
+Decision:
+- The Rust binary serves everything, always. The front door's proxy to Node, the
+  `ACCOMPANIMENT_CORE` switch and the kill switch back to Node are removed (ADR-015's switch-over
+  done by hand: `app wire`/`app lift` assume units wired route by route, which Wave B never did).
+- The Node server (`server.js`, `start-nodejs.js`, `src/backend/`), the Electron launcher and the
+  tooling that compared the port with Node (the shims, the differential check, the decoder
+  comparison, the Wave A crates' napi bindings) are deleted. The original stays in the owner's
+  other copy as the reference.
+- The Wave A ports become plain modules of `rust/app` (lift step 2). Their recorded cases stay as a
+  Rust test (`rust/app/tests/unit_cases.rs`); cases whose arguments only the deleted JS binding
+  could take (coercing other types into a string or number) are dropped with the boundary.
+- The browser UI stays JS (ADR-001); it is static files the binary serves. The test suites stay in
+  JS (node:test, Playwright) and now run against the Rust binary by default: Node remains a test
+  tool, not part of the app. ffmpeg's fetch script (`scripts/fetch-ffmpeg.js`) stays until Wave C's
+  packaging replaces it.
+- Out of scope as before (ADR-002, ADR-003), left in place untouched: `companion-module-highpass-accompaniment/`
+  and `archive/`.
+Consequences: no re-recording against the original from this project (`app record` would need
+it); the recorded cases are now the specification, changed only as ADR-005 says. Bugs found from
+now on are fixed in the Rust app only. Wave C (Tauri tray app, installers) is next; until then the
+app runs as `rust/app/target/release/accompaniment` (no tray).
+
+## ADR-021: The machine's network address in a recorded case is a wildcard
+Status: accepted (2026-11-23), by Claude on the owner's delegation (ADR-016)
+Context: case `1002-remote-info` recorded this Mac's LAN address (192.168.0.151). After the lift
+the Mac had another address (DHCP) and the replay failed on it, with the app answering correctly.
+Decision: the address in that case's body is `[..]`, as the port and the URLs built from it
+already were. The interface list itself (name, one entry) is still compared.
+Consequences: the case still depends on this Mac's interfaces (HANDOFF.md: replay it here, or drop
+it before a CI replay).

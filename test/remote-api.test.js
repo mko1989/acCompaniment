@@ -1,5 +1,5 @@
 /**
- * The /api/remote/* endpoints specifically (src/backend/routes/remote.js) -
+ * The /api/remote/* endpoints specifically -
  * a separate set of route handlers from /api/cues/*, and the ones actually
  * used by Bitfocus Companion and the HTTP remote control page. They call
  * the same cueManager methods as /api/cues/*, but a bug in response
