@@ -70,6 +70,13 @@ What the recording taught (keep in mind when reading a replay failure):
   ffmpeg is mounted from `vendor/`. The Linux build of the tray app hit a full disk; not run.
 - The macOS DMG step: `CI=true` (Finder styling times out without automation access).
 
+- Windows (CI, 2026-11-24): builds; every Rust test passes (incl. 12,916 recorded cases, the
+  tray's 7); the server starts with the VB-Cable device (WO-038 fixed). The smoke suite: 75 ok,
+  86 failed, then hung (run 45276394832, cancelled): 62 are 5 s timeouts waiting for playback
+  state, plus "uploaded file not listed", "trigger reports no status", Companion's on-connect
+  data missing, and 11 harness checks of a graceful SIGTERM exit (Windows has no SIGTERM:
+  Node's kill() force-kills there). Not investigated yet: needs work orders per cause.
+
 ## Next
 
 1. Wave C, the rest (MAP.md "Wave C" -> left): universal macOS build and signing, the first

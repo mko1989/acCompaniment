@@ -15,10 +15,9 @@ WebSocket must not disturb the field.
 
 ## Problem
 On the CI Mac: the test typed "Half-typ", pressed End, typed "ed name", and the field read
-`ed nameHalf-typ`: between the two, the field was re-rendered and the cursor went back to the
-start. So the guard that keeps a focused field's value doesn't hold in some ordering of the
-update and the keystrokes (probably the value is re-assigned, which resets the caret, even when
-it is the same text). The frontend is the Node app's, unchanged.
+`ed nameHalf-typ`: the caret was at the start when typing resumed. The first guess - the field
+re-rendered by the update - is ruled out by the trace (below). The frontend is the Node app's,
+unchanged. Whether a user can hit this is not known yet.
 
 ## Proposed solution
 To investigate: reproduce by slowing the update path (Playwright CPU throttling, or many
@@ -27,6 +26,17 @@ focused field, or assign only when the value differs and restore the selection.
 
 ## What has been done
 - 2026-11-23: seen once in CI (trace in that run's artifacts was not uploaded); opened.
+- 2026-11-23: failed again in CI run 45276394832 (macOS; 2 of the last 3 macOS runs). Its
+  Playwright trace (artifact `playwright-traces-macos-latest`) shows: `fill("Half-typ")` (one
+  input event), the three PUTs to the other cue, `press("End")`, then the typed keys landing
+  at position 0 (`eHalf-typ`, `edHalf-typ`, ...). No sidebar refresh was logged
+  (`shouldRefreshPropertiesFor` kept it from re-populating: no "re-opening" line), no value
+  was assigned, no other input event. So the caret was at 0 when typing began, without the
+  app's sidebar code running. Not settled: whether the app moves the caret some other way
+  (focus leaving and returning), or the test's keys behave differently on the CI Mac's
+  Chromium (on macOS, End is "scroll to end of document", not "caret to end of line"; then
+  the caret position comes from `fill`). Next: reproduce with the CI Chromium version locally;
+  log focus/blur and `selectionStart` on #propCueName in the test.
 
 ## Decision
 Pending.

@@ -15,6 +15,7 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest, ubuntu-22.04]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45   # a hung suite (seen on Windows) must not hold a runner for hours
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
