@@ -99,10 +99,17 @@ function loopbackSuite(options = {}) {
                     return await fn(t);
                 } catch (error) {
                     const holes = currentTakes.flatMap((take) => take.holes());
-                    if (holes.length === 0 || attempt >= MAX_ATTEMPTS || opts.noRetry) throw error;
+                    // The recorder losing input (a late callback) spoils a take as surely as a
+                    // hole does, without leaving one (WO-031).
+                    const lost = currentTakes.flatMap((take) => take.lateInput());
+                    if (holes.length + lost.length === 0 || attempt >= MAX_ATTEMPTS || opts.noRetry) throw error;
+                    const described = [
+                        ...holes.map((h) => `${h.samples} samples at ${h.atSec.toFixed(3)}s`),
+                        ...lost.map((l) => `recorder ${l.gapMs.toFixed(0)} ms late at ${l.atSec.toFixed(3)}s`),
+                    ];
                     t.diagnostic(
-                        `attempt ${attempt} failed with ${holes.length} dropout(s) in the recording `
-                        + `(${holes.map((h) => `${h.samples} samples at ${h.atSec.toFixed(3)}s`).join(', ')}) - retrying: `
+                        `attempt ${attempt} failed with ${described.length} dropout(s) in the recording `
+                        + `(${described.join(', ')}) - retrying: `
                         + `${error.message.split('\n')[0]}`
                     );
                     await reset();

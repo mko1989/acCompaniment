@@ -192,6 +192,26 @@ test('playlist: the item playing is highlighted in the list, and follows the pla
     await expect(page.locator('#propPlaylistItems .playlist-item-playing')).toHaveCount(0);
 });
 
+test('playlist: stopping just after the playing item changes leaves nothing highlighted (WO-030)', async ({ page, request }) => {
+    const list = await createTestPlaylist(request, { itemCount: 3, itemDurationSec: 10 });
+    await openProperties(page, list.id);
+    await request.post(`/api/cues/${list.id}/trigger`);
+    const items = page.locator('#propPlaylistItems li.playlist-item');
+    await expect(items.nth(0)).toHaveClass(/playlist-item-playing/);
+    // The highlight is debounced 50 ms, then applied on the next animation frame and re-applied
+    // 50 ms later if missing; a Stop whose (debounced) clear lands in between is undone. Sweep
+    // the gap between the item changing and Stop across that window.
+    for (let gapMs = 30; gapMs <= 150; gapMs += 5) {
+        await request.post(`/api/cues/${list.id}/playlist/navigate`, { data: { direction: 'next' } });
+        await page.waitForTimeout(gapMs);
+        await request.post(`/api/cues/${list.id}/stop`);
+        await page.waitForTimeout(300);
+        await expect(page.locator('#propPlaylistItems .playlist-item-playing'), `Stop ${gapMs} ms after the change`).toHaveCount(0, { timeout: 1 });
+        await request.post(`/api/cues/${list.id}/trigger`);
+        await expect(page.locator('#propPlaylistItems .playlist-item-playing')).toHaveCount(1);
+    }
+});
+
 test('delete asks for confirmation; cancelling keeps the cue', async ({ page, request }) => {
     const cue = await createTestCue(request, { name: 'Keep Me' });
     await openProperties(page, cue.id);

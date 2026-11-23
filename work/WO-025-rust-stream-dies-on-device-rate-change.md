@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| Status | Open |
+| Status | Done |
 | Severity | High |
 | Feature | Rust port (B4) audio engine: the output stream |
 | Opened | 2026-11-22, by Claude (reported by the B4 build: parallel smoke-test servers changing the shared device's rate killed the stream) |
-| Reproduction test | `test/audio/device-rate-change.test.js` - "a cue plays on when another app changes the device sample rate" |
+| Reproduction test | `test/audio/device-rate-change.test.js` - "a cue plays on when another app changes the device sample rate (WO-025)" |
 | Related | WO-024 |
 
 ## Feature
@@ -50,8 +50,24 @@ e2e, test:audio and test:audio:ui pass against the core.
 ## What has been done
 - 2026-11-22: reproduction test written (loopback suite: a cue plays, a bare RtAudio player opens
   the loopback device at 44.1 kHz for 0.5 s, the cue's position must keep advancing and the cue
-  must end), marked `todo` naming this WO.
+  must end), marked `todo` naming this WO. Against the core: position frozen at 0.84 s; against
+  Node: passes.
+- 2026-11-23: implemented option 2 in `rust/app/src/audio/engine.rs`: `sync()` reopens the stream
+  after a stream error (`reopen_after_error`, at most 3 times in 10 s) and reports the error to the
+  UI only if that fails; `todo` removed. The reproduction test passed, but the smoke suite against
+  the core then failed once in 3 runs (a Stop All fade never finished): the smoke servers run in
+  parallel on one default device at different rates, and each reopen set the device back to its
+  own rate, killing the others' streams, until the limit left one dead.
+- 2026-11-23: so the reopen now follows the device's *current* rate (`open_at(None)`: the rate from
+  `default_output_config()`), which disturbs nobody; the mixer keeps the configured rate, so after
+  another app changes the rate playback continues at the wrong pitch until the next open - which
+  is what the original's RtAudio stream does. Results: the reproduction test passes (4 runs);
+  smoke against the core 286/286 in 7 full runs; test:audio 89/89 (twice) and test:audio:ui 15/15
+  against the core; e2e 176/176 against the core; Node: test:audio 89/89.
 
 ## Decision
 - 2026-11-22, decided by Claude on the owner's delegation (ADR-016; owner, 2026-11-21: "do the
   best you can with those dillemas"). Option 2, with the reopen limit.
+- 2026-11-23, Claude (same delegation): option 2 as amended above - the reopen follows the device's
+  current rate instead of setting the app's own, because setting it made two apps on one device
+  kill each other's streams (found by the smoke suite). Matches the original more closely.

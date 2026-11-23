@@ -14,6 +14,10 @@ let websocketBindingsModule; // Changed from ipcRendererBindingsModule
 // Debounce highlighting to prevent multiple rapid calls during re-renders
 let highlightTimeout = null;
 let lastHighlightCall = { cueId: null, playlistItemId: null };
+// The item that should be highlighted now (null: none). Highlights are applied late (animation
+// frames, a re-check); each late callback applies one only while it is still the wanted one, so a
+// Stop that clears the highlight in between isn't undone (WO-030).
+let wantedHighlightItemId = null;
 
 /**
  * Initialize playlist management
@@ -135,6 +139,7 @@ function renderPlaylistInProperties(propPlaylistItemsUl, propPlaylistFilePathDis
         console.log(`[PropertiesSidebar] renderPlaylistInProperties: restoring highlight for itemId=${highlightedItemId}`);
         // Use requestAnimationFrame to ensure DOM is ready
         requestAnimationFrame(() => {
+            if (wantedHighlightItemId !== highlightedItemId) return;
             const itemToHighlight = propPlaylistItemsUl.querySelector(`li[data-item-id="${highlightedItemId}"]`);
             if (itemToHighlight) {
                 itemToHighlight.classList.add('playlist-item-playing');
@@ -385,6 +390,8 @@ function _performHighlighting(cueId, playlistItemId, activePropertiesCueId, prop
         return;
     }
     
+    wantedHighlightItemId = playlistItemId ?? null;
+    const stillWanted = () => wantedHighlightItemId === playlistItemId;
     const items = propPlaylistItemsUl.querySelectorAll('li.playlist-item');
     console.log(`[PropertiesSidebar] Found ${items.length} playlist items to check`);
     
@@ -412,6 +419,7 @@ function _performHighlighting(cueId, playlistItemId, activePropertiesCueId, prop
             if (itemId === playlistItemId) {
                 // Mac M1 specific fix: Use multiple strategies to ensure highlighting works
                 const applyHighlight = () => {
+                    if (!stillWanted()) return;
                     itemLi.classList.add('playlist-item-playing');
                     
                     // Force a repaint by briefly changing a property
@@ -424,7 +432,7 @@ function _performHighlighting(cueId, playlistItemId, activePropertiesCueId, prop
                     if (!itemLi.classList.contains('playlist-item-playing')) {
                         console.warn(`[PropertiesSidebar] Class not applied on first try for item ${index}, retrying...`);
                         setTimeout(() => {
-                            itemLi.classList.add('playlist-item-playing');
+                            if (stillWanted()) itemLi.classList.add('playlist-item-playing');
                         }, 10);
                     }
                 };
@@ -434,7 +442,7 @@ function _performHighlighting(cueId, playlistItemId, activePropertiesCueId, prop
                     applyHighlight();
                     // Double-check after a short delay for Mac M1
                     setTimeout(() => {
-                        if (!itemLi.classList.contains('playlist-item-playing')) {
+                        if (stillWanted() && !itemLi.classList.contains('playlist-item-playing')) {
                             console.warn(`[PropertiesSidebar] Highlighting failed for item ${index}, forcing reapply...`);
                             applyHighlight();
                         }

@@ -112,6 +112,7 @@ class Take {
         this.marks = marks;
         this.name = name;
         this.overflows = overflows;
+        this.arrivals = arrivals;
         // Each buffer arrives just after its last frame was captured, plus
         // some scheduling delay; the least-delayed one fixes when frame 0
         // was captured.
@@ -187,6 +188,26 @@ class Take {
                     found.push({ channel: c, atSec: (i - run) / this.sampleRate, samples: run });
                 }
                 run = 0;
+            }
+        }
+        return found;
+    }
+
+    /**
+     * Where the recorder itself lost input (WO-031): a buffer that arrived more than `factor`
+     * buffer periods after the previous one. The device doesn't wait for a late callback - the
+     * input of the cycles it missed is never delivered - so the recording skips ahead there
+     * (sound missing, no silence in its place), and RtAudio doesn't flag it as an overflow.
+     */
+    lateInput({ factor = 2 } = {}) {
+        const found = [];
+        for (let i = 1; i < this.arrivals.length; i++) {
+            const [frames, at] = this.arrivals[i];
+            const [prevFrames, prevAt] = this.arrivals[i - 1];
+            const periodMs = ((frames - prevFrames) / this.sampleRate) * 1000;
+            const gapMs = at - prevAt;
+            if (periodMs > 0 && gapMs > factor * periodMs) {
+                found.push({ atSec: prevFrames / this.sampleRate, gapMs });
             }
         }
         return found;

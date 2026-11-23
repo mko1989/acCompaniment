@@ -119,8 +119,14 @@ test('play_new_instance: a second copy layers over the first, which plays on', a
     const first = take.a.onset(0, { after: take.at('first') });
     const again = take.at('again');
     assert.equal(take.a.voicesAt(0, again - 0.2), 1, 'one voice before the second press');
-    // Two positions at once, ~1 s (10 segments) apart, each at full level.
-    const both = take.a.slotsAt(0, again + 0.55).map((s) => s.slot).sort((x, y) => x - y);
+    // Two positions at once, ~1 s (10 segments) apart, each at full level. A window that
+    // straddles a segment change also hears the neighbouring slot: merge those, keeping the
+    // loudest, as voicesAt does (WO-026).
+    const both = [];
+    for (const { slot } of take.a.slotsAt(0, again + 0.55)) {
+        if (!both.some((k) => Math.abs(k - slot) <= 1)) both.push(slot);
+    }
+    both.sort((x, y) => x - y);
     assert.equal(both.length, 2, `positions heard: ${both}`);
     near(both[1] - both[0], 10, 1, 'segments between the two copies');
     near(take.a.level(0, again + 0.2, again + 1.5), Math.SQRT2 * A, 0.02, 'two copies together');

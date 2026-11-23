@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | Open |
+| Status | Done |
 | Severity | Low |
 | Feature | Rust port (B4) audio engine: the playback status (`GET /api/cues/status/playback`, `voices`) |
 | Opened | 2026-11-22, by Claude (one failure in a full smoke run against the Rust core: `test/api-extras.test.js` - "Stop All without a behavior uses the configured Stop All behavior", "fading, not cut") |
@@ -44,6 +44,15 @@ runs (3 in a row); test:audio and test:audio:ui unchanged.
 - 2026-11-22: found in a full smoke run against the core (285/286); the test passed 4/4 on its
   own and in 2 further full runs. Traced to `settled_report`. Reproduction unit test written
   (`#[ignore]` naming this WO: a stream that counts as running but whose callback never runs).
+- 2026-11-23: fixed in `rust/app/src/audio/engine.rs` `settled_report`: past the wait, the control
+  side `try_lock`s the audio state and applies the queued commands itself (if the callback holds
+  it, it is applying them: wait up to 200 ms more); a stream that dies while waiting is noticed at
+  once. The reproduction test runs (no `#[ignore]`) and passes.
+  - The smoke failure that opened this WO came back once after the fix (1 in 3 full runs): a fade
+    that never finished. That was WO-025's stream fight between parallel test servers, not this;
+    fixed there. Afterwards: smoke against the core 286/286 in 7 full runs (4 + 3).
+  - cargo test 40/40, clippy and fmt clean; test:audio 89/89 and test:audio:ui 15/15 against the
+    core.
 
 ## Decision
 - 2026-11-22, decided by Claude on the owner's delegation (ADR-016; owner, 2026-11-21: "do the

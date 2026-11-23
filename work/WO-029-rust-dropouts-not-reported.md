@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | Open |
+| Status | Done |
 | Severity | Low |
 | Feature | Rust port (B4) audio engine: dropout report |
 | Opened | 2026-11-22, by Claude (comparing the port's engine with `audioEngineWorker.js` for WO-028) |
@@ -32,6 +32,11 @@ callback.
 
 ## What has been done
 - 2026-11-22: opened.
+- 2026-11-23: fixed in `rust/app/src/audio/engine.rs`: `Dropouts` (atomic counts) and
+  `CallbackClock` (late callbacks, counted in the audio callback); `sync()` logs the worker's line
+  every 5 s when there were any. Unit test "a_late_callback_is_reported_as_a_dropout" (the line
+  and the reset). No dropout line appeared in the loopback runs against the core - the engine's
+  callbacks were on time there (WO-031's probes logged every callback's timing to confirm it).
 
 ## Decision
 - 2026-11-22, decided by Claude on the owner's delegation (ADR-016; owner, 2026-11-21: "do the

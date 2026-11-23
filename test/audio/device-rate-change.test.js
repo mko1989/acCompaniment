@@ -28,9 +28,7 @@ function otherAppAt(sampleRate, seconds) {
 const voices = async (cueId) => (await audio.get('/api/cues/status/playback')).status.voices
     .filter((v) => v.cueId === cueId);
 
-test('a cue plays on when another app changes the device sample rate', {
-    todo: 'WO-025: the Rust core\'s stream dies on a device rate change; the cue goes silent and never ends',
-}, async () => {
+test('a cue plays on when another app changes the device sample rate (WO-025)', async () => {
     const cue = await audio.toneCue({ band: 0, durationSec: 4 });
     await audio.trigger(cue);
     await audio.waitForStatus(cue, 'playing', 5000);

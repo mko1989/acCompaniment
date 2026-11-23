@@ -1,6 +1,6 @@
 # Handoff
 
-Where the port stands (2026-11-21). Load the `rust-anything` skill, then read [MAP.md](MAP.md).
+Where the port stands (2026-11-23). Load the `rust-anything` skill, then read [MAP.md](MAP.md).
 
 ## State
 
@@ -9,8 +9,19 @@ Where the port stands (2026-11-21). Load the `rust-anything` skill, then read [M
   proved by the differential check `node rust/scripts/diff-data.js` (Node vs. Rust on the same op
   scripts in `rust/scripts/data-ops/`; results, engine calls, broadcasts, state and the data dir
   compared after every op: 548/548). B2 done: the Rust core serves everything with
-  `ACCOMPANIMENT_CORE=rust` (replay 146/167, fallback 0%; every failure needs B4); without the
-  switch the front door proxies to Node (167/167). Next: B4 audio (MAP.md).
+  `ACCOMPANIMENT_CORE=rust`; without the switch the front door proxies to Node (167/167). B4 done
+  (2026-11-23): the core plays audio (symphonia + ffmpeg fallback, cpal); against it replay 167/167
+  (fallback 0%), smoke 286/286, e2e 176/176, test:audio 89/89, test:audio:ui 15/15. WO-024 to
+  WO-031 came out of B4's verification (MAP.md "From B4").
+- Every suite runs against the core with the same two variables:
+  `ACCOMPANIMENT_SERVER_BIN=rust/app/target/release/accompaniment ACCOMPANIMENT_SERVER_ENV=ACCOMPANIMENT_CORE=rust`
+  in front of `node --test test/*.test.js`, `npm run test:e2e`, `npm run test:audio` or
+  `npm run test:audio:ui` (`test/helpers/serverCommand.js`). In zsh pass them literally, not
+  through a variable (zsh doesn't word-split).
+- Watch: one test:audio:ui run on Node failed "XFADE button: the next cue clicked crossfades..."
+  three times in a row (outgoing fade 0.24-0.66 s against 0.8 s), then passed alone 3/3 and in two
+  full runs; no hole or late input annotated. If it recurs, keep the takes and open a work order.
+- `cargo` lives in `~/.cargo/bin`: put it on PATH first, or a build silently doesn't happen.
 - Smoke suite against the core:
   `ACCOMPANIMENT_SERVER_BIN=rust/app/target/release/accompaniment ACCOMPANIMENT_SERVER_ENV=ACCOMPANIMENT_CORE=rust node --test test/*.test.js`
 - `app replay --case` replays one request on a fresh seed, without the requests before it: on this
@@ -79,9 +90,10 @@ What the recording taught (keep when re-recording):
 
 ## Next
 
-1. B4: the cpal + symphonia `AudioEngine` (ADR-007, ADR-018, research/audio-engine.md), replacing
-   `server/engine.rs`'s `NoOutputEngine`, using `rust/soundboard-mixer`'s port. Done when the core
-   replays 167/167 and smoke, e2e, test:audio and test:audio:ui pass against it.
+1. Switch over: `rust-anything app wire --route '*'` so the core serves by default, with the kill
+   switch back to Node (ADR-015), then the lift (ADR-009) - its gaps are in MAP.md ("From B1/B2/B4").
+2. Wave C: the Tauri tray app replacing `electron-launcher/` (ADR-008) and CI installers per
+   platform (WO-011 rework); Windows and Linux need their first real runs there.
 
 ## Known limits of the front door
 

@@ -16,10 +16,10 @@
 //! reading it). Rendering and status reports don't allocate; applying a play or queue command
 //! does (ids, the voice's entry), as the original's worker did.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use indexmap::IndexMap;
@@ -37,6 +37,12 @@ use crate::core::soundboard_mixer::{Mixer, MixerEvent, PlayOptions, VoiceStatus}
 use crate::js;
 
 const STATUS_INTERVAL_SEC: f64 = 0.04;
+/// How often the dropout counts are logged, when there are any (`DROPOUT_REPORT_INTERVAL_MS`).
+const DROPOUT_REPORT_INTERVAL: Duration = Duration::from_secs(5);
+/// Automatic reopens after a stream error (WO-025): at most this many within the window, so two
+/// apps insisting on different rates for one device don't flip it back and forth for ever.
+const MAX_REOPENS: usize = 3;
+const REOPEN_WINDOW: Duration = Duration::from_secs(10);
 const QUEUE: usize = 4096;
 /// Largest callback the scratch buffer covers without chunking.
 const SCRATCH_FRAMES: usize = 8192;
@@ -245,12 +251,14 @@ enum HostReq {
     Open {
         device: DeviceInfo,
         channels: u16,
-        sample_rate: u32,
+        /// None: whatever rate the device runs at now (a reopen after an error, WO-025).
+        sample_rate: Option<u32>,
         buffer_size: u32,
         state: Arc<Mutex<AudioState>>,
         alive: Arc<AtomicBool>,
         errors: Arc<Mutex<Vec<Value>>>,
-        reply: mpsc::Sender<Result<String, String>>,
+        dropouts: Arc<Dropouts>,
+        reply: mpsc::Sender<Result<(String, u32), String>>,
     },
     Close(mpsc::Sender<()>),
 }
@@ -267,6 +275,7 @@ fn host_thread(rx: mpsc::Receiver<HostReq>) {
                 state,
                 alive,
                 errors,
+                dropouts,
                 reply,
             } => {
                 stream = None; // close the old one first
@@ -279,12 +288,13 @@ fn host_thread(rx: mpsc::Receiver<HostReq>) {
                     state,
                     alive.clone(),
                     errors,
+                    dropouts,
                 );
                 let _ = reply.send(match result {
-                    Ok(s) => {
+                    Ok((s, rate)) => {
                         stream = Some(s);
                         alive.store(true, Ordering::SeqCst);
-                        Ok(device.name.clone())
+                        Ok((device.name.clone(), rate))
                     }
                     Err(e) => Err(e),
                 });
@@ -310,24 +320,106 @@ fn cpal_device(info: &DeviceInfo) -> Result<cpal::Device, String> {
         .ok_or_else(|| format!("Output device not found: {}", info.name))
 }
 
-/// The stream's error callback.
-fn stream_error(err: &cpal::Error, alive: &AtomicBool, errors: &Mutex<Vec<Value>>) {
-    alive.store(false, Ordering::SeqCst);
-    if let Ok(mut list) = errors.lock() {
-        list.push(json!({ "type": format!("{:?}", err.kind()), "message": err.to_string() }));
+/// Dropout accounting (`audioEngineWorker.js`' `dropouts`, WO-029): underflows the driver
+/// reported (cpal's `Xrun`) and callbacks that came more than two periods after the previous one.
+#[derive(Default)]
+struct Dropouts {
+    underflows: AtomicU64,
+    late: AtomicU64,
+    /// The worst gap between callbacks, in microseconds.
+    worst_gap_us: AtomicU64,
+    /// The latest callback's period, in microseconds.
+    period_us: AtomicU64,
+}
+
+impl Dropouts {
+    /// The counts since the last call, as the worker's `dropouts` log line; None when there were
+    /// none (`WorkerMixer._onMessage`, case 'dropouts').
+    fn take_report(&self, interval: Duration) -> Option<String> {
+        let underflows = self.underflows.swap(0, Ordering::Relaxed);
+        let late = self.late.swap(0, Ordering::Relaxed);
+        let worst_ms = self.worst_gap_us.swap(0, Ordering::Relaxed) as f64 / 1000.0;
+        if underflows == 0 && late == 0 {
+            return None;
+        }
+        let period_ms = self.period_us.load(Ordering::Relaxed) as f64 / 1000.0;
+        Some(format!(
+            "WorkerMixer: Audio dropouts in the last {}s: {underflows} underflow(s) reported by the \
+             driver, {late} late buffer(s) (worst gap {worst_ms:.1} ms, buffer period {period_ms:.1} ms)",
+            interval.as_secs_f64()
+        ))
+    }
+}
+
+/// When the previous callback came, to count late ones (lives in the audio callback).
+#[derive(Default)]
+struct CallbackClock {
+    last: Option<Instant>,
+}
+
+impl CallbackClock {
+    fn tick(&mut self, now: Instant, period: Duration, dropouts: &Dropouts) {
+        if let Some(last) = self.last {
+            let gap = now.saturating_duration_since(last);
+            if gap > period * 2 {
+                dropouts.late.fetch_add(1, Ordering::Relaxed);
+                dropouts
+                    .worst_gap_us
+                    .fetch_max(gap.as_micros() as u64, Ordering::Relaxed);
+            }
+        }
+        dropouts
+            .period_us
+            .store(period.as_micros() as u64, Ordering::Relaxed);
+        self.last = Some(now);
+    }
+}
+
+/// The stream's error callback. cpal reports fatal and harmless errors alike through it (WO-028):
+/// an overload is a dropout, counted for the report; a default-device change leaves the stream
+/// running; anything else stopped the stream.
+fn stream_error(
+    err: &cpal::Error,
+    alive: &AtomicBool,
+    errors: &Mutex<Vec<Value>>,
+    dropouts: &Dropouts,
+) {
+    match err.kind() {
+        cpal::ErrorKind::Xrun => {
+            dropouts.underflows.fetch_add(1, Ordering::Relaxed);
+        }
+        cpal::ErrorKind::DeviceChanged => {
+            eprintln!("AudioEngineWorker: {err} (the stream carries on)");
+        }
+        kind => {
+            alive.store(false, Ordering::SeqCst);
+            if let Ok(mut list) = errors.lock() {
+                list.push(json!({ "type": format!("{kind:?}"), "message": err.to_string() }));
+            }
+        }
     }
 }
 
 fn open_stream(
     info: &DeviceInfo,
     engine_channels: u16,
-    sample_rate: u32,
+    sample_rate: Option<u32>,
     buffer_size: u32,
     state: Arc<Mutex<AudioState>>,
     alive: Arc<AtomicBool>,
     errors: Arc<Mutex<Vec<Value>>>,
-) -> Result<cpal::Stream, String> {
+    dropouts: Arc<Dropouts>,
+) -> Result<(cpal::Stream, u32), String> {
     let device = cpal_device(info)?;
+    // Following the device's current rate doesn't set it, so other apps' streams on the device
+    // aren't disturbed (RtAudio's stream simply carries on at the new rate).
+    let sample_rate = match sample_rate {
+        Some(rate) => rate,
+        None => device
+            .default_output_config()
+            .map_err(|e| e.to_string())?
+            .sample_rate(),
+    };
     // Opened at the device's full width (ADR-018); the engine's channels come first.
     let device_channels = (info.output_channels as u16).max(engine_channels).max(1);
     // RtAudio clamps the buffer size into the device's range; cpal refuses one outside it.
@@ -349,19 +441,27 @@ fn open_stream(
     };
     let dc = usize::from(device_channels);
     let err_alive = alive.clone();
+    let err_dropouts = dropouts.clone();
+    let mut clock = CallbackClock::default();
+    let rate = f64::from(sample_rate.max(1));
     let stream = device
         .build_output_stream::<f32, _, _>(
             config,
-            move |data: &mut [f32], _| match state.try_lock() {
-                Ok(mut st) => st.render(data, dc),
-                Err(_) => data.fill(0.0),
+            move |data: &mut [f32], _| {
+                let frames = data.len() / dc.max(1);
+                let period = Duration::from_secs_f64(frames as f64 / rate);
+                clock.tick(Instant::now(), period, &dropouts);
+                match state.try_lock() {
+                    Ok(mut st) => st.render(data, dc),
+                    Err(_) => data.fill(0.0),
+                }
             },
-            move |err| stream_error(&err, &err_alive, &errors),
+            move |err| stream_error(&err, &err_alive, &errors, &err_dropouts),
             Some(Duration::from_secs(2)),
         )
         .map_err(|e| e.to_string())?;
     stream.play().map_err(|e| e.to_string())?;
-    Ok(stream)
+    Ok((stream, sample_rate))
 }
 
 /// `WorkerMixer._cues`' entry: voices, paused, the seq of the cue's latest play.
@@ -412,6 +512,11 @@ pub struct CpalEngine {
     report: Arc<Mutex<Report>>,
     alive: Arc<AtomicBool>,
     errors: Arc<Mutex<Vec<Value>>>,
+    dropouts: Arc<Dropouts>,
+    /// When the dropout counts were last logged.
+    dropouts_reported_at: Instant,
+    /// When the stream was reopened automatically after an error, within `REOPEN_WINDOW`.
+    reopens: Vec<Instant>,
     // AudioPlaybackManager
     playing: IndexMap<String, PlaybackInfo>,
     queued_next: std::collections::HashMap<String, QueuedNext>,
@@ -477,6 +582,9 @@ impl CpalEngine {
             report: Arc::default(),
             alive: Arc::new(AtomicBool::new(false)),
             errors: Arc::default(),
+            dropouts: Arc::default(),
+            dropouts_reported_at: Instant::now(),
+            reopens: Vec::new(),
             playing: IndexMap::new(),
             queued_next: std::collections::HashMap::new(),
             buffers: LruCache::new(50.0, 512.0 * 1024.0 * 1024.0),
@@ -645,14 +753,27 @@ impl CpalEngine {
             .lock()
             .map(|mut l| std::mem::take(&mut *l))
             .unwrap_or_default();
-        for error in errors {
-            eprintln!(
-                "AudioEngineWorker: RtAudio error ({}): {}",
-                jsv::to_js_string(error.get("type").unwrap_or(&Value::Null)),
-                jsv::to_js_string(error.get("message").unwrap_or(&Value::Null))
-            );
+        if !errors.is_empty() {
+            for error in &errors {
+                eprintln!(
+                    "AudioEngineWorker: RtAudio error ({}): {}",
+                    jsv::to_js_string(error.get("type").unwrap_or(&Value::Null)),
+                    jsv::to_js_string(error.get("message").unwrap_or(&Value::Null))
+                );
+            }
             self.stream_open = false;
-            self.pending.push(EngineEvent::Error(error));
+            // RtAudio's stream lives through what kills cpal's (a device rate change): reopen,
+            // and the voices carry on (WO-025). Reported to the UI only if that fails.
+            if !self.reopen_after_error() {
+                self.pending
+                    .extend(errors.into_iter().map(EngineEvent::Error));
+            }
+        }
+        if self.dropouts_reported_at.elapsed() >= DROPOUT_REPORT_INTERVAL {
+            self.dropouts_reported_at = Instant::now();
+            if let Some(line) = self.dropouts.take_report(DROPOUT_REPORT_INTERVAL) {
+                eprintln!("{line}");
+            }
         }
         let fresh = if let Ok(mut r) = self.report.lock() {
             if r.fresh {
@@ -725,14 +846,66 @@ impl CpalEngine {
             return lock();
         }
         let wait = (self.period_sec * 3.0 + 0.02).min(0.2);
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs_f64(wait);
+        let deadline = Instant::now() + Duration::from_secs_f64(wait);
+        // Past the deadline the callback isn't coming (a stream killed but not yet reported
+        // dead, or a very long period): apply the commands here (WO-024). The callback only
+        // `try_lock`s, so taking the state is safe; if the callback holds it, it is applying
+        // them right now - wait for it, up to a hard limit.
+        let hard_deadline = deadline + Duration::from_millis(200);
         loop {
+            if !self.stream_running() {
+                self.apply_if_no_stream();
+                return lock();
+            }
             let report = lock();
-            if report.applied >= self.posted || std::time::Instant::now() >= deadline {
+            if report.applied >= self.posted {
                 return report;
             }
             drop(report);
-            std::thread::sleep(std::time::Duration::from_millis(1));
+            let now = Instant::now();
+            if now >= deadline
+                && let Some(state) = &self.state
+                && let Ok(mut st) = state.try_lock()
+            {
+                st.drain_commands();
+                st.publish_status();
+                drop(st);
+                return lock();
+            }
+            if now >= hard_deadline {
+                return lock();
+            }
+            std::thread::sleep(Duration::from_millis(1));
+        }
+    }
+
+    /// After a stream error: reopen the stream (WO-025), unless it has been reopened
+    /// `MAX_REOPENS` times within `REOPEN_WINDOW` already. True when it is running again.
+    fn reopen_after_error(&mut self) -> bool {
+        if !self.initialized || self.state.is_none() {
+            return false;
+        }
+        let now = Instant::now();
+        self.reopens
+            .retain(|t| now.saturating_duration_since(*t) < REOPEN_WINDOW);
+        if self.reopens.len() >= MAX_REOPENS {
+            eprintln!(
+                "AudioPlaybackManager: not reopening the stream: reopened {} times in {} s",
+                self.reopens.len(),
+                REOPEN_WINDOW.as_secs()
+            );
+            return false;
+        }
+        self.reopens.push(now);
+        match self.open_at(None) {
+            Ok(()) => {
+                eprintln!("AudioPlaybackManager: stream reopened after the engine error");
+                true
+            }
+            Err(e) => {
+                eprintln!("AudioPlaybackManager: reopening the stream failed: {e}");
+                false
+            }
         }
     }
 
@@ -742,6 +915,12 @@ impl CpalEngine {
 
     /// `_openStream`.
     fn open(&mut self) -> Result<(), String> {
+        self.open_at(Some(self.rate_u32()))
+    }
+
+    /// Opens the stream at `rate`, or at the device's current rate (None). The mixer keeps the
+    /// configured rate either way.
+    fn open_at(&mut self, rate: Option<u32>) -> Result<(), String> {
         self.ensure_mixer();
         let device = self
             .registry
@@ -753,7 +932,7 @@ impl CpalEngine {
             .send(HostReq::Open {
                 device,
                 channels: self.channels_u16(),
-                sample_rate: self.rate_u32(),
+                sample_rate: rate,
                 buffer_size: if buffer.is_finite() && buffer > 0.0 {
                     buffer as u32
                 } else {
@@ -762,10 +941,11 @@ impl CpalEngine {
                 state: self.state.clone().ok_or("Audio engine not initialized")?,
                 alive: self.alive.clone(),
                 errors: self.errors.clone(),
+                dropouts: self.dropouts.clone(),
                 reply,
             })
             .map_err(|_| "Audio engine stopped".to_string())?;
-        let name = rx
+        let (name, stream_rate) = rx
             .recv()
             .map_err(|_| "Audio engine stopped".to_string())??;
         self.stream_open = true;
@@ -773,12 +953,11 @@ impl CpalEngine {
             buffer as u32
         } else {
             512
-        }) / f64::from(self.rate_u32().max(1));
+        }) / f64::from(stream_rate.max(1));
         self.init_error = None;
         eprintln!(
-            "AudioPlaybackManager: cpal stream open (audio thread) — {name}, {}ch @ {}Hz, buffer {}",
+            "AudioPlaybackManager: cpal stream open (audio thread) — {name}, {}ch @ {stream_rate}Hz, buffer {}",
             self.channels_u16(),
-            self.rate_u32(),
             jsv::to_number(&self.buffer_size)
         );
         Ok(())
@@ -1276,7 +1455,6 @@ mod tests {
     /// WO-024: a stream that still counts as running but whose callback no longer runs (killed,
     /// the error not yet reported): the status must still include every command sent.
     #[test]
-    #[ignore = "WO-024: settled_report gives up after 200 ms and returns a stale status"]
     fn settled_report_applies_commands_a_stalled_stream_never_took() {
         let mut engine = CpalEngine::new();
         engine.ensure_mixer();
@@ -1291,12 +1469,53 @@ mod tests {
 
     /// WO-028: cpal reports an overload (a dropout) through the error callback; the stream runs on.
     #[test]
-    #[ignore = "WO-028: an overload marks the stream dead and is reported as an engine error"]
     fn an_overload_leaves_the_stream_running() {
         let alive = AtomicBool::new(true);
         let errors = Mutex::new(Vec::new());
-        stream_error(&cpal::ErrorKind::Xrun.into(), &alive, &errors);
+        let dropouts = Dropouts::default();
+        stream_error(&cpal::ErrorKind::Xrun.into(), &alive, &errors, &dropouts);
         assert!(alive.load(Ordering::SeqCst), "stream still counted running");
         assert!(errors.lock().unwrap().is_empty(), "no engine error");
+        assert_eq!(
+            dropouts.underflows.load(Ordering::Relaxed),
+            1,
+            "counted as an underflow"
+        );
+        // A real failure still stops it.
+        stream_error(
+            &cpal::ErrorKind::StreamInvalidated.into(),
+            &alive,
+            &errors,
+            &dropouts,
+        );
+        assert!(!alive.load(Ordering::SeqCst));
+        assert_eq!(errors.lock().unwrap().len(), 1);
+    }
+
+    /// WO-029: a callback more than two periods after the previous one is a late buffer, and
+    /// the counts come out as the worker's log line, then reset.
+    #[test]
+    fn a_late_callback_is_reported_as_a_dropout() {
+        let dropouts = Dropouts::default();
+        let mut clock = CallbackClock::default();
+        let period = Duration::from_millis(10);
+        let t0 = Instant::now();
+        clock.tick(t0, period, &dropouts);
+        clock.tick(t0 + Duration::from_millis(15), period, &dropouts);
+        assert_eq!(
+            dropouts.take_report(DROPOUT_REPORT_INTERVAL),
+            None,
+            "on time: nothing"
+        );
+        clock.tick(t0 + Duration::from_millis(50), period, &dropouts);
+        dropouts.underflows.fetch_add(2, Ordering::Relaxed);
+        assert_eq!(
+            dropouts.take_report(DROPOUT_REPORT_INTERVAL).as_deref(),
+            Some(
+                "WorkerMixer: Audio dropouts in the last 5s: 2 underflow(s) reported by the \
+                 driver, 1 late buffer(s) (worst gap 35.0 ms, buffer period 10.0 ms)"
+            )
+        );
+        assert_eq!(dropouts.take_report(DROPOUT_REPORT_INTERVAL), None, "reset");
     }
 }

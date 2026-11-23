@@ -53,7 +53,7 @@ cannot be proxied route by route. Built in stages inside `rust/app`, switched ov
 | B1 data layer | pathManager, appConfigManager, atomicWrite, mediaLibrary IO, cueDataManager, projectBundle, audioFileManager (metadata) | done 2026-11-22: `rust/app/src/core/` (paths, config, nodefs, library, cues, bundle, audio_files, probe, jsv); differential check vs. Node 303/303 (`node rust/scripts/diff-data.js`), seed round-trips byte for byte |
 | B2 server | server.js, routes/*, middleware, websocketManager, static UI | done 2026-11-22: `rust/app/src/server/`; with `ACCOMPANIMENT_CORE=rust` replay 146/167 (every failure needs B4), smoke 151/267 (every failure needs B4); interim `NoOutputEngine` answers like the original with no output device |
 | B3 cue engine | cueManager (triggers, retrigger, fades, ducking, playlists, crossfade) | done 2026-11-22: `core/cue_engine.rs` + `clock.rs` (injectable clock/timers) + `AudioEngine` trait with a recording fake (`cue_fakes.rs`); differential 245/245 new ops (548/548 with B1) |
-| B4 audio engine | audioPlaybackManager, workerMixer, audioEngineWorker, audioDecoder, pcmCache on cpal + symphonia | claimed by session ce56df02 2026-11-22 (subagent) |
+| B4 audio engine | audioPlaybackManager, workerMixer, audioEngineWorker, audioDecoder, pcmCache on cpal + symphonia | done 2026-11-23: `rust/app/src/audio/` (decode, pcm_cache, devices, engine); decoder 50/50 against Node's (`node rust/scripts/compare-decode.js`); with `ACCOMPANIMENT_CORE=rust` replay 167/167 (fallback 0%), smoke 286/286, e2e 176/176, test:audio and test:audio:ui pass; WO-024 to WO-031 |
 
 Wave C: Tauri tray app replacing `electron-launcher/` (ADR-008), and CI installers (WO-011).
 
@@ -100,6 +100,26 @@ Wave C: Tauri tray app replacing `electron-launcher/` (ADR-008), and CI installe
   - Lift: Windows network interfaces, path rules and bundle temp-file removal; Range on static files;
     non-identity `Content-Encoding` (415 today); nested urlencoded keys; busboy's latin1 filenames.
 
+- From B4 (for the lift and Wave C):
+  - Real-time hygiene: applying a play or queue command allocates on the audio thread (ids, the
+    voice's entry, as the original's worker did), and a decoded buffer the LRU has evicted can be
+    freed inside the callback. Neither measured as a problem (the rendered output had no gaps in the
+    WO-031 probes), but both belong off the audio thread before the lift.
+  - Devices: on macOS the list is CoreAudio's, identical to RtAudio's (names, ids from 129); on
+    Windows and Linux it comes from cpal and the ids only approximate RtAudio's. Windows, Linux
+    and macOS before 14 untested; `build.rs` weak-links CoreAudio so the binary starts below 14.2.
+  - ffmpeg still ships (ADR-018): AAC/M4A, more than 2 channels, MP3 without a Xing/Info/VBRI
+    header and WAV/AIFF with an odd-sized chunk go through it.
+  - After a stream error the engine reopens at the device's current rate (WO-025); the mixer keeps
+    the configured rate, so if another app changed the rate, playback runs at the wrong pitch until
+    the next open - as the original's RtAudio stream does.
+  - `server/engine.rs`' `NoOutputEngine` is no longer used; kept as a fallback.
+  - Known quirk of the original, not reachable once the server listens, no work order:
+    `routes/audio.js`' fallback to `AudioPlaybackManager.listOutputDevices()` aborts the process
+    (the rtaudio.js binding unrefs a handle it never referenced).
+  - `cargo` is in `~/.cargo/bin`, not on a fresh shell's PATH: a build that "succeeds" without it
+    didn't run.
+
 ## Out of scope
 
 `companion-module-highpass-accompaniment/`, `archive/`, Spotify (ADR-002, ADR-003);
@@ -109,6 +129,6 @@ Wave C: Tauri tray app replacing `electron-launcher/` (ADR-008), and CI installe
 ## Open questions
 
 - None open. The owner delegated the open decisions on 2026-11-21 (ADR-016): see ADR-013 and
-  ADR-017 to ADR-019, and work orders WO-013 to WO-022.
+  ADR-017 to ADR-019, and work orders WO-013 to WO-031.
 - Recording must include .flac, .ogg, .m4a and .aac files (done: the seed has one of each).
 

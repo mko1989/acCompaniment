@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | Open |
+| Status | Done |
 | Severity | Low |
 | Feature | Loopback suite: retrigger behaviors (`test/audio/retrigger.test.js`) |
 | Opened | 2026-11-22, by Claude (failed 2 of 8 runs against the Rust core during B4; Node passes narrowly on the same margin) |
@@ -34,6 +34,9 @@ the second press restarts the cue instead of layering (checked by reasoning: one
 ## What has been done
 - 2026-11-22: traced from the B4 runs (the failing takes' slot readings and onset times are in
   `rust/app/B4-NOTES.md`).
+- 2026-11-23: fixed. `test/audio/retrigger.test.js`: the positions heard are merged with their
+  neighbours, keeping the loudest, before counting. The retrigger file passed 15/15 in 5 runs
+  against the Rust core and 5 against Node; test:audio 89/89 against both.
 
 ## Decision
 - 2026-11-22, decided by Claude on the owner's delegation (ADR-016; owner, 2026-11-21: "do the

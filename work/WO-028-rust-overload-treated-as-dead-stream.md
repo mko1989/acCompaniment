@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | Open |
+| Status | Done |
 | Severity | Medium |
 | Feature | Rust port (B4) audio engine: stream errors |
 | Opened | 2026-11-22, by Claude (reading cpal 0.18's CoreAudio host while investigating WO-025) |
@@ -38,6 +38,10 @@ core unchanged.
 ## What has been done
 - 2026-11-22: traced in cpal's source; the error handling moved into `stream_error()` (no change
   in behavior) so it can be tested; reproduction unit test written (`#[ignore]` naming this WO).
+- 2026-11-23: fixed in `stream_error()`: `Xrun` counts an underflow for the dropout report
+  (WO-029), `DeviceChanged` is logged, anything else marks the stream dead as before. The test runs
+  and also checks a real failure still stops the stream. cargo test 40/40; smoke 286/286 (7 runs),
+  e2e 176/176, test:audio 89/89, test:audio:ui 15/15 against the core.
 
 ## Decision
 - 2026-11-22, decided by Claude on the owner's delegation (ADR-016; owner, 2026-11-21: "do the

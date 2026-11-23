@@ -214,12 +214,13 @@ const test = base.test.extend({
         });
 
         for (const take of takes) {
-            const holes = take.holes();
-            if (holes.length) {
-                testInfo.annotations.push({
-                    type: 'dropouts',
-                    description: `${take.name}: ${holes.map((h) => `${h.samples} samples at ${h.atSec.toFixed(3)}s`).join(', ')}`,
-                });
+            // Holes, and input the recorder itself lost by running late (WO-031).
+            const described = [
+                ...take.holes().map((h) => `${h.samples} samples at ${h.atSec.toFixed(3)}s`),
+                ...take.lateInput().map((l) => `recorder ${l.gapMs.toFixed(0)} ms late at ${l.atSec.toFixed(3)}s`),
+            ];
+            if (described.length) {
+                testInfo.annotations.push({ type: 'dropouts', description: `${take.name}: ${described.join(', ')}` });
             }
         }
         await request('POST', '/api/cues/stop-all', { behavior: 'stop' });
