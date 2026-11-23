@@ -815,7 +815,13 @@ mod tests {
             let st = sup.inner.lock();
             st.running && st.pid.is_some_and(|p| p != pid)
         });
-        assert!(env.log().contains("exited (code null)"), "{}", env.log());
+        // Killed: no exit code on Unix (a signal); on Windows `taskkill /F` exits it with 1.
+        let killed = if cfg!(windows) {
+            "exited (code 1)"
+        } else {
+            "exited (code null)"
+        };
+        assert!(env.log().contains(killed), "{}", env.log());
         sup.shutdown();
         assert_eq!(probe_health(env.port), Health::Refused);
     }

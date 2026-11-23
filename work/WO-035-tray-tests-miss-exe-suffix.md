@@ -25,6 +25,10 @@ the Windows CI runner.
 ## What has been done
 - 2026-11-23: fixed as proposed. Not built locally (not enough disk on this Mac for the tray's
   build); CI to confirm.
+- 2026-11-23: CI run 45274205089: 6 of 7 pass on Windows. The seventh,
+  "restarts_a_crashed_server", restarted the server correctly but expected the Unix log line
+  "exited (code null)"; a server killed by `taskkill /F` exits with code 1 (as under Node).
+  The test now expects the platform's line. CI to confirm.
 
 ## Decision
 - 2026-11-23, Claude on the owner's delegation (ADR-016): fix as proposed (tests only).

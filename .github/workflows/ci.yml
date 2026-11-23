@@ -77,7 +77,9 @@ jobs:
           done
       - run: npm run test:unit
       - run: npm run test:smoke
+        if: success() || failure()   # every suite reports, even after another failed
       - run: npm run test:e2e
+        if: success() || failure()   # every suite reports, even after another failed
       - name: Keep the Playwright traces of failed tests
         if: failure()
         uses: actions/upload-artifact@v4
