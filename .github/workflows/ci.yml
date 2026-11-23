@@ -51,6 +51,24 @@ jobs:
       - run: npm run build
       - name: Stage the server as the tray's sidecar (tauri-build checks it exists)
         run: node scripts/stage-sidecar.js
+      - name: The server starts and answers (its output, for the first runs on a platform)
+        shell: bash
+        run: |
+          bin=rust/app/target/release/accompaniment
+          PORT=3399 ACCOMPANIMENT_DATA_DIR="$RUNNER_TEMP/accompaniment-start" "$bin" > "$RUNNER_TEMP/server.log" 2>&1 &
+          pid=$!
+          ok=
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:3399/api/remote/health > /dev/null; then ok=1; break; fi
+            sleep 0.5
+          done
+          curl -s http://127.0.0.1:3399/api/audio/output-devices || true
+          echo
+          kill $pid 2>/dev/null || true
+          sleep 1
+          echo "--- server output:"
+          cat "$RUNNER_TEMP/server.log"
+          [ -n "$ok" ] || { echo "the server did not answer in 30 s"; exit 1; }
       - name: fmt and clippy
         shell: bash
         run: |

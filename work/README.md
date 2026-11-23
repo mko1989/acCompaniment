@@ -41,3 +41,4 @@ work orders" in [CLAUDE.md](../CLAUDE.md) for the workflow and template.
 | [WO-034](WO-034-replace-test-needs-ffmpeg-on-path.md) | The smoke test "Replace with a different file type..." needs an ffmpeg on the PATH | Low | Done | - (tests only) |
 | [WO-035](WO-035-tray-tests-miss-exe-suffix.md) | The tray's supervisor tests look for the server without `.exe` on Windows | Low | In progress | - (tests only) |
 | [WO-036](WO-036-persisted-test-reads-temp-file.md) | The smoke test "the created cue was persisted to disk" can read a save's temp file after it is renamed | Low | Done | - (tests only) |
+| [WO-037](WO-037-linux-playback-position-lags.md) | On Linux (CI, PulseAudio null sink) the playback position lags the clock | Medium | Open | - (on hold with Linux) |
