@@ -97,6 +97,24 @@ npm run bundle:tray                      # the installable app: rust/tray/target
 styles its window through Finder; without automation access (an SSH or CI session) run it as
 `CI=true npm run bundle:tray`.
 
+`npm run bundle:tray:mac-universal` builds one macOS app for Intel and Apple Silicon (needs
+`rustup target add x86_64-apple-darwin aarch64-apple-darwin`).
+
+### Headless Linux
+
+For a Linux machine without a desktop (a rack PC, a Raspberry Pi 4/5 with a 64-bit OS): the
+server alone, with its browser UI and ffmpeg, installed as a systemd service.
+`npm run package:headless` (on Linux; `ci/linux-check.sh package:headless` builds it in Docker
+from a Mac) makes `dist/accompaniment-<version>-linux-<arch>.tar.gz`; on the target machine:
+
+```bash
+tar xzf accompaniment-*-linux-*.tar.gz && cd accompaniment-*-linux-*/
+sudo ./install.sh        # /opt/accompaniment, data in /var/lib/accompaniment, starts at boot
+```
+
+Then open `http://<machine>:3333` from any browser on the network. The package's `README.txt`
+(from `packaging/linux-headless/`) covers settings, logs, audio and removal.
+
 ## Usage
 
 1. **Adding Cues:** Drag and drop audio files onto the main grid area to create cues
@@ -167,6 +185,9 @@ styles its window through Finder; without automation access (an SSH or CI sessio
 
 *   `npm run build` - Build the server (`cargo build --release`)
 *   `npm run build:tray` / `npm run bundle:tray` - Build the tray app / its installable bundle
+*   `npm run package:headless` - The headless Linux package (on Linux)
+*   `ci/linux-check.sh [npm scripts...]` - Build and test on Linux in Docker (default:
+    `test:unit test:smoke`)
 *   `npm start` - Build and run it
 *   `npm test` - Build, then the unit tests (Rust and the test tooling's), the API/WebSocket
     smoke tests and the browser end-to-end tests

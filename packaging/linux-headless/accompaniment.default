@@ -1,0 +1,12 @@
+# Settings for the acCompaniment service (/etc/default/accompaniment).
+# Restart after a change: sudo systemctl restart accompaniment
+
+# The HTTP / WebSocket port. Without it the server uses the port saved in the app's settings
+# (httpRemotePort, default 3333).
+#PORT=3333
+
+# The address to listen on. Default: every interface (needed for remote control and Companion).
+#HOST=0.0.0.0
+
+# Where projects, media and settings live.
+#ACCOMPANIMENT_DATA_DIR=/var/lib/accompaniment

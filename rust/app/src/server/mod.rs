@@ -122,12 +122,19 @@ pub async fn op<R: Send + 'static>(
     }
 }
 
+/// The browser UI: `ACCOMPANIMENT_FRONTEND_DIR`; a `frontend/` folder beside the binary (an
+/// installed server, e.g. the headless Linux package); the repo's `src/frontend` (development).
 fn frontend_dir() -> PathBuf {
-    std::env::var_os("ACCOMPANIMENT_FRONTEND_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../../src/frontend"))
-        })
+    if let Some(dir) = std::env::var_os("ACCOMPANIMENT_FRONTEND_DIR") {
+        return PathBuf::from(dir);
+    }
+    if let Ok(me) = std::env::current_exe()
+        && let Some(beside) = me.parent().map(|d| d.join("frontend"))
+        && beside.join("index.html").is_file()
+    {
+        return beside;
+    }
+    PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../../src/frontend"))
 }
 
 fn data_dir() -> String {

@@ -1,0 +1,119 @@
+# Installers for every platform, built each on its own runner (WO-011's lesson), attached to a
+# draft GitHub release for the tag. macOS: one universal .app/.dmg (unsigned unless the signing
+# secrets below are set). Windows: NSIS and MSI. Linux: .deb, .rpm, AppImage (x64), and the
+# headless server package (x64, arm64).
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            script: bundle:tray:mac-universal
+            out: rust/tray/target/universal-apple-darwin/release/bundle
+          - os: windows-latest
+            script: bundle:tray
+            out: rust/tray/target/release/bundle
+          - os: ubuntu-22.04
+            script: bundle:tray
+            out: rust/tray/target/release/bundle
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ runner.os == 'macOS' && 'x86_64-apple-darwin,aarch64-apple-darwin' || '' }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            rust/app
+            rust/tray
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: tauri-cli@2
+      - name: Linux packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
+      - run: npm ci
+      - run: npm run fetch:ffmpeg
+      - name: Bundle
+        run: npm run ${{ matrix.script }}
+        env:
+          CI: 'true'
+          # macOS signing and notarization, used when set (Tauri reads these):
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: acCompaniment-${{ runner.os }}
+          path: |
+            ${{ matrix.out }}/dmg/*.dmg
+            ${{ matrix.out }}/nsis/*.exe
+            ${{ matrix.out }}/msi/*.msi
+            ${{ matrix.out }}/deb/*.deb
+            ${{ matrix.out }}/rpm/*.rpm
+            ${{ matrix.out }}/appimage/*.AppImage
+          if-no-files-found: error
+
+  headless:
+    # The server alone for Linux machines without a desktop (packaging/linux-headless/).
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            arch: x64
+          - os: ubuntu-22.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust/app
+      - run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - run: node scripts/fetch-ffmpeg.js linux
+      - run: npm run package:headless
+      - uses: actions/upload-artifact@v4
+        with:
+          name: acCompaniment-headless-linux-${{ matrix.arch }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  release:
+    needs: [bundle, headless]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: dist/*

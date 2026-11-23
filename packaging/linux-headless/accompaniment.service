@@ -1,0 +1,26 @@
+[Unit]
+Description=acCompaniment soundboard server
+Documentation=file:///opt/accompaniment/README.txt
+After=network-online.target sound.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=accompaniment
+Group=accompaniment
+SupplementaryGroups=audio
+StateDirectory=accompaniment
+Environment=ACCOMPANIMENT_DATA_DIR=/var/lib/accompaniment
+Environment=HOME=/var/lib/accompaniment
+EnvironmentFile=-/etc/default/accompaniment
+ExecStart=/opt/accompaniment/accompaniment
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=10
+# Audio wants to run on time.
+Nice=-10
+LimitRTPRIO=95
+LimitMEMLOCK=infinity
+
+[Install]
+WantedBy=multi-user.target

@@ -64,6 +64,12 @@ What the recording taught (keep in mind when reading a replay failure):
   running, orphaned (PPID 1, absolute paths into `rust/app/target/release/`); not from the tray.
   If test runs keep leaving servers behind, open a work order.
 
+- Linux (2026-11-23): on hold (see MAP.md "Wave C"). `ci/linux-check.sh` builds and tests in
+  Docker from a Mac, but needs ~40 GB of Docker disk; Docker Hub pulls and github.com don't work
+  from inside this Mac's containers, so the image starts from the cached `ubuntu:22.04` and
+  ffmpeg is mounted from `vendor/`. The Linux build of the tray app hit a full disk; not run.
+- The macOS DMG step: `CI=true` (Finder styling times out without automation access).
+
 ## Next
 
 1. Wave C, the rest (MAP.md "Wave C" -> left): universal macOS build and signing, the first

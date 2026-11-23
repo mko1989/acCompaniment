@@ -1,0 +1,51 @@
+# The server and the tray app on every platform (ADR-009): build, Rust tests, fmt/clippy, the
+# smoke suite and the browser suites. CI runners have no audio device: the server must still
+# start and answer (WO-012's case); the loopback audio suites need one and are run by hand.
+name: CI
+
+on:
+  push:
+    branches: [main, rust-port]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            rust/app
+            rust/tray
+      - name: Linux packages (ALSA; WebKitGTK and appindicator for the tray)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev lsof
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run fetch:ffmpeg
+      - run: npm run build
+      - name: Stage the server as the tray's sidecar (tauri-build checks it exists)
+        run: node scripts/stage-sidecar.js
+      - name: fmt and clippy
+        shell: bash
+        run: |
+          for crate in rust/app rust/tray; do
+            (cd $crate && cargo fmt --check && cargo clippy --release --all-targets -- -D warnings)
+          done
+      - run: npm run test:unit
+      - run: npm run test:smoke
+      - run: npm run test:e2e

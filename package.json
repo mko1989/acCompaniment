@@ -10,6 +10,8 @@
     "build": "cargo build --release --manifest-path rust/app/Cargo.toml",
     "build:tray": "npm run build && node scripts/stage-sidecar.js && cargo build --release --manifest-path rust/tray/Cargo.toml",
     "bundle:tray": "npm run build && node scripts/stage-sidecar.js && cd rust/tray && cargo tauri build",
+    "bundle:tray:mac-universal": "cargo build --release --target x86_64-apple-darwin --manifest-path rust/app/Cargo.toml && cargo build --release --target aarch64-apple-darwin --manifest-path rust/app/Cargo.toml && node scripts/stage-sidecar.js --universal && cd rust/tray && cargo tauri build --target universal-apple-darwin",
+    "package:headless": "npm run build && node scripts/package-headless.js",
     "start": "npm run build && rust/app/target/release/accompaniment",
     "test": "npm run build && npm run test:unit && npm run test:smoke && npm run test:e2e",
     "test:rust": "cargo test --release --manifest-path rust/app/Cargo.toml && cargo test --release --manifest-path rust/tray/Cargo.toml",

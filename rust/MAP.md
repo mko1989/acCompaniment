@@ -73,9 +73,20 @@ own runner).
   a stubbed Tauri backend). macOS: `npm run bundle:tray` builds the `.app` and the DMG (x64 on
   this Mac; `CI=true` skips the Finder styling, which times out without automation access); the
   bundled app serves its own `frontend/` and ffmpeg - checked by running it.
+- done 2026-11-23: macOS universal (`npm run bundle:tray:mac-universal`; app, server and ffmpeg
+  all x86_64 + arm64; the x86_64 half run here). GitHub workflows written, not yet run:
+  `.github/workflows/ci.yml` (tests on macOS, Windows, Linux), `release.yml` (installers per
+  platform + the headless Linux package, on a `v*` tag, to a draft release).
+- headless Linux (owner, 2026-11-23: "I need a headless Linux version too"): the server alone,
+  with its UI and ffmpeg, as a systemd service (`packaging/linux-headless/`,
+  `npm run package:headless`); the server now also finds `frontend/` beside its binary. On
+  Ubuntu 22.04 in Docker (`ci/linux-check.sh`): the server builds, `cargo test` passes, the
+  x64 tarball was made. Not yet done: the tarball run on a clean machine, the smoke suite on
+  Linux, the tray app on Linux - put on hold by the owner 2026-11-23 (Docker needs more disk
+  than this Mac has; "let's leave the Linux version for now"). CI's Linux jobs will cover them.
 - left:
-  - macOS: a universal build (both targets, `lipo` the server; `TAURI_TARGET_TRIPLE` /
-    `--target universal-apple-darwin`), signing and notarization;
+  - macOS: signing and notarization (needs the owner's Apple Developer ID; release.yml reads the
+    `APPLE_*` secrets);
   - first runs on Windows and Linux: build, the smoke suite, the tray, device listing (ids only
     approximate RtAudio's there), a Windows machine without audio devices (WO-012's case);
     `core/nodefs.rs`'s Windows path rules (below); Linux arm64 needs its own ffmpeg in
