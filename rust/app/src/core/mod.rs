@@ -10,6 +10,7 @@ pub mod cues;
 pub mod jsv;
 pub mod library;
 pub mod nodefs;
+pub mod nodepath_win32;
 pub mod paths;
 pub mod probe;
 

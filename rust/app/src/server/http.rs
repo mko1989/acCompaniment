@@ -350,6 +350,21 @@ fn content_type(path: &Path) -> &'static str {
     }
 }
 
+/// The decoded request path's segments, or `None` for one that leaves the root (send's 403).
+/// On Windows `\\` separates too, as Node's `path` there treats it (WO-039), and a segment with a
+/// `:` (a drive, `C:`) is refused: pushed onto the root it would replace it.
+fn static_segments(decoded: &str, windows: bool) -> Option<Vec<&str>> {
+    let segments: Vec<&str> = if windows {
+        decoded.split(['/', '\\']).collect()
+    } else {
+        decoded.split('/').collect()
+    };
+    if segments.contains(&"..") || (windows && segments.iter().any(|s| s.contains(':'))) {
+        return None;
+    }
+    Some(segments)
+}
+
 /// What `express.static(root)` does with a GET/HEAD: a response, or `None` to fall through
 /// (missing files, dotfiles, `..`, and every other client error: `fallthrough: true`).
 pub async fn serve_static(root: &Path, raw_path: &str, headers: &HeaderMap) -> Option<Response> {
@@ -357,10 +372,9 @@ pub async fn serve_static(root: &Path, raw_path: &str, headers: &HeaderMap) -> O
     if decoded.contains('\0') {
         return None;
     }
-    let segments: Vec<&str> = decoded.split('/').collect();
-    if segments.contains(&"..") {
+    let Some(segments) = static_segments(&decoded, cfg!(windows)) else {
         return None; // send: 403, which falls through
-    }
+    };
     if segments.iter().any(|s| s.starts_with('.') && !s.is_empty()) {
         return None; // dotfiles: 'ignore'
     }
@@ -463,4 +477,24 @@ pub async fn send_file(
     h.insert(header::LAST_MODIFIED, hv(&last_modified));
     h.insert(header::ETAG, hv(&etag));
     Some(r)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn static_paths_cannot_leave_the_root_on_windows() {
+        // WO-039: `/..%5c..%5cWindows%5cwin.ini` decodes to a backslash path.
+        assert_eq!(static_segments("/..\\..\\Windows\\win.ini", true), None);
+        assert_eq!(static_segments("/C:\\Windows\\win.ini", true), None);
+        assert_eq!(static_segments("/assets/C:x.png", true), None);
+        assert_eq!(
+            static_segments("/assets\\app.js", true),
+            Some(vec!["", "assets", "app.js"])
+        );
+        // Elsewhere a backslash is an ordinary character in a file name, as in Node.
+        assert_eq!(static_segments("/..\\x", false), Some(vec!["", "..\\x"]));
+        assert_eq!(static_segments("/a/../b", false), None);
+    }
 }

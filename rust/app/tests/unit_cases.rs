@@ -7,8 +7,8 @@
 //! is counted as skipped, and each file must still run nearly all of its cases.
 
 use accompaniment::core::{
-    cue_aliases, id_validation, lru_cache, media_names, output_patch, playlist_logic,
-    retrigger_logic, soundboard_mixer,
+    cue_aliases, id_validation, lru_cache, media_names, nodepath_win32, output_patch,
+    playlist_logic, retrigger_logic, soundboard_mixer,
 };
 use accompaniment::js;
 use serde_json::Value;
@@ -235,4 +235,53 @@ fn retrigger_logic_cases() {
 #[test]
 fn soundboard_mixer_cases() {
     run_file("soundboard-mixer");
+}
+
+/// Node's `path.win32` (WO-038), recorded by `rust/scripts/record-path-win32.js` with the working
+/// directory and per-drive working directories pinned in each case.
+#[test]
+fn path_win32_cases() {
+    let path = format!(
+        "{}/tests/unit-cases/path-win32.jsonl",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path}: {e}"));
+    let mut failures = Vec::new();
+    let mut ran = 0;
+    for (n, line) in text.lines().enumerate() {
+        let case: Value = serde_json::from_str(line).unwrap_or_else(|e| panic!("{path}:{n}: {e}"));
+        let args: Vec<&str> = case["args"]
+            .as_array()
+            .map(|a| a.iter().filter_map(Value::as_str).collect())
+            .unwrap_or_default();
+        let cwd = case["cwd"].as_str().unwrap_or_default().to_string();
+        let drives = case["driveCwd"].clone();
+        let drive_cwd = |d: &str| drives.get(d).and_then(Value::as_str).map(str::to_string);
+        let a = |i: usize| args.get(i).copied().unwrap_or_default();
+        let got = match case["fn"].as_str().unwrap_or_default() {
+            "normalize" => Value::from(nodepath_win32::normalize(a(0))),
+            "isAbsolute" => Value::from(nodepath_win32::is_absolute(a(0))),
+            "dirname" => Value::from(nodepath_win32::dirname(a(0))),
+            "basename" => Value::from(nodepath_win32::basename(a(0), args.get(1).copied())),
+            "extname" => Value::from(nodepath_win32::extname(a(0))),
+            "join" => Value::from(nodepath_win32::join(&args)),
+            "resolve" => Value::from(nodepath_win32::resolve_with(&args, &cwd, &drive_cwd)),
+            "relative" => Value::from(nodepath_win32::relative_with(a(0), a(1), &cwd, &drive_cwd)),
+            other => panic!("no runner for `{other}`"),
+        };
+        ran += 1;
+        if Some(&got) != case.get("ok") && failures.len() < 15 {
+            failures.push(format!(
+                "line {}: {} -> {got}\n  recorded {line}",
+                n + 1,
+                case["fn"]
+            ));
+        }
+    }
+    eprintln!("path-win32: {ran} cases ran");
+    assert!(
+        failures.is_empty(),
+        "path-win32 mismatches:\n{}",
+        failures.join("\n")
+    );
 }

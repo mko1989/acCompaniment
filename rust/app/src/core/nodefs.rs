@@ -2,8 +2,8 @@
 //! messages, plus `writeJsonAtomic` (`src/backend/utils/atomicWrite.js`).
 //!
 //! Paths stay strings, exactly as the original builds them: a relative `ACCOMPANIMENT_DATA_DIR`
-//! gives relative paths in metadata records, as it does in Node. Windows paths are not handled
-//! (POSIX only, like the recording).
+//! gives relative paths in metadata records, as it does in Node. On Windows the path functions
+//! are Node's `path.win32` (`nodepath_win32.rs`, WO-038), elsewhere `path.posix`.
 
 use std::fs;
 use std::io::{self, Write};
@@ -14,10 +14,93 @@ use std::time::SystemTime;
 use serde_json::Value;
 
 use super::jsv;
+use super::nodepath_win32 as win32;
 
 const SEP: u8 = b'/';
 
-// ---- path -------------------------------------------------------------------------------------
+// Node's `path` is `path.win32` on Windows (WO-038): the same choice here.
+
+/// `path.resolve(...paths)`.
+pub fn resolve(paths: &[&str]) -> String {
+    if cfg!(windows) {
+        win32::resolve(paths)
+    } else {
+        posix_resolve(paths)
+    }
+}
+
+pub fn resolve1(p: &str) -> String {
+    resolve(&[p])
+}
+
+/// `path.normalize(path)`.
+pub fn normalize(path: &str) -> String {
+    if cfg!(windows) {
+        win32::normalize(path)
+    } else {
+        posix_normalize(path)
+    }
+}
+
+/// `path.join(...paths)`.
+pub fn join(paths: &[&str]) -> String {
+    if cfg!(windows) {
+        win32::join(paths)
+    } else {
+        posix_join(paths)
+    }
+}
+
+pub fn join2(a: &str, b: &str) -> String {
+    join(&[a, b])
+}
+
+/// `path.isAbsolute(path)`.
+pub fn is_absolute(p: &str) -> bool {
+    if cfg!(windows) {
+        win32::is_absolute(p)
+    } else {
+        posix_is_absolute(p)
+    }
+}
+
+/// `path.relative(from, to)`.
+pub fn relative(from: &str, to: &str) -> String {
+    if cfg!(windows) {
+        win32::relative(from, to)
+    } else {
+        posix_relative(from, to)
+    }
+}
+
+/// `path.dirname(path)`.
+pub fn dirname(path: &str) -> String {
+    if cfg!(windows) {
+        win32::dirname(path)
+    } else {
+        posix_dirname(path)
+    }
+}
+
+/// `path.basename(path, suffix?)`.
+pub fn basename(path: &str, suffix: Option<&str>) -> String {
+    if cfg!(windows) {
+        win32::basename(path, suffix)
+    } else {
+        posix_basename(path, suffix)
+    }
+}
+
+/// `path.extname(path)`.
+pub fn extname(path: &str) -> String {
+    if cfg!(windows) {
+        win32::extname(path)
+    } else {
+        posix_extname(path)
+    }
+}
+
+// ---- path.posix ---------------------------------------------------------------------------------
 
 fn normalize_string(path: &str, allow_above_root: bool) -> String {
     let p = path.as_bytes();
@@ -98,7 +181,7 @@ fn normalize_string(path: &str, allow_above_root: bool) -> String {
 }
 
 /// `path.resolve(...paths)`.
-pub fn resolve(paths: &[&str]) -> String {
+fn posix_resolve(paths: &[&str]) -> String {
     let mut resolved = String::new();
     let mut absolute = false;
     let cwd = std::env::current_dir()
@@ -128,12 +211,8 @@ pub fn resolve(paths: &[&str]) -> String {
     }
 }
 
-pub fn resolve1(p: &str) -> String {
-    resolve(&[p])
-}
-
 /// `path.normalize(path)`.
-pub fn normalize(path: &str) -> String {
+fn posix_normalize(path: &str) -> String {
     if path.is_empty() {
         return ".".into();
     }
@@ -153,29 +232,25 @@ pub fn normalize(path: &str) -> String {
 }
 
 /// `path.join(...paths)`.
-pub fn join(paths: &[&str]) -> String {
+fn posix_join(paths: &[&str]) -> String {
     let parts: Vec<&str> = paths.iter().copied().filter(|p| !p.is_empty()).collect();
     if parts.is_empty() {
         return ".".into();
     }
-    normalize(&parts.join("/"))
+    posix_normalize(&parts.join("/"))
 }
 
-pub fn join2(a: &str, b: &str) -> String {
-    join(&[a, b])
-}
-
-pub fn is_absolute(p: &str) -> bool {
+fn posix_is_absolute(p: &str) -> bool {
     p.starts_with('/')
 }
 
 /// `path.relative(from, to)`.
-pub fn relative(from: &str, to: &str) -> String {
+fn posix_relative(from: &str, to: &str) -> String {
     if from == to {
         return String::new();
     }
-    let from = resolve1(from);
-    let to = resolve1(to);
+    let from = posix_resolve(&[from]);
+    let to = posix_resolve(&[to]);
     if from == to {
         return String::new();
     }
@@ -227,7 +302,7 @@ pub fn relative(from: &str, to: &str) -> String {
 }
 
 /// `path.dirname(path)`.
-pub fn dirname(path: &str) -> String {
+fn posix_dirname(path: &str) -> String {
     let p = path.as_bytes();
     if p.is_empty() {
         return ".".into();
@@ -257,7 +332,7 @@ pub fn dirname(path: &str) -> String {
 }
 
 /// `path.basename(path, suffix?)`.
-pub fn basename(path: &str, suffix: Option<&str>) -> String {
+fn posix_basename(path: &str, suffix: Option<&str>) -> String {
     let p = path.as_bytes();
     let mut start = 0usize;
     let mut end: isize = -1;
@@ -327,7 +402,7 @@ fn slice_bytes(s: &str, start: usize, end: usize) -> String {
 }
 
 /// `path.extname(path)`.
-pub fn extname(path: &str) -> String {
+fn posix_extname(path: &str) -> String {
     let p = path.as_bytes();
     let mut start_dot: isize = -1;
     let mut start_part: isize = 0;
@@ -621,19 +696,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn node_path() {
-        assert_eq!(extname("a."), ".");
-        assert_eq!(extname(".mp3"), "");
-        assert_eq!(extname("..mp3"), ".mp3");
-        assert_eq!(extname("x..mp3"), ".mp3");
-        assert_eq!(basename("/a/b/Song.mp3", Some(".mp3")), "Song");
-        assert_eq!(basename("dir/", None), "dir");
-        assert_eq!(normalize("a/../../b/./c/"), "../b/c/");
-        assert_eq!(join(&["a", "", "/b", ".."]), "a");
-        assert_eq!(relative("/data/audio", "/data/audio/x/y.wav"), "x/y.wav");
-        assert_eq!(relative("/data/audio", "/data/other"), "../other");
-        assert_eq!(dirname("/a/b/c"), "/a/b");
-        assert_eq!(dirname("a"), ".");
-        assert_eq!(resolve(&["/x", "../y", "z"]), "/y/z");
+    /// `path.posix` (the Windows rules are checked by tests/unit_cases.rs, path-win32).
+    fn node_path_posix() {
+        assert_eq!(posix_extname("a."), ".");
+        assert_eq!(posix_extname(".mp3"), "");
+        assert_eq!(posix_extname("..mp3"), ".mp3");
+        assert_eq!(posix_extname("x..mp3"), ".mp3");
+        assert_eq!(posix_basename("/a/b/Song.mp3", Some(".mp3")), "Song");
+        assert_eq!(posix_basename("dir/", None), "dir");
+        assert_eq!(posix_normalize("a/../../b/./c/"), "../b/c/");
+        assert_eq!(posix_join(&["a", "", "/b", ".."]), "a");
+        assert_eq!(
+            posix_relative("/data/audio", "/data/audio/x/y.wav"),
+            "x/y.wav"
+        );
+        assert_eq!(posix_relative("/data/audio", "/data/other"), "../other");
+        assert_eq!(posix_dirname("/a/b/c"), "/a/b");
+        assert_eq!(posix_dirname("a"), ".");
+        assert_eq!(posix_resolve(&["/x", "../y", "z"]), "/y/z");
     }
 }

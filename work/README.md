@@ -42,3 +42,7 @@ work orders" in [CLAUDE.md](../CLAUDE.md) for the workflow and template.
 | [WO-035](WO-035-tray-tests-miss-exe-suffix.md) | The tray's supervisor tests look for the server without `.exe` on Windows | Low | In progress | - (tests only) |
 | [WO-036](WO-036-persisted-test-reads-temp-file.md) | The smoke test "the created cue was persisted to disk" can read a save's temp file after it is renamed | Low | Done | - (tests only) |
 | [WO-037](WO-037-linux-playback-position-lags.md) | On Linux (CI, PulseAudio null sink) the playback position lags the clock | Medium | Open | - (on hold with Linux) |
+| [WO-038](WO-038-windows-paths-not-recognised.md) | On Windows the server can't start: absolute Windows paths are taken as relative | Critical | In progress | - (Windows) |
+| [WO-039](WO-039-windows-static-path-traversal.md) | On Windows a request with `..\` could read files outside the browser UI folder | High | In progress | - (Windows; security) |
+| [WO-040](WO-040-typing-caret-jumps-on-update.md) | The cursor in a properties field can jump to the start when another cue is updated while typing | Medium | Open | - (intermittent) |
+| [WO-041](WO-041-trim-drag-not-saved.md) | Dragging the trim region on the waveform is sometimes not saved | Medium | Open | - (intermittent) |
