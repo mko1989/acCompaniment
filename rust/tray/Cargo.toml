@@ -1,0 +1,24 @@
+[package]
+name = "accompaniment-tray"
+version = "0.3.0"
+edition = "2024"
+description = "acCompaniment's tray app: runs the server and opens its browser UI (ADR-022)"
+publish = false
+
+[[bin]]
+name = "acCompaniment"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-opener = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-dialog = "2"
+ctrlc = { version = "3", features = ["termination"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+
+[workspace]

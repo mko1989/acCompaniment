@@ -8,9 +8,11 @@
   "license": "MIT",
   "scripts": {
     "build": "cargo build --release --manifest-path rust/app/Cargo.toml",
+    "build:tray": "npm run build && node scripts/stage-sidecar.js && cargo build --release --manifest-path rust/tray/Cargo.toml",
+    "bundle:tray": "npm run build && node scripts/stage-sidecar.js && cd rust/tray && cargo tauri build",
     "start": "npm run build && rust/app/target/release/accompaniment",
     "test": "npm run build && npm run test:unit && npm run test:smoke && npm run test:e2e",
-    "test:rust": "cargo test --release --manifest-path rust/app/Cargo.toml",
+    "test:rust": "cargo test --release --manifest-path rust/app/Cargo.toml && cargo test --release --manifest-path rust/tray/Cargo.toml",
     "test:unit": "npm run test:rust && node --test test/unit/*.test.js",
     "test:smoke": "node --test test/*.test.js",
     "test:e2e": "playwright test",

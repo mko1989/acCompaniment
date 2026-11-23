@@ -1,0 +1,4 @@
+/target/
+/gen/
+# Staged by `npm run build:tray` (the server binary, named for its target triple).
+/binaries/

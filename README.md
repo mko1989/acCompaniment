@@ -3,8 +3,8 @@
 **acCompaniment** is a professional soundboard application designed for live performance, broadcasting, and advanced audio cue management. It runs as one native audio server, written in Rust, with a browser-based UI, and offers robust control over audio playback, extensive customization options, and integration capabilities with Bitfocus Companion.
 
 > This branch is the Rust version: the server and audio engine were ported from the Node.js app
-> (see `rust/MAP.md` and `rust/DECISIONS.md`). A system-tray launcher and installers are not
-> there yet (Wave C); until then the server runs from a terminal.
+> (see `rust/MAP.md` and `rust/DECISIONS.md`). The tray app (`rust/tray/`) builds a macOS app
+> and DMG; Windows and Linux installers and a release workflow are still to do (Wave C).
 
 ## Features
 
@@ -82,6 +82,21 @@ Then open http://localhost:3333. Settings: `PORT` (default 3333, or the port in 
 `ACCOMPANIMENT_FRONTEND_DIR` (default the repo's `src/frontend`), `FFMPEG_PATH`.
 `npm start` builds and runs it in one step.
 
+The tray app (`rust/tray/`, Tauri) runs the server for you and lives in the menu bar / system
+tray: status, port, Open Browser UI, Configuration (change the port), Show Logs, Open Data
+Directory, Quit. It restarts the server after a crash, adopts a server already running on its
+port, and writes the server's output to `<data dir>/logs/accompaniment-server.log`.
+
+```bash
+npm run build:tray                       # the server + the tray app (development build)
+rust/tray/target/release/acCompaniment   # finds the server it just built
+npm run bundle:tray                      # the installable app: rust/tray/target/release/bundle/
+```
+
+`bundle:tray` needs `cargo install tauri-cli --version ^2 --locked` once. On macOS the DMG step
+styles its window through Finder; without automation access (an SSH or CI session) run it as
+`CI=true npm run bundle:tray`.
+
 ## Usage
 
 1. **Adding Cues:** Drag and drop audio files onto the main grid area to create cues
@@ -138,6 +153,8 @@ Then open http://localhost:3333. Settings: `PORT` (default 3333, or the port in 
 - `rust/app/` — the server: `src/server/` (HTTP, WebSocket), `src/core/` (cues, projects, media
   library, cue engine, playlist and retrigger logic, the mixer), `src/audio/` (devices,
   decoding, output)
+- `rust/tray/` — the tray app (Tauri): `src/supervisor.rs` runs the server, `ui/config.html` is
+  the configuration window
 - `rust/` — the port's records: `MAP.md` (plan and state), `DECISIONS.md` (ADRs),
   `HANDOFF.md`, `app-cases/` (recorded HTTP behavior), `research/`
 - `src/frontend/` — browser UI
@@ -149,15 +166,18 @@ Then open http://localhost:3333. Settings: `PORT` (default 3333, or the port in 
 ### Available Scripts
 
 *   `npm run build` - Build the server (`cargo build --release`)
+*   `npm run build:tray` / `npm run bundle:tray` - Build the tray app / its installable bundle
 *   `npm start` - Build and run it
 *   `npm test` - Build, then the unit tests (Rust and the test tooling's), the API/WebSocket
     smoke tests and the browser end-to-end tests
 *   `npm run test:rust` - `cargo test`: the server's Rust tests, including the recorded cases of
-    the pure logic (`rust/app/tests/unit_cases.rs`)
+    the pure logic (`rust/app/tests/unit_cases.rs`), and the tray app's (its supervisor, against
+    the real server binary)
 *   `npm run test:smoke` - The API/WebSocket tests (`test/*.test.js`): each file starts its own
     server against an isolated temp data directory
 *   `npm run test:e2e` - The browser UI in Playwright (`test/e2e/`; each worker runs its own
-    server and every test starts from a clean slate)
+    server and every test starts from a clean slate), and the tray's config window
+    (`test/tray/`)
 *   `npm run test:audio` - The loopback audio suite (`test/audio/`): the server plays to a
     loopback audio device and the tests record what comes back, checking every playback option
     by ear - volume, fades, trims, loops, output routing, every retrigger behavior, pause, Stop

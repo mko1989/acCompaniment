@@ -1,0 +1,8 @@
+{
+  "bundle": {
+    "resources": {
+      "../../src/frontend/": "frontend/",
+      "../../vendor/ffmpeg/linux-x64/ffmpeg": "ffmpeg/ffmpeg"
+    }
+  }
+}

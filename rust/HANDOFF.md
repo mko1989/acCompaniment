@@ -49,10 +49,25 @@ What the recording taught (keep in mind when reading a replay failure):
 - `/api/config/network`-style output and `/api/audio/output-devices` are machine-specific:
   replay on this Mac only, or drop those cases before a CI replay.
 
+## Wave C so far (2026-11-23)
+
+- `rust/tray/` - the Tauri 2 tray app (ADR-022, MAP.md "Wave C"). `npm run build:tray` builds
+  the server, stages it as the sidecar (`scripts/stage-sidecar.js` ->
+  `rust/tray/binaries/accompaniment-server-<triple>`) and builds the tray; tauri-build copies the
+  sidecar next to it in `target/release/`. `npm run bundle:tray` (tauri-cli 2.12.6 installed)
+  makes the `.app` and DMG.
+- Tests: `cargo test --release` in `rust/tray` (9; ~100 s, the "stranger on the port" test waits
+  out three restarts) and `npx playwright test --project=tray`.
+- The sidecar must not be called `accompaniment` (case-insensitive file systems: it is the tray
+  itself). `server_binary()` also refuses the tray's own executable.
+- Seen on this Mac 2026-11-23: a dozen server processes from 2026-11-22 test runs still
+  running, orphaned (PPID 1, absolute paths into `rust/app/target/release/`); not from the tray.
+  If test runs keep leaving servers behind, open a work order.
+
 ## Next
 
-1. Wave C (ADR-008): the Tauri tray app and installers per platform; the checklist is in MAP.md
-   ("Wave C"), including the first Windows and Linux runs and the open gaps "From B1/B2/B4".
+1. Wave C, the rest (MAP.md "Wave C" -> left): universal macOS build and signing, the first
+   Windows and Linux builds and runs, a release workflow.
 2. Offer the owner a reshape pass (rust-anything whole-app.md §7): code that mirrors the Node
    structure (`core/nodefs.rs`, `jsv`, the manager-per-module layout) can become idiomatic Rust,
    one change at a time with every suite passing after each.

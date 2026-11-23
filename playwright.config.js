@@ -6,6 +6,7 @@
 // - chromium (test/e2e/): the browser UI. Each worker boots its own server
 //   with its own temp data directory, and every test starts from a clean
 //   slate on it (test/e2e/fixtures.js).
+// - tray (test/tray/): the tray app's config window (rust/tray/ui/), no server.
 // - audio-ui (test/audio-ui/): the browser UI checked by ear - the app plays
 //   to a loopback audio device and the specs record what comes out. Only
 //   included with ACCOMPANIMENT_AUDIO_UI set (npm run test:audio:ui): there
@@ -36,5 +37,7 @@ module.exports = defineConfig({
         { name: 'audio-ui', testDir: './test/audio-ui', timeout: 60000, retries: 2, use: { ...devices['Desktop Chrome'] } },
     ] : [
         { name: 'chromium', testDir: './test/e2e', use: { ...devices['Desktop Chrome'] } },
+        // The tray app's config window, on a stubbed Tauri backend (no server).
+        { name: 'tray', testDir: './test/tray', use: { ...devices['Desktop Chrome'] } },
     ],
 });

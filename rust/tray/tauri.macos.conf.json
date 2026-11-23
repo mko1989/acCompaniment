@@ -1,0 +1,9 @@
+{
+  "bundle": {
+    "resources": {
+      "../../src/frontend/": "frontend/",
+      "../../vendor/ffmpeg/darwin-universal/ffmpeg": "ffmpeg/ffmpeg"
+    },
+    "macOS": { "minimumSystemVersion": "11.0" }
+  }
+}

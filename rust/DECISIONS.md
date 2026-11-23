@@ -209,3 +209,24 @@ Decision: the address in that case's body is `[..]`, as the port and the URLs bu
 already were. The interface list itself (name, one entry) is still compared.
 Consequences: the case still depends on this Mac's interfaces (HANDOFF.md: replay it here, or drop
 it before a CI replay).
+
+## ADR-022: The tray app supervises the server as a separate process (supersedes part of ADR-008)
+Status: accepted (2026-11-23), by Claude on the owner's delegation (ADR-016); the owner may revisit
+Context: ADR-008 said the Tauri tray app starts the server in-process. The Electron launcher it
+replaces (spec: `git show 7b2756c:electron-launcher/main.js`, summarized in MAP.md "Wave C") ran
+the server as a child process and built its safety net on that: restart after a crash (3 tries),
+adopting a healthy server already on the port, killing its own hung server holding the port, and
+a log file of the server's output, rotated at 5 MB. In-process, a crash in the audio engine
+would take the tray down too, nothing could restart it, and the log needs the process's own
+stdout.
+Decision: the tray app (`rust/tray/`, Tauri 2 stable - 3.0 is alpha) bundles the server binary
+as a sidecar and supervises it like the Electron launcher did, behavior for behavior. The server
+binary is the one every suite tests; the tray adds no server code.
+Consequences: two binaries in the bundle; the launcher's tests become Rust tests of the
+supervisor (and a Playwright check of the config window).
+Implemented 2026-11-23 (`rust/tray/`): the sidecar is called `accompaniment-server` in the bundle
+(`scripts/stage-sidecar.js` copies the server binary there): called `accompaniment`, it would be
+the tray's own executable `acCompaniment` on a case-insensitive file system - the first run did
+spawn itself in a loop. The tray passes the bundled UI and ffmpeg to the server
+(`ACCOMPANIMENT_FRONTEND_DIR`, `FFMPEG_PATH`); its config window drops the Interface setting
+(WO-032).

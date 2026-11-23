@@ -19,7 +19,8 @@ is no longer in this project (ADR-020; the owner keeps it elsewhere). Next: Wave
 012 record quietly · 013 Spotify cue creation answers 400 (proposed) ·
 014 CommonJS units bridged through typed shims · 015 how Wave B is built and measured ·
 016 decisions delegated · 017 HTTP details that need not match · 018 audio engine details ·
-019 playlist/cache behaviors kept · 020 Node removed, the Rust app is the app
+019 playlist/cache behaviors kept · 020 Node removed, the Rust app is the app ·
+021 the remote-info address is a wildcard in the recording · 022 the tray supervises a sidecar server
 
 ## Proof
 
@@ -62,16 +63,25 @@ cannot be proxied route by route. Built in stages inside `rust/app`, switched ov
 Switch-over and lift: done 2026-11-23 by hand (ADR-020): the binary always serves from the
 core; proxy, switch and Node removed. (`app wire`/`app lift` assume units wired route by route.)
 
-Wave C: Tauri tray app (ADR-008; the Electron launcher it replaces is in the owner's Node copy:
-tray menu, start/stop, connection info, port settings) and CI installers per platform (WO-011's
-lessons: build each platform on its own runner). Checklist for it:
-- ship `src/frontend/` and ffmpeg with the binary (`ACCOMPANIMENT_FRONTEND_DIR` and the
-  `ffmpeg/` folder beside the binary are already looked up; the compiled-in repo path is only
-  for development);
-- first runs on Windows and Linux: build, the smoke suite, device listing (ids only approximate
-  RtAudio's there), a Windows machine without audio devices (WO-012's case);
-- macOS below 14: the binary starts (CoreAudio weak-linked) - try it;
-- a release workflow replacing the removed `.github/workflows/release.yml` (Electron).
+Wave C (claimed by session ce56df02 2026-11-23; ADR-022: the server runs as a supervised sidecar):
+Tauri tray app (ADR-008) and installers per platform (WO-011's lessons: build each platform on its
+own runner).
+- done 2026-11-23: `rust/tray/` (Tauri 2.x): tray menu, config window (`ui/config.html`, WO-032),
+  the supervisor (`src/supervisor.rs`: adopt, spawn, readiness, crash restarts, hung-orphan kill,
+  log with rotation, notifications), quit and SIGTERM stop the server. Tests: `cargo test` in
+  `rust/tray` (9, against the real server binary), `test/tray/` (Playwright, the config window on
+  a stubbed Tauri backend). macOS: `npm run bundle:tray` builds the `.app` and the DMG (x64 on
+  this Mac; `CI=true` skips the Finder styling, which times out without automation access); the
+  bundled app serves its own `frontend/` and ffmpeg - checked by running it.
+- left:
+  - macOS: a universal build (both targets, `lipo` the server; `TAURI_TARGET_TRIPLE` /
+    `--target universal-apple-darwin`), signing and notarization;
+  - first runs on Windows and Linux: build, the smoke suite, the tray, device listing (ids only
+    approximate RtAudio's there), a Windows machine without audio devices (WO-012's case);
+    `core/nodefs.rs`'s Windows path rules (below); Linux arm64 needs its own ffmpeg in
+    `tauri.linux.conf.json`;
+  - macOS below 14: the binary starts (CoreAudio weak-linked) - try it (bundle minimum is 11.0);
+  - a release workflow replacing the removed `.github/workflows/release.yml` (Electron).
 
 ## Rules for later stages (found while porting)
 

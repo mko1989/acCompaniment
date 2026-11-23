@@ -1,0 +1,8 @@
+{
+  "bundle": {
+    "resources": {
+      "../../src/frontend/": "frontend/",
+      "../../vendor/ffmpeg/win32-x64/ffmpeg.exe": "ffmpeg/ffmpeg.exe"
+    }
+  }
+}
