@@ -13,6 +13,7 @@ const { execFileSync } = require('node:child_process');
 
 const { useServer, makeTestWav } = require('./helpers/harness');
 const { api, sleep } = require('./helpers/api');
+const { ffmpegBinary } = require('./audio/lib/signals');
 
 const server = useServer();
 const t = api(server);
@@ -178,7 +179,7 @@ test('Replace with a different file type keeps the name with the new extension',
     const flac = path.join(server.tempDataDir(), 'swap-source.flac');
     const wav = path.join(server.tempDataDir(), 'swap-source.wav');
     fs.writeFileSync(wav, makeTestWav(2));
-    execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', wav, flac]);
+    execFileSync(ffmpegBinary(), ['-y', '-loglevel', 'error', '-i', wav, flac]); // WO-034
 
     const { body } = await replace(file.id, 'anything.flac', fs.readFileSync(flac));
     assert.equal(body.success, true);

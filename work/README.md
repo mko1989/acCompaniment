@@ -38,3 +38,4 @@ work orders" in [CLAUDE.md](../CLAUDE.md) for the workflow and template.
 | [WO-031](WO-031-loopback-recorder-late-input-unnoticed.md) | Loopback suites: when the recorder itself loses input, the test fails instead of retrying | Medium | Done | - |
 | [WO-032](WO-032-tray-interface-setting-has-no-effect.md) | The launcher's "Interface" setting (localhost / 0.0.0.0) is saved but never applied | Low | Done | - (the select is removed; the server listens on every interface) |
 | [WO-033](WO-033-windows-checkout-crlf-breaks-recorded-fixtures.md) | On Windows, Git checks the recorded fixtures out with CRLF and the byte-for-byte tests fail | Medium | In progress | - (tests only) |
+| [WO-034](WO-034-replace-test-needs-ffmpeg-on-path.md) | The smoke test "Replace with a different file type..." needs an ffmpeg on the PATH | Low | Done | - (tests only) |

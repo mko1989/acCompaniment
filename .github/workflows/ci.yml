@@ -1,6 +1,6 @@
 # The server and the tray app on every platform (ADR-009): build, Rust tests, fmt/clippy, the
-# smoke suite and the browser suites. CI runners have no audio device: the server must still
-# start and answer (WO-012's case); the loopback audio suites need one and are run by hand.
+# smoke suite and the browser suites. CI runners have no audio device; the playback tests need
+# one, so each runner gets a virtual one. The loopback audio suites are run by hand.
 name: CI
 
 on:
@@ -34,6 +34,14 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libasound2-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev lsof
+      - name: Linux - a virtual audio device (the runner has none; the playback tests need one)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y pulseaudio libasound2-plugins alsa-utils
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=ci
+          pactl set-default-sink ci
+          aplay -L | head -20
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run fetch:ffmpeg
