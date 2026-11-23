@@ -1,0 +1,3 @@
+# LF everywhere, also in Windows checkouts: the recorded fixtures and cases are compared byte
+# for byte (WO-033), and the app writes LF on every platform.
+* text=auto eol=lf
