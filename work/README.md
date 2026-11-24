@@ -49,3 +49,4 @@ work orders" in [CLAUDE.md](../CLAUDE.md) for the workflow and template.
 | [WO-042](WO-042-linux-plays-to-alsa-null.md) | On Linux the app can pick ALSA's "null" device, so nothing is heard and cues end at once | Critical | In progress | - (Linux) |
 | [WO-043](WO-043-tray-tests-need-staged-sidecar.md) | `npm run test:unit` fails on a fresh clone: the tray build needs the staged server | Low | Open | - (tests only) |
 | [WO-044](WO-044-rtaudio-needs-pulse-headers.md) | `npm ci` fails on Linux without the PulseAudio headers | Low | Open | - (tests only) |
+| [WO-045](WO-045-buffer-size-refused.md) | A device that refuses the configured buffer size plays nothing | Critical | In progress | - (Linux, maybe Windows) |

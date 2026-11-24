@@ -355,7 +355,7 @@ impl Dropouts {
 }
 
 /// When the previous callback came, to count late ones (lives in the audio callback).
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct CallbackClock {
     last: Option<Instant>,
 }
@@ -426,30 +426,40 @@ fn open_stream(
     // Opened at the device's full width (ADR-018); the engine's channels come first.
     let device_channels = (info.output_channels as u16).max(engine_channels).max(1);
     // RtAudio clamps the buffer size into the device's range; cpal refuses one outside it.
-    let mut buffer = buffer_size.max(1);
-    if let Ok(configs) = device.supported_output_configs() {
-        for c in configs {
-            if u32::from(c.channels()) == u32::from(device_channels)
-                && let cpal::SupportedBufferSize::Range { min, max } = c.buffer_size()
-            {
-                buffer = buffer.clamp(*min, *max);
-                break;
-            }
-        }
-    }
-    let config = cpal::StreamConfig {
+    // The range comes from a config with the stream's channel count, else from any config: some
+    // devices (ALSA's "default") report it only on others (WO-045).
+    let ranges: Vec<(u16, u32, u32)> = device
+        .supported_output_configs()
+        .map(|configs| {
+            configs
+                .filter_map(|c| match c.buffer_size() {
+                    cpal::SupportedBufferSize::Range { min, max } => {
+                        Some((c.channels(), *min, *max))
+                    }
+                    cpal::SupportedBufferSize::Unknown => None,
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    let buffer = clamp_buffer(buffer_size, device_channels, &ranges);
+    let config = |buffer_size| cpal::StreamConfig {
         channels: device_channels,
         sample_rate,
-        buffer_size: cpal::BufferSize::Fixed(buffer),
+        buffer_size,
     };
     let dc = usize::from(device_channels);
     let err_alive = alive.clone();
     let err_dropouts = dropouts.clone();
-    let mut clock = CallbackClock::default();
+    let clock = CallbackClock::default();
     let rate = f64::from(sample_rate.max(1));
-    let stream = device
-        .build_output_stream::<f32, _, _>(
-            config,
+    let build = |buffer_size| {
+        let state = state.clone();
+        let dropouts = dropouts.clone();
+        let mut clock = clock.clone();
+        let (err_alive, errors, err_dropouts) =
+            (err_alive.clone(), errors.clone(), err_dropouts.clone());
+        device.build_output_stream::<f32, _, _>(
+            config(buffer_size),
             move |data: &mut [f32], _| {
                 let frames = data.len() / dc.max(1);
                 let period = Duration::from_secs_f64(frames as f64 / rate);
@@ -462,9 +472,27 @@ fn open_stream(
             move |err| stream_error(&err, &err_alive, &errors, &err_dropouts),
             Some(Duration::from_secs(2)),
         )
+    };
+    // A device that refuses the size asked for still plays, at its own size (WO-045).
+    let stream = build(cpal::BufferSize::Fixed(buffer))
+        .or_else(|first| {
+            build(cpal::BufferSize::Default)
+                .map_err(|e| format!("{first}; at the device's own buffer size: {e}"))
+        })
         .map_err(|e| e.to_string())?;
     stream.play().map_err(|e| e.to_string())?;
     Ok((stream, sample_rate))
+}
+
+/// The buffer size to ask for: RtAudio clamps it into the device's range (cpal refuses one
+/// outside it), from a config with the stream's channel count if there is one, else any.
+fn clamp_buffer(wanted: u32, channels: u16, ranges: &[(u16, u32, u32)]) -> u32 {
+    let wanted = wanted.max(1);
+    ranges
+        .iter()
+        .find(|(c, _, _)| *c == channels)
+        .or_else(|| ranges.first())
+        .map_or(wanted, |&(_, min, max)| wanted.clamp(min, max.max(min)))
 }
 
 /// `WorkerMixer._cues`' entry: voices, paused, the seq of the cue's latest play.
@@ -1454,6 +1482,16 @@ impl AudioEngine for CpalEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_buffer_size_is_clamped_into_a_range_the_device_reports() {
+        // ALSA's "default" on the owner's Ubuntu box: only 1024, reported on another channel
+        // count than the stream's; asking for 512 failed every cue (WO-045).
+        assert_eq!(clamp_buffer(512, 2, &[(1, 1024, 1024)]), 1024);
+        assert_eq!(clamp_buffer(512, 2, &[(1, 1024, 1024), (2, 64, 4096)]), 512);
+        assert_eq!(clamp_buffer(8192, 2, &[(2, 64, 4096)]), 4096);
+        assert_eq!(clamp_buffer(512, 2, &[]), 512);
+    }
 
     /// WO-024: a stream that still counts as running but whose callback no longer runs (killed,
     /// the error not yet reported): the status must still include every command sent.

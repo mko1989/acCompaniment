@@ -40,6 +40,8 @@ the smoke suite's playback tests pass.
 ## What has been done
 - 2026-11-24: reproduction test and the fix above (`devices.rs`, `engine.rs`); unit tests pass
   on macOS. The Linux/Windows code path still needs building on Linux (the owner's box or CI).
+- 2026-11-24: on the owner's Ubuntu box it builds and now opens device 129 (not "null"); playing
+  then failed on the buffer size, WO-045.
 
 ## Decision
 - 2026-11-24, Claude on the owner's delegation (ADR-016): fix as proposed.
