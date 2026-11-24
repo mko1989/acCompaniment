@@ -4,8 +4,8 @@ Soundboard: one Rust binary (`rust/app/`: axum HTTP + WebSocket server, cue
 engine, data layer, cpal/symphonia audio engine) serving a JS browser UI
 (`src/frontend/`). Ported from a Node app, which is no longer in this project
 (rust/DECISIONS.md ADR-020); `rust/MAP.md` and `rust/HANDOFF.md` say where the
-port stands. Not part of the app: `companion-module-highpass-accompaniment/`,
-`archive/`. See README.md for running and the test scripts.
+port stands. Not part of the app: `companion-module-highpass-accompaniment/` and
+`archive/` (local only, ignored by git). See README.md for running and the test scripts.
 
 ## Bugs are resolved through work orders
 

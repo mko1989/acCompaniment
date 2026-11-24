@@ -19,6 +19,10 @@ Decision: none of the three is ported. `companion-module-highpass-accompaniment/
 stay in the repo untouched, outside the port. Spotify is removed (ADR-003).
 Consequences: `analyze` units under those paths are out of scope in `MAP.md`.
 
+Note 2026-11-24 (owner: "remove the archive and companion module from github rust branch"):
+both folders are removed from the `rust-port` branch and ignored by git; local copies stay. The
+Companion module has its own repo.
+
 ## ADR-003: Remove Spotify from the server and the UI; keep old Spotify cues in project files
 Status: accepted (2026-11-21)
 Context: Spotify has server routes (`/api/spotify`), `src/backend/spotify/`, a cue type and UI.

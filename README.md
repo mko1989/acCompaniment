@@ -179,7 +179,7 @@ Then open `http://<machine>:3333` from any browser on the network. The package's
 - `test/` — the test suites (JavaScript, run against the Rust binary)
 - `work/` — work orders: every bug's record (see CLAUDE.md)
 - `assets/` — icons and resources
-- `archive/`, `companion-module-highpass-accompaniment/` — not part of the app
+- `archive/`, `companion-module-highpass-accompaniment/` — not part of the app and not in the repo (ignored by git; the module lives in its own repo)
 
 ### Available Scripts
 

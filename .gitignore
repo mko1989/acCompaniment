@@ -11,3 +11,7 @@ test-recordings/
 playwright-report/
 blob-report/
 vendor/
+
+# Kept locally, not in the repo (ADR-002 note, 2026-11-24)
+archive/
+companion-module-highpass-accompaniment/
