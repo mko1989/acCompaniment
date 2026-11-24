@@ -57,3 +57,4 @@ work orders" in [CLAUDE.md](../CLAUDE.md) for the workflow and template.
 | [WO-050](WO-050-windows-smoke-hangs.md) | On Windows CI the smoke suite hangs after the project-restart tests | Medium | Done | - (Windows CI) |
 | [WO-051](WO-051-relative-dir-test-across-drives.md) | The relative-data-dir test can't set up on Windows CI (temp folder on another drive) | Low | Done | - (tests only) |
 | [WO-052](WO-052-release-misses-installers.md) | The draft release gets only the headless packages, not the installers | High | Done | - (release) |
+| [WO-053](WO-053-windows-empty-console-window.md) | On Windows the tray app opens an empty console window | High | In progress | - (Windows) |

@@ -345,6 +345,7 @@ impl Inner {
         for (k, v) in &self.opts.extra_env {
             cmd.env(k, v);
         }
+        no_console_window(&mut cmd);
         let mut child = match cmd.spawn() {
             Ok(c) => c,
             Err(e) => {
@@ -650,6 +651,19 @@ impl Inner {
     }
 }
 
+/// Windows: the server and taskkill are console programs; started from the tray (no console)
+/// each would open an empty console window, and closing it would kill the server (WO-053).
+fn no_console_window(cmd: &mut Command) {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    #[cfg(not(windows))]
+    let _ = cmd;
+}
+
 /// SIGTERM (or SIGKILL with `force`); on Windows `taskkill /T /F`, as the launcher did.
 fn terminate(pid: u32, force: bool) {
     #[cfg(unix)]
@@ -662,9 +676,10 @@ fn terminate(pid: u32, force: bool) {
     #[cfg(windows)]
     {
         let _ = force;
-        let _ = Command::new("taskkill")
-            .args(["/pid", &pid.to_string(), "/T", "/F"])
-            .status();
+        let mut cmd = Command::new("taskkill");
+        cmd.args(["/pid", &pid.to_string(), "/T", "/F"]);
+        no_console_window(&mut cmd);
+        let _ = cmd.status();
     }
 }
 

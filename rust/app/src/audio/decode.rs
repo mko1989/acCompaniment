@@ -291,20 +291,26 @@ fn ffmpeg_decode(path: &str, rate: u32, mono: bool) -> Result<Decoded, String> {
         args.extend(["-ac".into(), CHANNELS.to_string()]);
     }
     args.extend(["-ar".into(), rate.to_string(), "pipe:1".into()]);
-    let mut child = Command::new(ffmpeg_binary())
-        .args(&args)
+    let mut cmd = Command::new(ffmpeg_binary());
+    cmd.args(&args)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| {
-            let hint = if e.kind() == std::io::ErrorKind::NotFound {
-                " (ffmpeg not found - install it, or set FFMPEG_PATH)"
-            } else {
-                ""
-            };
-            format!("ffmpeg decode failed for {name}: {e}{hint}")
-        })?;
+        .stderr(Stdio::piped());
+    // Windows: a server started without a console (by the tray) would otherwise open a console
+    // window for every ffmpeg it runs (WO-053).
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    }
+    let mut child = cmd.spawn().map_err(|e| {
+        let hint = if e.kind() == std::io::ErrorKind::NotFound {
+            " (ffmpeg not found - install it, or set FFMPEG_PATH)"
+        } else {
+            ""
+        };
+        format!("ffmpeg decode failed for {name}: {e}{hint}")
+    })?;
     let mut stderr_pipe = child.stderr.take();
     let err_thread = std::thread::spawn(move || {
         let mut s = String::new();
