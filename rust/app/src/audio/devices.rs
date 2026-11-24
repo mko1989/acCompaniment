@@ -37,10 +37,26 @@ impl DeviceInfo {
         })
     }
 
+    /// ALSA's `null` PCM: it takes the sound and throws it away.
+    fn discards(&self) -> bool {
+        self.cpal_id == "alsa:null"
+    }
+
     /// The name without RtAudio's `"Manufacturer: "` prefix (cpal's name on macOS).
     pub fn plain_name(&self) -> &str {
         self.name.split_once(": ").map_or(&self.name, |(_, n)| n)
     }
+}
+
+/// The default output, else the first output that plays somewhere: never ALSA's `null` device,
+/// which discards the sound (and doesn't keep time), WO-042.
+fn pick_default_output(devices: &[DeviceInfo]) -> Option<&DeviceInfo> {
+    let output = |d: &&DeviceInfo| d.output_channels > 0 && !d.discards();
+    devices
+        .iter()
+        .filter(output)
+        .find(|d| d.is_default_output)
+        .or_else(|| devices.iter().find(output))
 }
 
 const SAMPLE_RATES: [u32; 14] = [
@@ -90,12 +106,7 @@ impl Registry {
 
     /// `rt.getDefaultOutputDevice()`: the default output's number, else the first output's.
     pub fn default_output(&mut self) -> Option<u32> {
-        let devices = self.devices();
-        devices
-            .iter()
-            .find(|d| d.is_default_output && d.output_channels > 0)
-            .or_else(|| devices.iter().find(|d| d.output_channels > 0))
-            .map(|d| d.id)
+        pick_default_output(&self.devices()).map(|d| d.id)
     }
 
     /// `resolveDeviceId(spec)`: `'default'`/null/`''` -> the default output; a number -> that
@@ -151,6 +162,18 @@ fn probe() -> Vec<DeviceInfo> {
     let Ok(list) = host.devices() else {
         return Vec::new();
     };
+    // ALSA's "default" is not always among the hints cpal lists; the app must still find it,
+    // or it falls back to whatever is listed first (WO-042).
+    let mut list: Vec<cpal::Device> = list.collect();
+    if let Some(default) = host.default_output_device() {
+        let listed = default_id.is_some()
+            && list
+                .iter()
+                .any(|d| d.id().ok().map(|i| i.to_string()) == default_id);
+        if !listed {
+            list.insert(0, default);
+        }
+    }
     let mut out = Vec::new();
     for d in list {
         let Ok(id) = d.id() else { continue };
@@ -421,5 +444,47 @@ mod coreaudio {
         ids.into_iter()
             .filter_map(|id| probe_one(id, default_output))
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn device(id: u32, cpal_id: &str, default: bool) -> DeviceInfo {
+        DeviceInfo {
+            id,
+            name: cpal_id.to_string(),
+            output_channels: 2,
+            input_channels: 0,
+            is_default_output: default,
+            preferred_sample_rate: 48000,
+            sample_rates: vec![48000],
+            cpal_id: cpal_id.to_string(),
+            key: cpal_id.to_string(),
+        }
+    }
+
+    #[test]
+    fn the_default_output_is_never_alsas_null_device() {
+        // ALSA lists "null" first; with no usable "default" the app opened it and played into
+        // nothing, finishing every cue at once (WO-042).
+        let devices = [
+            device(129, "alsa:null", false),
+            device(130, "alsa:plughw:CARD=PCH,DEV=0", false),
+        ];
+        assert_eq!(pick_default_output(&devices).map(|d| d.id), Some(130));
+        let only_null = [device(129, "alsa:null", true)];
+        assert_eq!(pick_default_output(&only_null), None);
+    }
+
+    #[test]
+    fn the_default_output_is_the_marked_one_when_there_is_one() {
+        let devices = [
+            device(129, "alsa:null", false),
+            device(130, "alsa:hw:CARD=PCH,DEV=0", false),
+            device(131, "alsa:default", true),
+        ];
+        assert_eq!(pick_default_output(&devices).map(|d| d.id), Some(131));
     }
 }

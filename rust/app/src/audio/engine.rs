@@ -314,9 +314,12 @@ fn cpal_device(info: &DeviceInfo) -> Result<cpal::Device, String> {
     let want = cpal::DeviceId::new(host.id(), &info.cpal_id).to_string();
     #[cfg(not(target_os = "macos"))]
     let want = info.cpal_id.clone();
+    let is_want = |d: &cpal::Device| d.id().map(|i| i.to_string()).as_deref() == Ok(want.as_str());
     host.devices()
         .map_err(|e| e.to_string())?
-        .find(|d| d.id().map(|i| i.to_string()).as_deref() == Ok(want.as_str()))
+        .find(is_want)
+        // ALSA's "default" may not be listed (WO-042, devices.rs `probe`).
+        .or_else(|| host.default_output_device().filter(is_want))
         .ok_or_else(|| format!("Output device not found: {}", info.name))
 }
 

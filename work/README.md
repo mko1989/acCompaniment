@@ -46,3 +46,6 @@ work orders" in [CLAUDE.md](../CLAUDE.md) for the workflow and template.
 | [WO-039](WO-039-windows-static-path-traversal.md) | On Windows a request with `..\` could read files outside the browser UI folder | High | In progress | - (Windows; security) |
 | [WO-040](WO-040-typing-caret-jumps-on-update.md) | The cursor in a properties field can jump to the start when another cue is updated while typing | Medium | Open | - (intermittent) |
 | [WO-041](WO-041-trim-drag-not-saved.md) | Dragging the trim region on the waveform is sometimes not saved | Medium | Open | - (intermittent) |
+| [WO-042](WO-042-linux-plays-to-alsa-null.md) | On Linux the app can pick ALSA's "null" device, so nothing is heard and cues end at once | Critical | In progress | - (Linux) |
+| [WO-043](WO-043-tray-tests-need-staged-sidecar.md) | `npm run test:unit` fails on a fresh clone: the tray build needs the staged server | Low | Open | - (tests only) |
+| [WO-044](WO-044-rtaudio-needs-pulse-headers.md) | `npm ci` fails on Linux without the PulseAudio headers | Low | Open | - (tests only) |
