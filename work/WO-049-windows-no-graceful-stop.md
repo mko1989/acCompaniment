@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | In progress |
+| Status | Done |
 | Severity | High (Windows: edits made just before quitting are lost) |
 | Feature | Stopping the server (`rust/app/src/server/mod.rs` `wait_signal`; the tray's `supervisor.rs` `stop`; `test/helpers/harness.js`) |
 | Opened | 2026-11-24, by Claude (CI on Windows: 10 harness failures and "cues still play after the data dir has moved") |
@@ -35,6 +35,8 @@ Linux unchanged.
 ## What has been done
 - 2026-11-24: the fix above. On macOS: the server exits 0 when its stdin closes (checked by
   hand); smoke 286/286; tray tests pass. Windows not yet run.
+- 2026-11-24: Windows CI (run 45383129540): the harness's exit-0 checks and the moved-data-dir
+  test pass; smoke 285/286 (the other is WO-051), e2e 171 passed. Done.
 
 ## Decision
 - 2026-11-24, Claude on the owner's delegation (ADR-016): fix as proposed.

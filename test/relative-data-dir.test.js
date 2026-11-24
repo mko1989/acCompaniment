@@ -6,7 +6,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const os = require('node:os');
 const fs = require('node:fs/promises');
 const fssync = require('node:fs');
 const {
@@ -18,7 +17,10 @@ const REPO_ROOT = path.join(__dirname, '..');
 // WO-023: with a relative data dir, "replace file" used to compare a relative new path with the
 // record's absolute one, and so deleted the file it had just moved in.
 test('replacing a file\'s audio keeps the file when the data dir is relative', async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'accompaniment-relative-'));
+    // Inside the repo (tmp/ is git-ignored): the system temp folder may be on another drive on
+    // Windows, and no relative path reaches another drive (WO-051).
+    await fs.mkdir(path.join(REPO_ROOT, 'tmp'), { recursive: true });
+    const root = await fs.mkdtemp(path.join(REPO_ROOT, 'tmp', 'accompaniment-relative-'));
     const relativeDir = path.relative(REPO_ROOT, path.join(root, 'data'));
     assert.ok(!path.isAbsolute(relativeDir));
     // spawnServer runs with cwd = the repository root, so the relative dir resolves to root/data.
