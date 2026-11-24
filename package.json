@@ -1,6 +1,6 @@
 {
   "name": "accompaniment",
-  "version": "2.0.5-beta",
+  "version": "2.0.0-beta",
   "private": true,
   "description": "acCompaniment soundboard. The app is the Rust binary in rust/app; this package holds the test tooling (node:test, Playwright).",
   "author": "Marcin Wardecki",

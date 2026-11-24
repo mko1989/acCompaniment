@@ -3,6 +3,11 @@
     "resources": {
       "../../src/frontend/": "frontend/",
       "../../vendor/ffmpeg/win32-x64/ffmpeg.exe": "ffmpeg/ffmpeg.exe"
+    },
+    "windows": {
+      "wix": {
+        "version": "2.0.0"
+      }
     }
   }
 }

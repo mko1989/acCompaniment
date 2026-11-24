@@ -1,6 +1,6 @@
 [package]
 name = "accompaniment"
-version = "0.1.0"
+version = "2.0.0-beta"
 edition = "2024"
 publish = false
 description = "acCompaniment soundboard server (rust/DECISIONS.md)"

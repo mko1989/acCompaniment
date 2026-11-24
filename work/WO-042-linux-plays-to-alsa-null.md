@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | In progress |
+| Status | Done |
 | Severity | Critical (Linux: no sound at all) |
 | Feature | Output device selection (`rust/app/src/audio/devices.rs`, `rust/app/src/audio/engine.rs`) |
 | Opened | 2026-11-24, by Claude (the owner ran the smoke suite and the server on an Ubuntu box) |
@@ -42,6 +42,8 @@ the smoke suite's playback tests pass.
   on macOS. The Linux/Windows code path still needs building on Linux (the owner's box or CI).
 - 2026-11-24: on the owner's Ubuntu box it builds and now opens device 129 (not "null"); playing
   then failed on the buffer size, WO-045.
+
+- 2026-11-24: verified on the owner's Ubuntu box: cues play (with WO-045), smoke 282/286 (WO-047, WO-037 todos). Done.
 
 ## Decision
 - 2026-11-24, Claude on the owner's delegation (ADR-016): fix as proposed.

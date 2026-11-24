@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | In progress |
+| Status | Done |
 | Severity | Critical (Windows: no cue plays) |
 | Feature | Finding a cue's audio file (`rust/app/src/core/paths.rs`, `is_path_within`) |
 | Opened | 2026-11-24, by Claude (the owner clicked cues on a Windows laptop; nothing played) |
@@ -33,6 +33,8 @@ passes; on Windows cues play from show mode and over REST; macOS and Linux uncha
 ## What has been done
 - 2026-11-24: the fix above; the reproduction test passes; on macOS all Rust tests and the smoke
   suite (286/286) pass. Not yet run on Windows.
+
+- 2026-11-24: verified by the owner: cues play on the Windows laptop ("windows now works"). The smoke suite has not run on Windows yet (WO-044). Done.
 
 ## Decision
 - 2026-11-24, Claude on the owner's delegation (ADR-016): fix as proposed.

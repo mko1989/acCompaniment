@@ -46,9 +46,9 @@ work orders" in [CLAUDE.md](../CLAUDE.md) for the workflow and template.
 | [WO-039](WO-039-windows-static-path-traversal.md) | On Windows a request with `..\` could read files outside the browser UI folder | High | In progress | - (Windows; security) |
 | [WO-040](WO-040-typing-caret-jumps-on-update.md) | The cursor in a properties field can jump to the start when another cue is updated while typing | Medium | Open | - (intermittent) |
 | [WO-041](WO-041-trim-drag-not-saved.md) | Dragging the trim region on the waveform is sometimes not saved | Medium | Open | - (intermittent) |
-| [WO-042](WO-042-linux-plays-to-alsa-null.md) | On Linux the app can pick ALSA's "null" device, so nothing is heard and cues end at once | Critical | In progress | - (Linux) |
+| [WO-042](WO-042-linux-plays-to-alsa-null.md) | On Linux the app can pick ALSA's "null" device, so nothing is heard and cues end at once | Critical | Done | - (Linux) |
 | [WO-043](WO-043-tray-tests-need-staged-sidecar.md) | `npm run test:unit` fails on a fresh clone: the tray build needs the staged server | Low | Open | - (tests only) |
 | [WO-044](WO-044-rtaudio-needs-pulse-headers.md) | `npm ci` fails on Linux without the PulseAudio headers | Low | Open | - (tests only) |
-| [WO-045](WO-045-buffer-size-refused.md) | A device that refuses the configured buffer size plays nothing | Critical | In progress | - (Linux, maybe Windows) |
-| [WO-046](WO-046-windows-audio-file-not-found.md) | On Windows no cue plays: "Audio file not found" | Critical | In progress | - (Windows) |
+| [WO-045](WO-045-buffer-size-refused.md) | A device that refuses the configured buffer size plays nothing | Critical | Done | - (Linux, maybe Windows) |
+| [WO-046](WO-046-windows-audio-file-not-found.md) | On Windows no cue plays: "Audio file not found" | Critical | Done | - (Windows) |
 | [WO-047](WO-047-backups-same-millisecond.md) | Autosave backups made in the same millisecond overwrite each other | Low | Open | - |

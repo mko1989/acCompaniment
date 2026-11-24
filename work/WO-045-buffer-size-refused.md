@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | In progress |
+| Status | Done |
 | Severity | Critical (no sound on such devices) |
 | Feature | Opening the output stream (`rust/app/src/audio/engine.rs`, `open_stream`) |
 | Opened | 2026-11-24, by Claude (the owner ran the server on an Ubuntu box after WO-042) |
@@ -32,6 +32,8 @@ playback tests pass; macOS unchanged.
   retrigger tests pass (53/53). Not yet run on Linux or Windows.
 - 2026-11-24: on the owner's Ubuntu box cues play, and the smoke suite passes 282/286 (1 fail,
   WO-047; 3 todo, WO-037).
+
+- 2026-11-24: verified: cues play on the owner's Ubuntu box. Done.
 
 ## Decision
 - 2026-11-24, Claude on the owner's delegation (ADR-016): fix as proposed.
