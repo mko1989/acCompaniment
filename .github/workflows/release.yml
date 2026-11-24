@@ -53,7 +53,14 @@ jobs:
       - run: npm ci
       - run: npm run fetch:ffmpeg
       - name: Bundle
-        run: npm run ${{ matrix.script }}
+        shell: bash
+        # An unset secret arrives as an empty variable, and Tauri then tries to sign with an
+        # empty certificate (WO-048): drop the empty ones.
+        run: |
+          for v in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            if [ -z "${!v}" ]; then unset "$v"; fi
+          done
+          npm run ${{ matrix.script }}
         env:
           CI: 'true'
           # macOS signing and notarization, used when set (Tauri reads these):

@@ -52,3 +52,4 @@ work orders" in [CLAUDE.md](../CLAUDE.md) for the workflow and template.
 | [WO-045](WO-045-buffer-size-refused.md) | A device that refuses the configured buffer size plays nothing | Critical | Done | - (Linux, maybe Windows) |
 | [WO-046](WO-046-windows-audio-file-not-found.md) | On Windows no cue plays: "Audio file not found" | Critical | Done | - (Windows) |
 | [WO-047](WO-047-backups-same-millisecond.md) | Autosave backups made in the same millisecond overwrite each other | Low | Open | - |
+| [WO-048](WO-048-release-signs-with-empty-certificate.md) | The macOS release build fails when no signing certificate is set | High | In progress | - (release) |
