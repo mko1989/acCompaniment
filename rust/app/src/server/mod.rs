@@ -325,6 +325,36 @@ async fn shutdown_signal() {
 }
 
 async fn wait_signal() {
+    tokio::select! {
+        () = os_signal() => {}
+        () = stdin_closed() => {}
+    }
+}
+
+/// With `ACCOMPANIMENT_STOP_ON_STDIN_EOF=1`, the launcher closing the server's stdin asks it to
+/// stop, as SIGTERM does: Windows has no SIGTERM, and killing the process loses the pending save
+/// (WO-049). Without the variable this never fires (a server whose stdin is closed from the
+/// start, as under systemd, keeps running).
+async fn stdin_closed() {
+    // Once only: the stdin stays closed, and that must not count as the second request that
+    // forces the exit (`shutdown_signal`).
+    static WATCHED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    if std::env::var_os("ACCOMPANIMENT_STOP_ON_STDIN_EOF").is_none_or(|v| v != "1")
+        || WATCHED.swap(true, Ordering::SeqCst)
+    {
+        return std::future::pending().await;
+    }
+    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+    std::thread::spawn(move || {
+        let mut sink = [0u8; 256];
+        let mut stdin = std::io::stdin();
+        while matches!(std::io::Read::read(&mut stdin, &mut sink), Ok(n) if n > 0) {}
+        let _ = tx.send(());
+    });
+    let _ = rx.await;
+}
+
+async fn os_signal() {
     #[cfg(unix)]
     {
         use tokio::signal::unix::{SignalKind, signal};

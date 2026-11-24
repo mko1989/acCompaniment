@@ -16,7 +16,7 @@
     "test": "npm run build && npm run test:unit && npm run test:smoke && npm run test:e2e",
     "test:rust": "cargo test --release --manifest-path rust/app/Cargo.toml && cargo test --release --manifest-path rust/tray/Cargo.toml",
     "test:unit": "npm run test:rust && node --test test/unit/*.test.js",
-    "test:smoke": "node --test test/*.test.js",
+    "test:smoke": "node --test --test-timeout=180000 test/*.test.js",
     "test:e2e": "playwright test",
     "test:audio": "node --test --test-concurrency=1 test/audio/*.test.js",
     "test:audio:ui": "ACCOMPANIMENT_AUDIO_UI=1 playwright test",

@@ -336,7 +336,9 @@ impl Inner {
         let mut cmd = Command::new(&self.opts.server_bin);
         cmd.env("PORT", port.to_string())
             .env("ACCOMPANIMENT_DATA_DIR", data)
-            .stdin(Stdio::null())
+            // Closing this pipe asks the server to stop gracefully (WO-049, `stop`).
+            .env("ACCOMPANIMENT_STOP_ON_STDIN_EOF", "1")
+            .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
         // HOST is left unset: the server listens on every interface, for the LAN and Companion.
@@ -618,8 +620,18 @@ impl Inner {
             }
         };
         self.notify();
-        terminate(pid, false);
         let mut st = self.lock();
+        // Windows has no SIGTERM, and `taskkill /F` loses the server's pending save: close its
+        // stdin instead, which it takes as a request to stop (WO-049). Elsewhere, SIGTERM.
+        if cfg!(windows) {
+            if let Some(child) = st.child.as_mut() {
+                drop(child.stdin.take());
+            }
+        } else {
+            drop(st);
+            terminate(pid, false);
+            st = self.lock();
+        }
         let start = Instant::now();
         let mut killed = false;
         while st.pid == Some(pid) && start.elapsed() < Duration::from_secs(10) {

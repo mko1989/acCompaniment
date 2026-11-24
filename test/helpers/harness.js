@@ -34,9 +34,21 @@ function spawnServer(env) {
     const { command, args, env: extra } = serverCommand();
     const child = spawn(command, args, {
         cwd: REPO_ROOT,
-        env: { ...process.env, ...extra, ...env },
-        stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env, ...extra, ACCOMPANIMENT_STOP_ON_STDIN_EOF: '1', ...env },
+        stdio: ['pipe', 'pipe', 'pipe'],
     });
+    // Windows has no SIGTERM or SIGINT: Node's kill() ends the process at once and the server's
+    // pending save is lost. Closing its stdin asks it to stop gracefully instead (WO-049).
+    if (process.platform === 'win32') {
+        const kill = child.kill.bind(child);
+        child.kill = (signal = 'SIGTERM') => {
+            if (signal === 'SIGTERM' || signal === 'SIGINT') {
+                if (!child.stdin.writableEnded) child.stdin.end();
+                return true;
+            }
+            return kill(signal);
+        };
+    }
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', (d) => { stdout += d.toString(); });
