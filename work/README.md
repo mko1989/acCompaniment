@@ -52,7 +52,8 @@ work orders" in [CLAUDE.md](../CLAUDE.md) for the workflow and template.
 | [WO-045](WO-045-buffer-size-refused.md) | A device that refuses the configured buffer size plays nothing | Critical | Done | - (Linux, maybe Windows) |
 | [WO-046](WO-046-windows-audio-file-not-found.md) | On Windows no cue plays: "Audio file not found" | Critical | Done | - (Windows) |
 | [WO-047](WO-047-backups-same-millisecond.md) | Autosave backups made in the same millisecond overwrite each other | Low | Open | - |
-| [WO-048](WO-048-release-signs-with-empty-certificate.md) | The macOS release build fails when no signing certificate is set | High | In progress | - (release) |
+| [WO-048](WO-048-release-signs-with-empty-certificate.md) | The macOS release build fails when no signing certificate is set | High | Done | - (release) |
 | [WO-049](WO-049-windows-no-graceful-stop.md) | On Windows the server can't be stopped gracefully, so its last save is lost | High | Done | - (Windows) |
 | [WO-050](WO-050-windows-smoke-hangs.md) | On Windows CI the smoke suite hangs after the project-restart tests | Medium | Done | - (Windows CI) |
 | [WO-051](WO-051-relative-dir-test-across-drives.md) | The relative-data-dir test can't set up on Windows CI (temp folder on another drive) | Low | Done | - (tests only) |
+| [WO-052](WO-052-release-misses-installers.md) | The draft release gets only the headless packages, not the installers | High | Done | - (release) |

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | In progress |
+| Status | Done |
 | Severity | High (no macOS installer, so no release) |
 | Feature | Release workflow (`.github/workflows/release.yml`, the Bundle step) |
 | Opened | 2026-11-24, by Claude (the v2.0.0-beta release run) |
@@ -25,6 +25,8 @@ workflow builds an unsigned macOS bundle without the secrets, and the draft rele
 
 ## What has been done
 - 2026-11-24: the fix above. The release has to be built again from a tag on the fixed commit.
+
+- 2026-11-24: the release run 45386324623 built an unsigned macOS bundle; every job passed. Done.
 
 ## Decision
 - 2026-11-24, Claude on the owner's delegation (ADR-016): fix as proposed.
