@@ -17,6 +17,8 @@ use super::jsv;
 use super::nodepath_win32 as win32;
 
 const SEP: u8 = b'/';
+/// `path.sep` on this platform.
+pub const SEP_STR: &str = if cfg!(windows) { "\\" } else { "/" };
 
 // Node's `path` is `path.win32` on Windows (WO-038): the same choice here.
 

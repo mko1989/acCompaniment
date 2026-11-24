@@ -50,3 +50,5 @@ work orders" in [CLAUDE.md](../CLAUDE.md) for the workflow and template.
 | [WO-043](WO-043-tray-tests-need-staged-sidecar.md) | `npm run test:unit` fails on a fresh clone: the tray build needs the staged server | Low | Open | - (tests only) |
 | [WO-044](WO-044-rtaudio-needs-pulse-headers.md) | `npm ci` fails on Linux without the PulseAudio headers | Low | Open | - (tests only) |
 | [WO-045](WO-045-buffer-size-refused.md) | A device that refuses the configured buffer size plays nothing | Critical | In progress | - (Linux, maybe Windows) |
+| [WO-046](WO-046-windows-audio-file-not-found.md) | On Windows no cue plays: "Audio file not found" | Critical | In progress | - (Windows) |
+| [WO-047](WO-047-backups-same-millisecond.md) | Autosave backups made in the same millisecond overwrite each other | Low | Open | - |

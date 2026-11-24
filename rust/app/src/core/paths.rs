@@ -83,7 +83,7 @@ impl PathManager {
     pub fn is_path_within(resolved_path: &str, resolved_base: &str) -> bool {
         let p = nfs::resolve1(resolved_path);
         let b = nfs::resolve1(resolved_base);
-        p == b || p.starts_with(&format!("{b}/"))
+        within(&p, &b, nfs::SEP_STR)
     }
 
     /// `toRelativePath(absolutePath, basePath = audioDir)`.
@@ -200,5 +200,35 @@ impl PathManager {
 
     pub fn metadata_dir(&self) -> String {
         nfs::join2(&self.audio_dir, "metadata")
+    }
+}
+
+/// `resolved === base || resolved.startsWith(base + path.sep)`: `\` on Windows (WO-046).
+fn within(p: &str, b: &str, sep: &str) -> bool {
+    p == b || p.strip_prefix(b).is_some_and(|rest| rest.starts_with(sep))
+}
+
+#[cfg(test)]
+mod within_tests {
+    use super::within;
+
+    #[test]
+    fn a_windows_path_inside_the_folder_is_within_it() {
+        // Every cue failed with "Audio file not found" on Windows: the check wanted a "/" (WO-046).
+        let base = r"C:\Users\me\.accompaniment\audio";
+        assert!(within(
+            r"C:\Users\me\.accompaniment\audio\song.mp3",
+            base,
+            "\\"
+        ));
+        assert!(within(base, base, "\\"));
+        assert!(!within(
+            r"C:\Users\me\.accompaniment\audio2\x.mp3",
+            base,
+            "\\"
+        ));
+        assert!(!within(r"C:\Users\me\.accompaniment\cues.json", base, "\\"));
+        assert!(within("/home/me/audio/a.mp3", "/home/me/audio", "/"));
+        assert!(!within("/home/me/audiox/a.mp3", "/home/me/audio", "/"));
     }
 }

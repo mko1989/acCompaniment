@@ -41,6 +41,9 @@ Linux version for now").
 - 2026-11-23: seen in two CI runs; the three tests are marked
   `todo: process.platform === 'linux' && 'WO-037: ...'`, so they still run (and must pass) on
   macOS and Windows.
+- 2026-11-24: on the owner's Ubuntu box (a real sound card), after WO-042 and WO-045, the three
+  tests marked for this pass, and the smoke suite passes 282/286 (the other fail is WO-047). The
+  lag is likely CI's PulseAudio null sink; still to be confirmed on CI.
 
 ## Decision
 Pending.

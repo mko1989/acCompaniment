@@ -30,6 +30,8 @@ playback tests pass; macOS unchanged.
 ## What has been done
 - 2026-11-24: the fix above; the reproduction test passes; on macOS the smoke, stop-and-fade and
   retrigger tests pass (53/53). Not yet run on Linux or Windows.
+- 2026-11-24: on the owner's Ubuntu box cues play, and the smoke suite passes 282/286 (1 fail,
+  WO-047; 3 todo, WO-037).
 
 ## Decision
 - 2026-11-24, Claude on the owner's delegation (ADR-016): fix as proposed.

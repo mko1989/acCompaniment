@@ -515,7 +515,7 @@ fn save_app_config(c: &mut Core, payload: &Value) -> Value {
 fn media_duration(c: &mut Core, path: &str) -> Result<Value, String> {
     let mut file = c.cm.afm.get_audio_file_by_path(path);
     if file.is_none()
-        && path.starts_with('/')
+        && crate::core::nodefs::is_absolute(path)
         && let Some(rel) = c.pm.to_relative_path(path)
     {
         file = c.cm.afm.get_audio_file_by_path(&rel);
