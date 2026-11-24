@@ -83,8 +83,9 @@ Then open http://localhost:3333. Settings: `PORT` (default 3333, or the port in 
 `npm start` builds and runs it in one step.
 
 The tray app (`rust/tray/`, Tauri) runs the server for you and lives in the menu bar / system
-tray: status, port, Open Browser UI, Configuration (change the port), Show Logs, Open Data
-Directory, Quit. It restarts the server after a crash, adopts a server already running on its
+tray: status, port, Open Browser UI, Restart Server, Show Logs, Open Data Directory, Quit. It
+has no window of its own: settings, the port included, are in the browser UI (Restart Server
+applies a changed port). It restarts the server after a crash, adopts a server already running on its
 port, and writes the server's output to `<data dir>/logs/accompaniment-server.log`.
 
 ```bash
@@ -171,8 +172,7 @@ Then open `http://<machine>:3333` from any browser on the network. The package's
 - `rust/app/` — the server: `src/server/` (HTTP, WebSocket), `src/core/` (cues, projects, media
   library, cue engine, playlist and retrigger logic, the mixer), `src/audio/` (devices,
   decoding, output)
-- `rust/tray/` — the tray app (Tauri): `src/supervisor.rs` runs the server, `ui/config.html` is
-  the configuration window
+- `rust/tray/` — the tray app (Tauri): `src/supervisor.rs` runs the server
 - `rust/` — the port's records: `MAP.md` (plan and state), `DECISIONS.md` (ADRs),
   `HANDOFF.md`, `app-cases/` (recorded HTTP behavior), `research/`
 - `src/frontend/` — browser UI
@@ -197,8 +197,7 @@ Then open `http://<machine>:3333` from any browser on the network. The package's
 *   `npm run test:smoke` - The API/WebSocket tests (`test/*.test.js`): each file starts its own
     server against an isolated temp data directory
 *   `npm run test:e2e` - The browser UI in Playwright (`test/e2e/`; each worker runs its own
-    server and every test starts from a clean slate), and the tray's config window
-    (`test/tray/`)
+    server and every test starts from a clean slate)
 *   `npm run test:audio` - The loopback audio suite (`test/audio/`): the server plays to a
     loopback audio device and the tests record what comes back, checking every playback option
     by ear - volume, fades, trims, loops, output routing, every retrigger behavior, pause, Stop

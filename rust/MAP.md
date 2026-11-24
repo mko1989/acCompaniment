@@ -68,7 +68,8 @@ Tauri tray app (ADR-008) and installers per platform (WO-011's lessons: build ea
 own runner).
 - done 2026-11-23: `rust/tray/` (Tauri 2.x): tray menu, config window (`ui/config.html`, WO-032),
   the supervisor (`src/supervisor.rs`: adopt, spawn, readiness, crash restarts, hung-orphan kill,
-  log with rotation, notifications), quit and SIGTERM stop the server. Tests: `cargo test` in
+  log with rotation, notifications), quit and SIGTERM stop the server. 2026-11-24: the config
+  window is removed (owner: a tray without a launcher window); Restart Server in its place. Tests: `cargo test` in
   `rust/tray` (9, against the real server binary), `test/tray/` (Playwright, the config window on
   a stubbed Tauri backend). macOS: `npm run bundle:tray` builds the `.app` and the DMG (x64 on
   this Mac; `CI=true` skips the Finder styling, which times out without automation access); the

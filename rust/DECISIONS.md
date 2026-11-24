@@ -234,3 +234,8 @@ the tray's own executable `acCompaniment` on a case-insensitive file system - th
 spawn itself in a loop. The tray passes the bundled UI and ffmpeg to the server
 (`ACCOMPANIMENT_FRONTEND_DIR`, `FFMPEG_PATH`); its config window drops the Interface setting
 (WO-032).
+
+Note 2026-11-24 (owner: "i thought we are just doing a tray without a launcher window"): the
+config window (`ui/config.html`, ported from the Electron launcher) is removed, with its Tauri
+commands and its Playwright test. The tray is a menu only: a click opens it on every platform.
+The port is set in the browser UI's settings; the menu's new Restart Server applies it.

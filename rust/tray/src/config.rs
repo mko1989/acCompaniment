@@ -43,6 +43,7 @@ pub fn configured_port(data_dir: &Path) -> Option<u16> {
         .filter(|p| *p != 0)
 }
 
+#[cfg(test)]
 /// Merges `changes` into the file (`Object.assign`), creating it and its folder if needed.
 pub fn merge_write(data_dir: &Path, changes: Map<String, Value>) -> Result<(), String> {
     let path = config_path(data_dir);

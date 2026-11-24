@@ -1,7 +1,7 @@
 //! acCompaniment's tray app (ADR-008, ADR-022): runs the server binary (`accompaniment`) as a
-//! child process, shows its state in the tray, and opens the browser UI and a small configuration
-//! window. Ported from the Electron launcher (removed in ADR-020); the process supervision is in
-//! `supervisor.rs`.
+//! child process, shows its state in the tray, and opens the browser UI. No window of its own
+//! (ADR-022 note, 2026-11-24): settings, the port included, are in the browser UI. The process
+//! supervision, ported from the Electron launcher, is in `supervisor.rs`.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -11,11 +11,9 @@ mod supervisor;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use serde::Serialize;
-use serde_json::{Map, Value};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
-use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Manager, RunEvent, State, WebviewUrl, WebviewWindowBuilder, Wry};
+use tauri::tray::{TrayIcon, TrayIconBuilder};
+use tauri::{AppHandle, Manager, RunEvent, Wry};
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_opener::OpenerExt;
@@ -111,7 +109,7 @@ fn build_menu(app: &AppHandle, s: &Status) -> tauri::Result<Menu<Wry>> {
             )?,
             &sep()?,
             &MenuItem::with_id(app, "browser", "Open Browser UI", s.running, None::<&str>)?,
-            &MenuItem::with_id(app, "config", "Configuration", true, None::<&str>)?,
+            &MenuItem::with_id(app, "restart", "Restart Server", true, None::<&str>)?,
             &sep()?,
             &MenuItem::with_id(app, "logs", "Show Logs", true, None::<&str>)?,
             &MenuItem::with_id(app, "datadir", "Open Data Directory", true, None::<&str>)?,
@@ -176,21 +174,12 @@ fn show_logs(app: &AppHandle) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
-fn show_config_window(app: &AppHandle) {
-    if let Some(win) = app.get_webview_window("config") {
-        let _ = win.unminimize();
-        let _ = win.show();
-        let _ = win.set_focus();
-        return;
-    }
-    let built = WebviewWindowBuilder::new(app, "config", WebviewUrl::App("config.html".into()))
-        .title("acCompaniment")
-        .inner_size(500.0, 600.0)
-        .resizable(false)
-        .build();
-    if let Err(e) = built {
-        show_error(app, "Could Not Open Configuration", e.to_string());
-    }
+/// Restarts the server, on the port now in the config: the browser UI's settings save it there
+/// (`httpRemotePort`), and a running server can't move to another port by itself.
+fn restart_server(app: &AppHandle) {
+    let sup = &app.state::<Arc<App>>().supervisor;
+    let port = config::configured_port(sup.data_dir()).unwrap_or(sup.status().port);
+    sup.set_port(port);
 }
 
 fn show_about(app: &AppHandle) {
@@ -206,8 +195,8 @@ fn show_about(app: &AppHandle) {
 fn on_menu(app: &AppHandle, id: &str) {
     let result = match id {
         "browser" => open_browser(app).map_err(|e| ("Server Not Running", e)),
-        "config" => {
-            show_config_window(app);
+        "restart" => {
+            restart_server(app);
             Ok(())
         }
         "logs" => show_logs(app).map_err(|e| ("Could Not Open Logs", e)),
@@ -227,102 +216,15 @@ fn on_menu(app: &AppHandle, id: &str) {
     }
 }
 
-// --- The config window's commands (rust/tray/ui/config.html) ---
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ServerStatus {
-    is_running: bool,
-    starting: bool,
-    port: u16,
-}
-
-#[tauri::command]
-fn get_server_status(app: State<'_, Arc<App>>) -> ServerStatus {
-    let s = app.supervisor.status();
-    ServerStatus {
-        is_running: s.running,
-        starting: s.starting,
-        port: s.port,
-    }
-}
-
-#[tauri::command]
-fn get_config(app: State<'_, Arc<App>>) -> Map<String, Value> {
-    config::read(app.supervisor.data_dir())
-}
-
-#[derive(Serialize)]
-struct UpdateResult {
-    success: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    error: Option<String>,
-}
-
-/// Saves the settings the window sends (only `httpRemotePort` - WO-032) and restarts a running
-/// server on a new port.
-#[tauri::command]
-fn update_config(app: State<'_, Arc<App>>, config_data: Map<String, Value>) -> UpdateResult {
-    let port = match config_data.get("httpRemotePort").map(Value::as_u64) {
-        Some(Some(p)) if (1..=65535).contains(&p) => p as u16,
-        _ => {
-            return UpdateResult {
-                success: false,
-                error: Some("The port must be a whole number from 1 to 65535.".into()),
-            };
-        }
-    };
-    let mut changes = Map::new();
-    changes.insert("httpRemotePort".into(), Value::from(port));
-    if let Err(e) = config::merge_write(app.supervisor.data_dir(), changes) {
-        return UpdateResult {
-            success: false,
-            error: Some(e),
-        };
-    }
-    if port != app.supervisor.status().port {
-        app.supervisor.set_port(port);
-    }
-    UpdateResult {
-        success: true,
-        error: None,
-    }
-}
-
-#[tauri::command]
-fn open_browser_ui(app: AppHandle) -> Result<(), String> {
-    open_browser(&app)
-}
-
-#[tauri::command]
-fn open_data_directory(app: AppHandle) -> Result<(), String> {
-    open_data_dir(&app)
-}
-
 fn build_tray(app: &AppHandle, status: Status) -> tauri::Result<TrayIcon> {
     let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/tray-icon.png"))?;
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(icon)
         .tooltip("acCompaniment Soundboard")
         .menu(&build_menu(app, &status)?)
-        // macOS opens the menu on a click, as the launcher's tray did; elsewhere a click opens
-        // the configuration and the menu is on the right button.
-        .show_menu_on_left_click(cfg!(target_os = "macos"))
+        // The menu on either button, everywhere: the tray has no window to open.
+        .show_menu_on_left_click(true)
         .on_menu_event(|app, event| on_menu(app, event.id().as_ref()))
-        .on_tray_icon_event(|tray, event| match event {
-            TrayIconEvent::Click {
-                button: MouseButton::Left,
-                button_state: MouseButtonState::Up,
-                ..
-            } => show_config_window(tray.app_handle()),
-            TrayIconEvent::DoubleClick {
-                button: MouseButton::Left,
-                ..
-            } => {
-                let _ = open_browser(tray.app_handle());
-            }
-            _ => {}
-        })
         .build(app)
 }
 
@@ -331,13 +233,6 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![
-            get_server_status,
-            get_config,
-            update_config,
-            open_browser_ui,
-            open_data_directory
-        ])
         .setup(|app| {
             let handle = app.handle().clone();
             let opts = Options {
@@ -381,7 +276,7 @@ fn main() {
         });
 
     app.run(|app, event| match event {
-        // Closing the config window leaves the tray running; only Quit (or a signal) ends it.
+        // The tray runs without windows; only Quit (or a signal) ends it.
         RunEvent::ExitRequested {
             code: None, api, ..
         } => api.prevent_exit(),
