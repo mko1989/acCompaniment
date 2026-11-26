@@ -56,5 +56,11 @@ ever generated WAVs. Added (all pass on the Mac; the smoke and e2e ones also run
   hand-over (as trigger and as bed), and the restart/stop/fade/do-nothing retriggers on a playlist.
 - `test/audio-ui/ui-playback.spec.js`: the same click in show mode, heard - three items back to back.
 
+2026-11-26 - CI run 45798716771 (d900b67): on windows-latest every new test passed (smoke 314/314,
+e2e green), including the mp3/flac/m4a/ogg playlists and the dropped-files playlist clicked in
+show mode. So neither the server nor the browser UI stops a playlist after each item on Windows as
+such; the cause is in what only the owner's laptop has. Still waiting for its server log and
+cues.json. (The new tests found two other things on Linux CI: WO-055, WO-056.)
+
 ## Decision
 Pending.

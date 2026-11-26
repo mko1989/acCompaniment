@@ -134,20 +134,11 @@ function renderPlaylistInProperties(propPlaylistItemsUl, propPlaylistFilePathDis
         propPlaylistItemsUl.appendChild(li);
     });
     
-    // Restore highlighting after re-rendering if there was a highlighted item
-    if (highlightedItemId) {
-        console.log(`[PropertiesSidebar] renderPlaylistInProperties: restoring highlight for itemId=${highlightedItemId}`);
-        // Use requestAnimationFrame to ensure DOM is ready
-        requestAnimationFrame(() => {
-            if (wantedHighlightItemId !== highlightedItemId) return;
-            const itemToHighlight = propPlaylistItemsUl.querySelector(`li[data-item-id="${highlightedItemId}"]`);
-            if (itemToHighlight) {
-                itemToHighlight.classList.add('playlist-item-playing');
-                console.log(`[PropertiesSidebar] renderPlaylistInProperties: successfully restored highlight`);
-            } else {
-                console.warn(`[PropertiesSidebar] renderPlaylistInProperties: could not find item to restore highlight`);
-            }
-        });
+    // Restore the highlight on the new list straight away (WO-056), unless it is no longer
+    // wanted (stopped meanwhile: WO-030).
+    if (highlightedItemId && wantedHighlightItemId === highlightedItemId) {
+        const itemToHighlight = propPlaylistItemsUl.querySelector(`li[data-item-id="${highlightedItemId}"]`);
+        if (itemToHighlight) itemToHighlight.classList.add('playlist-item-playing');
     }
     
     if (stagedPlaylistItems.length === 0 && propPlaylistFilePathDisplay) {
@@ -391,69 +382,19 @@ function _performHighlighting(cueId, playlistItemId, activePropertiesCueId, prop
     }
     
     wantedHighlightItemId = playlistItemId ?? null;
-    const stillWanted = () => wantedHighlightItemId === playlistItemId;
     const items = propPlaylistItemsUl.querySelectorAll('li.playlist-item');
-    console.log(`[PropertiesSidebar] Found ${items.length} playlist items to check`);
-    
+
+    // Only the items whose state changes are touched, right away: removing every highlight and
+    // putting the playing one back on a later frame made it flicker off on each time update,
+    // and stay off where frames run late (WO-056).
     let highlightedCount = 0;
-    
-    // First pass: remove all highlights
-    items.forEach((itemLi, index) => {
-        const wasHighlighted = itemLi.classList.contains('playlist-item-playing');
-        itemLi.classList.remove('playlist-item-playing');
-        
-        if (wasHighlighted) {
-            console.log(`[PropertiesSidebar] Removed highlight from item ${index}: id=${itemLi.dataset.itemId}`);
+    items.forEach((itemLi) => {
+        const playing = wantedHighlightItemId !== null && itemLi.dataset.itemId === wantedHighlightItemId;
+        if (itemLi.classList.contains('playlist-item-playing') !== playing) {
+            itemLi.classList.toggle('playlist-item-playing', playing);
         }
+        if (playing) highlightedCount++;
     });
-    
-    // Force a reflow to ensure CSS changes are applied (Mac M1 fix)
-    // eslint-disable-next-line no-unused-expressions
-    propPlaylistItemsUl.offsetHeight;
-    
-    // Second pass: add highlight if needed
-    if (playlistItemId !== null && playlistItemId !== undefined) {
-        items.forEach((itemLi, index) => {
-            const itemId = itemLi.dataset.itemId;
-            
-            if (itemId === playlistItemId) {
-                // Mac M1 specific fix: Use multiple strategies to ensure highlighting works
-                const applyHighlight = () => {
-                    if (!stillWanted()) return;
-                    itemLi.classList.add('playlist-item-playing');
-                    
-                    // Force a repaint by briefly changing a property
-                    const originalDisplay = itemLi.style.display;
-                    itemLi.style.display = 'none';
-                    itemLi.offsetHeight; // Force reflow
-                    itemLi.style.display = originalDisplay;
-                    
-                    // Verify the class was applied
-                    if (!itemLi.classList.contains('playlist-item-playing')) {
-                        console.warn(`[PropertiesSidebar] Class not applied on first try for item ${index}, retrying...`);
-                        setTimeout(() => {
-                            if (stillWanted()) itemLi.classList.add('playlist-item-playing');
-                        }, 10);
-                    }
-                };
-                
-                // Use requestAnimationFrame to ensure DOM is ready
-                requestAnimationFrame(() => {
-                    applyHighlight();
-                    // Double-check after a short delay for Mac M1
-                    setTimeout(() => {
-                        if (stillWanted() && !itemLi.classList.contains('playlist-item-playing')) {
-                            console.warn(`[PropertiesSidebar] Highlighting failed for item ${index}, forcing reapply...`);
-                            applyHighlight();
-                        }
-                    }, 50);
-                });
-                
-                highlightedCount++;
-                console.log(`[PropertiesSidebar] Highlighted item ${index}: id=${itemId}`);
-            }
-        });
-    }
     
     console.log(`[PropertiesSidebar] Highlighting complete: ${highlightedCount} items highlighted`);
 }

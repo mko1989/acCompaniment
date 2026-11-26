@@ -94,7 +94,10 @@ test('a human-length press on a playing cue\'s name still retriggers it', async 
     await enterShowMode(page);
     const button = cueButton(page, cue.id);
     const pressName = async () => {
-        const box = await button.locator('.cue-button-main-name').boundingBox();
+        // The name is redrawn on every time update: a measurement can land on an element that
+        // was just replaced and come back null (WO-055). Measure again until one lands.
+        let box = null;
+        for (let i = 0; i < 20 && !box; i++) box = await button.locator('.cue-button-main-name').boundingBox();
         await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
         await page.mouse.down();
         await page.waitForTimeout(150);

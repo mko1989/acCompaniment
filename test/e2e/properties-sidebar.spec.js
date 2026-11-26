@@ -212,6 +212,24 @@ test('playlist: stopping just after the playing item changes leaves nothing high
     }
 });
 
+test('playlist: the playing item stays highlighted - no flicker on every time update (WO-056)', async ({ page, request }) => {
+    const list = await createTestPlaylist(request, { itemCount: 2, itemDurationSec: 10 });
+    await openProperties(page, list.id);
+    await request.post(`/api/cues/${list.id}/trigger`);
+    const first = page.locator('#propPlaylistItems li.playlist-item').nth(0);
+    await expect(first).toHaveClass(/playlist-item-playing/);
+    await page.evaluate(() => {
+        const li = document.querySelectorAll('#propPlaylistItems li.playlist-item')[0];
+        window.__highlightLost = 0;
+        new MutationObserver(() => {
+            if (!li.classList.contains('playlist-item-playing')) window.__highlightLost++;
+        }).observe(li, { attributes: true, attributeFilter: ['class'] });
+    });
+    await page.waitForTimeout(2000); // ~20 time updates
+    expect(await page.evaluate(() => window.__highlightLost), 'times the highlight went off').toBe(0);
+    await request.post(`/api/cues/${list.id}/stop`);
+});
+
 test('delete asks for confirmation; cancelling keeps the cue', async ({ page, request }) => {
     const cue = await createTestCue(request, { name: 'Keep Me' });
     await openProperties(page, cue.id);
