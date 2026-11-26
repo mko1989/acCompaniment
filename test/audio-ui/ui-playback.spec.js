@@ -291,6 +291,26 @@ test('playlist ▶ and ◀ on a playing playlist switch the item you hear', asyn
     expect(take.a.level(1, prev + 0.2, prev + 0.6)).toBeLessThan(0.001);
 });
 
+test('show mode: a continue playlist clicked once plays every item, back to back (WO-054)', async ({ page, audio }) => {
+    const list = await audio.tonePlaylist([
+        { band: 0, durationSec: 1.6 }, { band: 1, durationSec: 1.6 }, { band: 2, durationSec: 1.6 },
+    ], { playlistPlayMode: 'continue' });
+    await openApp(page);
+    await enterShowMode(page);
+    const take = await audio.record(async (mark) => {
+        mark('click');
+        await cueButton(page, list).click();
+        await page.waitForTimeout(5600);
+    });
+    let at = take.at('click') - 0.05;
+    for (const band of [0, 1, 2]) {
+        const on = take.a.onset(band, { after: at });
+        expect(on, `item ${band + 1} is heard`).not.toBeNull();
+        if (band > 0) expect(on - at, `item ${band + 1} follows item ${band} without a gap`).toBeLessThan(0.1);
+        at = take.a.offset(band, { after: on + 0.2 });
+    }
+});
+
 // --- Remote page ------------------------------------------------------------------
 
 test('remote page: tapping a tile plays the cue; its Stop All stops it', async ({ page, audio }) => {

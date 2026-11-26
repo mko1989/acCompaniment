@@ -58,3 +58,5 @@ work orders" in [CLAUDE.md](../CLAUDE.md) for the workflow and template.
 | [WO-051](WO-051-relative-dir-test-across-drives.md) | The relative-data-dir test can't set up on Windows CI (temp folder on another drive) | Low | Done | - (tests only) |
 | [WO-052](WO-052-release-misses-installers.md) | The draft release gets only the headless packages, not the installers | High | Done | - (release) |
 | [WO-053](WO-053-windows-empty-console-window.md) | On Windows the tray app opens an empty console window | High | In progress | - (Windows) |
+| [WO-054](WO-054-windows-playlist-stops-after-each-item.md) | On Windows a playlist set to "Continue to next item" stops after each item | High | Open | - (Windows) |
+| [WO-055](WO-055-human-press-retrigger-intermittent.md) | A human-length press on a playing cue is sometimes not taken as a retrigger | Medium | Open | - (show mode) |

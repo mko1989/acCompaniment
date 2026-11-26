@@ -85,6 +85,26 @@ test('"Add as Single Playlist Cue" makes one playlist containing every file', as
     expect(cues[0].playlistItems.map((i) => i.name).sort()).toEqual(['First Song', 'Second Song']);
 });
 
+test('a playlist from several dropped files plays through on its own, in the order dropped (WO-054)', async ({ page, request }) => {
+    await openApp(page);
+    await dropFiles(page, '#cueGridContainer', ['Drop A.wav', 'Drop B.wav', 'Drop C.wav']);
+    await page.locator('#modalAddAsPlaylistCue').click();
+    await expect(page.locator('.cue-button')).toHaveCount(1);
+    const { cues: [list] } = await (await request.get('/api/cues')).json();
+    expect(list.type).toBe('playlist');
+    expect(list.playlistPlayMode).toBe('continue');
+    expect(list.playlistItems.map((i) => i.name)).toEqual(['Drop A', 'Drop B', 'Drop C']);
+
+    await page.locator('#modeToggleBtn').click();
+    await page.waitForFunction(() => document.getElementById('appContainer').classList.contains('show-mode'));
+    const button = cueButton(page, list.id);
+    await button.click();
+    await expect(button).toContainText('Now: Drop A');
+    await expect(button).toContainText('Now: Drop B', { timeout: 4000 });
+    await expect(button).toContainText('Now: Drop C', { timeout: 4000 });
+    await expect(button).not.toHaveClass(/playing/, { timeout: 4000 });
+});
+
 test('Cancel closes the dialog without adding anything', async ({ page, request }) => {
     await openApp(page);
     await pickFiles(page, writeWavFiles(['X.wav', 'Y.wav']));
