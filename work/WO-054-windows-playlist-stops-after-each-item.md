@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | Open |
+| Status | Awaiting decision |
 | Severity | High (playlists are unusable for background music on Windows) |
 | Feature | Playlist auto-advance (`playlistPlayMode: "continue"`): `rust/app/src/core/cue_engine.rs` (`handle_playlist_item_end`, `queue_next_item`), `rust/app/src/core/playlist_logic.rs` (`decide_item_end_with`) |
 | Opened | 2026-11-26, by the owner (v2.0.0-beta installer on the Windows laptop) |
@@ -62,5 +62,10 @@ show mode. So neither the server nor the browser UI stops a playlist after each 
 such; the cause is in what only the owner's laptop has. Still waiting for its server log and
 cues.json. (The new tests found two other things on Linux CI: WO-055, WO-056.)
 
+2026-11-26 - The owner tried it on another Windows laptop: "checked now on another windows laptop
+the playlist bug and i cant replicate it." So it is not Windows as such: it happened on one
+machine (its audio device, its files or its install) and has not been seen anywhere else.
+
 ## Decision
-Pending.
+Pending: keep it open until it happens again (with that laptop's log), or close it as not
+reproducible - the owner's call.

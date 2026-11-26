@@ -45,7 +45,7 @@ work orders" in [CLAUDE.md](../CLAUDE.md) for the workflow and template.
 | [WO-038](WO-038-windows-paths-not-recognised.md) | On Windows the server can't start: absolute Windows paths are taken as relative | Critical | In progress | - (Windows) |
 | [WO-039](WO-039-windows-static-path-traversal.md) | On Windows a request with `..\` could read files outside the browser UI folder | High | In progress | - (Windows; security) |
 | [WO-040](WO-040-typing-caret-jumps-on-update.md) | The cursor in a properties field can jump to the start when another cue is updated while typing | Medium | Open | - (intermittent) |
-| [WO-041](WO-041-trim-drag-not-saved.md) | Dragging the trim region on the waveform is sometimes not saved | Medium | Open | - (intermittent) |
+| [WO-041](WO-041-trim-drag-not-saved.md) | Dragging the trim region on the waveform is sometimes not saved (the test dragged before the sidebar had opened) | Low | Done | - (tests only) |
 | [WO-042](WO-042-linux-plays-to-alsa-null.md) | On Linux the app can pick ALSA's "null" device, so nothing is heard and cues end at once | Critical | Done | - (Linux) |
 | [WO-043](WO-043-tray-tests-need-staged-sidecar.md) | `npm run test:unit` fails on a fresh clone: the tray build needs the staged server | Low | Open | - (tests only) |
 | [WO-044](WO-044-rtaudio-needs-pulse-headers.md) | `npm ci` fails on Linux without the PulseAudio headers | Low | Open | - (tests only) |
@@ -58,6 +58,6 @@ work orders" in [CLAUDE.md](../CLAUDE.md) for the workflow and template.
 | [WO-051](WO-051-relative-dir-test-across-drives.md) | The relative-data-dir test can't set up on Windows CI (temp folder on another drive) | Low | Done | - (tests only) |
 | [WO-052](WO-052-release-misses-installers.md) | The draft release gets only the headless packages, not the installers | High | Done | - (release) |
 | [WO-053](WO-053-windows-empty-console-window.md) | On Windows the tray app opens an empty console window | High | In progress | - (Windows) |
-| [WO-054](WO-054-windows-playlist-stops-after-each-item.md) | On Windows a playlist set to "Continue to next item" stops after each item | High | Open | - (Windows) |
+| [WO-054](WO-054-windows-playlist-stops-after-each-item.md) | On Windows a playlist set to "Continue to next item" stops after each item | High | Awaiting decision | - (Windows) |
 | [WO-055](WO-055-human-press-retrigger-intermittent.md) | The human-length press test sometimes fails to find the cue name to press | Low | Done | - (tests only) |
 | [WO-056](WO-056-playlist-highlight-flickers.md) | The playing playlist item's highlight in the sidebar flickers off on every time update | Medium | Done | - (properties sidebar) |

@@ -21,19 +21,24 @@ async function openWaveform(page, request, overrides = {}) {
 }
 
 /**
- * Clicks the waveform at a fraction (0-1) of its width, i.e. seeks there.
- * Waits for the layout to settle first - the sidebar and bottom panel slide
- * in, and a box measured mid-animation puts the click in the wrong place.
+ * The element's box once it has stopped moving. The properties sidebar slides open (a 0.3 s
+ * width transition) and the waveform can be ready before it has finished: a box measured
+ * mid-slide puts a click or a drag somewhere else (WO-041).
  */
-async function clickAt(page, fraction, container = '#waveformDisplay') {
-    const locator = page.locator(container);
+async function settledBox(page, locator) {
     let box = await locator.boundingBox();
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 60; i++) {
         await page.waitForTimeout(50);
         const next = await locator.boundingBox();
-        if (next && box && next.x === box.x && next.width === box.width && next.y === box.y) break;
+        if (next && box && next.x === box.x && next.width === box.width && next.y === box.y) return next;
         box = next;
     }
+    return box;
+}
+
+/** Clicks the waveform at a fraction (0-1) of its width, i.e. seeks there. */
+async function clickAt(page, fraction, container = '#waveformDisplay') {
+    const box = await settledBox(page, page.locator(container));
     await page.mouse.click(box.x + box.width * fraction, box.y + box.height / 2);
 }
 
@@ -142,14 +147,11 @@ test('reopening a trimmed cue shows its trim region again', async ({ page, reque
     await expect(page.locator('#waveformDisplay [part~="region"]').first()).toBeAttached();
 });
 
-test('dragging the trim region saves the moved trim points', async ({ page, request }) => {
-    // Region drags are reported by WaveSurfer v7's Regions plugin; the editor
-    // used to listen for them on the WaveSurfer instance, so they never saved.
-    const cue = await openWaveform(page, request, { trimStartTime: 1, trimEndTime: 3 });
+async function dragRegion(page, request, cue) {
     const region = page.locator('#waveformDisplay [part~="region"]').first();
     await expect(region).toBeAttached();
-    const container = await page.locator('#waveformDisplay').boundingBox();
-    const box = await region.boundingBox();
+    const container = await settledBox(page, page.locator('#waveformDisplay'));
+    const box = await settledBox(page, region);
     const x = box.x + box.width / 2;
     const y = box.y + box.height / 2;
     await page.mouse.move(x, y);
@@ -161,6 +163,24 @@ test('dragging the trim region saves the moved trim points', async ({ page, requ
     await expect.poll(async () => (await getCue(request, cue.id)).trimStartTime).toBeGreaterThan(1.05);
     const moved = await getCue(request, cue.id);
     expect(moved.trimEndTime - moved.trimStartTime).toBeCloseTo(2, 1);
+}
+
+test('dragging the trim region saves the moved trim points', async ({ page, request }) => {
+    // Region drags are reported by WaveSurfer v7's Regions plugin; the editor
+    // used to listen for them on the WaveSurfer instance, so they never saved.
+    const cue = await openWaveform(page, request, { trimStartTime: 1, trimEndTime: 3 });
+    await dragRegion(page, request, cue);
+});
+
+test('dragging the trim region works when the waveform is ready before the sidebar has slid open (WO-041)', async ({ page, request }) => {
+    // A 3 s slide instead of 0.3 s: the waveform is always ready mid-slide, as it was on the
+    // CI Mac. The drag has to wait for the layout, like a user who sees where the region is.
+    const cue = await createTestCue(request, { durationSec: DURATION, trimStartTime: 1, trimEndTime: 3 });
+    await openApp(page);
+    await page.addStyleTag({ content: '#propertiesSidebar { transition: width 3s linear, padding 3s linear !important; }' });
+    await cueButton(page, cue.id).click();
+    await expect(page.locator('#wfTotalDuration')).toHaveText(/0:04\.0\d\d/, { timeout: 10000 });
+    await dragRegion(page, request, cue);
 });
 
 async function playheadSeconds(page) {
