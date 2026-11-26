@@ -23,5 +23,8 @@ To investigate: rerun with tracing uploaded from CI, and locally with CPU thrott
 ## What has been done
 - 2026-11-23: seen once in CI; opened.
 
+2026-11-26 - Failed again on macOS CI (run 45801699870, commit 281df0a): trimStartTime stayed 1
+(expected > 1.05 within 10 s), i.e. the drag was not saved at all; Linux and Windows passed.
+
 ## Decision
 Pending.
