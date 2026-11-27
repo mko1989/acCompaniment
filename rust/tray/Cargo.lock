@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "accompaniment-tray"
-version = "2.0.0-beta"
+version = "2.0.0-beta.2"
 dependencies = [
  "ctrlc",
  "serde",

@@ -1,6 +1,6 @@
 [package]
 name = "accompaniment-tray"
-version = "2.0.0-beta"
+version = "2.0.0-beta.2"
 edition = "2024"
 description = "acCompaniment's tray app: runs the server and opens its browser UI (ADR-022)"
 publish = false
